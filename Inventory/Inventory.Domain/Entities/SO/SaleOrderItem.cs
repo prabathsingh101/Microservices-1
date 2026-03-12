@@ -43,5 +43,11 @@ namespace Inventory.Domain.Entities.SO
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Total { get; set; } // Row final total [cite: 6]
+
+        [Column(TypeName = "datetime2")]
+        public DateTime? MfgDate { get; set; } // Manufacturing date
+
+        [Column(TypeName = "datetime2")]
+        public DateTime? ExpDate { get; set; } // Expiry date
     }
 }

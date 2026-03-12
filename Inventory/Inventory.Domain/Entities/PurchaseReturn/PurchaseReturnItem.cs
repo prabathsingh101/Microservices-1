@@ -18,4 +18,6 @@ public class PurchaseReturnItem
     public decimal TaxAmount { get; set; }
     // Navigation Property
     public PurchaseReturn PurchaseReturn { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }

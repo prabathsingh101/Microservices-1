@@ -26,5 +26,7 @@ namespace Inventory.Domain.Entities
         public Warehouse? Warehouse { get; set; }
         public Guid? RackId { get; set; }
         public Rack? Rack { get; set; }
+        public DateTime? MfgDate { get; set; }
+        public DateTime? ExpDate { get; set; }
     }
 }

@@ -12,6 +12,9 @@
         public Guid? WarehouseId { get; private set; }
         public Guid? RackId { get; private set; }
 
+        public DateTime? MfgDate { get; private set; }
+        public DateTime? ExpDate { get; private set; }
+
         public DateTime CreatedOn { get; private set; }
 
         protected InventoryTransaction() { }
@@ -22,7 +25,9 @@
             string transactionType,
             string referenceId,
             Guid? warehouseId = null,
-            Guid? rackId = null)
+            Guid? rackId = null,
+            DateTime? mfgDate = null,
+            DateTime? expDate = null)
         {
             Id = Guid.NewGuid();
             ProductId = productId;
@@ -31,6 +36,8 @@
             ReferenceId = referenceId;
             WarehouseId = warehouseId;
             RackId = rackId;
+            MfgDate = mfgDate;
+            ExpDate = expDate;
             CreatedOn = DateTime.UtcNow;
         }
     }

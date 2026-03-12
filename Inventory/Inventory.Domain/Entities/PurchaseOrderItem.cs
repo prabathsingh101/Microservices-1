@@ -12,6 +12,8 @@
     public decimal TaxAmount { get; set; }
     public decimal Total { get; set; }
     public decimal ReceivedQty {  get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 
     public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
 }

@@ -29,4 +29,6 @@ public class SaleReturnItem : BaseAuditableEntity
     // Business Logic Fields
     public string? Reason { get; set; } // Damaged, Wrong Delivery, Customer Unsatisfied
     public string? ItemCondition { get; set; } // Restockable ya Scrapped
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }
