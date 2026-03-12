@@ -25,7 +25,7 @@ namespace Company.API.Controllers
         }
 
         [HttpPost("create")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin ")]
         public async Task<IActionResult> Create([FromBody] UpsertCompanyRequest req)
         {
             var id = await _mediator.Send(new CreateCompanyCommand(req));
@@ -33,7 +33,7 @@ namespace Company.API.Controllers
         }
 
         [HttpPut("update/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] UpsertCompanyRequest req)
         {
             var resultId = await _mediator.Send(new UpdateCompanyCommand(id, req));
@@ -41,7 +41,7 @@ namespace Company.API.Controllers
         }
 
         [HttpGet("profile")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
         public async Task<IActionResult> GetProfile()
         {
             var result = await _mediator.Send(new GetCompanyProfileQuery());
@@ -50,7 +50,7 @@ namespace Company.API.Controllers
 
         // 2. Get By ID
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _mediator.Send(new GetCompanyByIdQuery(id));
@@ -58,7 +58,7 @@ namespace Company.API.Controllers
         }
 
         [HttpPost("paged")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
         public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
         {
             var result = await _mediator.Send(new GetCompaniesPagedQuery(request));
@@ -68,7 +68,7 @@ namespace Company.API.Controllers
         // 3. Delete Profile
         [HttpDelete("{id}")]
 
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var success = await _mediator.Send(new DeleteCompanyCommand(id));
@@ -76,7 +76,7 @@ namespace Company.API.Controllers
         }
 
         [HttpPost("upload-logo/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
         public async Task<IActionResult> UploadLogo(int id, IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
