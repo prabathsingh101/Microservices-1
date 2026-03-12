@@ -41,6 +41,7 @@ public sealed class GetProductsQueryHandler
             createdOn = p.CreatedOn,
             modifiedBy = p.ModifiedBy,
             modifiedOn = p.ModifiedOn,
+            isExpiryRequired = p.IsExpiryRequired
         }).ToList();
     }
 }

@@ -111,7 +111,7 @@ internal sealed class GetProductsPagedQueryHandler
                 p.CurrentStock,
                 p.DamagedStock,
                 p.DefaultGst,
-
+                p.IsExpiryRequired,
                 p.Description,
                 p.CreatedBy,
                 p.CreatedOn,
@@ -149,6 +149,7 @@ internal sealed class GetProductsPagedQueryHandler
             currentStock = p.CurrentStock,
             damagedStock = p.DamagedStock,
             defaultGst = p.DefaultGst,
+            isExpiryRequired = p.IsExpiryRequired,
 
             // 🆕 Mapping New Field
             discountPercent = p.DiscountPercent,

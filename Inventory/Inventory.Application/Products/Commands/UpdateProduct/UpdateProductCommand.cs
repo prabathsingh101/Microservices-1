@@ -23,5 +23,6 @@ public sealed record UpdateProductCommand(
     string productType,
     decimal damagedStock,
     Guid? defaultwarehouseid,
-    Guid? defaultrackid
+    Guid? defaultrackid,
+    bool isExpiryRequired
 ) : IRequest<Guid>;

@@ -46,8 +46,8 @@ internal sealed class UpdateProductCommandHandler
             request.productType,
             request.damagedStock,
             request.defaultwarehouseid,
-            request.defaultrackid
-            
+            request.defaultrackid,
+            request.isExpiryRequired
         );
 
         await _context.SaveChangesAsync(cancellationToken);

@@ -42,7 +42,8 @@ public sealed class GetProductByIdQueryHandler
             damagedStock = p.DamagedStock,
             productType = int.TryParse(p.ProductType, out var type) ? type : 1,
             defaultWarehouseId = p.DefaultWarehouseId,
-            defaultRackId = p.DefaultRackId
+            defaultRackId = p.DefaultRackId,
+            isExpiryRequired = p.IsExpiryRequired
         };
     }
 }

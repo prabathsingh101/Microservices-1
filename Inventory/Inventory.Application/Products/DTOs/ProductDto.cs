@@ -23,6 +23,7 @@ public sealed class ProductDto
     public int productType { get; set; }
     public bool trackInventory { get; set; }
     public bool? isActive { get; set; }
+    public bool isExpiryRequired { get; set; }
     public string? description { get; set; }
     public string? createdBy { get; set; }
     public DateTime? createdOn { get; set; } = DateTime.Now;

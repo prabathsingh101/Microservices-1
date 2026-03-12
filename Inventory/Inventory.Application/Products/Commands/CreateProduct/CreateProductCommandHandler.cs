@@ -40,7 +40,8 @@ public sealed class CreateProductCommandHandler
             request.productType,
             request.damagedStock,
             request.defaultwarehouseid,
-            request.defaultrackid
+            request.defaultrackid,
+            request.isExpiryRequired
         )
         {
 
