@@ -32,11 +32,11 @@ namespace Suppliers.Infrastructure.Persistence.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatetedBy")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("DefaultPriceListId")
                         .HasColumnType("uniqueidentifier");

@@ -22,7 +22,7 @@ public class GetAllSuppliersHandler : IRequestHandler<GetAllSuppliersQuery, IEnu
             s.Address,
             s.Email,
             s.IsActive,
-            s.CreatetedBy,
+            s.CreatedBy,
             s.DefaultPriceListId
         ));
     }

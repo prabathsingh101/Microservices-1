@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Suppliers.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddEmailSuppliers : Migration
+    public partial class AddCreatedBySuppliers : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -65,7 +65,7 @@ namespace Suppliers.Infrastructure.Persistence.Migrations
                     Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DefaultPriceListId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatetedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UpdatedDate = table.Column<DateTime>(type: "datetime2", nullable: true)

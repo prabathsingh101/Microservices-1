@@ -11,7 +11,7 @@
     public Guid? DefaultPriceListId { get; private set; } // Type Guid? fix kiya gaya
 
     public bool IsActive { get; private set; } = true;
-    public string? CreatetedBy { get; set; }
+    public string? CreatedBy { get; set; }
     public DateTime? CreatedDate { get; set; } = DateTime.Now;
     public string? UpdatedBy { get; set; }
     public DateTime? UpdatedDate { get; set; } = DateTime.Now;
@@ -25,7 +25,7 @@
         string? gstin,
         string? address,
         string? email,
-        string? createtedby,
+        string? createdBy,
         bool isActive,
         Guid? defaultPriceListId = null // Guid? type use karein
         )
@@ -35,7 +35,7 @@
         GstIn = gstin;
         Address = address;
         Email = email;
-        CreatetedBy = createtedby;
+        CreatedBy = createdBy;
         IsActive = isActive;
         DefaultPriceListId = defaultPriceListId;
         CreatedDate = DateTime.Now;

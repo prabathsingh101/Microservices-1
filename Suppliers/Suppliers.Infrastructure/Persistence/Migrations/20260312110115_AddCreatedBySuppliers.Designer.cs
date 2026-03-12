@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Suppliers.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SupplierDbContext))]
-    [Migration("20260227075133_AddEmailSuppliers")]
-    partial class AddEmailSuppliers
+    [Migration("20260312110115_AddCreatedBySuppliers")]
+    partial class AddCreatedBySuppliers
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -35,11 +35,11 @@ namespace Suppliers.Infrastructure.Persistence.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatetedBy")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("DefaultPriceListId")
                         .HasColumnType("uniqueidentifier");
