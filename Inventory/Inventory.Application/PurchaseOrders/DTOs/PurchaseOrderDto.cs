@@ -1,4 +1,4 @@
-﻿public class PurchaseOrderDto
+public class PurchaseOrderDto
 {
     public int Id { get; set; }
     public string PoNumber { get; set; }
@@ -6,6 +6,7 @@
     public string SupplierName { get; set; }
     public Guid PriceListId { get; set; }
     public DateTime PoDate { get; set; }
+    public decimal TotalQuantity { get; set; }
     public decimal TotalTax { get; set; }
     public decimal GrandTotal { get; set; }
     public decimal SubTotal { get; set; }
@@ -33,8 +34,12 @@
             SupplierName = entity.SupplierName,
             PriceListId = entity.PriceListId,
             PoDate = entity.PoDate,
+            TotalQuantity = entity.TotalQuantity,
             TotalTax = entity.TotalTax,
+            SubTotal = entity.SubTotal,
             GrandTotal = entity.GrandTotal,
+            Remarks = entity.Remarks,
+            ExpectedDeliveryDate = entity.ExpectedDeliveryDate,
             Status = entity.Status,
             CreatedBy = entity.CreatedBy,
             UpdatedBy = entity.UpdatedBy,

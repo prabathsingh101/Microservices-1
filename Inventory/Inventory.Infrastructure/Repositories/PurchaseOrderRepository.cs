@@ -1,4 +1,4 @@
-﻿using DinkToPdf;
+using DinkToPdf;
 using DinkToPdf.Contracts;
 using Inventory.Application.Clients;
 using Inventory.Application.Clients.DTOs;
@@ -235,6 +235,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
         if (po != null)
         {
+            // 0. TotalQuantity
+            po.TotalQuantity = items.Sum(x => x.Qty);
+
             // 1. SubTotal hamesha (Total - TaxAmount) hona chahiye agar aapke DB mein Total inclusive hai
             // Ya phir agar aapke paas TaxableAmount ka alag column hai toh wo use karein.
             po.SubTotal = items.Sum(x => x.Total - x.TaxAmount);

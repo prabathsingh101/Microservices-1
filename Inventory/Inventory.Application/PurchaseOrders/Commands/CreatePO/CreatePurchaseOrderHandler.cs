@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.PurchaseOrders.Queries.GetNextPoNumber;
 using Inventory.Application.Services;
@@ -47,6 +47,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     SupplierName = dto.SupplierName,
                     PriceListId = dto.PriceListId,
                     PoDate = dto.PoDate,
+                    TotalQuantity = dto.TotalQuantity,
                     TotalTax = dto.TotalTax,
                     SubTotal = dto.SubTotal,
                     GrandTotal = dto.GrandTotal,

@@ -1,10 +1,11 @@
-﻿public record CreatePurchaseOrderDto(
+public record CreatePurchaseOrderDto(
     int SupplierId,
     string SupplierName,
     Guid PriceListId,
     DateTime PoDate,
     DateTime? ExpectedDeliveryDate,
     string Remarks,
+    decimal TotalQuantity,
     decimal TotalTax,
     decimal SubTotal,
     decimal GrandTotal,

@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.GRN.DTOs;
 using Inventory.Application.GRN.DTOs.Stock;
@@ -185,12 +185,10 @@ namespace Inventory.Infrastructure.Repositories
                                 "GRN",
                                 header.GRNNumber,
                                 item.WarehouseId,
-                                item.RackId
+                                item.RackId,
+                                item.MfgDate,
+                                item.ExpDate
                             );
-                            // Note: Since header.Id is int and InventoryTransaction.ReferenceId is Guid, 
-                            // we might need to adjust or just store it as string if needed.
-                            // For now, using Guid.Empty or making it flexible.
-                            
                             await _context.InventoryTransactions.AddAsync(transactionRecord);
 
                             // Low Stock Alert check
@@ -737,7 +735,9 @@ namespace Inventory.Infrastructure.Repositories
                                     "GRN-BULK",
                                     newGrnNumber,
                                     grnDetail.WarehouseId,
-                                    grnDetail.RackId
+                                    grnDetail.RackId,
+                                    reqItem?.MfgDate,
+                                    reqItem?.ExpDate
                                 );
                                 await _context.InventoryTransactions.AddAsync(transactionRecord);
                             }

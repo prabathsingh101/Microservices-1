@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using MediatR;
 
 namespace Inventory.Application.PurchaseOrders.Commands.Update
@@ -34,6 +34,7 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
             po.ExpectedDeliveryDate = dto.ExpectedDeliveryDate;
             po.Remarks = dto.Remarks;
             po.PoNumber = dto.PoNumber;
+            po.TotalQuantity = dto.TotalQuantity;
             po.TotalTax = dto.TotalTax;
             po.GrandTotal = dto.GrandTotal;
             po.SubTotal = dto.SubTotal;
@@ -70,6 +71,8 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
                         existingItem.GstPercent = itemDto.GstPercent;
                         existingItem.TaxAmount = itemDto.TaxAmount;
                         existingItem.Total = itemDto.Total;
+                        existingItem.MfgDate = itemDto.ManufacturingDate;
+                        existingItem.ExpDate = itemDto.ExpiryDate;
                     }
                     else
                     {
@@ -84,7 +87,9 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
                             DiscountPercent = itemDto.DiscountPercent,
                             GstPercent = itemDto.GstPercent,
                             TaxAmount = itemDto.TaxAmount,
-                            Total = itemDto.Total
+                            Total = itemDto.Total,
+                            MfgDate = itemDto.ManufacturingDate,
+                            ExpDate = itemDto.ExpiryDate
                         });
                     }
                 }

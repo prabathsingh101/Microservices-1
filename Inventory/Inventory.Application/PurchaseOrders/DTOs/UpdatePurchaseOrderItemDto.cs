@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -15,5 +15,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public decimal GstPercent { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal Total { get; set; }
+        public DateTime? ManufacturingDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
     }
 }

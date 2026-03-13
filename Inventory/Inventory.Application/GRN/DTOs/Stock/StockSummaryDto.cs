@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Inventory.Application.GRN.DTOs.Stock
@@ -23,6 +23,9 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public Guid? RackId { get; set; }
         public string? RackName { get; set; }
 
+        public DateTime? ManufacturingDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+
         public List<StockHistoryDto> History { get; set; } = new List<StockHistoryDto>();
     }
 
@@ -37,5 +40,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public decimal RejectedQty { get; set; }
         public string? WarehouseName { get; set; }
         public string? RackName { get; set; }
+        public DateTime? ManufacturingDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
     }
 }

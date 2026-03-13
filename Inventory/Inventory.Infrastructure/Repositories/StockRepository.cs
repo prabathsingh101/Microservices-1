@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.GRN.DTOs.Stock;
 using Inventory.Infrastructure.Persistence;
@@ -364,6 +364,7 @@ namespace Inventory.Infrastructure.Repositories
 
                     LastRate = group.OrderByDescending(x => x.Id).Select(x => x.UnitRate).FirstOrDefault(),
                     LastPurchaseOrderId = group.OrderByDescending(x => x.Id).Select(x => x.GRNHeader.PurchaseOrderId).FirstOrDefault()
+                    // ManufacturingDate & ExpiryDate: computed in STEP 4 loop (earliest expiry batch logic)
                 });
 
             // STEP 3: Search & Sorting
@@ -401,17 +402,42 @@ namespace Inventory.Infrastructure.Repositories
                 item.TotalSold = grossSold - totalSaleReturn;
                 
                 // 🎯 5. Final Stock Update: (GRN Received - Rej) - Net Sold
-                // Purchase Return is already deducted from GRNDetails by PurchaseReturnRepository, so we don't subtract it again.
                 item.AvailableStock = (item.TotalReceived - item.TotalRejected) - item.TotalSold;
 
-                // 4. Audit Trail Logic (History list)
+                // 6. BUSINESS RULE: Main row mein sabse pehle expire hone wali batch dikhao
+                //    (Nearest/Earliest expiry = most urgent alert for user)
+                var earliestBatch = await _context.GRNDetails
+                    .Where(g => g.ProductId == item.ProductId && g.ExpDate != null)
+                    .OrderBy(g => g.ExpDate)       // Ascending = earliest first
+                    .Select(g => new { g.MfgDate, g.ExpDate })
+                    .FirstOrDefaultAsync();
+
+                if (earliestBatch != null)
+                {
+                    item.ManufacturingDate = earliestBatch.MfgDate;
+                    item.ExpiryDate = earliestBatch.ExpDate;
+                }
+                else
+                {
+                    // Fallback: koi expiry date nahi hai, latest GRN ki date lo
+                    var latestBatch = await _context.GRNDetails
+                        .Where(g => g.ProductId == item.ProductId)
+                        .OrderByDescending(g => g.Id)
+                        .Select(g => new { g.MfgDate, g.ExpDate })
+                        .FirstOrDefaultAsync();
+                    item.ManufacturingDate = latestBatch?.MfgDate;
+                    item.ExpiryDate = latestBatch?.ExpDate;
+                }
+
+                // 7. Audit Trail History — ReceivedDate UTC se IST (India Standard Time = UTC+5:30) mein convert
                 item.History = await _context.GRNDetails
                     .Where(g => g.ProductId == item.ProductId)
                     .OrderByDescending(g => g.GRNHeader.ReceivedDate)
                     .Take(10)
                     .Select(allG => new StockHistoryDto
                     {
-                        ReceivedDate = allG.GRNHeader.ReceivedDate,
+                        // UTC + 5:30 = IST
+                        ReceivedDate = allG.GRNHeader.ReceivedDate.AddHours(5).AddMinutes(30),
                         PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
                         GRNNumber = allG.GRNHeader.GRNNumber,
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
@@ -419,7 +445,9 @@ namespace Inventory.Infrastructure.Repositories
                         ReceivedQty = allG.ReceivedQty,
                         RejectedQty = allG.RejectedQty,
                         WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
-                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A"
+                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
+                        ManufacturingDate = allG.MfgDate,
+                        ExpiryDate = allG.ExpDate
                     }).ToListAsync();
             }
 

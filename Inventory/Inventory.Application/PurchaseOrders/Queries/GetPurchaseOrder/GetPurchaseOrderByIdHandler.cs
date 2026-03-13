@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using MediatR;
 
 namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
@@ -29,6 +29,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 PriceListId = po.PriceListId,
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 Remarks = po.Remarks,
+                TotalQuantity = po.TotalQuantity,
                 TotalTax = po.TotalTax,
                 SubTotal= po.SubTotal,
                 GrandTotal = po.GrandTotal,

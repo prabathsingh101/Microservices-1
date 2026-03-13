@@ -1,4 +1,4 @@
-﻿namespace Inventory.Application.PurchaseOrders.DTOs
+namespace Inventory.Application.PurchaseOrders.DTOs
 {
     public class UpdatePurchaseOrderDto
     {
@@ -15,6 +15,7 @@
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
         public string? UpdatedBy { get; set; }
+        public decimal TotalQuantity { get; set; }
         public decimal TotalTax { get; set; }
         public decimal GrandTotal { get; set; }
         public decimal SubTotal { get; set; }

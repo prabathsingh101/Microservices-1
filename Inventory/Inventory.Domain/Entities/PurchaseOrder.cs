@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 using Inventory.Domain.PriceLists;
 using System.Net.NetworkInformation;
 
@@ -13,6 +13,7 @@ public class PurchaseOrder
     public DateTime PoDate { get; set; }
     public DateTime? ExpectedDeliveryDate { get; set; }
     public string ? Remarks { get; set; }
+    public decimal TotalQuantity { get; set; } //
     public decimal TotalTax { get; set; } //
     public decimal SubTotal { get; set; } //
     public decimal GrandTotal { get; set; } //
@@ -42,7 +43,8 @@ public class PurchaseOrder
     public void RecalculateTotals()
     {
         // Items table se naya total calculate karna
-        this.SubTotal = this.Items.Sum(x => x.Total);
+        this.TotalQuantity = this.Items.Sum(x => x.Qty);
+        this.SubTotal = this.Items.Sum(x => x.Total - x.TaxAmount);
         this.TotalTax = this.Items.Sum(x => x.TaxAmount);
         this.GrandTotal = this.SubTotal + this.TotalTax;
         this.UpdatedDate = DateTime.UtcNow;
