@@ -47,8 +47,9 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                     GstPercent = i.GstPercent,
                     TaxAmount = i.TaxAmount,
                     Total = i.Total,
-                    MfgDate = i.MfgDate,
-                    ExpDate = i.ExpDate
+                    ManufacturingDate = i.MfgDate,
+                    ExpiryDate = i.ExpDate,
+                    IsExpiryRequired = i.Product != null ? i.Product.IsExpiryRequired : false
                 }).ToList()
             };
         }

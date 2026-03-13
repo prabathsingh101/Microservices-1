@@ -81,8 +81,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
 
                         // Pending = (Ordered - NetReceived)
                         PendingQty = item.Qty - item.ReceivedQty,
-                        MfgDate = item.MfgDate,
-                        ExpDate = item.ExpDate,
+                        ManufacturingDate = item.MfgDate,
+                        ExpiryDate = item.ExpDate,
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false
                     };
                 }).ToList()
