@@ -1,4 +1,4 @@
-﻿using Inventory.Application.GRN.DTOs.Stock;
+using Inventory.Application.GRN.DTOs.Stock;
 
 namespace Inventory.Application.GRN.DTOs
 {
@@ -17,6 +17,8 @@ namespace Inventory.Application.GRN.DTOs
         public decimal PaidAmount { get; set; }   // Already paid
                                            // Yeh do fields expansion aur badge logic ke liye zaroori hain
         public decimal TotalRejected { get; set; }
+        public decimal TotalActualRejected { get; set; }
+        public decimal TotalExpired { get; set; }
         public List<GRNItemSummaryDto> Items { get; set; } = new List<GRNItemSummaryDto>();
     }
     // Paged Response [cite: 2026-01-22]

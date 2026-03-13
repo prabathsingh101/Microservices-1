@@ -471,19 +471,26 @@ namespace Inventory.Infrastructure.Repositories
                     // FIX: Pending calculation for historical view
                     // Hum PO Item ki cumulative 'ReceivedQty' ke bajaye transaction level logic use karenge
                     // Pending = Total Ordered - Jo is GRN tak total receive ho chuka tha
-                    PendingQty = d.OrderedQty - (
+                    // FIX: Pending logic should only apply to actual PO items (OrderedQty > 0)
+                    PendingQty = d.OrderedQty > 0 ? (d.OrderedQty - (
                         _context.GRNDetails
                             .Where(prev => prev.ProductId == d.ProductId &&
                                            prev.GRNHeader.PurchaseOrderId == g.PurchaseOrderId &&
                                            prev.GRNHeader.CreatedOn <= g.CreatedOn)
-                            .Sum(prev => prev.ReceivedQty)
-                    ),
+                            .Sum(prev => prev.ReceivedQty - prev.RejectedQty)
+                    )) : 0,
 
                     RejectedQty = d.RejectedQty,
-                    UnitRate = d.UnitRate
+                    ActualRejectedQty = (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired"))) ? 0 : d.RejectedQty,
+                    ExpiredQty = (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired"))) ? d.RejectedQty : 0,
+                    UnitRate = d.UnitRate,
+                    RackName = d.Rack.Name,
+                    IsExpired = (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired")))
                 }).ToList(),
 
-                TotalRejected = g.GRNItems.Sum(d => d.RejectedQty)
+                TotalRejected = g.GRNItems.Sum(d => d.RejectedQty),
+                TotalActualRejected = g.GRNItems.Where(d => !(d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired")))).Sum(d => d.RejectedQty),
+                TotalExpired = g.GRNItems.Where(d => (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired")))).Sum(d => d.RejectedQty)
             });
 
             // 3. Sorting Fix

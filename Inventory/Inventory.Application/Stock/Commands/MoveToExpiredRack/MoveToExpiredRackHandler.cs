@@ -79,7 +79,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 if (existingExpiredBatch != null)
                 {
                     existingExpiredBatch.ReceivedQty += toMove;
-                    existingExpiredBatch.AcceptedQty += toMove;
+                    existingExpiredBatch.RejectedQty += toMove; // Mark as rejected in the expired rack
+                    existingExpiredBatch.AcceptedQty = 0; // Ensure not accepted
                 }
                 else
                 {
@@ -95,8 +96,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                         RackId = targetRack.Id,
                         WarehouseId = targetRack.WarehouseId,
                         OrderedQty = 0,
-                        AcceptedQty = toMove,
-                        RejectedQty = 0,
+                        AcceptedQty = 0, // Not accepted
+                        RejectedQty = toMove, // Mark as rejected
                         PendingQty = 0
                     };
                     _context.GRNDetails.Add(newBatch);
