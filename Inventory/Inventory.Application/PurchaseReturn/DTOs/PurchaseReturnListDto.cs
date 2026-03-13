@@ -1,4 +1,4 @@
-﻿
+
 public class PurchaseReturnListDto
 {
     public Guid Id { get; set; }
@@ -9,6 +9,7 @@ public class PurchaseReturnListDto
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Completed";
     public string? GatePassNo { get; set; }
+    public bool IsQuick { get; set; }
 }
 
 public class PurchaseReturnPagedResponse

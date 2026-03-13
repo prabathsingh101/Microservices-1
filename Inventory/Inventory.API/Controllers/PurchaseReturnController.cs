@@ -1,4 +1,4 @@
-﻿using Inventory.Application.PurchaseReturn;
+using Inventory.Application.PurchaseReturn;
 using Inventory.Application.PurchaseReturn.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -100,6 +100,7 @@ namespace Inventory.API.Controllers
                     Remarks = returnDto.Remarks,
                     GrandTotal = 0,
                     Status = "Confirmed",
+                    IsQuick = returnDto.IsQuick, // Map from DTO
                     Items = new List<Inventory.Domain.Entities.PurchaseReturnItem>()
                 };
 
@@ -152,7 +153,8 @@ namespace Inventory.API.Controllers
              [FromQuery] DateTime? toDate = null,
              [FromQuery] string? status = null,
              [FromQuery] string? sortField = "ReturnDate",
-             [FromQuery] string? sortOrder = "desc")
+             [FromQuery] string? sortOrder = "desc",
+             [FromQuery] bool isQuick = false)
         {
             // Repository ko saare parameters pass karein [cite: 2026-02-04]
             var result = await _repository.GetPurchaseReturnsAsync(
@@ -163,7 +165,8 @@ namespace Inventory.API.Controllers
                 toDate,
                 status,
                 sortField,
-                sortOrder);
+                sortOrder,
+                isQuick);
 
             return Ok(result);
         }

@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Inventory.Application.Clients;
 using Inventory.Application.PurchaseReturn;
 using Inventory.Application.PurchaseReturn.DTOs;
@@ -237,12 +237,18 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     DateTime? toDate = null,
     string? status = null,
     string? sortField = "ReturnDate",
-    string? sortOrder = "desc")
+    string? sortOrder = "desc",
+    bool isQuick = false)
     {
         // 1. Initial Query with NoTracking for high performance
         var query = _context.PurchaseReturns
             .AsNoTracking()
             .AsQueryable();
+
+        if (isQuick)
+        {
+            query = query.Where(x => x.IsQuick == true);
+        }
 
         // 2. Date Filtering Logic
         if (fromDate.HasValue)
@@ -345,7 +351,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             GrnRef = grnLookup.GetValueOrDefault(x.Id, "N/A"),
             TotalAmount = x.GrandTotal,
             Status = "Completed",
-            GatePassNo = x.GatePassNo
+            GatePassNo = x.GatePassNo,
+            IsQuick = x.IsQuick
         }).ToList();
 
         return new PurchaseReturnPagedResponse { Items = items, TotalCount = totalCount };
@@ -428,6 +435,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             Status = "Completed", // Existing requirement status fix
             Remarks = purchaseReturn.Remarks,
             Items = itemDtos,
+            IsQuick = purchaseReturn.IsQuick,
             SubTotal = purchaseReturn.SubTotal,
             TaxAmount = purchaseReturn.TotalTax,
             GrandTotal = purchaseReturn.GrandTotal

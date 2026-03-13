@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,6 +14,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public string SupplierName { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public string Status { get; set; }
+        public bool IsQuick { get; set; }
         public decimal GrandTotal { get; set; }
         public decimal SubTotal { get; set; }
         public decimal GstAmount { get; set; }

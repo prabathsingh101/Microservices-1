@@ -1,4 +1,4 @@
-﻿using Inventory.Application.PurchaseReturn;
+using Inventory.Application.PurchaseReturn;
 using Inventory.Application.PurchaseReturn.DTOs;
 using System;
 using System.Collections.Generic;
@@ -27,7 +27,8 @@ public interface IPurchaseReturnRepository
        DateTime? toDate = null,
        string? status = null,
        string? sortField = "ReturnDate",
-       string? sortOrder = "desc");
+       string? sortOrder = "desc",
+       bool isQuick = false);
 
     Task<PurchaseReturnDetailDto?> GetPurchaseReturnByIdAsync(Guid id);
 

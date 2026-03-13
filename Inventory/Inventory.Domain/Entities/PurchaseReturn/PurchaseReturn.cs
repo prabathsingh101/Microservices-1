@@ -1,4 +1,4 @@
-﻿namespace Inventory.Domain.Entities;
+namespace Inventory.Domain.Entities;
 
 public class PurchaseReturn
 {
@@ -12,6 +12,8 @@ public class PurchaseReturn
     public string Remarks { get; set; }
     public string Status { get; set; } // "Draft" or "Confirmed" [cite: 2026-02-03]
     public string? GatePassNo { get; set; }
+    public bool IsQuick { get; set; } // Flag to identify quick return workflow
+
 
     // Navigation Property
     public ICollection<PurchaseReturnItem> Items { get; set; }

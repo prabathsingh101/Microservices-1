@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -9,6 +9,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public int SupplierId { get; set; } // Changed to int [cite: 2026-02-03]
         public DateTime ReturnDate { get; set; }
         public string Remarks { get; set; }
+        public bool IsQuick { get; set; }
         public List<PurchaseReturnItemDto> Items { get; set; }
     }
 

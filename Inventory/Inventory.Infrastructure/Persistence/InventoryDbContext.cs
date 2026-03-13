@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 using Inventory.Domain.Entities.SO;
 using Inventory.Domain.PriceLists;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +55,7 @@ public sealed class InventoryDbContext : DbContext,
             builder.Property(x => x.PoNumber).IsRequired().HasMaxLength(50); //
             builder.Property(x => x.SubTotal).HasPrecision(18, 2);
             builder.Property(x => x.TotalTax).HasPrecision(18, 2);
+            builder.Property(x => x.TotalQuantity).HasPrecision(18, 2);
             builder.Property(x => x.GrandTotal).HasPrecision(18, 2);
 
             // Mapping Private Field for DDD
