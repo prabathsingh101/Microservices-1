@@ -388,7 +388,10 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             ProductName = poi.Product?.Name,
             OrderedQty = poi.Qty,
             UnitPrice = poi.Rate,
-            AlreadyReceivedQty = receivedQuantities.FirstOrDefault(rq => rq.ProductId == poi.ProductId)?.Total ?? 0
+            AlreadyReceivedQty = receivedQuantities.FirstOrDefault(rq => rq.ProductId == poi.ProductId)?.Total ?? 0,
+            ManufacturingDate = poi.MfgDate,
+            ExpiryDate = poi.ExpDate,
+            IsExpiryRequired = poi.Product?.IsExpiryRequired ?? false
         }).ToList();
     }
 

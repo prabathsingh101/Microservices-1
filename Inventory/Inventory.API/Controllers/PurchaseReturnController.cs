@@ -115,7 +115,9 @@ namespace Inventory.API.Controllers
                         GrnRef = item.GrnRef,
                         ReturnQty = item.ReturnQty,
                         Rate = item.Rate,
-                        TotalAmount = itemTotal
+                        TotalAmount = itemTotal,
+                        MfgDate = item.MfgDate,
+                        ExpDate = item.ExpDate
                     });
                 }
 

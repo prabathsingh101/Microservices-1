@@ -407,7 +407,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                   GstPercent = pri.GstPercent,
                                   DiscountPercent = pri.DiscountPercent,
                                   TaxAmount = pri.TaxAmount,
-                                  TotalAmount = pri.TotalAmount
+                                  TotalAmount = pri.TotalAmount,
+                                  MfgDate = pri.MfgDate,
+                                  ExpDate = pri.ExpDate
                               }).ToListAsync();
 
         // 3. Supplier Name fetch karein

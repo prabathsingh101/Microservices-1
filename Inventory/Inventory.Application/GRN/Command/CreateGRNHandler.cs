@@ -57,6 +57,8 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             Total = i.TotalAmount,
             WarehouseId = i.WarehouseId,
             RackId = i.RackId,
+            MfgDate = i.ManufacturingDate,
+            ExpDate = i.ExpiryDate,
             UpdatedOn = DateTime.Now
         }).ToList();
 

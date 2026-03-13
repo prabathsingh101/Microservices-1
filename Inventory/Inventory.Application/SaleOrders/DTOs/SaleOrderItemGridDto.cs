@@ -8,4 +8,6 @@ public class SaleOrderItemGridDto
     public decimal Rate { get; set; } // Table "Rate" column
     public decimal DiscountPercent { get; set; } // Table "Disc %" column
     public decimal TaxPercentage { get; set; } // Table "Tax %" column
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }

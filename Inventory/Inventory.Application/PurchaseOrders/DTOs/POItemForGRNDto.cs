@@ -11,5 +11,8 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public decimal OrderedQty { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal AlreadyReceivedQty { get; set; }
+        public DateTime? ManufacturingDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        public bool IsExpiryRequired { get; set; }
     }
 }

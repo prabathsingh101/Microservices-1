@@ -327,6 +327,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 Rate = x.Rate,
                 DiscountPercent = x.DiscountPercent,
                 TaxPercentage = x.GSTPercent,
+                MfgDate = x.MfgDate,
+                ExpDate = x.ExpDate,
 
                 // CRITICAL FIX: Original Sold (10) minus Already Returned (5) = Display (5)
                 // Isse user ko wahi dikhega jo uske paas bacha hai

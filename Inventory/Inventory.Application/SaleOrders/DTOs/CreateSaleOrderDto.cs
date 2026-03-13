@@ -31,5 +31,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal TaxAmount { get; set; }
         public decimal Total { get; set; }
         public string? RackName { get; set; }
+        public DateTime? ManufacturingDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
     }
 }

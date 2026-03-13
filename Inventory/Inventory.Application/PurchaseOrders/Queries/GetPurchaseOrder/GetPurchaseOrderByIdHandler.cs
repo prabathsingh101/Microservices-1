@@ -45,7 +45,9 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                     DiscountPercent = i.DiscountPercent,
                     GstPercent = i.GstPercent,
                     TaxAmount = i.TaxAmount,
-                    Total = i.Total
+                    Total = i.Total,
+                    MfgDate = i.MfgDate,
+                    ExpDate = i.ExpDate
                 }).ToList()
             };
         }

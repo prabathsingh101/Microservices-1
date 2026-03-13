@@ -58,7 +58,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 DiscountPercent = i.DiscountPercent,
                 GSTPercent = i.GstPercent,
                 TaxAmount = i.TaxAmount,
-                Total = i.Total
+                Total = i.Total,
+                MfgDate = i.ManufacturingDate,
+                ExpDate = i.ExpiryDate
             }).ToList()
         };
 

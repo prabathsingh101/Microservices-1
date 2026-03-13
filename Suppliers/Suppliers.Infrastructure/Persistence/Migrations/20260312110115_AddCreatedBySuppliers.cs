@@ -11,82 +11,78 @@ namespace Suppliers.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "SupplierLedgers",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SupplierId = table.Column<int>(type: "int", nullable: false),
-                    TransactionType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    ReferenceId = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Debit = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Credit = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TransactionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SupplierLedgers", x => x.Id);
-                });
+            // These tables may already exist in the database (e.g., when __EFMigrationsHistory was reset).
+            // Guard against failure by creating only if missing.
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'[dbo].[SupplierLedgers]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SupplierLedgers](
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [SupplierId] INT NOT NULL,
+        [TransactionType] NVARCHAR(50) NOT NULL,
+        [ReferenceId] NVARCHAR(MAX) NOT NULL,
+        [Debit] DECIMAL(18,2) NOT NULL,
+        [Credit] DECIMAL(18,2) NOT NULL,
+        [Balance] DECIMAL(18,2) NOT NULL,
+        [TransactionDate] DATETIME2 NOT NULL,
+        [Description] NVARCHAR(MAX) NULL,
+        [CreatedDate] DATETIME2 NOT NULL,
+        CONSTRAINT [PK_SupplierLedgers] PRIMARY KEY ([Id])
+    );
+END");
 
-            migrationBuilder.CreateTable(
-                name: "SupplierPayments",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SupplierId = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    PaymentMode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SupplierPayments", x => x.Id);
-                });
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'[dbo].[SupplierPayments]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[SupplierPayments](
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [SupplierId] INT NOT NULL,
+        [Amount] DECIMAL(18,2) NOT NULL,
+        [PaymentDate] DATETIME2 NOT NULL,
+        [PaymentMode] NVARCHAR(50) NOT NULL,
+        [ReferenceNumber] NVARCHAR(MAX) NULL,
+        [Remarks] NVARCHAR(MAX) NULL,
+        [CreatedBy] NVARCHAR(MAX) NOT NULL,
+        [CreatedDate] DATETIME2 NOT NULL,
+        CONSTRAINT [PK_SupplierPayments] PRIMARY KEY ([Id])
+    );
+END");
 
-            migrationBuilder.CreateTable(
-                name: "Suppliers",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(15)", maxLength: 15, nullable: false),
-                    GstIn = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Address = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    DefaultPriceListId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    UpdatedDate = table.Column<DateTime>(type: "datetime2", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Suppliers", x => x.Id);
-                });
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'[dbo].[Suppliers]', N'U') IS NULL
+BEGIN
+    CREATE TABLE [dbo].[Suppliers](
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Name] NVARCHAR(200) NOT NULL,
+        [Phone] NVARCHAR(15) NOT NULL,
+        [GstIn] NVARCHAR(MAX) NULL,
+        [Address] NVARCHAR(MAX) NULL,
+        [Email] NVARCHAR(MAX) NULL,
+        [DefaultPriceListId] UNIQUEIDENTIFIER NULL,
+        [IsActive] BIT NOT NULL,
+        [CreatedBy] NVARCHAR(MAX) NULL,
+        [CreatedDate] DATETIME2 NULL,
+        [UpdatedBy] NVARCHAR(MAX) NULL,
+        [UpdatedDate] DATETIME2 NULL,
+        CONSTRAINT [PK_Suppliers] PRIMARY KEY ([Id])
+    );
+END");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "SupplierLedgers");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'[dbo].[SupplierLedgers]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[SupplierLedgers];
+END");
 
-            migrationBuilder.DropTable(
-                name: "SupplierPayments");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'[dbo].[SupplierPayments]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[SupplierPayments];
+END");
 
-            migrationBuilder.DropTable(
-                name: "Suppliers");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'[dbo].[Suppliers]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[Suppliers];
+END");
         }
     }
 }

@@ -54,6 +54,8 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     TotalAmount = totalAmount, // Backend Calculation
                     Reason = i.Reason,
                     ItemCondition = i.ItemCondition,
+                    MfgDate = i.MfgDate,
+                    ExpDate = i.ExpDate,
                     CreatedOn = DateTime.Now
                 };
             }).ToList();

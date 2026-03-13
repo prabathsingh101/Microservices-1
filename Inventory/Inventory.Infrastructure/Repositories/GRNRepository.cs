@@ -358,7 +358,9 @@ namespace Inventory.Infrastructure.Repositories
                                  GstPercent = poi.GstPercent,
                                  TaxAmount = (d.ReceivedQty - d.RejectedQty) * d.UnitRate * (poi.GstPercent / 100),
                                  WarehouseId = d.WarehouseId,
-                                 RackId = d.RackId
+                                 RackId = d.RackId,
+                                 MfgDate = d.MfgDate,
+                                 ExpDate = d.ExpDate
                              }).ToListAsync();
             }
             else
@@ -419,7 +421,9 @@ namespace Inventory.Infrastructure.Repositories
                             PONumber = po.PoNumber,
                             POId = po.Id,
                             WarehouseId = d.Product?.DefaultWarehouseId,
-                            RackId = d.Product?.DefaultRackId
+                            RackId = d.Product?.DefaultRackId,
+                            MfgDate = d.MfgDate,
+                            ExpDate = d.ExpDate
                         });
                     }
                 }

@@ -23,5 +23,9 @@ namespace Inventory.Application.GRN.DTOs
         public bool IsReplacement { get; set; }
         public Guid? WarehouseId { get; set; }
         public Guid? RackId { get; set; }
+
+        // Dates from the PO items / saved GRN details
+        public DateTime? MfgDate { get; set; }
+        public DateTime? ExpDate { get; set; }
     }
 }

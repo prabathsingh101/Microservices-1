@@ -19,4 +19,6 @@ public record PoItemDto(
     decimal DiscountPercent,
     decimal GstPercent,
     decimal TaxAmount,
-    decimal Total);
+    decimal Total,
+    DateTime? ManufacturingDate,
+    DateTime? ExpiryDate);

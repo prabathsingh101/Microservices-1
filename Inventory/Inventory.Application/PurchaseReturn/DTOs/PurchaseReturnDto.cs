@@ -24,5 +24,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
 
         public decimal TotalAmount { get; set; }
         public decimal TaxAmount { get; set; }
+        public DateTime? MfgDate { get; set; }
+        public DateTime? ExpDate { get; set; }
     }
 }

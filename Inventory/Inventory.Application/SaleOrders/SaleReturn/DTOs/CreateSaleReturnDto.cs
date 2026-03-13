@@ -18,4 +18,6 @@ public class SaleReturnItemDto
     public decimal TaxPercentage { get; set; }
     public string? Reason { get; set; }
     public string? ItemCondition { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }

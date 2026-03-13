@@ -17,6 +17,8 @@
     public decimal AcceptedQty {  get; set; }
     public decimal RejectedQty {  get; set; }
     public decimal ReturnQty { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 
     // Manual Mapping from Entity to DTO
     public static PurchaseOrderItemDto FromEntity(dynamic entity)
