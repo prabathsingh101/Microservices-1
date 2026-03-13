@@ -104,6 +104,14 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 }
             }
             
+            // 5. Update Product CurrentStock (Moved items are no longer usable/available)
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId, ct);
+            if (product != null)
+            {
+                product.CurrentStock -= request.Quantity;
+                if (product.CurrentStock < 0) product.CurrentStock = 0;
+            }
+
             return await _context.SaveChangesAsync(ct) > 0;
         }
     }

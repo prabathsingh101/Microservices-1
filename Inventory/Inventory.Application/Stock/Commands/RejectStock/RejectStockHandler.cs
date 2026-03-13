@@ -29,6 +29,10 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                             g.WarehouseId == request.WarehouseId &&
                             g.RackId == request.RackId);
 
+            // Fetch rack info to check if it's an expired rack
+            var rack = await _context.Racks.FirstOrDefaultAsync(r => r.Id == request.RackId, ct);
+            bool isExpiredRack = rack != null && (rack.Name.Contains("E1") || (rack.Description != null && rack.Description.Contains("Expired")));
+
             // Fetch batches to perform matching safely
             var allLocationBatches = await query.ToListAsync(ct);
             
@@ -43,7 +47,11 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                 throw new Exception($"No matching stock batch found for Product: {product.Name} at the specified location/expiry.");
 
             decimal remainingToReject = request.Quantity;
-            decimal totalBatchAvailable = batches.Sum(b => b.ReceivedQty - b.RejectedQty);
+            
+            // If it's an expired rack, the "available to purge" is actually the rejected/expired qty
+            decimal totalBatchAvailable = isExpiredRack 
+                ? batches.Sum(b => b.RejectedQty) 
+                : batches.Sum(b => b.ReceivedQty - b.RejectedQty);
 
             if (totalBatchAvailable < request.Quantity)
                 throw new Exception($"Insufficient quantity in batches. Available: {totalBatchAvailable}, Requested: {request.Quantity}");
@@ -51,17 +59,38 @@ namespace Inventory.Application.Stock.Commands.RejectStock
             foreach (var batch in batches)
             {
                 if (remainingToReject <= 0) break;
-                decimal batchAvailable = batch.ReceivedQty - batch.RejectedQty;
+                
+                decimal batchAvailable = isExpiredRack ? batch.RejectedQty : (batch.ReceivedQty - batch.RejectedQty);
                 if (batchAvailable <= 0) continue;
 
                 decimal toReject = Math.Min(batchAvailable, remainingToReject);
-                batch.RejectedQty += toReject;
+                
+                if (isExpiredRack)
+                {
+                    // For expired rack purge, we reduce both to permanently remove from records
+                    batch.ReceivedQty -= toReject;
+                    batch.RejectedQty -= toReject;
+                }
+                else
+                {
+                    // For standard rejection, we increase rejected qty (moving from usable to unusable)
+                    batch.RejectedQty += toReject;
+                }
+                
                 remainingToReject -= toReject;
             }
 
             decimal actualRejected = request.Quantity - remainingToReject;
-            product.CurrentStock -= actualRejected;
-            if (product.CurrentStock < 0) product.CurrentStock = 0;
+            
+            // For standard rejections, we reduce the product-level CurrentStock
+            // For expired rack purges, CurrentStock was ALREADY reduced when it was moved THERE.
+            // Wait, I need to check if MoveToExpiredRackHandler reduces CurrentStock. 
+            // If it DOESN'T, I should reduce it here too.
+            if (!isExpiredRack)
+            {
+                product.CurrentStock -= actualRejected;
+                if (product.CurrentStock < 0) product.CurrentStock = 0;
+            }
 
             return await _context.SaveChangesAsync(ct) > 0;
         }

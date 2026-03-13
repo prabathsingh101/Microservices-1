@@ -446,11 +446,13 @@ namespace Inventory.Infrastructure.Repositories
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
-                        RejectedQty = allG.RejectedQty,
+                        ExpiredQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? allG.RejectedQty : 0,
+                        RejectedQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? 0 : allG.RejectedQty,
                         WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
                         RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,
-                        ExpiryDate = allG.ExpDate
+                        ExpiryDate = allG.ExpDate,
+                        IsExpiryRequired = allG.Product.IsExpiryRequired
                     }).ToListAsync();
             }
 
@@ -540,7 +542,8 @@ namespace Inventory.Infrastructure.Repositories
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
-                        RejectedQty = allG.RejectedQty,
+                        ExpiredQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? allG.RejectedQty : 0,
+                        RejectedQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? 0 : allG.RejectedQty,
                         WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
                         RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,

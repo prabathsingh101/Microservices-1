@@ -1,9 +1,10 @@
-﻿public class CreateSaleReturnDto
+public class CreateSaleReturnDto
 {
     public DateTime ReturnDate { get; set; }
     public int SaleOrderId { get; set; }
     public int CustomerId { get; set; }
     public string? Remarks { get; set; }
+    public bool IsQuick { get; set; }
     public List<SaleReturnItemDto> Items { get; set; } = new();
 }
 

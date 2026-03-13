@@ -41,6 +41,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? ProductName { get; set; }
         public decimal ReceivedQty { get; set; }
         public decimal RejectedQty { get; set; }
+        public decimal ExpiredQty { get; set; }
         public string? WarehouseName { get; set; }
         public string? RackName { get; set; }
         public DateTime? ManufacturingDate { get; set; }

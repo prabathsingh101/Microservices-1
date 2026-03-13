@@ -1,4 +1,4 @@
-﻿using Inventory.Application.SaleOrders.DTOs;
+using Inventory.Application.SaleOrders.DTOs;
 using Inventory.Application.SaleOrders.SaleReturn.DTOs;
 using Inventory.Domain.Entities;
 
@@ -14,7 +14,8 @@ public interface ISaleReturnRepository
        DateTime? fromDate,
        DateTime? toDate,
        string sortField,
-       string sortOrder);
+       string sortOrder,
+       bool isQuick = false);
 
     Task<bool> CreateSaleReturnAsync(SaleReturnHeader returnHeader);
     Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId);

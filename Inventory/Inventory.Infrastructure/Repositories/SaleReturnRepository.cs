@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Inventory.Application.SaleOrders.DTOs;
 using Inventory.Application.SaleOrders.SaleReturn.DTOs;
 using Inventory.Domain.Entities;
@@ -28,7 +28,8 @@ namespace Inventory.Infrastructure.Repositories
          DateTime? fromDate,
          DateTime? toDate,
          string sortField,
-         string sortOrder)
+         string sortOrder,
+         bool isQuick = false)
         {
             // 1. Initial Query with NoTracking for high performance
             var query = _context.SaleReturnHeaders
@@ -44,6 +45,11 @@ namespace Inventory.Infrastructure.Repositories
             {
                 var endOfToDate = toDate.Value.Date.AddDays(1).AddTicks(-1);
                 query = query.Where(x => x.ReturnDate <= endOfToDate);
+            }
+
+            if (isQuick)
+            {
+                query = query.Where(x => x.IsQuick == true);
             }
 
             // 3. Optimized Status Widget Filter
@@ -110,7 +116,8 @@ namespace Inventory.Infrastructure.Repositories
                     SoRef = x.SaleOrder != null ? x.SaleOrder.SONumber : string.Empty,
                     TotalAmount = x.TotalAmount,
                     Status = x.Status,
-                    GatePassNo = x.GatePassNo
+                    GatePassNo = x.GatePassNo,
+                    IsQuick = x.IsQuick
                 }).ToListAsync();
 
             if (pagedData == null || !pagedData.Any())
@@ -233,6 +240,7 @@ namespace Inventory.Infrastructure.Repositories
                     SONumber = h.SaleOrder.SONumber ?? "N/A", // From SaleOrders table
                     TotalAmount = h.TotalAmount, //
                     Status = h.Status,
+                    IsQuick = h.IsQuick,
                     // CustomerId hum bad mein name se replace karenge
                     CustomerName = h.CustomerId.ToString()
                 })
@@ -255,9 +263,9 @@ namespace Inventory.Infrastructure.Repositories
             var totalRefundValue = await confirmedQuery.SumAsync(x => x.TotalAmount);
             var confirmedCount = await confirmedQuery.CountAsync();
 
-            // 3. Pending Inward Count (Confirmed but no GatePassNo)
+            // 3. Pending Inward Count (Confirmed but no GatePassNo AND NOT Quick)
             var pendingInwardCount = await _context.SaleReturnHeaders
-                .CountAsync(x => x.Status.ToUpper() == "CONFIRMED" && (x.GatePassNo == null || x.GatePassNo == ""));
+                .CountAsync(x => x.Status.ToUpper() == "CONFIRMED" && (x.GatePassNo == null || x.GatePassNo == "") && x.IsQuick == false);
 
             // 4. Stock re-filled pcs (Items table se sum)
             var totalPcs = await _context.SaleReturnItems
@@ -277,7 +285,7 @@ namespace Inventory.Infrastructure.Repositories
         {
             var returns = await _context.SaleReturnHeaders
                 .AsNoTracking()
-                .Where(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
+                .Where(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == "") && x.IsQuick == false)
                 .OrderByDescending(x => x.ReturnDate)
                 .Select(x => new PendingSRDto
                 {

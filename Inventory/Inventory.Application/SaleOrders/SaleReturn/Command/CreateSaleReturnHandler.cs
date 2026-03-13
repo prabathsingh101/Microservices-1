@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 using Inventory.Application.Common.Interfaces;
 using MediatR;
 using System;
@@ -68,6 +68,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 Remarks = dto.Remarks,
                 ReturnNumber = "SR-" + DateTime.Now.ToString("yyyyMMddHHmm"),
                 Status = "Confirmed",
+                IsQuick = dto.IsQuick,
                 CreatedOn = DateTime.Now,
                 
                 // Header Level Aggregations

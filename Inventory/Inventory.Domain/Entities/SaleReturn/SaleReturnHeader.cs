@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Common;
+using Inventory.Domain.Common;
 using Inventory.Domain.Entities.SO;
 using System.ComponentModel.DataAnnotations;
 
@@ -30,6 +30,7 @@ public class SaleReturnHeader : BaseAuditableEntity // Agar aap BaseAuditableEnt
     public string? Remarks { get; set; }
     public string Status { get; set; } = "Draft"; // Draft, Confirmed, Cancelled
     public string? GatePassNo { get; set; }
+    public bool IsQuick { get; set; }
 
     public virtual ICollection<SaleReturnItem> ReturnItems { get; set; } = new List<SaleReturnItem>();
 }

@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Inventory.Application.SaleOrders.DTOs;
 using Inventory.Application.SaleOrders.SaleReturn.Command;
 using Inventory.Application.Services;
@@ -48,9 +48,10 @@ namespace Inventory.API.Controllers;
     [FromQuery] DateTime? fromDate = null,
     [FromQuery] DateTime? toDate = null,
     [FromQuery] string sortField = "ReturnDate",
-    [FromQuery] string sortOrder = "desc")
+    [FromQuery] string sortOrder = "desc",
+    [FromQuery] bool isQuick = false)
     {
-        var result = await _repo.GetSaleReturnsAsync(search, status, pageIndex, pageSize, fromDate, toDate, sortField, sortOrder);
+        var result = await _repo.GetSaleReturnsAsync(search, status, pageIndex, pageSize, fromDate, toDate, sortField, sortOrder, isQuick);
         return Ok(result);
     }
 

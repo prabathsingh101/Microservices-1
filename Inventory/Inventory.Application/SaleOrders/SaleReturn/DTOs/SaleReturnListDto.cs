@@ -1,4 +1,4 @@
-﻿public class SaleReturnListDto
+public class SaleReturnListDto
 {
     public int SaleReturnHeaderId { get; set; } // PK from DB
     public string ReturnNumber { get; set; } = string.Empty; //
@@ -9,6 +9,7 @@
     public decimal TotalAmount { get; set; } //
     public string Status { get; set; } = string.Empty; //
     public string? GatePassNo { get; set; }
+    public bool IsQuick { get; set; }
 }
 
 public class SaleReturnPagedResponse
