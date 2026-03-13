@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Features.PurchaseOrders.Queries;
 using MediatR;
@@ -80,7 +80,10 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         ReturnQty = totalReturned,
 
                         // Pending = (Ordered - NetReceived)
-                        PendingQty = item.Qty - item.ReceivedQty
+                        PendingQty = item.Qty - item.ReceivedQty,
+                        MfgDate = item.MfgDate,
+                        ExpDate = item.ExpDate,
+                        IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false
                     };
                 }).ToList()
             }).ToList();

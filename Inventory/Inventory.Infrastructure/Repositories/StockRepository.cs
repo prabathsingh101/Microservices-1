@@ -355,8 +355,8 @@ namespace Inventory.Infrastructure.Repositories
                     RackId = group.Key.RackId,
                     RackName = group.Key.RackName,
 
-                    // TotalReceived: GRN se total kitna aaya for this location
-                    TotalReceived = group.Sum(x => x.ReceivedQty),
+                    // TotalReceived: Net usable inward (Received - Rejected)
+                    TotalReceived = group.Sum(x => x.ReceivedQty - x.RejectedQty),
                     TotalRejected = group.Sum(x => x.RejectedQty),
 
                     // AvailableStock: Inward balance for this specific location
@@ -401,13 +401,13 @@ namespace Inventory.Infrastructure.Repositories
                 // 4. Update Net Stats
                 item.TotalSold = grossSold - totalSaleReturn;
                 
-                // 🎯 5. Final Stock Update: (GRN Received - Rej) - Net Sold
-                item.AvailableStock = (item.TotalReceived - item.TotalRejected) - item.TotalSold;
+                // 🎯 5. Final Stock Update: Net Received - Net Sold
+                item.AvailableStock = item.TotalReceived - item.TotalSold;
 
                 // 6. BUSINESS RULE: Main row mein sabse pehle expire hone wali batch dikhao
-                //    (Nearest/Earliest expiry = most urgent alert for user)
+                //    ONLY for batches that actually have stock (Received - Rejected > 0)
                 var earliestBatch = await _context.GRNDetails
-                    .Where(g => g.ProductId == item.ProductId && g.ExpDate != null)
+                    .Where(g => g.ProductId == item.ProductId && g.ExpDate != null && (g.ReceivedQty - g.RejectedQty) > 0)
                     .OrderBy(g => g.ExpDate)       // Ascending = earliest first
                     .Select(g => new { g.MfgDate, g.ExpDate })
                     .FirstOrDefaultAsync();
@@ -419,9 +419,9 @@ namespace Inventory.Infrastructure.Repositories
                 }
                 else
                 {
-                    // Fallback: koi expiry date nahi hai, latest GRN ki date lo
+                    // Fallback: koi expiry date nahi hai, latest active batch ki date lo
                     var latestBatch = await _context.GRNDetails
-                        .Where(g => g.ProductId == item.ProductId)
+                        .Where(g => g.ProductId == item.ProductId && (g.ReceivedQty - g.RejectedQty) > 0)
                         .OrderByDescending(g => g.Id)
                         .Select(g => new { g.MfgDate, g.ExpDate })
                         .FirstOrDefaultAsync();
@@ -436,6 +436,9 @@ namespace Inventory.Infrastructure.Repositories
                     .Take(10)
                     .Select(allG => new StockHistoryDto
                     {
+                        ProductId = allG.ProductId,
+                        WarehouseId = allG.WarehouseId,
+                        RackId = allG.RackId,
                         // UTC + 5:30 = IST
                         ReceivedDate = allG.GRNHeader.ReceivedDate.AddHours(5).AddMinutes(30),
                         PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
@@ -456,6 +459,97 @@ namespace Inventory.Infrastructure.Repositories
                 Items = items,
                 TotalCount = totalCount
             };
+        }
+
+        public async Task<StockPagedResponseDto> GetDisposedStockAsync(
+            string? search,
+            string? sortField,
+            string? sortOrder,
+            int pageIndex,
+            int pageSize,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            Guid? warehouseId = null,
+            Guid? rackId = null)
+        {
+            // Similar to current stock but focused on Rejected Items (Disposed)
+            var baseQuery = _context.GRNDetails.AsNoTracking().AsQueryable();
+
+            if (startDate.HasValue)
+                baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate >= startDate.Value);
+            if (endDate.HasValue)
+                baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate <= endDate.Value);
+
+             // 🎯 KEY FILTER: Only items having some non-zero rejected qty at that location
+            baseQuery = baseQuery.Where(x => x.RejectedQty > 0);
+
+            if (warehouseId.HasValue && warehouseId.Value != Guid.Empty)
+                baseQuery = baseQuery.Where(x => x.WarehouseId == warehouseId.Value);
+            if (rackId.HasValue && rackId.Value != Guid.Empty)
+                baseQuery = baseQuery.Where(x => x.RackId == rackId.Value);
+
+            var groupedQuery = baseQuery
+                .GroupBy(g => new
+                {
+                    g.ProductId,
+                    ProductName = g.Product.Name,
+                    UnitName = g.Product.Unit,
+                    g.WarehouseId,
+                    WarehouseName = g.Warehouse != null ? g.Warehouse.Name : "N/A",
+                    g.RackId,
+                    RackName = g.Rack != null ? g.Rack.Name : "N/A"
+                })
+                .Select(group => new StockSummaryDto
+                {
+                    ProductId = group.Key.ProductId,
+                    ProductName = group.Key.ProductName,
+                    Unit = group.Key.UnitName,
+                    WarehouseId = group.Key.WarehouseId,
+                    WarehouseName = group.Key.WarehouseName,
+                    RackId = group.Key.RackId,
+                    RackName = group.Key.RackName,
+
+                    // Summary for Disposed
+                    TotalReceived = group.Sum(x => x.ReceivedQty),
+                    TotalRejected = group.Sum(x => x.RejectedQty),
+                    AvailableStock = group.Sum(x => x.RejectedQty), // HACK: reusing availablestock as "Disposed Stock" for UI display
+
+                    LastRate = group.OrderByDescending(x => x.Id).Select(x => x.UnitRate).FirstOrDefault()
+                });
+
+            if (!string.IsNullOrEmpty(search))
+                groupedQuery = groupedQuery.Where(x => x.ProductName.Contains(search));
+
+            var totalCount = await groupedQuery.CountAsync();
+            var items = await groupedQuery.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync();
+
+            foreach (var item in items)
+            {
+                // Detailed history for specific product + location (Rejected Batches only)
+                item.History = await _context.GRNDetails
+                    .Where(g => g.ProductId == item.ProductId && g.RejectedQty > 0 && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
+                    .OrderByDescending(g => g.GRNHeader.ReceivedDate)
+                    .Select(allG => new StockHistoryDto
+                    {
+                        ProductId = allG.ProductId,
+                        WarehouseId = allG.WarehouseId,
+                        RackId = allG.RackId,
+                        ReceivedDate = allG.GRNHeader.ReceivedDate.AddHours(5).AddMinutes(30),
+                        PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
+                        GRNNumber = allG.GRNHeader.GRNNumber,
+                        SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
+                        ProductName = allG.Product.Name,
+                        ReceivedQty = allG.ReceivedQty,
+                        RejectedQty = allG.RejectedQty,
+                        WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
+                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
+                        ManufacturingDate = allG.MfgDate,
+                        ExpiryDate = allG.ExpDate,
+                        IsExpiryRequired = allG.Product.IsExpiryRequired
+                    }).ToListAsync();
+            }
+
+            return new StockPagedResponseDto { Items = items, TotalCount = totalCount };
         }
 
         public async Task<byte[]> GenerateStockExcel(List<Guid> productIds)

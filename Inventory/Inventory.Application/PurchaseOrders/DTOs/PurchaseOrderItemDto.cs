@@ -1,4 +1,4 @@
-﻿public class PurchaseOrderItemDto
+public class PurchaseOrderItemDto
 {
     public int Id { get; set; }
     public int PurchaseOrderId { get; set; }
@@ -19,6 +19,7 @@
     public decimal ReturnQty { get; set; }
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
+    public bool IsExpiryRequired { get; set; }
 
     // Manual Mapping from Entity to DTO
     public static PurchaseOrderItemDto FromEntity(dynamic entity)
@@ -37,6 +38,9 @@
             DiscountPercent = entity.DiscountPercent,
             GstPercent = entity.GstPercent,
             ReceivedQty = entity.ReceivedQty,
+            MfgDate = entity.MfgDate,
+            ExpDate = entity.ExpDate,
+            IsExpiryRequired = entity.Product != null ? entity.Product.IsExpiryRequired : false
         };
     }
 }

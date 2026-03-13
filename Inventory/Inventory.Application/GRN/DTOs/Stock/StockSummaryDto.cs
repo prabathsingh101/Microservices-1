@@ -31,6 +31,9 @@ namespace Inventory.Application.GRN.DTOs.Stock
 
     public class StockHistoryDto
     {
+        public Guid? ProductId { get; set; }
+        public Guid? WarehouseId { get; set; }
+        public Guid? RackId { get; set; }
         public DateTime ReceivedDate { get; set; }
         public string? PONumber { get; set; }
         public string? GRNNumber { get; set; }
@@ -42,5 +45,6 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? RackName { get; set; }
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public bool IsExpiryRequired { get; set; }
     }
 }
