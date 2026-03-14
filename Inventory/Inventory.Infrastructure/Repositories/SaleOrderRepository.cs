@@ -263,6 +263,10 @@ public class SaleOrderRepository : ISaleOrderRepository
                     GstPercent = i.GSTPercent,
                     TaxAmount = i.TaxAmount,
                     Total = i.Total,
+                    WarehouseId = i.WarehouseId,
+                    WarehouseName = i.WarehouseId != null ? _context.Warehouses.Where(w => w.Id == i.WarehouseId).Select(w => w.Name).FirstOrDefault() : null,
+                    RackId = i.RackId,
+                    RackName = i.RackId != null ? _context.Racks.Where(r => r.Id == i.RackId).Select(r => r.Name).FirstOrDefault() : null,
                     ManufacturingDate = i.MfgDate,
                     ExpiryDate = i.ExpDate
                 }).ToList()
@@ -369,9 +373,12 @@ public class SaleOrderRepository : ISaleOrderRepository
                     GstPercent = oi.GSTPercent,
                     TaxAmount = oi.TaxAmount,
                     Total = oi.Total,
+                    WarehouseId = oi.WarehouseId,
+                    WarehouseName = oi.WarehouseId != null ? _context.Warehouses.Where(w => w.Id == oi.WarehouseId).Select(w => w.Name).FirstOrDefault() : null,
+                    RackId = oi.RackId,
+                    RackName = oi.RackId != null ? _context.Racks.Where(r => r.Id == oi.RackId).Select(r => r.Name).FirstOrDefault() : null,
                     ManufacturingDate = oi.MfgDate,
-                    ExpiryDate = oi.ExpDate,
-                    RackName = _context.Products.Where(p => p.Id == oi.ProductId).Select(p => p.DefaultRack != null ? p.DefaultRack.Name : "N/A").FirstOrDefault()
+                    ExpiryDate = oi.ExpDate
                 }).ToList()
             })
             .FirstOrDefaultAsync();

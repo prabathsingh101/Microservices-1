@@ -80,7 +80,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 TaxAmount = i.TaxAmount,
                 Total = i.Total,
                 MfgDate = i.ManufacturingDate,
-                ExpDate = i.ExpiryDate
+                ExpDate = i.ExpiryDate,
+                WarehouseId = i.WarehouseId,
+                RackId = i.RackId
             }).ToList()
         };
 

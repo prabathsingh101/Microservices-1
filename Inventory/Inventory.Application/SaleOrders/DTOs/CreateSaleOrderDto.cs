@@ -32,6 +32,9 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal GstPercent { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal Total { get; set; }
+        public Guid? WarehouseId { get; set; }
+        public string? WarehouseName { get; set; }
+        public Guid? RackId { get; set; }
         public string? RackName { get; set; }
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }

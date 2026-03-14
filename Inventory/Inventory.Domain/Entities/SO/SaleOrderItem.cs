@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Inventory.Domain.Entities.SO
@@ -49,5 +49,13 @@ namespace Inventory.Domain.Entities.SO
 
         [Column(TypeName = "datetime2")]
         public DateTime? ExpDate { get; set; } // Expiry date
+
+        public Guid? WarehouseId { get; set; }
+        [ForeignKey("WarehouseId")]
+        public virtual Warehouse? Warehouse { get; set; }
+
+        public Guid? RackId { get; set; }
+        [ForeignKey("RackId")]
+        public virtual Rack? Rack { get; set; }
     }
 }
