@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -22,5 +22,8 @@ namespace Inventory.Application.Products.DTOs
 
         public decimal gstPercent { get; set; } = 0;
         public decimal discountPercent { get; set; }
+        public bool isExpiryRequired { get; set; }
+        public DateTime? manufacturingDate { get; set; }
+        public DateTime? expiryDate { get; set; }
     }
 }

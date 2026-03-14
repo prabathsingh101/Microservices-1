@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Products.DTOs;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +56,22 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
 
                 // STEP 3: DIRECT BINDING WITH DATABASE COLUMN
                 currentStock = (decimal)p.CurrentStock,
-                defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null
+                defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
+
+                // 🆕 Expiry Requirement & Earliest Batch Dates
+                isExpiryRequired = p.IsExpiryRequired,
+                manufacturingDate = await _context.GRNDetails
+                    .AsNoTracking()
+                    .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0)
+                    .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
+                    .Select(g => g.MfgDate)
+                    .FirstOrDefaultAsync(cancellationToken),
+                expiryDate = await _context.GRNDetails
+                    .AsNoTracking()
+                    .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0)
+                    .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
+                    .Select(g => g.ExpDate)
+                    .FirstOrDefaultAsync(cancellationToken)
             });
         }
 

@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 
 public sealed class ProductDto
 {
@@ -35,4 +35,6 @@ public sealed class ProductDto
     public string? defaultRackName { get; set; }
 
     public decimal discountPercent {  get; set; }
+    public DateTime? manufacturingDate { get; set; }
+    public DateTime? expiryDate { get; set; }
 }

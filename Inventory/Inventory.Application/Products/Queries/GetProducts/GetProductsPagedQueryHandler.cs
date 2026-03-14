@@ -1,4 +1,4 @@
-﻿using ClosedXML;
+using ClosedXML;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Common.Models;
 using Inventory.Application.Products.Queries.GetProducts;
@@ -166,6 +166,23 @@ internal sealed class GetProductsPagedQueryHandler
             defaultRackId = p.DefaultRackId,
             defaultRackName = p.DefaultRackName
         }).ToList();
+
+        // 🆕 Fetch Mfg and Exp dates for each item based on available stock
+        foreach (var item in items)
+        {
+            var earliestBatch = await _context.GRNDetails
+                .AsNoTracking()
+                .Where(g => g.ProductId == item.id && (g.ReceivedQty - g.RejectedQty) > 0)
+                .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
+                .Select(g => new { g.MfgDate, g.ExpDate })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (earliestBatch != null)
+            {
+                item.manufacturingDate = earliestBatch.MfgDate;
+                item.expiryDate = earliestBatch.ExpDate;
+            }
+        }
 
         return new GridResponse<ProductDto>(items, totalCount);
     }
