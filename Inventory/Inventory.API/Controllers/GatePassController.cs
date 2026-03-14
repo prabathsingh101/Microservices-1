@@ -6,6 +6,7 @@ using Inventory.Application.GatePasses.DTOs;
 using Inventory.Application.GatePasses.Queries.CheckDuplicateGatePass;
 using Inventory.Application.GatePasses.Queries.GetGatePassById;
 using Inventory.Application.GatePasses.Queries.GetGatePassesPaged;
+using Inventory.Application.GatePasses.Queries.GetVehicleAutocomplete;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -78,6 +79,14 @@ namespace Inventory.API.Controllers
                 true,
                 "Gate Pass deleted successfully"
             ));
+        }
+
+        [HttpGet("GetVehicleAutocomplete")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetVehicleAutocomplete([FromQuery] string searchTerm)
+        {
+            var result = await _mediator.Send(new GetVehicleAutocompleteQuery { SearchTerm = searchTerm });
+            return Ok(result);
         }
     }
 }
