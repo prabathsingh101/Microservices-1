@@ -598,6 +598,7 @@ namespace Inventory.Infrastructure.Repositories
                     Id = h.Id,
                     GrnNumber = h.GRNNumber,
                     PurchaseOrderId = h.PurchaseOrderId,
+                    PoNumber = h.PurchaseOrder != null ? h.PurchaseOrder.PoNumber : null,
                     SupplierId = h.SupplierId,
                     ReceivedDate = h.ReceivedDate,
                     Status = h.Status, 

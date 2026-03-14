@@ -20,6 +20,8 @@ public class PurchaseOrderItemDto
     public DateTime? ManufacturingDate { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public bool IsExpiryRequired { get; set; }
+    public string? WarehouseName { get; set; }
+    public string? RackName { get; set; }
 
     // Manual Mapping from Entity to DTO
     public static PurchaseOrderItemDto FromEntity(dynamic entity)

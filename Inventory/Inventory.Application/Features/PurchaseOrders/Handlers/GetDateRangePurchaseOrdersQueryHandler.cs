@@ -83,7 +83,17 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         PendingQty = item.Qty - item.ReceivedQty,
                         ManufacturingDate = item.MfgDate,
                         ExpiryDate = item.ExpDate,
-                        IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false
+                        IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,
+                        WarehouseName = _context.GRNDetails
+                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
+                            .OrderByDescending(gd => gd.Id)
+                            .Select(gd => gd.Warehouse != null ? gd.Warehouse.Name : null)
+                            .FirstOrDefault(),
+                        RackName = _context.GRNDetails
+                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
+                            .OrderByDescending(gd => gd.Id)
+                            .Select(gd => gd.Rack != null ? gd.Rack.Name : null)
+                            .FirstOrDefault()
                     };
                 }).ToList()
             }).ToList();
