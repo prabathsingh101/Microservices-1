@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,6 +6,7 @@ namespace Inventory.Application.SaleOrders.DTOs
 {
     public class CreateSaleOrderDto
     {
+        public int Id { get; set; }
         public string? SONumber { get; set; } // Add this for consistency
         public int CustomerId { get; set; }
         public DateTime SoDate { get; set; }
@@ -16,6 +17,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal GrandTotal { get; set; }
         public string Status { get; set; } = "Confirmed";
         public string CreatedBy { get; set; }
+        public bool IsQuick { get; set; } = false;
         public List<SaleOrderItemDto> Items { get; set; }
     }
 

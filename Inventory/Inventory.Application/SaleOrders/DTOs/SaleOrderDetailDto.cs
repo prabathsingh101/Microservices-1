@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -16,6 +16,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal SubTotal {  get; set; }
 
         public decimal TotalTax {  get; set; }
+        public string Remarks { get; set; } = string.Empty;
+        public DateTime? ExpectedDeliveryDate { get; set; }
 
         // Order ke andar ke items
         public List<SaleOrderItemDto> Items { get; set; } = new();

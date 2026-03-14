@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.DTOs.SaleOrder;
 using Inventory.Application.SaleOrders.Commands;
@@ -88,15 +88,17 @@ public class SaleOrderController : ControllerBase
      [FromQuery] int pageNumber = 1,
      [FromQuery] int pageSize = 10,
      [FromQuery] string sortBy = "SODate",
-     [FromQuery] string sortOrder = "desc")
+     [FromQuery] string sortOrder = "desc",
+     [FromQuery] bool isQuick = false)
     {
         // 1. Repository method call with parameters [cite: 2026-02-03]
-        var (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount) = await _saleRepo.GetAllSaleOrdersAsync(
+        var (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount, todayCount, monthCount) = await _saleRepo.GetAllSaleOrdersAsync(
             searchTerm,
             pageNumber,
             pageSize,
             sortBy,
-            sortOrder
+            sortOrder,
+            isQuick
         );
 
         // 2. Return data along with total count and global stats for frontend
@@ -106,7 +108,9 @@ public class SaleOrderController : ControllerBase
             totalCount = totalCount,
             totalSalesAmount = totalSalesAmount,
             pendingDispatchCount = pendingDispatchCount,
-            unpaidOrdersCount = unpaidOrdersCount
+            unpaidOrdersCount = unpaidOrdersCount,
+            todayCount = todayCount,
+            monthCount = monthCount
         });
     }
 
@@ -131,6 +135,18 @@ public class SaleOrderController : ControllerBase
     public class StatusUpdateDto
     {
         public string Status { get; set; } = null!;
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await _mediator.Send(new DeleteSaleOrderCommand(id));
+        if (result)
+        {
+            return Ok(new { success = true, message = "Sale Order deleted and stock reverted!" });
+        }
+        return BadRequest(new { success = false, message = "Delete failed or order not found." });
     }
 
     // Simple DTO for binding
@@ -159,7 +175,7 @@ public class SaleOrderController : ControllerBase
     {
         // Excel export ke liye hum pagination bypass karenge
         // Hum pageNumber 1 aur pageSize bahut bada (e.g. 1000000) bhejenge taaki sab mil jaye [cite: 2026-02-03]
-        var (orders, totalCount, _, _, _) = await _saleRepo.GetAllSaleOrdersAsync(
+        var (orders, totalCount, _, _, _, _, _) = await _saleRepo.GetAllSaleOrdersAsync(
             searchTerm: "",
             pageNumber: 1,
             pageSize: 1000000, // Saare records lene ke liye

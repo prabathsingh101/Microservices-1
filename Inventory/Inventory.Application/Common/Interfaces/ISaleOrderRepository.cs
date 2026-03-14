@@ -1,4 +1,4 @@
-﻿using Inventory.Application.DTOs.SaleOrder;
+using Inventory.Application.DTOs.SaleOrder;
 using Inventory.Application.GRN.DTOs.Stock;
 using Inventory.Application.SaleOrders.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +12,7 @@ namespace Inventory.Application.Common.Interfaces
     public interface ISaleOrderRepository
     {
         Task<int> SaveAsync(SaleOrder order);
+        Task UpdateAsync(SaleOrder order);
         Task<string> GetLastSONumberAsync();
 
 
@@ -20,16 +21,18 @@ namespace Inventory.Application.Common.Interfaces
         Task BeginTransactionAsync();
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();
+        Task ExecuteInTransactionAsync(Func<Task> action);
 
         Task<List<StockExportDto>> GetSaleReportDataAsync(List<int> orderIds);
 
         // Naya signature jo parameters ke saath total count aur Global Stats bhi return karega
-        Task<(List<SaleOrderListDto> Data, int TotalCount, decimal TotalSalesAmount, int PendingDispatchCount, int UnpaidOrdersCount)> GetAllSaleOrdersAsync(
+        Task<(List<SaleOrderListDto> Data, int TotalCount, decimal TotalSalesAmount, int PendingDispatchCount, int UnpaidOrdersCount, int TodayCount, int MonthCount)> GetAllSaleOrdersAsync(
             string searchTerm,
             int pageNumber,
             int pageSize,
             string sortBy,
-            string sortOrder);
+            string sortOrder,
+            bool isQuick = false);
 
         Task<bool> UpdateSaleOrderStatusAsync(int id, string status);
 
@@ -38,7 +41,7 @@ namespace Inventory.Application.Common.Interfaces
         Task<List<SaleOrderLookupDto>> GetOrdersByCustomerAsync(int customerId);
 
         Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(int saleOrderId);
-
+        Task<bool> DeleteAsync(int id);
         Task<List<PendingSODto>> GetPendingSaleOrdersAsync();
     }
 }

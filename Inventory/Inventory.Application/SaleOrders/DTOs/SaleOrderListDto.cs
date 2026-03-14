@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,6 +14,11 @@ namespace Inventory.Application.SaleOrders.DTOs
         public string Status { get; set; } = string.Empty;
         public string? GatePassNo { get; set; }
         public decimal GrandTotal { get; set; }
+        public decimal SubTotal { get; set; }
+        public decimal TotalTax { get; set; }
         public decimal TotalQty { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
+        public List<SaleOrderItemDto> Items { get; set; } = new();
     }
 }

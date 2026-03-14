@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.DTOs.SaleOrder;
 using Inventory.Application.SaleOrders.DTOs;
 using Inventory.Infrastructure.Persistence;
@@ -55,6 +55,25 @@ public class SaleOrderRepository : ISaleOrderRepository
         }
     }
 
+    public async Task ExecuteInTransactionAsync(Func<Task> action)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await action();
+                await transaction.CommitAsync();
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+    }
+
     // Guid aur Decimal support ke saath methods
     public async Task<decimal> GetAvailableStockAsync(Guid productId)
     {
@@ -84,6 +103,47 @@ public class SaleOrderRepository : ISaleOrderRepository
         await _context.SaveChangesAsync();
         return order.Id;
     }
+
+    public async Task UpdateAsync(SaleOrder order)
+    {
+        var existingOrder = await _context.SaleOrders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == order.Id);
+
+        if (existingOrder != null)
+        {
+            // Parent properties update
+            existingOrder.CustomerId = order.CustomerId;
+            existingOrder.SODate = order.SODate;
+            existingOrder.ExpectedDeliveryDate = order.ExpectedDeliveryDate;
+            existingOrder.SubTotal = order.SubTotal;
+            existingOrder.TotalTax = order.TotalTax;
+            existingOrder.GrandTotal = order.GrandTotal;
+            existingOrder.Remarks = order.Remarks;
+            existingOrder.Status = order.Status;
+
+            // Remove old items and add new ones (Sync)
+            _context.SaleOrderItems.RemoveRange(existingOrder.Items);
+            foreach (var item in order.Items)
+            {
+                existingOrder.Items.Add(item);
+            }
+
+            _context.SaleOrders.Update(existingOrder);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var order = await _context.SaleOrders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
+        if (order == null) return false;
+
+        _context.SaleOrderItems.RemoveRange(order.Items);
+        _context.SaleOrders.Remove(order);
+        return await _context.SaveChangesAsync() > 0;
+    }
+
     public async Task<List<StockExportDto>> GetSaleReportDataAsync(List<int> orderIds) // logic according to integer IDs
     {
         // Selected Orders ke Product IDs fetch karein
@@ -102,17 +162,23 @@ public class SaleOrderRepository : ISaleOrderRepository
             }).ToListAsync();
     }
 
-    public async Task<(List<SaleOrderListDto> Data, int TotalCount, decimal TotalSalesAmount, int PendingDispatchCount, int UnpaidOrdersCount)> GetAllSaleOrdersAsync(
+    public async Task<(List<SaleOrderListDto> Data, int TotalCount, decimal TotalSalesAmount, int PendingDispatchCount, int UnpaidOrdersCount, int TodayCount, int MonthCount)> GetAllSaleOrdersAsync(
      string searchTerm,
      int pageNumber,
      int pageSize,
      string sortBy,
-     string sortOrder)
+     string sortOrder,
+     bool isQuick = false)
     {
         // 1. Optimized Base Query
         var query = _context.SaleOrders
             .AsNoTracking()
             .AsQueryable();
+
+        if (isQuick)
+        {
+            query = query.Where(o => o.SONumber.Contains("-Q-"));
+        }
 
         // 2. Searching logic [cite: 2026-02-03]
         if (!string.IsNullOrEmpty(searchTerm))
@@ -140,6 +206,13 @@ public class SaleOrderRepository : ISaleOrderRepository
         var totalSalesAmount = await query.Where(o => o.Status == "Confirmed").SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
         var pendingDispatchCount = await query.Where(o => o.Status == "Confirmed" && (o.GatePassNo == null || o.GatePassNo == "")).CountAsync();
         
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var tomorrow = today.AddDays(1);
+
+        var todayCount = await query.Where(o => o.SODate >= today && o.SODate < tomorrow).CountAsync();
+        var monthCount = await query.Where(o => o.SODate >= monthStart).CountAsync();
+
         // Note: Unpaid count is hard to calculate globally without Finance Service data 
         var unpaidOrdersCount = 0; 
 
@@ -173,13 +246,31 @@ public class SaleOrderRepository : ISaleOrderRepository
                 Status = o.Status,
                 GatePassNo = o.GatePassNo,
                 GrandTotal = o.GrandTotal,
+                SubTotal = o.SubTotal,
+                TotalTax = o.TotalTax,
                 TotalQty = o.Items.Sum(i => i.Qty),
-                CustomerName = "Loading..."
+                CreatedBy = o.CreatedBy,
+                Remarks = o.Remarks,
+                CustomerName = "Loading...",
+                Items = o.Items.Select(i => new SaleOrderItemDto
+                {
+                    ProductId = i.ProductId,
+                    ProductName = i.ProductName,
+                    Qty = i.Qty,
+                    Unit = i.Unit,
+                    Rate = i.Rate,
+                    DiscountPercent = i.DiscountPercent,
+                    GstPercent = i.GSTPercent,
+                    TaxAmount = i.TaxAmount,
+                    Total = i.Total,
+                    ManufacturingDate = i.MfgDate,
+                    ExpiryDate = i.ExpDate
+                }).ToList()
             })
             .ToListAsync();
 
         if (orders == null || !orders.Any())
-            return (new List<SaleOrderListDto>(), 0, 0, 0, 0);
+            return (new List<SaleOrderListDto>(), 0, 0, 0, 0, 0, 0);
 
         // 6. External Service Mapping (Batched)
         var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
@@ -193,7 +284,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 order.CustomerName = "Unknown Customer";
         }
 
-        return (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount);
+        return (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount, todayCount, monthCount);
     }
 
     public async Task<bool> UpdateSaleOrderStatusAsync(int id, string status)
@@ -264,6 +355,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SubTotal = o.SubTotal,  
                 TotalTax = o.TotalTax,
                 GrandTotal = o.GrandTotal,
+                Remarks = o.Remarks,
+                ExpectedDeliveryDate = o.ExpectedDeliveryDate,
                 // Items ki mapping yahan karein
                 Items = o.Items.Select(oi => new SaleOrderItemDto
                 {
@@ -276,6 +369,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                     GstPercent = oi.GSTPercent,
                     TaxAmount = oi.TaxAmount,
                     Total = oi.Total,
+                    ManufacturingDate = oi.MfgDate,
+                    ExpiryDate = oi.ExpDate,
                     RackName = _context.Products.Where(p => p.Id == oi.ProductId).Select(p => p.DefaultRack != null ? p.DefaultRack.Name : "N/A").FirstOrDefault()
                 }).ToList()
             })
@@ -290,7 +385,8 @@ public class SaleOrderRepository : ISaleOrderRepository
             var response = await _httpClient.GetAsync($"api/customers/{order.CustomerId}/name");
             if (response.IsSuccessStatusCode)
             {
-                order.CustomerName = await response.Content.ReadAsStringAsync();
+                var name = await response.Content.ReadAsStringAsync();
+                order.CustomerName = name?.Trim('"');
             }
         }
         catch

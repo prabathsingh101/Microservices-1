@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.SaleOrders.Commands;
 using Inventory.Application.Clients;
 using Inventory.Application.Services;
@@ -29,16 +29,36 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
     public async Task<object> Handle(CreateSaleOrderCommand request, CancellationToken cancellationToken)
     {
         var dto = request.OrderDto;
+        bool isEdit = dto.Id > 0;
+        string? existingSONo = null;
+        string? oldStatus = null;
 
-        // 1. SONumber Generate Karein
-        string lastNo = await _repo.GetLastSONumberAsync();
-        int nextId = lastNo == null ? 1 : int.Parse(lastNo.Split('-').Last()) + 1;
-        string generatedSONo = $"SO-{DateTime.Now.Year}-{nextId:D4}";
+        if (isEdit)
+        {
+            var existing = await _context.SaleOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+            if (existing != null)
+            {
+                existingSONo = existing.SONumber;
+                oldStatus = existing.Status;
+            }
+        }
+
+        // 1. SONumber Setup
+        string finalSONo = existingSONo;
+        if (string.IsNullOrEmpty(finalSONo))
+        {
+            string lastNo = await _repo.GetLastSONumberAsync();
+            int nextId = lastNo == null ? 1 : int.Parse(lastNo.Split('-').Last()) + 1;
+            
+            string prefix = dto.IsQuick ? "SO-Q" : "SO";
+            finalSONo = $"{prefix}-{DateTime.Now.Year}-{nextId:D4}";
+        }
 
         // 2. SaleOrder Object Mapping
         var saleOrder = new SaleOrder
         {
-            SONumber = generatedSONo,
+            Id = dto.Id,
+            SONumber = finalSONo,
             CustomerId = dto.CustomerId,
             SODate = dto.SoDate,
             ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
@@ -64,64 +84,99 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             }).ToList()
         };
 
-        object result;
+        bool shouldProcessConfirmed = (dto.Status == "Confirmed");
+        object? result = null;
 
-        // 3. Conditional Logic: Confirm & Reduce Stock vs Save as Draft
-        if (dto.Status == "Confirmed")
+        if (shouldProcessConfirmed)
         {
-            var strategy = _context.Database.CreateExecutionStrategy();
-            result = await strategy.ExecuteAsync(async () =>
+            await _repo.ExecuteInTransactionAsync(async () =>
             {
-                await _repo.BeginTransactionAsync();
+                decimal oldGrandTotal = 0;
+                if (isEdit && oldStatus == "Confirmed")
+                {
+                    // 1. Revert Old Stock and Old Ledger
+                    var existingWithItems = await _context.SaleOrders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == dto.Id);
+                    if (existingWithItems != null)
+                    {
+                        oldGrandTotal = existingWithItems.GrandTotal;
+                        foreach (var item in existingWithItems.Items)
+                        {
+                            await _repo.UpdateProductStockAsync(item.ProductId, item.Qty);
+                        }
+
+                        // Optional: Record reversal for OLD amount before recording NEW
+                        try
+                        {
+                            await _customerClient.RecordSaleAsync(
+                                existingWithItems.CustomerId,
+                                -existingWithItems.GrandTotal,
+                                existingWithItems.SONumber,
+                                $"Sale Order Adjustment (Old Reversal): {existingWithItems.SONumber}",
+                                "System"
+                            );
+                        }
+                        catch (Exception ex) { Console.WriteLine($"Old Ledger reversal failed: {ex.Message}"); }
+                    }
+                }
+
+                int savedId;
+                if (isEdit)
+                {
+                    await _repo.UpdateAsync(saleOrder);
+                    savedId = saleOrder.Id;
+                }
+                else
+                {
+                    savedId = await _repo.SaveAsync(saleOrder);
+                }
+
+                // 2. Deduct New Stock
+                foreach (var item in saleOrder.Items)
+                {
+                    decimal availableStock = await _repo.GetAvailableStockAsync(item.ProductId);
+                    if (availableStock < item.Qty)
+                    {
+                        throw new Exception($"Insufficient stock for {item.ProductName}. Available: {availableStock}");
+                    }
+                    await _repo.UpdateProductStockAsync(item.ProductId, -item.Qty);
+                }
+
+                // 3. Record New Ledger
                 try
                 {
-                    var savedId = await _repo.SaveAsync(saleOrder);
-
-                    foreach (var item in saleOrder.Items)
-                    {
-                        decimal availableStock = await _repo.GetAvailableStockAsync(item.ProductId);
-                        if (availableStock < item.Qty)
-                        {
-                            throw new Exception($"Insufficient stock for {item.ProductName}. Available: {availableStock}");
-                        }
-                        await _repo.UpdateProductStockAsync(item.ProductId, -item.Qty);
-                    }
-
-                    await _repo.CommitTransactionAsync();
-
-                    // Ledger Sync (Fire and forget or async)
-                    try
-                    {
-                        await _customerClient.RecordSaleAsync(
-                            saleOrder.CustomerId,
-                            saleOrder.GrandTotal,
-                            saleOrder.SONumber,
-                            $"Sale Invoice generated: {saleOrder.SONumber}",
-                            saleOrder.CreatedBy ?? "System"
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Ledger sync failed: {ex.Message}");
-                    }
-
-                    return new { Id = savedId, SONumber = generatedSONo };
+                    await _customerClient.RecordSaleAsync(
+                        saleOrder.CustomerId,
+                        saleOrder.GrandTotal,
+                        saleOrder.SONumber,
+                        $"Sale Invoice generated: {saleOrder.SONumber}",
+                        saleOrder.CreatedBy ?? "System"
+                    );
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    await _repo.RollbackTransactionAsync();
-                    throw;
+                    Console.WriteLine($"Ledger sync failed: {ex.Message}");
                 }
+
+                result = new { Id = savedId, SONumber = finalSONo };
             });
         }
         else
         {
-            var savedId = await _repo.SaveAsync(saleOrder);
-            result = new { Id = savedId, SONumber = generatedSONo };
+            // Simple Save/Update without stock deduction
+            if (isEdit)
+            {
+                await _repo.UpdateAsync(saleOrder);
+                result = new { Id = saleOrder.Id, SONumber = finalSONo };
+            }
+            else
+            {
+                var savedId = await _repo.SaveAsync(saleOrder);
+                result = new { Id = savedId, SONumber = finalSONo };
+            }
         }
 
-        // 4. Notifications (Email & WhatsApp)
-        if (result != null && dto.Status == "Confirmed")
+        // 4. Notifications
+        if (result != null && dto.Status == "Confirmed" && (oldStatus == null || oldStatus != "Confirmed"))
         {
             _ = Task.Run(async () =>
             {
@@ -138,16 +193,13 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
 
                     if (company != null && customer != null)
                     {
-                        // 1. Email
                         if (!string.IsNullOrEmpty(customer.Email))
                         {
-                            await emailService.SendSoEmailAsync(company, customer.Email, generatedSONo, saleOrder.GrandTotal);
+                            await emailService.SendSoEmailAsync(company, customer.Email, finalSONo, saleOrder.GrandTotal);
                         }
-
-                        // 2. WhatsApp
                         if (!string.IsNullOrEmpty(customer.Phone))
                         {
-                            string msg = $"Order Confirmed! 🚀\nFrom: {company.Name}\nOrder No: {generatedSONo}\nAmount: {saleOrder.GrandTotal}\nThank you for shopping with us!";
+                            string msg = $"Order Confirmed! 🚀\nFrom: {company.Name}\nOrder No: {finalSONo}\nAmount: {saleOrder.GrandTotal}\nThank you for shopping with us!";
                             await whatsAppService.SendMessageAsync(customer.Phone, msg);
                         }
                     }
