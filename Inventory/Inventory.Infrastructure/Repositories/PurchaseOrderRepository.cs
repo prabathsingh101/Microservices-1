@@ -653,7 +653,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                               DiscountPercent = item.DiscountPercent,
                               GstPercent = item.GstPercent,
                               TaxAmount = item.TaxAmount,
-                              Total = item.Total
+                              Total = item.Total,
+                              MfgDate = item.MfgDate,
+                              ExpDate = item.ExpDate
                           }).ToList()
             }).FirstOrDefaultAsync();
     }
@@ -708,7 +710,10 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                                         item.Qty,
                                         item.Unit,
                                         item.Rate,
-                                        item.Total
+                                        item.Total,
+                                        MfgDate = item.MfgDate,
+                                        ExpDate = item.ExpDate,
+                                        IsExpiryRequired = prod.IsExpiryRequired
                                     }).ToListAsync();
 
         // 5. HTML Template with dynamic header
@@ -786,7 +791,10 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         {
             htmlContent += $@"
         <tr>
-            <td><b>{item.ProductName}</b></td>
+            <td>
+                <b>{item.ProductName}</b>
+                {(item.IsExpiryRequired == true ? $"<br/><small style='color:#666'>Mfg: {(item.MfgDate.HasValue ? item.MfgDate.Value.ToString("dd/MM/yyyy") : "NA")} | Exp: {(item.ExpDate.HasValue ? item.ExpDate.Value.ToString("dd/MM/yyyy") : "NA")}</small>" : "")}
+            </td>
             <td style='text-align: center;'>{item.Qty}</td>
             <td style='text-align: center;'>{item.Unit}</td>
             <td style='text-align: right;'>&#8377;{item.Rate:N2}</td>

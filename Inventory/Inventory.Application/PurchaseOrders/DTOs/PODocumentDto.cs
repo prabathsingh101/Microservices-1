@@ -1,4 +1,4 @@
-﻿public class PODocumentDto
+public class PODocumentDto
 {
     // PurchaseOrders Table Se
     public string PoNumber { get; set; }
@@ -28,4 +28,6 @@ public class POItemDocumentDto
     public decimal GstPercent { get; set; }
     public decimal TaxAmount { get; set; }
     public decimal Total { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }
