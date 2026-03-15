@@ -26,6 +26,10 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
 
+        public string? Sku { get; set; }
+        public decimal GstPercent { get; set; }
+        public bool IsExpiryRequired { get; set; }
+
         public List<StockHistoryDto> History { get; set; } = new List<StockHistoryDto>();
     }
 
@@ -47,5 +51,6 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public bool IsExpiryRequired { get; set; }
+        public decimal AvailableQty { get; set; }
     }
 }

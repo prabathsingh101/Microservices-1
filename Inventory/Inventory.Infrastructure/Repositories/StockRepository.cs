@@ -341,7 +341,10 @@ namespace Inventory.Infrastructure.Repositories
                     g.WarehouseId,
                     WarehouseName = g.Warehouse != null ? g.Warehouse.Name : "N/A",
                     g.RackId,
-                    RackName = g.Rack != null ? g.Rack.Name : "N/A"
+                    RackName = g.Rack != null ? g.Rack.Name : "N/A",
+                    Sku = g.Product.Sku,
+                    GstPercent = g.Product.DefaultGst ?? 0,
+                    IsExpiryRequired = g.Product.IsExpiryRequired
                 })
                 .Select(group => new StockSummaryDto
                 {
@@ -354,6 +357,10 @@ namespace Inventory.Infrastructure.Repositories
                     WarehouseName = group.Key.WarehouseName,
                     RackId = group.Key.RackId,
                     RackName = group.Key.RackName,
+
+                    Sku = group.Key.Sku,
+                    GstPercent = group.Key.GstPercent,
+                    IsExpiryRequired = group.Key.IsExpiryRequired,
 
                     // TotalReceived: Net usable inward (Received - Rejected)
                     TotalReceived = group.Sum(x => x.ReceivedQty - x.RejectedQty),
@@ -429,17 +436,16 @@ namespace Inventory.Infrastructure.Repositories
                     item.ExpiryDate = latestBatch?.ExpDate;
                 }
 
-                // 7. Audit Trail History — ReceivedDate UTC se IST (India Standard Time = UTC+5:30) mein convert
-                item.History = await _context.GRNDetails
+                // 7. Audit Trail History & Batch-wise Stock Calculation
+                var allBatches = await _context.GRNDetails
                     .Where(g => g.ProductId == item.ProductId)
-                    .OrderByDescending(g => g.GRNHeader.ReceivedDate)
-                    .Take(10)
+                    .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
+                    .ThenBy(g => g.GRNHeader.ReceivedDate)
                     .Select(allG => new StockHistoryDto
                     {
                         ProductId = allG.ProductId,
                         WarehouseId = allG.WarehouseId,
                         RackId = allG.RackId,
-                        // UTC + 5:30 = IST
                         ReceivedDate = allG.GRNHeader.ReceivedDate.AddHours(5).AddMinutes(30),
                         PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
                         GRNNumber = allG.GRNHeader.GRNNumber,
@@ -452,8 +458,55 @@ namespace Inventory.Infrastructure.Repositories
                         RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,
                         ExpiryDate = allG.ExpDate,
-                        IsExpiryRequired = allG.Product.IsExpiryRequired
+                        IsExpiryRequired = allG.Product.IsExpiryRequired,
+                        AvailableQty = allG.ReceivedQty - allG.RejectedQty // Initial
                     }).ToListAsync();
+
+                // 🎯 Calculate Batch-wise "Sold" strictly
+                var productSales = await _context.SaleOrderItems
+                    .Where(si => si.ProductId == item.ProductId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .Select(si => new { si.Qty, si.MfgDate, si.ExpDate })
+                    .ToListAsync();
+
+                // Split sales into "Batch-Specific" and "Generic"
+                var specificSales = productSales.Where(s => s.MfgDate != null || s.ExpDate != null).ToList();
+                var genericSalesSum = productSales.Where(s => s.MfgDate == null && s.ExpDate == null).Sum(s => s.Qty);
+
+                // 1. Deduct Specific Sales from their matching batches
+                foreach (var sale in specificSales)
+                {
+                    var matchingBatch = allBatches.FirstOrDefault(b => b.ManufacturingDate == sale.MfgDate && b.ExpiryDate == sale.ExpDate && b.AvailableQty > 0);
+                    if (matchingBatch != null)
+                    {
+                        matchingBatch.AvailableQty -= sale.Qty;
+                    }
+                    else
+                    {
+                        // If no specific match found (maybe date changed?), treat as generic
+                        genericSalesSum += sale.Qty;
+                    }
+                }
+
+                // 2. Deduct Generic Sales using FIFO (Oldest first)
+                var oldestFirstBatches = allBatches.OrderBy(b => b.ReceivedDate).ToList();
+                foreach (var batch in oldestFirstBatches)
+                {
+                    if (genericSalesSum <= 0) break;
+                    if (batch.AvailableQty <= 0) continue;
+
+                    if (genericSalesSum >= batch.AvailableQty)
+                    {
+                        genericSalesSum -= batch.AvailableQty;
+                        batch.AvailableQty = 0;
+                    }
+                    else
+                    {
+                        batch.AvailableQty -= genericSalesSum;
+                        genericSalesSum = 0;
+                    }
+                }
+
+                item.History = allBatches.Take(15).ToList(); // Return top 15 batches with real AvailableQty
             }
 
             return new StockPagedResponseDto
