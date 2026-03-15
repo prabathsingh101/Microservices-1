@@ -439,9 +439,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     /// <returns></returns>
     public async Task<bool> BulkSentForApprovalAsync(List<long> ids)
     {
-        // 1. Fetch Draft POs
+        // 1. Fetch Draft or Rejected POs
         var pos = await _context.PurchaseOrders
-            .Where(x => ids.Contains(x.Id) && x.Status == "Draft")
+            .Where(x => ids.Contains(x.Id) && (x.Status == "Draft" || x.Status == "Rejected"))
             .ToListAsync();
 
         if (pos == null || !pos.Any())

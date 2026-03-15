@@ -317,7 +317,9 @@ namespace Inventory.Infrastructure.Repositories
 
             // If single PO, keep original behavior for DTO fields
             var firstPO = pos.First();
+            var allSupplierIds = pos.Select(p => p.SupplierId).Distinct().ToList();
             bool isBulk = pos.Count > 1;
+            bool sameSupplier = allSupplierIds.Count == 1;
 
             // 4. Map DTO
             var dto = new POForGRNDTO
@@ -327,8 +329,8 @@ namespace Inventory.Infrastructure.Repositories
                 GrnNumber = grnHeaderId != null ?
                             _context.GRNHeaders.Where(x => x.Id == grnHeaderId).Select(x => x.GRNNumber).FirstOrDefault() :
                             "AUTO-GEN",
-                SupplierId = isBulk ? 0 : firstPO.SupplierId,
-                SupplierName = isBulk ? "Multiple Suppliers" : (firstPO.SupplierName ?? "Unknown"),
+                SupplierId = sameSupplier ? allSupplierIds.First() : 0,
+                SupplierName = sameSupplier ? (pos.First().SupplierName ?? "Unknown") : "Multiple Suppliers",
                 Remarks = grnHeaderId != null ?
                           _context.GRNHeaders.Where(x => x.Id == grnHeaderId).Select(x => x.Remarks).FirstOrDefault() : ""
             };
@@ -418,6 +420,8 @@ namespace Inventory.Infrastructure.Repositories
                             IsReplacement = returnLookup.ContainsKey(d.ProductId),
                             PONumber = po.PoNumber,
                             POId = po.Id,
+                            SupplierId = po.SupplierId,
+                            SupplierName = po.SupplierName,
                             WarehouseId = d.Product?.DefaultWarehouseId,
                             RackId = d.Product?.DefaultRackId,
                             MfgDate = d.MfgDate,
