@@ -419,12 +419,11 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SaleOrderId = x.Id,
                 SoNumber = x.SONumber // Display ke liye number
             }).ToListAsync();
-    }
-
-
-
-    public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(int saleOrderId)
+    }    public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(int saleOrderId)
     {
+        var now = DateTime.Now;
+        var limitDate = now.AddHours(-72);
+
         return await _context.SaleOrderItems
             .AsNoTracking()
             .Where(x => x.SaleOrderId == saleOrderId)
@@ -437,13 +436,18 @@ public class SaleOrderRepository : ISaleOrderRepository
                 TaxPercentage = x.GSTPercent,
                 MfgDate = x.MfgDate,
                 ExpDate = x.ExpDate,
+                WarehouseId = x.WarehouseId,
+                RackId = x.RackId,
+
+                // 72 Hours Policy Calculation (More LINQ-friendly comparison)
+                IsReturnable = x.SaleOrder.SODate >= limitDate,
+                ReturnWindowRemainingHours = Math.Max(0, 72 - (now - x.SaleOrder.SODate).TotalHours),
 
                 // CRITICAL FIX: Original Sold (10) minus Already Returned (5) = Display (5)
-                // Isse user ko wahi dikhega jo uske paas bacha hai
                 SoldQty = x.Qty - (_context.SaleReturnItems
                     .Where(sr => sr.ProductId == x.ProductId &&
-                                sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
-                                sr.SaleReturnHeader.Status == "Confirmed")
+                                 sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
+                                 sr.SaleReturnHeader.Status == "Confirmed")
                     .Sum(sr => (decimal?)sr.ReturnQty) ?? 0)
             })
             .Where(x => x.SoldQty > 0) // Agar pura maal wapas aa gaya (0 bacha), toh grid mein mat dikhao
