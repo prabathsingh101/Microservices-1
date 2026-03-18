@@ -15,6 +15,14 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal SubTotal { get; set; }
         public decimal TotalTax { get; set; }
         public decimal GrandTotal { get; set; }
+        public string? TaxType { get; set; } // local, interState
+        public decimal? TdsPercent { get; set; }
+        public decimal? TdsAmount { get; set; }
+        public decimal? TcsPercent { get; set; }
+        public decimal? TcsAmount { get; set; }
+        public decimal? IgstAmount { get; set; }
+        public decimal? CgstAmount { get; set; }
+        public decimal? SgstAmount { get; set; }
         public string Status { get; set; } = "Confirmed";
         public string CreatedBy { get; set; }
         public bool IsQuick { get; set; } = false;

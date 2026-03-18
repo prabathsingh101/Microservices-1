@@ -17,6 +17,14 @@ public class PurchaseOrder
     public decimal TotalTax { get; set; } //
     public decimal SubTotal { get; set; } //
     public decimal GrandTotal { get; set; } //
+    public string? TaxType { get; set; } // local, interState
+    public decimal? TdsPercent { get; set; }
+    public decimal? TdsAmount { get; set; }
+    public decimal? TcsPercent { get; set; }
+    public decimal? TcsAmount { get; set; }
+    public decimal? IgstAmount { get; set; }
+    public decimal? CgstAmount { get; set; }
+    public decimal? SgstAmount { get; set; }
     public string Status { get; set; } = "Draft";
     public string? CreatedBy { get; set; } //
     public string? UpdatedBy { get; set; } //
@@ -46,7 +54,26 @@ public class PurchaseOrder
         this.TotalQuantity = this.Items.Sum(x => x.Qty);
         this.SubTotal = this.Items.Sum(x => x.Total - x.TaxAmount);
         this.TotalTax = this.Items.Sum(x => x.TaxAmount);
-        this.GrandTotal = this.SubTotal + this.TotalTax;
+
+        // Tax Breakdown
+        if (this.TaxType == "interState")
+        {
+            this.IgstAmount = this.TotalTax;
+            this.CgstAmount = 0;
+            this.SgstAmount = 0;
+        }
+        else
+        {
+            this.IgstAmount = 0;
+            this.CgstAmount = this.TotalTax / 2;
+            this.SgstAmount = this.TotalTax / 2;
+        }
+
+        // TDS/TCS Calculation
+        this.TdsAmount = (this.SubTotal * (this.TdsPercent ?? 0)) / 100;
+        this.TcsAmount = (this.SubTotal * (this.TcsPercent ?? 0)) / 100;
+
+        this.GrandTotal = this.SubTotal + this.TotalTax - (this.TdsAmount ?? 0) + (this.TcsAmount ?? 0);
         this.UpdatedDate = DateTime.UtcNow;
     }
 }

@@ -10,6 +10,14 @@ public class PurchaseOrderDto
     public decimal TotalTax { get; set; }
     public decimal GrandTotal { get; set; }
     public decimal SubTotal { get; set; }
+    public string? TaxType { get; set; }
+    public decimal? TdsPercent { get; set; }
+    public decimal? TdsAmount { get; set; }
+    public decimal? TcsPercent { get; set; }
+    public decimal? TcsAmount { get; set; }
+    public decimal? IgstAmount { get; set; }
+    public decimal? CgstAmount { get; set; }
+    public decimal? SgstAmount { get; set; }
     public string Status { get; set; }
     public string CreatedBy { get; set; }
     public string UpdatedBy { get; set; }
@@ -38,6 +46,14 @@ public class PurchaseOrderDto
             TotalTax = entity.TotalTax,
             SubTotal = entity.SubTotal,
             GrandTotal = entity.GrandTotal,
+            TaxType = entity.TaxType,
+            TdsPercent = entity.TdsPercent,
+            TdsAmount = entity.TdsAmount,
+            TcsPercent = entity.TcsPercent,
+            TcsAmount = entity.TcsAmount,
+            IgstAmount = entity.IgstAmount,
+            CgstAmount = entity.CgstAmount,
+            SgstAmount = entity.SgstAmount,
             Remarks = entity.Remarks,
             ExpectedDeliveryDate = entity.ExpectedDeliveryDate,
             Status = entity.Status,

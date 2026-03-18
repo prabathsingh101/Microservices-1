@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -31,6 +31,22 @@ namespace Inventory.Domain.Entities.SO
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal GrandTotal { get; set; } // Final payable amount [cite: 3]
+
+        public string? TaxType { get; set; } // local, interState
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? TdsPercent { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? TdsAmount { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? TcsPercent { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? TcsAmount { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? IgstAmount { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? CgstAmount { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? SgstAmount { get; set; }
 
         [Required]
         public string Remarks { get; set; } = string.Empty; // Terms and conditions [cite: 3]

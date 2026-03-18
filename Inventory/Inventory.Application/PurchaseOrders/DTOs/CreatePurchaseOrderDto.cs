@@ -9,6 +9,14 @@ public record CreatePurchaseOrderDto(
     decimal TotalTax,
     decimal SubTotal,
     decimal GrandTotal,
+    string? TaxType,
+    decimal? TdsPercent,
+    decimal? TcsPercent,
+    decimal? TdsAmount,
+    decimal? TcsAmount,
+    decimal? IgstAmount,
+    decimal? CgstAmount,
+    decimal? SgstAmount,
     string CreatedBy,
     List<PoItemDto> Items);
 

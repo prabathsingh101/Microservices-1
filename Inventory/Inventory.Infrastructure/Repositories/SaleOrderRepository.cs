@@ -121,6 +121,14 @@ public class SaleOrderRepository : ISaleOrderRepository
             existingOrder.GrandTotal = order.GrandTotal;
             existingOrder.Remarks = order.Remarks;
             existingOrder.Status = order.Status;
+            existingOrder.TaxType = order.TaxType;
+            existingOrder.TdsPercent = order.TdsPercent;
+            existingOrder.TdsAmount = order.TdsAmount;
+            existingOrder.TcsPercent = order.TcsPercent;
+            existingOrder.TcsAmount = order.TcsAmount;
+            existingOrder.IgstAmount = order.IgstAmount;
+            existingOrder.CgstAmount = order.CgstAmount;
+            existingOrder.SgstAmount = order.SgstAmount;
 
             // Remove old items and add new ones (Sync)
             _context.SaleOrderItems.RemoveRange(existingOrder.Items);
@@ -253,6 +261,14 @@ public class SaleOrderRepository : ISaleOrderRepository
                 GrandTotal = o.GrandTotal,
                 SubTotal = o.SubTotal,
                 TotalTax = o.TotalTax,
+                TaxType = o.TaxType,
+                TdsPercent = o.TdsPercent,
+                TdsAmount = o.TdsAmount,
+                TcsPercent = o.TcsPercent,
+                TcsAmount = o.TcsAmount,
+                IgstAmount = o.IgstAmount,
+                CgstAmount = o.CgstAmount,
+                SgstAmount = o.SgstAmount,
                 TotalQty = o.Items.Sum(i => i.Qty),
                 CreatedBy = o.CreatedBy,
                 Remarks = o.Remarks,
@@ -364,6 +380,14 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SubTotal = o.SubTotal,  
                 TotalTax = o.TotalTax,
                 GrandTotal = o.GrandTotal,
+                TaxType = o.TaxType,
+                TdsPercent = o.TdsPercent,
+                TdsAmount = o.TdsAmount,
+                TcsPercent = o.TcsPercent,
+                TcsAmount = o.TcsAmount,
+                IgstAmount = o.IgstAmount,
+                CgstAmount = o.CgstAmount,
+                SgstAmount = o.SgstAmount,
                 Remarks = o.Remarks,
                 ExpectedDeliveryDate = o.ExpectedDeliveryDate,
                 // Items ki mapping yahan karein

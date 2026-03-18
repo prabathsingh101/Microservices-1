@@ -38,6 +38,14 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
             po.TotalTax = dto.TotalTax;
             po.GrandTotal = dto.GrandTotal;
             po.SubTotal = dto.SubTotal;
+            po.TaxType = dto.TaxType;
+            po.TdsPercent = dto.TdsPercent;
+            po.TdsAmount = dto.TdsAmount;
+            po.TcsPercent = dto.TcsPercent;
+            po.TcsAmount = dto.TcsAmount;
+            po.IgstAmount = dto.IgstAmount;
+            po.CgstAmount = dto.CgstAmount;
+            po.SgstAmount = dto.SgstAmount;
             // Audit tracking: Update updated fields, leave CreatedBy unchanged
             po.UpdatedDate = DateTime.UtcNow;
             po.UpdatedBy = dto.UpdatedBy;
