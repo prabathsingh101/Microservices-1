@@ -131,21 +131,37 @@ public class ExpenseEntriesController : ControllerBase
         var startDate = DateTime.Today.AddMonths(-(months - 1));
         startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
-        var data = await _context.ExpenseEntries
+        var expenseData = await _context.ExpenseEntries
             .Where(x => x.ExpenseDate >= startDate)
-            .ToListAsync(); // Load to memory for grouping by month name string if needed, or do it in SQL
+            .ToListAsync();
 
-        var trend = data
-            .GroupBy(x => new { x.ExpenseDate.Year, x.ExpenseDate.Month })
-            .Select(g => new
+        var purchaseData = await _context.PurchaseOrders
+            .Where(x => x.PoDate >= startDate)
+            .Select(x => new { x.PoDate, x.GrandTotal })
+            .ToListAsync();
+
+        var trend = new List<object>();
+        for (int i = 0; i < months; i++)
+        {
+            var date = DateTime.Today.AddMonths(-i);
+            var monthLabel = new DateTime(date.Year, date.Month, 1).ToString("MMM yyyy");
+            
+            var monthExpense = expenseData
+                .Where(x => x.ExpenseDate.Year == date.Year && x.ExpenseDate.Month == date.Month)
+                .Sum(x => x.Amount);
+                
+            var monthPurchase = purchaseData
+                .Where(x => x.PoDate.Year == date.Year && x.PoDate.Month == date.Month)
+                .Sum(x => x.GrandTotal);
+
+            trend.Add(new
             {
-                Month = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
-                Amount = g.Sum(x => x.Amount)
-            })
-            .OrderBy(t => DateTime.Parse(t.Month))
-            .ToList();
+                Month = monthLabel,
+                Amount = monthExpense + monthPurchase
+            });
+        }
 
-        return Ok(trend);
+        return Ok(trend.OrderBy(t => DateTime.Parse(((dynamic)t).Month)).ToList());
     }
 }
 
