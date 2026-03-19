@@ -1,3 +1,4 @@
+using Inventory.Application.Stock.Commands;
 using Inventory.Application.Stock.Commands.RejectStock;
 using Inventory.Application.Stock.Commands.MoveToExpiredRack;
 using Inventory.Application.GRN.Command;
@@ -103,6 +104,14 @@ namespace Inventory.API.Controllers
         {
             var result = await _stockRepo.GetDisposedStockAsync(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId);
             return Ok(result);
+        }
+
+        [HttpPost("sync")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> Sync()
+        {
+            var result = await _mediator.Send(new SyncStockCommand());
+            return Ok(new { success = result, message = "Stock synchronized successfully." });
         }
     }
 }
