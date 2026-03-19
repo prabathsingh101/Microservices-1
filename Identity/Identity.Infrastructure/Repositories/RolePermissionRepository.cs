@@ -34,7 +34,7 @@ public class RolePermissionRepository : IRolePermissionRepository
             if (existing != null)
             {
                 // Update existing record
-                existing.UpdatePermissions(incoming.CanView, incoming.CanAdd, incoming.CanEdit, incoming.CanDelete);
+                existing.UpdatePermissions(incoming.CanView, incoming.CanAdd, incoming.CanEdit, incoming.CanDelete, incoming.AdditionalActions);
                 _context.RolePermissions.Update(existing);
             }
             else
