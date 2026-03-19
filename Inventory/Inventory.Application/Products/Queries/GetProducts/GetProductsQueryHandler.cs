@@ -35,6 +35,7 @@ public sealed class GetProductsQueryHandler
             basePurchasePrice = p.BasePurchasePrice,
             mrp = p.MRP,
             minStock =p.MinStock,
+            currentStock = p.CurrentStock,
             defaultGst = p.DefaultGst,
             description = p.Description,
             trackInventory = p.TrackInventory,

@@ -37,6 +37,7 @@ public sealed class GetProductByIdQueryHandler
             saleRate = p.SaleRate,
             defaultGst = p.DefaultGst,
             minStock =p.MinStock,
+            currentStock = p.CurrentStock,
             trackInventory = p.TrackInventory,
             isActive = p.IsActive,
             description = p.Description,
