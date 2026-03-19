@@ -1,4 +1,6 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
+using Inventory.Domain.Entities;
+using Inventory.Application.Products.DTOs;
 using MediatR;
 
 namespace Inventory.Application.Products.Queries.GetProductById;
@@ -43,7 +45,8 @@ public sealed class GetProductByIdQueryHandler
             productType = int.TryParse(p.ProductType, out var type) ? type : 1,
             defaultWarehouseId = p.DefaultWarehouseId,
             defaultRackId = p.DefaultRackId,
-            isExpiryRequired = p.IsExpiryRequired
+            isExpiryRequired = p.IsExpiryRequired,
+            imageUrl = p.ImageUrl
         };
     }
 }

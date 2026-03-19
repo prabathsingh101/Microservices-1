@@ -123,6 +123,7 @@ internal sealed class GetProductsPagedQueryHandler
                 DefaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
                 p.DefaultRackId,
                 DefaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
+                p.ImageUrl,
 
                 // 🆕 Fetch Discount from PriceListItems (Global logic)
                 DiscountPercent = _context.PriceListItems
@@ -164,7 +165,8 @@ internal sealed class GetProductsPagedQueryHandler
             defaultWarehouseId = p.DefaultWarehouseId,
             defaultWarehouseName = p.DefaultWarehouseName,
             defaultRackId = p.DefaultRackId,
-            defaultRackName = p.DefaultRackName
+            defaultRackName = p.DefaultRackName,
+            imageUrl = p.ImageUrl
         }).ToList();
 
         // 🆕 Fetch Mfg and Exp dates for each item based on available stock

@@ -25,5 +25,6 @@ namespace Inventory.Application.Products.DTOs
         public bool isExpiryRequired { get; set; }
         public DateTime? manufacturingDate { get; set; }
         public DateTime? expiryDate { get; set; }
+        public string? imageUrl { get; set; }
     }
 }

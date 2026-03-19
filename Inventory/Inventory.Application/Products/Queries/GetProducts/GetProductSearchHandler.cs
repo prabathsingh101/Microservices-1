@@ -2,6 +2,7 @@ using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Products.DTOs;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Inventory.Domain.Entities;
 
 public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, List<ProductSearchResponseDto>>
 {
@@ -71,7 +72,8 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
                     .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0)
                     .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
                     .Select(g => g.ExpDate)
-                    .FirstOrDefaultAsync(cancellationToken)
+                    .FirstOrDefaultAsync(cancellationToken),
+                imageUrl = p.ImageUrl
             });
         }
 

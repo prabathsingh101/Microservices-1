@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 
 public sealed record CreateProductCommand(
     Guid categoryid,
@@ -21,5 +21,6 @@ public sealed record CreateProductCommand(
     decimal damagedStock,
     Guid? defaultwarehouseid,
     Guid? defaultrackid,
-    bool isExpiryRequired
+    bool isExpiryRequired,
+    string? imageUrl
 ) : IRequest<Guid>;

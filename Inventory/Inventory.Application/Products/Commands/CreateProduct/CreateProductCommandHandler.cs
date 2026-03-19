@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 
@@ -21,28 +21,29 @@ public sealed class CreateProductCommandHandler
         CancellationToken cancellationToken)
     {
         var product = new Product(
-            request.categoryid,
-            request.subcategoryid,
-            request.productname,
-            request.sku,          
-            request.brand,
-            request.unit,
-            request.hsncode,
-            request.basepurchaseprice,
-            request.mrp,          
-            request.defaultgst,
-            request.minstock,
-            request.trackinventory,
-            request.isactive,
-            request.description,
-            request.createdby,
-            request.saleRate,
-            request.productType,
-            request.damagedStock,
-            request.defaultwarehouseid,
-            request.defaultrackid,
-            request.isExpiryRequired
-        )
+            categoryid: request.categoryid,
+            subcategoryid: request.subcategoryid,
+            productname: request.productname,
+            sku: request.sku,
+            brand: request.brand,
+            unit: request.unit,
+            hsncode: request.hsncode,
+            basepurchaseprice: request.basepurchaseprice,
+            mrp: request.mrp,
+            defaultgst: request.defaultgst,
+            minstock: request.minstock,
+            trackinventory: request.trackinventory,
+            isactive: request.isactive,
+            description: request.description,
+            createdby: request.createdby,
+            saleRate: request.saleRate,
+            productType: request.productType,
+            damagedStock: request.damagedStock,
+            defaultWarehouseId: request.defaultwarehouseid,
+            defaultRackId: request.defaultrackid,
+            isExpiryRequired: request.isExpiryRequired,
+            imageUrl: request.imageUrl
+        );
         {
 
         };

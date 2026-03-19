@@ -1,4 +1,5 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
+using Inventory.Domain.Entities;
 using MediatR;
 
 namespace Inventory.Application.Products.Commands.UpdateProduct;
@@ -27,27 +28,28 @@ internal sealed class UpdateProductCommandHandler
             throw new KeyNotFoundException("Product not found");
 
         product.Update(
-            request.categoryid,
-            request.subcategoryid,
-            request.productname,
-            request.sku, 
-            request.saleRate,
-            request.brand,
-            request.unit,
-            request.hsncode,
-            request.basepurchaseprice,
-            request.mrp,
-            request.defaultgst,
-            request.minstock,
-            request.trackinventory,
-            request.isactive,
-            request.description,
-            request.updatedby,
-            request.productType,
-            request.damagedStock,
-            request.defaultwarehouseid,
-            request.defaultrackid,
-            request.isExpiryRequired
+            categoryid: request.categoryid,
+            subcategoryid: request.subcategoryid,
+            name: request.productname,
+            sku: request.sku,
+            saleRate: request.saleRate,
+            brand: request.brand,
+            unit: request.unit,
+            hsncode: request.hsncode,
+            basepurchaseprice: request.basepurchaseprice,
+            mrp: request.mrp,
+            defaultGst: request.defaultgst,
+            minstock: request.minstock,
+            trackinventory: request.trackinventory,
+            isactive: request.isactive,
+            description: request.description,
+            updatedby: request.updatedby,
+            productType: request.productType,
+            damagedStock: request.damagedStock,
+            defaultWarehouseId: request.defaultwarehouseid,
+            defaultRackId: request.defaultrackid,
+            isExpiryRequired: request.isExpiryRequired,
+            imageUrl: request.imageUrl
         );
 
         await _context.SaveChangesAsync(cancellationToken);

@@ -1,4 +1,6 @@
-﻿namespace Inventory.Domain.PriceLists;
+﻿using Inventory.Domain.Entities;
+
+namespace Inventory.Domain.PriceLists;
 
 public class PriceListItem
 {

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 
 namespace Inventory.Application.Products.Commands.UpdateProduct;
 
@@ -24,5 +24,6 @@ public sealed record UpdateProductCommand(
     decimal damagedStock,
     Guid? defaultwarehouseid,
     Guid? defaultrackid,
-    bool isExpiryRequired
+    bool isExpiryRequired,
+    string? imageUrl
 ) : IRequest<Guid>;

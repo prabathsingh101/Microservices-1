@@ -1,4 +1,6 @@
-﻿public class PurchaseOrderItem
+﻿using Inventory.Domain.Entities;
+
+public class PurchaseOrderItem
 {
     public int Id { get; set; }
     public int PurchaseOrderId { get; set; }

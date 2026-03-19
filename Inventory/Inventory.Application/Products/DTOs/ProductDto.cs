@@ -33,6 +33,7 @@ public sealed class ProductDto
     public string? defaultWarehouseName { get; set; }
     public Guid? defaultRackId { get; set; }
     public string? defaultRackName { get; set; }
+    public string? imageUrl { get; set; }
 
     public decimal discountPercent {  get; set; }
     public DateTime? manufacturingDate { get; set; }

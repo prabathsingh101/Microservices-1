@@ -1,4 +1,6 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
+using Inventory.Domain.Entities;
+using Inventory.Application.Products.DTOs;
 using MediatR;
 
 namespace Inventory.Application.Products.Queries.GetProducts;
@@ -41,7 +43,8 @@ public sealed class GetProductsQueryHandler
             createdOn = p.CreatedOn,
             modifiedBy = p.ModifiedBy,
             modifiedOn = p.ModifiedOn,
-            isExpiryRequired = p.IsExpiryRequired
+            isExpiryRequired = p.IsExpiryRequired,
+            imageUrl = p.ImageUrl
         }).ToList();
     }
 }

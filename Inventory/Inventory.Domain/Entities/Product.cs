@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+namespace Inventory.Domain.Entities;
 
 public class Product
 {
@@ -35,6 +35,7 @@ public class Product
     public virtual Warehouse? DefaultWarehouse { get; set; }
     public Guid? DefaultRackId { get; set; }
     public virtual Rack? DefaultRack { get; set; }
+    public string? ImageUrl { get; set; }
 
     private Product() { }
 
@@ -59,7 +60,8 @@ public class Product
         decimal damagedStock,
         Guid? defaultWarehouseId = null,
         Guid? defaultRackId = null,
-        bool isExpiryRequired = false
+        bool isExpiryRequired = false,
+        string? imageUrl = null
         )
     {
         Id = Guid.NewGuid();
@@ -84,6 +86,7 @@ public class Product
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;
+        ImageUrl = imageUrl;
     }
 
     public void Update(        
@@ -103,11 +106,12 @@ public class Product
         bool isactive,
         string? description,
         string updatedby,
-       string ? productType,
-       decimal damagedStock,
-       Guid? defaultWarehouseId = null,
-       Guid? defaultRackId = null,
-       bool isExpiryRequired = false,
+        string ? productType,
+        decimal damagedStock,
+        Guid? defaultWarehouseId = null,
+        Guid? defaultRackId = null,
+        bool isExpiryRequired = false,
+        string? imageUrl = null,
         DateTime? modifiedon = null
         
         )
@@ -133,6 +137,7 @@ public class Product
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;
+        ImageUrl = imageUrl;
         ModifiedOn = modifiedon ?? DateTime.UtcNow;       
     }
 }
