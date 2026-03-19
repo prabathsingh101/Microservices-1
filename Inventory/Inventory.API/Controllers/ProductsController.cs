@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using DinkToPdf;
 using DinkToPdf.Contracts;
 using Inventory.API.Common;
@@ -9,6 +9,7 @@ using Inventory.Application.Products.Commands.UpdateProduct;
 using Inventory.Application.Products.DTOs;
 using Inventory.Application.Products.Queries.GetProductById;
 using Inventory.Application.Products.Queries.GetProducts;
+using Inventory.Application.Products.Queries.GetProductTransactions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -129,6 +130,14 @@ namespace Inventory.API.Controllers
         {
             // Mediator query ko Handler tak pahuchayega
             var result = await _mediator.Send(new GetProductSearchQuery(term));
+            return Ok(result);
+        }
+
+        [HttpGet("{id}/transactions")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetTransactions(Guid id)
+        {
+            var result = await _mediator.Send(new GetProductTransactionsQuery(id));
             return Ok(result);
         }
 
