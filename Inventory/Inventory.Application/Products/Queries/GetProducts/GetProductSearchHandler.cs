@@ -53,6 +53,7 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
 
                 // 🆕 GST Product Master se aur Discount PriceList se
                 gstPercent = p.DefaultGst ?? 0,
+                defaultGst = p.DefaultGst ?? 0,
                 discountPercent = discountPercent,
 
                 // STEP 3: DIRECT BINDING WITH DATABASE COLUMN
