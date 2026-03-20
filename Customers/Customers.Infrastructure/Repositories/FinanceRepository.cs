@@ -202,10 +202,12 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<decimal> GetTotalOutstandingAsync()
         {
-            // Get all customer IDs
-            var customerIds = await _context.CustomerLedgers
-                .Select(l => l.CustomerId)
-                .Distinct()
+            // Get all REAL customer IDs (Exclude internal Capital/Owner Accounts)
+            var internalAccountNames = new[] { "Proprietor (Self / Capital Account)" };
+            
+            var customerIds = await _context.Customers
+                .Where(c => !internalAccountNames.Contains(c.CustomerName))
+                .Select(c => c.Id)
                 .ToListAsync();
 
             decimal total = 0;
