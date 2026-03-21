@@ -251,7 +251,11 @@ namespace Suppliers.Infrastructure.Repositories // Adjust namespace if needed
                     .Select(l => l.Balance)
                     .FirstOrDefaultAsync();
 
-                total += lastBalance;
+                // Only add positive balances (actual payables)
+                if (lastBalance > 0)
+                {
+                    total += lastBalance;
+                }
             }
 
             return total;

@@ -123,9 +123,16 @@ namespace Customers.Infrastructure.Repositories
                 .GroupBy(l => l.CustomerId)
                 .Select(g => g.Max(l => l.Id));
 
+            var internalAccountNames = new[] { 
+                "Proprietor (Self / Capital Account)", 
+                "Company Bank Account (Internal)" 
+            };
+
             var query = from l in _context.CustomerLedgers
                         join c in _context.Customers on l.CustomerId equals c.Id
-                        where latestLedgerIds.Contains(l.Id) && l.Balance > 0
+                        where latestLedgerIds.Contains(l.Id) && 
+                              l.Balance > 0 && 
+                              !internalAccountNames.Contains(c.CustomerName)
                         select new OutstandingDto
                         {
                             CustomerId = l.CustomerId,
@@ -202,8 +209,11 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<decimal> GetTotalOutstandingAsync()
         {
-            // Get all REAL customer IDs (Exclude internal Capital/Owner Accounts)
-            var internalAccountNames = new[] { "Proprietor (Self / Capital Account)" };
+            // Get all REAL customer IDs (Exclude internal Capital/Owner/Bank Accounts)
+            var internalAccountNames = new[] { 
+                "Proprietor (Self / Capital Account)", 
+                "Company Bank Account (Internal)" 
+            };
             
             var customerIds = await _context.Customers
                 .Where(c => !internalAccountNames.Contains(c.CustomerName))
@@ -219,7 +229,11 @@ namespace Customers.Infrastructure.Repositories
                     .Select(l => l.Balance)
                     .FirstOrDefaultAsync();
                 
-                total += lastBalance;
+                // Only add positive balances (actual receivables)
+                if (lastBalance > 0)
+                {
+                    total += lastBalance;
+                }
             }
 
             return total;
