@@ -1,4 +1,4 @@
-﻿using Customers.Application.Common.Interfaces;
+using Customers.Application.Common.Interfaces;
 using Customers.Domain.Entities;
 using Customers.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -40,41 +40,22 @@ namespace Customers.Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        /// <summary>
-        /// bulk customer call
-        /// </summary>
-        /// <param name="ids"></param>
-        /// <returns></returns>
-        //public async Task<Dictionary<int, string>> GetCustomerNamesByIdsAsync(List<int> ids)
-        //{
-        //    return await _context.Customers
-        //        .Where(c => ids.Contains(c.Id))
-        //        .ToDictionaryAsync(c => c.Id, c => c.CustomerName);
-        //}
         public async Task<Dictionary<int, string>> GetCustomerNamesByIdsAsync(List<int> ids)
         {
-            // 1. Validation: Agar list empty hai toh turant return karein taaki DB trip bache
             if (ids == null || !ids.Any())
                 return new Dictionary<int, string>();
 
-            // 2. Duplicate IDs remove karein taaki SQL IN clause chhota rahe
             var distinctIds = ids.Distinct().ToList();
 
             return await _context.Customers
-                .AsNoTracking() // 3. Tracking off karein, ye performance ke liye bahut zaroori hai [cite: 2026-02-06]
+                .AsNoTracking() 
                 .Where(c => distinctIds.Contains(c.Id))
-                .Select(c => new { c.Id, c.CustomerName }) // 4. Sirf wahi columns layein jo chahiye
+                .Select(c => new { c.Id, c.CustomerName }) 
                 .ToDictionaryAsync(x => x.Id, x => x.CustomerName);
         }
 
-        /// <summary>
-        /// Single call
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
         public async Task<string?> GetCustomerNameByIdAsync(int id)
         {
-            // Database se sirf Name column select karein performance ke liye
             return await _context.Customers
                 .Where(c => c.Id == id)
                 .Select(c => c.CustomerName)
@@ -83,13 +64,12 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<List<CustomerLookupDto>> GetCustomersLookupAsync()
         {
-            // Database se sirf Id aur CustomerName select karna [cite: 2026-02-05]
             return await _context.Customers
-                .AsNoTracking() // Performance ke liye [cite: 2026-02-05]
+                .AsNoTracking()
                 .Select(c => new CustomerLookupDto
                 {
                     Id = c.Id,
-                    Name = c.CustomerName // Aapki table mein 'CustomerName' column hai [cite: 2026-02-05]
+                    Name = c.CustomerName 
                 })
                 .ToListAsync();
         }
@@ -97,6 +77,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<int>> GetIdsByNameAsync(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return new List<int>();
+
             return await _context.Customers
                 .AsNoTracking()
                 .Where(c => EF.Functions.Like(c.CustomerName, $"%{name}%"))
