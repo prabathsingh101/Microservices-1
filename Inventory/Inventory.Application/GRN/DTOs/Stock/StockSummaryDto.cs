@@ -16,6 +16,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public int MinStockLevel { get; set; }
         public decimal AvailableStock { get; set; }
         public decimal TotalRejected { get; set; }
+        public decimal TotalExpired { get; set; }
         public decimal TotalSold { get; set; }
 
         public Guid? WarehouseId { get; set; }

@@ -362,9 +362,10 @@ namespace Inventory.Infrastructure.Repositories
                     GstPercent = group.Key.GstPercent,
                     IsExpiryRequired = group.Key.IsExpiryRequired,
 
-                    // TotalReceived: Net usable inward (Received - Rejected)
-                    TotalReceived = group.Sum(x => x.ReceivedQty - x.RejectedQty),
-                    TotalRejected = group.Sum(x => x.RejectedQty),
+                    // TotalReceived: Gross inward quantity
+                    TotalReceived = group.Sum(x => x.ReceivedQty),
+                    TotalRejected = group.Sum(x => (x.Rack != null && (x.Rack.Name.Contains("E1") || (x.Rack.Description != null && x.Rack.Description.Contains("Expired")))) ? 0 : x.RejectedQty),
+                    TotalExpired = group.Sum(x => (x.Rack != null && (x.Rack.Name.Contains("E1") || (x.Rack.Description != null && x.Rack.Description.Contains("Expired")))) ? x.RejectedQty : 0),
 
                     // AvailableStock: Inward balance for this specific location
                     AvailableStock = group.Sum(x => x.ReceivedQty - x.RejectedQty),
@@ -373,6 +374,9 @@ namespace Inventory.Infrastructure.Repositories
                     LastPurchaseOrderId = group.OrderByDescending(x => x.Id).Select(x => x.GRNHeader.PurchaseOrderId).FirstOrDefault()
                     // ManufacturingDate & ExpiryDate: computed in STEP 4 loop (earliest expiry batch logic)
                 });
+
+            // STEP 2B: Filter out entirely empty locations (no inventory ever inwarded or all moved out)
+            groupedQuery = groupedQuery.Where(x => x.TotalReceived > 0);
 
             // STEP 3: Search & Sorting
             if (!string.IsNullOrEmpty(search))
@@ -395,7 +399,9 @@ namespace Inventory.Infrastructure.Repositories
             {
                 // 1. Gross Sold fetch karein (Confirmed/Completed)
                 var grossSold = await _context.SaleOrderItems
-                    .Where(si => si.ProductId == item.ProductId &&
+                    .Where(si => si.ProductId == item.ProductId && 
+                                si.WarehouseId == item.WarehouseId && 
+                                si.RackId == item.RackId &&
                                 (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
@@ -408,14 +414,16 @@ namespace Inventory.Infrastructure.Repositories
                 // 4. Update Net Stats
                 item.TotalSold = grossSold - totalSaleReturn;
                 
-                // 🎯 5. Final Stock Update: Net Received - Net Sold
-                item.AvailableStock = item.TotalReceived - item.TotalSold;
+                // 🎯 5. Final Stock Update: Net Sellable Stock Calculation
+                // Inward - Rejected - Expired - Sold
+                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalExpired - item.TotalSold;
 
                 // 6. BUSINESS RULE: Main row mein sabse pehle expire hone wali batch dikhao
-                //    ONLY for batches that actually have stock (Received - Rejected > 0)
+                //    In normal racks, check usable stock (Received - Rejected > 0). 
+                //    In Expired racks, check gross received so we still see the date.
                 var earliestBatch = await _context.GRNDetails
-                    .Where(g => g.ProductId == item.ProductId && g.ExpDate != null && (g.ReceivedQty - g.RejectedQty) > 0)
-                    .OrderBy(g => g.ExpDate)       // Ascending = earliest first
+                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId && g.ExpDate != null && g.ReceivedQty > 0)
+                    .OrderBy(g => g.ExpDate)
                     .Select(g => new { g.MfgDate, g.ExpDate })
                     .FirstOrDefaultAsync();
 
@@ -426,9 +434,8 @@ namespace Inventory.Infrastructure.Repositories
                 }
                 else
                 {
-                    // Fallback: koi expiry date nahi hai, latest active batch ki date lo
                     var latestBatch = await _context.GRNDetails
-                        .Where(g => g.ProductId == item.ProductId && (g.ReceivedQty - g.RejectedQty) > 0)
+                        .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId && g.ReceivedQty > 0)
                         .OrderByDescending(g => g.Id)
                         .Select(g => new { g.MfgDate, g.ExpDate })
                         .FirstOrDefaultAsync();
@@ -438,7 +445,7 @@ namespace Inventory.Infrastructure.Repositories
 
                 // 7. Audit Trail History & Batch-wise Stock Calculation
                 var allBatches = await _context.GRNDetails
-                    .Where(g => g.ProductId == item.ProductId)
+                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
                     .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
                     .ThenBy(g => g.GRNHeader.ReceivedDate)
                     .Select(allG => new StockHistoryDto
@@ -464,7 +471,7 @@ namespace Inventory.Infrastructure.Repositories
 
                 // 🎯 Calculate Batch-wise "Sold" strictly
                 var productSales = await _context.SaleOrderItems
-                    .Where(si => si.ProductId == item.ProductId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .Where(si => si.ProductId == item.ProductId && si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
                     .Select(si => new { si.Qty, si.MfgDate, si.ExpDate })
                     .ToListAsync();
 
