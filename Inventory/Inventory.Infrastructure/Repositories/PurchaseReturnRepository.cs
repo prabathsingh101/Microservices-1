@@ -46,7 +46,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         DiscountPercent = gd.DiscountPercent,
                         CurrentStock = gd.Product != null ? gd.Product.CurrentStock : 0,
                         WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
-                        RackName = gd.Rack != null ? gd.Rack.Name : "N/A"
+                        RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
+                        MfgDate = gd.MfgDate,
+                        ExpDate = gd.ExpDate
                     };
 
         return await query.ToListAsync();
@@ -97,7 +99,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         ReceivedDate = gh.ReceivedDate,
                         CurrentStock = gd.Product != null ? gd.Product.CurrentStock : 0,
                         WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
-                        RackName = gd.Rack != null ? gd.Rack.Name : "N/A"
+                        RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
+                        MfgDate = gd.MfgDate,
+                        ExpDate = gd.ExpDate
                     };
 
         var result = await query
@@ -415,8 +419,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                   DiscountPercent = pri.DiscountPercent,
                                   TaxAmount = pri.TaxAmount,
                                   TotalAmount = pri.TotalAmount,
-                                  MfgDate = pri.MfgDate,
-                                  ExpDate = pri.ExpDate
+                                  // Backfill from original GRN if not saved directly in PR record [cite: 2026-03-24]
+                                  MfgDate = pri.MfgDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.MfgDate).FirstOrDefault(),
+                                  ExpDate = pri.ExpDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.ExpDate).FirstOrDefault()
                               }).ToListAsync();
 
         // 3. Supplier Name fetch karein

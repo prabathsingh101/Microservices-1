@@ -15,6 +15,8 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public decimal CurrentStock { get; set; }
         public string? WarehouseName { get; set; }
         public string? RackName { get; set; }
+        public DateTime? MfgDate { get; set; }
+        public DateTime? ExpDate { get; set; }
     }
 }
 

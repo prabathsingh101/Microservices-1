@@ -1,4 +1,4 @@
-﻿public class RejectedItemDto
+public class RejectedItemDto
 {
     public Guid ProductId { get; set; }
     public string ProductName { get; set; }
@@ -10,4 +10,6 @@
     public decimal CurrentStock { get; set; }
     public string? WarehouseName { get; set; }
     public string? RackName { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }
