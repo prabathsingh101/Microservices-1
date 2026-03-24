@@ -163,6 +163,19 @@ namespace Inventory.Infrastructure.Repositories
                             product.CurrentStock += item.ReturnQty;
                             product.ModifiedOn = DateTime.Now;
                             product.ModifiedBy = header.CreatedBy ?? "system";
+
+                            // 🆕 Record Inventory Transaction
+                            var returnTx = new InventoryTransaction(
+                                item.ProductId,
+                                item.ReturnQty, // Positive because it is READDING stock
+                                header.IsQuick ? "QuickSaleReturn" : "SaleReturn",
+                                header.ReturnNumber,
+                                item.WarehouseId, 
+                                item.RackId,
+                                item.MfgDate,
+                                item.ExpDate
+                            );
+                            await _context.InventoryTransactions.AddAsync(returnTx);
                         }
 
                         // Repository shouldn't recalculate if Handler already did, but if it does, it MUST be correct.
@@ -202,27 +215,29 @@ namespace Inventory.Infrastructure.Repositories
             });
         }
 
-        public async Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId)
+        public async Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null)
         {
-            // 1. Sale Order mein kitni quantity bechi gayi thi (e.g., 6)
+            // 1. Get total quantity sold for THIS specifically batch-matched line item
             var totalSold = await _context.SaleOrderItems
                 .AsNoTracking()
-                .Where(soi => soi.SaleOrderId == saleOrderId && soi.ProductId == productId)
-                .Select(soi => soi.Qty)
-                .FirstOrDefaultAsync();
+                .Where(soi => soi.SaleOrderId == saleOrderId &&
+                              soi.ProductId == productId &&
+                              (!mfgDate.HasValue || soi.MfgDate == mfgDate) &&
+                              (!expDate.HasValue || soi.ExpDate == expDate))
+                .SumAsync(soi => (decimal?)soi.Qty) ?? 0;
 
 
+            // 2. Get total already returned for THIS specific batch
             var totalReturned = await _context.SaleReturnItems
                 .AsNoTracking()
                 .Where(sri => sri.SaleReturnHeader.SaleOrderId == saleOrderId &&
                               sri.ProductId == productId &&
-                              (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
+                              (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED") &&
+                              (!mfgDate.HasValue || sri.MfgDate == mfgDate) &&
+                              (!expDate.HasValue || sri.ExpDate == expDate))
                 .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
-            // 3. Calculation (6 - 2 = 4 pieces available for return)
-            // Agar result 0 se niche jaye, toh 0 hi return karein taaki UI minus na dikhaye
             var remaining = totalSold - totalReturned;
-
             return remaining > 0 ? remaining : 0;
         }
 

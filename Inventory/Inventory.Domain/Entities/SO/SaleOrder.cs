@@ -58,7 +58,7 @@ namespace Inventory.Domain.Entities.SO
 
         [Required]
         public string CreatedBy { get; set; } = string.Empty; // Login user ki email/ID [cite: 3]
-
+        public bool IsQuick { get; set; } // Flag for Quick vs Standard Sale
         public DateTime CreatedAt { get; set; } // Record creation time [cite: 3]
 
         // Relationship: One SaleOrder has many SaleOrderItems

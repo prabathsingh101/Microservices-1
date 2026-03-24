@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.GRN.Command;
 using Inventory.Application.GRN.Queries;
 using MediatR;
@@ -57,9 +57,10 @@ namespace Inventory.API.Controllers
         [FromQuery] string? sortField = "id", // Default value rakhein
         [FromQuery] string? sortOrder = "desc",
         [FromQuery] int pageIndex = 0,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool isQuick = false)
         {
-            var result = await _mediator.Send(new GetGRNListQuery(search ?? "", sortField ?? "id", sortOrder ?? "desc", pageIndex, pageSize));
+            var result = await _mediator.Send(new GetGRNListQuery(search ?? "", sortField ?? "id", sortOrder ?? "desc", pageIndex, pageSize, isQuick));
             return Ok(result);
         }
 

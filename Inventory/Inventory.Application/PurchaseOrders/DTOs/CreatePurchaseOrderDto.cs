@@ -18,6 +18,7 @@ public record CreatePurchaseOrderDto(
     decimal? CgstAmount,
     decimal? SgstAmount,
     string CreatedBy,
+    bool IsQuick, // Quick Purchase flag
     List<PoItemDto> Items);
 
 public record PoItemDto(

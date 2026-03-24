@@ -18,7 +18,7 @@ public interface ISaleReturnRepository
        bool isQuick = false);
 
     Task<bool> CreateSaleReturnAsync(SaleReturnHeader returnHeader);
-    Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId);
+    Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null);
 
     Task<List<SaleReturnExportDto>> GetExportDataAsync(DateTime? fromDate, DateTime? toDate);
 

@@ -28,6 +28,7 @@ public class PurchaseOrder
     public string Status { get; set; } = "Draft";
     public string? CreatedBy { get; set; } //
     public string? UpdatedBy { get; set; } //
+    public bool IsQuick { get; set; } // Flag for Quick vs Standard Purchase
     public DateTime? CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
     public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();

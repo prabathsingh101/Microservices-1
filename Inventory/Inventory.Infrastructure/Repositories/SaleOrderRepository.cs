@@ -472,8 +472,31 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SoldQty = x.Qty - (_context.SaleReturnItems
                     .Where(sr => sr.ProductId == x.ProductId &&
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
-                                 sr.SaleReturnHeader.Status == "Confirmed")
-                    .Sum(sr => (decimal?)sr.ReturnQty) ?? 0)
+                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
+                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) && 
+                                 (x.ExpDate == null || sr.ExpDate == x.ExpDate))
+                    .Sum(sr => (decimal?)sr.ReturnQty) ?? 0),
+
+                // Fetch GRN and PO references based on Product/Warehouse/Rack/Batch metadata
+                GrnNumber = _context.GRNDetails
+                    .Where(g => g.ProductId == x.ProductId && 
+                                g.WarehouseId == x.WarehouseId && 
+                                g.RackId == x.RackId && 
+                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) && 
+                                (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
+                    .OrderByDescending(g => g.Id)
+                    .Select(g => g.GRNHeader.GRNNumber)
+                    .FirstOrDefault(),
+                
+                RefNo = _context.GRNDetails
+                    .Where(g => g.ProductId == x.ProductId && 
+                                g.WarehouseId == x.WarehouseId && 
+                                g.RackId == x.RackId && 
+                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) && 
+                                (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
+                    .OrderByDescending(g => g.Id)
+                    .Select(g => g.GRNHeader.PurchaseOrder.PoNumber)
+                    .FirstOrDefault()
             })
             .Where(x => x.SoldQty > 0) // Agar pura maal wapas aa gaya (0 bacha), toh grid mein mat dikhao
             .ToListAsync();

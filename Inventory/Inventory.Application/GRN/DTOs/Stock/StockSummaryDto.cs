@@ -43,6 +43,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? PONumber { get; set; }
         public string? GRNNumber { get; set; }
         public string? SupplierName { get; set; }
+        public string? TransactionType { get; set; }
         public string? ProductName { get; set; }
         public decimal ReceivedQty { get; set; }
         public decimal RejectedQty { get; set; }

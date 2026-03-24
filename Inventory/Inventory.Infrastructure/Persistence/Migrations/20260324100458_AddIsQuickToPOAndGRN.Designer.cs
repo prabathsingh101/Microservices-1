@@ -4,6 +4,7 @@ using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Inventory.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(InventoryDbContext))]
-    partial class InventoryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260324100458_AddIsQuickToPOAndGRN")]
+    partial class AddIsQuickToPOAndGRN
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -788,9 +791,6 @@ namespace Inventory.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("IgstAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<bool>("IsQuick")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Remarks")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1007,9 +1007,6 @@ namespace Inventory.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("RackId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)");
 
@@ -1038,9 +1035,6 @@ namespace Inventory.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("UpdatedOn")
                         .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("WarehouseId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("SaleReturnItemId");
 

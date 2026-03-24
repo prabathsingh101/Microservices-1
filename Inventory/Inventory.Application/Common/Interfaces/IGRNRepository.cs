@@ -1,4 +1,4 @@
-﻿using Inventory.Application.GRN.DTOs;
+using Inventory.Application.GRN.DTOs;
 using Inventory.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ namespace Inventory.Application.Common.Interfaces
         Task<POForGRNDTO?> GetPODataForGRN(string poIds, int? grnHeaderId = null, string? gatePassNo = null);
         Task<string> GenerateGRNNumber();
         Task<string> SaveGRNWithStockUpdate(GRNHeader header, List<GRNDetail> details);
-        Task<GRNPagedResponseDto> GetGRNPagedListAsync(string search, string sortField, string sortOrder, int pageIndex, int pageSize);
+        Task<GRNPagedResponseDto> GetGRNPagedListAsync(string search, string sortField, string sortOrder, int pageIndex, int pageSize, bool isQuick = false);
 
         Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber);
 

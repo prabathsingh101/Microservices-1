@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Common;
+using Inventory.Domain.Common;
 
 namespace Inventory.Domain.Entities
 {
@@ -15,7 +15,8 @@ namespace Inventory.Domain.Entities
         public string? GatePassNo { get; set; }
         public string Remarks { get; set; }
         public string CreatedBy { get; set; }
-
+        public bool IsQuick { get; set; } // Flag to identify transaction source (Quick vs PO)
+ 
         public List<GRNDetail>? GRNItems { get; set; } // Child Items [cite: 2026-01-22]
     }
 }

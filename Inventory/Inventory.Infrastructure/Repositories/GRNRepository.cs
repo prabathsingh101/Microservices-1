@@ -130,6 +130,7 @@ namespace Inventory.Infrastructure.Repositories
                     if (po != null)
                     {
                         header.SupplierId = po.SupplierId;
+                        header.IsQuick = po.IsQuick; // Sync flag from PO to GRN
                     }
 
                     var productIds = details.Select(d => d.ProductId).Distinct().ToList();
@@ -182,7 +183,7 @@ namespace Inventory.Infrastructure.Repositories
                             var transactionRecord = new InventoryTransaction(
                                 item.ProductId,
                                 qtyToIncrease,
-                                "GRN",
+                                header.IsQuick ? "QuickGRN" : "GRN", // Correctly record Quick vs Standard
                                 header.GRNNumber,
                                 item.WarehouseId,
                                 item.RackId,
@@ -438,9 +439,9 @@ namespace Inventory.Infrastructure.Repositories
 
 
 
-        public async Task<GRNPagedResponseDto> GetGRNPagedListAsync(string search, string sortField, string sortOrder, int pageIndex, int pageSize)
+        public async Task<GRNPagedResponseDto> GetGRNPagedListAsync(string search, string sortField, string sortOrder, int pageIndex, int pageSize, bool isQuick = false)
         {
-            var query = _context.GRNHeaders.AsQueryable();
+            var query = _context.GRNHeaders.Where(x => x.IsQuick == isQuick).AsQueryable();
 
             // 1. Searching Logic (Existing preserved)
             if (!string.IsNullOrWhiteSpace(search))

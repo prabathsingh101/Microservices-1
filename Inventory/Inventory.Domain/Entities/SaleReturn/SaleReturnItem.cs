@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Common;
+using Inventory.Domain.Common;
 using System.ComponentModel.DataAnnotations;
 
 namespace Inventory.Domain.Entities;
@@ -31,4 +31,7 @@ public class SaleReturnItem : BaseAuditableEntity
     public string? ItemCondition { get; set; } // Restockable ya Scrapped
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
+
+    public Guid? WarehouseId { get; set; }
+    public Guid? RackId { get; set; }
 }

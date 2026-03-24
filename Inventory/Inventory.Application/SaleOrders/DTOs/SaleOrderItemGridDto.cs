@@ -12,6 +12,8 @@ public class SaleOrderItemGridDto
     public DateTime? ExpDate { get; set; }
     public Guid? WarehouseId { get; set; }
     public Guid? RackId { get; set; }
+    public string? GrnNumber { get; set; }
+    public string? RefNo { get; set; }
     public bool IsReturnable { get; set; }
     public double ReturnWindowRemainingHours { get; set; }
     public decimal CurrentStock { get; set; }

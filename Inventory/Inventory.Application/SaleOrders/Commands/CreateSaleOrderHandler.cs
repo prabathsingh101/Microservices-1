@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Inventory.Domain.Entities.SO;
+using Inventory.Domain.Entities;
 
 public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, object>
 {
@@ -76,6 +77,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             Remarks = dto.Remarks,
             Status = dto.Status,
             CreatedBy = dto.CreatedBy,
+            IsQuick = dto.IsQuick, // Map flag from DTO
             Items = dto.Items.Select(i => new SaleOrderItem
             {
                 ProductId = i.ProductId,
@@ -112,6 +114,19 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         foreach (var item in existingWithItems.Items)
                         {
                             await _repo.UpdateProductStockAsync(item.ProductId, item.Qty);
+
+                            // 🆕 Record Reversal in Audit Trail
+                            var reversalTx = new InventoryTransaction(
+                                item.ProductId,
+                                item.Qty, // Positive because it is READDING stock
+                                (existingWithItems.IsQuick ? "QuickSale" : "Sale") + "-REVERSAL",
+                                existingWithItems.SONumber,
+                                item.WarehouseId,
+                                item.RackId,
+                                item.MfgDate,
+                                item.ExpDate
+                            );
+                            await _context.InventoryTransactions.AddAsync(reversalTx);
                         }
 
                         // Optional: Record reversal for OLD amount before recording NEW
@@ -149,6 +164,19 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         throw new Exception($"Insufficient stock for {item.ProductName}. Available: {availableStock}");
                     }
                     await _repo.UpdateProductStockAsync(item.ProductId, -item.Qty);
+
+                    // 🆕 Record Inventory Transaction
+                    var saleTx = new InventoryTransaction(
+                        item.ProductId,
+                        -item.Qty, // Negative because it is REDUCING stock
+                        saleOrder.IsQuick ? "QuickSale" : "Sale",
+                        saleOrder.SONumber,
+                        item.WarehouseId,
+                        item.RackId,
+                        item.MfgDate,
+                        item.ExpDate
+                    );
+                    await _context.InventoryTransactions.AddAsync(saleTx);
                 }
 
                 // 3. Record New Ledger

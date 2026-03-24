@@ -10,6 +10,7 @@ using Inventory.Application.Common.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Inventory.Domain.Entities;
 
 namespace Inventory.Infrastructure.Repositories;
 
@@ -197,6 +198,19 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         {
                             product.CurrentStock -= deductionFromCurrentStock;
                             _context.Products.Update(product);
+
+                            // 🆕 Record Inventory Transaction
+                            var returnTx = new InventoryTransaction(
+                                item.ProductId,
+                                -item.ReturnQty, // Negative because it is REDUCING stock (returning to supplier)
+                                returnData.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn",
+                                returnData.ReturnNumber,
+                                grnDetail.WarehouseId,
+                                grnDetail.RackId,
+                                item.MfgDate,
+                                item.ExpDate
+                            );
+                            await _context.InventoryTransactions.AddAsync(returnTx);
                         }
                     }
                 } // End Foreach

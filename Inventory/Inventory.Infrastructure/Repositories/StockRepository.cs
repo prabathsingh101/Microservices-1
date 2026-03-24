@@ -408,6 +408,8 @@ namespace Inventory.Infrastructure.Repositories
                 // 2. Sale Return fetch karein (Confirmed and Inwarded returns)
                 var totalSaleReturn = await _context.SaleReturnItems
                     .Where(sri => sri.ProductId == item.ProductId && 
+                                 sri.WarehouseId == item.WarehouseId && 
+                                 sri.RackId == item.RackId &&
                                  (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
@@ -456,6 +458,7 @@ namespace Inventory.Infrastructure.Repositories
                         ReceivedDate = allG.GRNHeader.ReceivedDate.AddHours(5).AddMinutes(30),
                         PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
                         GRNNumber = allG.GRNHeader.GRNNumber,
+                        TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
@@ -469,47 +472,71 @@ namespace Inventory.Infrastructure.Repositories
                         AvailableQty = allG.ReceivedQty - allG.RejectedQty // Initial
                     }).ToListAsync();
 
-                // 🎯 Calculate Batch-wise "Sold" strictly
-                var productSales = await _context.SaleOrderItems
+                // 🎯 Calculate Batch-wise "Sold" strictly (Net of Sales and Returns)
+                var grossSales = await _context.SaleOrderItems
                     .Where(si => si.ProductId == item.ProductId && si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
                     .Select(si => new { si.Qty, si.MfgDate, si.ExpDate })
                     .ToListAsync();
 
-                // Split sales into "Batch-Specific" and "Generic"
-                var specificSales = productSales.Where(s => s.MfgDate != null || s.ExpDate != null).ToList();
-                var genericSalesSum = productSales.Where(s => s.MfgDate == null && s.ExpDate == null).Sum(s => s.Qty);
+                var batchReturns = await _context.SaleReturnItems
+                    .Where(sri => sri.ProductId == item.ProductId && sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
+                    .Select(sri => new { Qty = sri.ReturnQty, sri.MfgDate, sri.ExpDate })
+                    .ToListAsync();
 
-                // 1. Deduct Specific Sales from their matching batches
-                foreach (var sale in specificSales)
+                // Group both by Batch (Mfg/Exp) to get Net Sold per batch
+                var specificSales = grossSales.Where(s => s.MfgDate != null || s.ExpDate != null)
+                    .GroupBy(s => new { s.MfgDate, s.ExpDate })
+                    .Select(g => new { g.Key.MfgDate, g.Key.ExpDate, Qty = g.Sum(x => x.Qty) })
+                    .ToList();
+
+                var specificReturns = batchReturns.Where(r => r.MfgDate != null || r.ExpDate != null)
+                    .GroupBy(r => new { r.MfgDate, r.ExpDate })
+                    .Select(g => new { g.Key.MfgDate, g.Key.ExpDate, Qty = g.Sum(x => x.Qty) })
+                    .ToList();
+
+                var genericSalesSum = grossSales.Where(s => s.MfgDate == null && s.ExpDate == null).Sum(s => s.Qty);
+                var genericReturnsSum = batchReturns.Where(r => r.MfgDate == null && r.ExpDate == null).Sum(r => r.Qty);
+
+                // 1. Deduct Net Specific Sales from their matching batches
+                foreach (var sSale in specificSales)
                 {
-                    var matchingBatch = allBatches.FirstOrDefault(b => b.ManufacturingDate == sale.MfgDate && b.ExpiryDate == sale.ExpDate && b.AvailableQty > 0);
-                    if (matchingBatch != null)
+                    var sReturnQty = specificReturns.FirstOrDefault(r => r.MfgDate == sSale.MfgDate && r.ExpDate == sSale.ExpDate)?.Qty ?? 0;
+                    var netBatchSold = sSale.Qty - sReturnQty;
+
+                    if (netBatchSold > 0)
                     {
-                        matchingBatch.AvailableQty -= sale.Qty;
-                    }
-                    else
-                    {
-                        // If no specific match found (maybe date changed?), treat as generic
-                        genericSalesSum += sale.Qty;
+                        var matchingBatch = allBatches.FirstOrDefault(b => b.ManufacturingDate == sSale.MfgDate && b.ExpiryDate == sSale.ExpDate && b.AvailableQty > 0);
+                        if (matchingBatch != null)
+                        {
+                            matchingBatch.AvailableQty -= netBatchSold;
+                        }
+                        else
+                        {
+                            genericSalesSum += netBatchSold; // Spillover if exact batch not found
+                        }
                     }
                 }
 
-                // 2. Deduct Generic Sales using FIFO (Oldest first)
-                var oldestFirstBatches = allBatches.OrderBy(b => b.ReceivedDate).ToList();
-                foreach (var batch in oldestFirstBatches)
+                // 2. Deduct Net Generic Sales using FIFO (Oldest first)
+                var netGenericSold = genericSalesSum - genericReturnsSum;
+                if (netGenericSold > 0)
                 {
-                    if (genericSalesSum <= 0) break;
-                    if (batch.AvailableQty <= 0) continue;
+                    var oldestFirstBatches = allBatches.OrderBy(b => b.ReceivedDate).ToList();
+                    foreach (var batch in oldestFirstBatches)
+                    {
+                        if (netGenericSold <= 0) break;
+                        if (batch.AvailableQty <= 0) continue;
 
-                    if (genericSalesSum >= batch.AvailableQty)
-                    {
-                        genericSalesSum -= batch.AvailableQty;
-                        batch.AvailableQty = 0;
-                    }
-                    else
-                    {
-                        batch.AvailableQty -= genericSalesSum;
-                        genericSalesSum = 0;
+                        if (netGenericSold >= batch.AvailableQty)
+                        {
+                            netGenericSold -= batch.AvailableQty;
+                            batch.AvailableQty = 0;
+                        }
+                        else
+                        {
+                            batch.AvailableQty -= netGenericSold;
+                            netGenericSold = 0;
+                        }
                     }
                 }
 

@@ -62,6 +62,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     CreatedBy = dto.CreatedBy,
                     Remarks = dto.Remarks,
                     ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
+                    IsQuick = dto.IsQuick, // Map flag from DTO
                     Items = dto.Items.Select(i => new PurchaseOrderItem
                     {
                         ProductId = i.ProductId,

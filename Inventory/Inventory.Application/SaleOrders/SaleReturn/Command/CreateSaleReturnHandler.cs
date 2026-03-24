@@ -22,8 +22,8 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
             // Isse dashboard par -4 aana band ho jayega kyunki bache huye se zyada return block ho jayega
             foreach (var item in dto.Items)
             {
-                // Repository method call karke remaining returnable quantity mangwayi
-                var remainingQty = await _repo.GetRemainingReturnableQtyAsync(dto.SaleOrderId, item.ProductId);
+                // Pass Mfg/Exp dates to handle multi-line same-product orders correctly
+                var remainingQty = await _repo.GetRemainingReturnableQtyAsync(dto.SaleOrderId, item.ProductId, item.MfgDate, item.ExpDate);
 
                 if (item.ReturnQty > remainingQty)
                 {
@@ -56,6 +56,8 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     ItemCondition = i.ItemCondition,
                     MfgDate = i.MfgDate,
                     ExpDate = i.ExpDate,
+                    WarehouseId = i.WarehouseId,
+                    RackId = i.RackId,
                     CreatedOn = DateTime.Now,
                     CreatedBy = i.CreatedBy ?? dto.CreatedBy,
                     ModifiedBy = i.ModifiedBy ?? dto.ModifiedBy,
