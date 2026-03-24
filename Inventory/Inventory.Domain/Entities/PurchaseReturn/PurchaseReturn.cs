@@ -1,6 +1,8 @@
+using Inventory.Domain.Common;
+
 namespace Inventory.Domain.Entities;
 
-public class PurchaseReturn
+public class PurchaseReturn : BaseAuditableEntity
 {
     public Guid Id { get; set; } // Primary Key
     public string ReturnNumber { get; set; } // Auto-generated: e.g., PR-2026-0001 [cite: 2026-02-03]

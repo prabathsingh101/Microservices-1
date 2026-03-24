@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using Inventory.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Inventory.Domain.Entities;
 
-public class PurchaseReturnItem
+public class PurchaseReturnItem : BaseAuditableEntity
 {
     public Guid Id { get; set; }
     public Guid PurchaseReturnId { get; set; }

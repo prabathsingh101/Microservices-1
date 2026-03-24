@@ -10,6 +10,8 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public DateTime ReturnDate { get; set; }
         public string Remarks { get; set; }
         public bool IsQuick { get; set; }
+        public string? CreatedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public List<PurchaseReturnItemDto> Items { get; set; }
     }
 
@@ -27,5 +29,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public decimal TaxAmount { get; set; }
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public string? CreatedBy { get; set; }
+        public string? ModifiedBy { get; set; }
     }
 }

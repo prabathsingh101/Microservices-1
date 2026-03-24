@@ -101,6 +101,10 @@ namespace Inventory.API.Controllers
                     GrandTotal = 0,
                     Status = "Confirmed",
                     IsQuick = returnDto.IsQuick, // Map from DTO
+                    CreatedOn = DateTime.Now,
+                    CreatedBy = returnDto.CreatedBy,
+                    ModifiedBy = returnDto.ModifiedBy,
+                    UpdatedOn = DateTime.Now,
                     Items = new List<Inventory.Domain.Entities.PurchaseReturnItem>()
                 };
 
@@ -118,7 +122,11 @@ namespace Inventory.API.Controllers
                         Rate = item.Rate,
                         TotalAmount = itemTotal,
                         MfgDate = item.MfgDate,
-                        ExpDate = item.ExpDate
+                        ExpDate = item.ExpDate,
+                        CreatedOn = DateTime.Now,
+                        CreatedBy = item.CreatedBy ?? returnDto.CreatedBy,
+                        ModifiedBy = item.ModifiedBy ?? returnDto.ModifiedBy,
+                        UpdatedOn = DateTime.Now
                     });
                 }
 

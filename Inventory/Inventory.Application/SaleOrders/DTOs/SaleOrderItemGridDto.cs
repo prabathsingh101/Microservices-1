@@ -14,4 +14,5 @@ public class SaleOrderItemGridDto
     public Guid? RackId { get; set; }
     public bool IsReturnable { get; set; }
     public double ReturnWindowRemainingHours { get; set; }
+    public decimal CurrentStock { get; set; }
 }

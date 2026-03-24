@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -104,7 +104,9 @@ public class SaleReturnService : ISaleReturnService
                     Rate = i.UnitPrice,
                     DiscountPercent = i.DiscountPercent,
                     TaxPercent = i.TaxPercentage,
-                    Total = i.TotalAmount
+                    Total = i.TotalAmount,
+                    MfgDate = i.MfgDate,
+                    ExpDate = i.ExpDate
                 }).ToList()
             })
             .FirstOrDefaultAsync();

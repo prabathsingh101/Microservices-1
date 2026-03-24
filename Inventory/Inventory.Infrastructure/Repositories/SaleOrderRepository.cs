@@ -462,6 +462,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 ExpDate = x.ExpDate,
                 WarehouseId = x.WarehouseId,
                 RackId = x.RackId,
+                CurrentStock = _context.Products.Where(p => p.Id == x.ProductId).Select(p => p.CurrentStock).FirstOrDefault(),
 
                 // 72 Hours Policy Calculation (More LINQ-friendly comparison)
                 IsReturnable = x.SaleOrder.SODate >= limitDate,

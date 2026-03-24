@@ -56,7 +56,10 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     ItemCondition = i.ItemCondition,
                     MfgDate = i.MfgDate,
                     ExpDate = i.ExpDate,
-                    CreatedOn = DateTime.Now
+                    CreatedOn = DateTime.Now,
+                    CreatedBy = i.CreatedBy ?? dto.CreatedBy,
+                    ModifiedBy = i.ModifiedBy ?? dto.ModifiedBy,
+                    UpdatedOn = DateTime.Now
                 };
             }).ToList();
 
@@ -70,6 +73,9 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 Status = "Confirmed",
                 IsQuick = dto.IsQuick,
                 CreatedOn = DateTime.Now,
+                CreatedBy = dto.CreatedBy,
+                ModifiedBy = dto.ModifiedBy,
+                UpdatedOn = DateTime.Now,
                 
                 // Header Level Aggregations
                 SubTotal = items.Sum(x => x.ReturnQty * x.UnitPrice),

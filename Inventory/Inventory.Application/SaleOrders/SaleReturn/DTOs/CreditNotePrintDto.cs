@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients.DTOs;
+using Inventory.Application.Clients.DTOs;
 
 public class CreditNotePrintDto
 {
@@ -23,4 +23,6 @@ public class ReturnItemPrintDto
     public decimal DiscountPercent { get; set; }
     public decimal TaxPercent { get; set; }
     public decimal Total { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }
