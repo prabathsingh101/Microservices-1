@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using Inventory.Application.Clients;
 using Inventory.Domain.Entities.SO;
+using Inventory.Domain.Entities;
 
 public class SaleOrderRepository : ISaleOrderRepository
 {
@@ -334,6 +335,20 @@ public class SaleOrderRepository : ISaleOrderRepository
                 {
                     // Current stock mein se order qty minus kar dein
                     product.CurrentStock -= item.Qty;
+
+                    // 🆕 Record Inventory Transaction for Audit Trail
+                    bool isQuick = order.SONumber.Contains("-Q-");
+                    var saleTx = new InventoryTransaction(
+                        item.ProductId,
+                        item.Qty,
+                        isQuick ? "QuickSale" : "Sale",
+                        order.SONumber,
+                        item.WarehouseId,
+                        item.RackId,
+                        item.MfgDate,
+                        item.ExpDate
+                    );
+                    await _context.InventoryTransactions.AddAsync(saleTx);
                 }
             }
         }

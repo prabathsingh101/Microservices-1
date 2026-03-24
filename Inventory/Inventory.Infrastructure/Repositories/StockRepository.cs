@@ -745,5 +745,50 @@ namespace Inventory.Infrastructure.Repositories
 
 
 
+        public async Task<List<BatchTransactionDto>> GetBatchTransactionsAsync(
+            Guid productId,
+            Guid warehouseId,
+            Guid rackId,
+            DateTime? mfgDate,
+            DateTime? expDate)
+        {
+            var query = _context.InventoryTransactions.AsNoTracking()
+                .Where(t => t.ProductId == productId &&
+                            t.WarehouseId == warehouseId &&
+                            t.RackId == rackId);
+
+            // Batch matching logic (Null safe - comparing Date part only for robustness)
+            if (mfgDate.HasValue)
+            {
+                var targetMfg = mfgDate.Value.Date;
+                query = query.Where(t => t.MfgDate != null && t.MfgDate.Value.Date == targetMfg);
+            }
+            else
+                query = query.Where(t => t.MfgDate == null);
+
+            if (expDate.HasValue)
+            {
+                var targetExp = expDate.Value.Date;
+                query = query.Where(t => t.ExpDate != null && t.ExpDate.Value.Date == targetExp);
+            }
+            else
+                query = query.Where(t => t.ExpDate == null);
+
+            var list = await query
+                .OrderByDescending(t => t.CreatedOn)
+                .Select(t => new BatchTransactionDto
+                {
+                    TransactionDate = t.CreatedOn.AddHours(5).AddMinutes(30), // IST
+                    TransactionType = t.TransactionType,
+                    ReferenceId = t.ReferenceId,
+                    Quantity = t.Quantity,
+                    Category = (new[] { "purchase", "quickgrn", "grn", "salereturn", "quicksalereturn", "expirymove-in" }
+                                .Contains(t.TransactionType.ToLower().Trim())) ? "IN" : "OUT"
+                })
+                .ToListAsync();
+
+            return list;
+        }
+
     }
 }

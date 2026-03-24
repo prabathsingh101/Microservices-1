@@ -112,6 +112,33 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 if (product.CurrentStock < 0) product.CurrentStock = 0;
             }
 
+            // 6. 🆕 Record Inventory Transactions for Audit Trail
+            // Transaction for OUT from source
+            var outTx = new InventoryTransaction(
+                request.ProductId,
+                request.Quantity,
+                "ExpiryMove-OUT",
+                "EXP-" + DateTime.Now.Ticks.ToString().Substring(10),
+                request.SourceWarehouseId,
+                request.SourceRackId,
+                request.ExpiryDate,
+                request.ExpiryDate
+            );
+            await _context.InventoryTransactions.AddAsync(outTx, ct);
+
+            // Transaction for IN to target (Expired Rack)
+            var inTx = new InventoryTransaction(
+                request.ProductId,
+                request.Quantity,
+                "ExpiryMove-IN",
+                outTx.ReferenceId,
+                targetRack.WarehouseId,
+                targetRack.Id,
+                request.ExpiryDate,
+                request.ExpiryDate
+            );
+            await _context.InventoryTransactions.AddAsync(inTx, ct);
+
             return await _context.SaveChangesAsync(ct) > 0;
         }
     }

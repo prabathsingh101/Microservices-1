@@ -1,4 +1,5 @@
 using Inventory.Application.Common.Interfaces;
+using Inventory.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -90,6 +91,34 @@ namespace Inventory.Application.Stock.Commands.RejectStock
             {
                 product.CurrentStock -= actualRejected;
                 if (product.CurrentStock < 0) product.CurrentStock = 0;
+
+                // 🆕 Record Inventory Transaction for Audit Trail (OUTWARD)
+                var adjTx = new InventoryTransaction(
+                    request.ProductId,
+                    actualRejected,
+                    "StockAdjustment-OUT",
+                    "ADJ-" + DateTime.Now.Ticks.ToString().Substring(10),
+                    request.WarehouseId,
+                    request.RackId,
+                    null,
+                    request.ExpiryDate
+                );
+                await _context.InventoryTransactions.AddAsync(adjTx, ct);
+            }
+            else 
+            {
+                // Record PURGE from expired rack (OUTWARD)
+                var purgeTx = new InventoryTransaction(
+                    request.ProductId,
+                    actualRejected,
+                    "StockPurge-OUT",
+                    "PRG-" + DateTime.Now.Ticks.ToString().Substring(10),
+                    request.WarehouseId,
+                    request.RackId,
+                    null,
+                    request.ExpiryDate
+                );
+                await _context.InventoryTransactions.AddAsync(purgeTx, ct);
             }
 
             return await _context.SaveChangesAsync(ct) > 0;

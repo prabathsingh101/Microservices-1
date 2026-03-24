@@ -106,6 +106,19 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("batch-history")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetBatchHistory(
+            [FromQuery] Guid productId,
+            [FromQuery] Guid warehouseId,
+            [FromQuery] Guid rackId,
+            [FromQuery] DateTime? mfgDate,
+            [FromQuery] DateTime? expDate)
+        {
+            var result = await _stockRepo.GetBatchTransactionsAsync(productId, warehouseId, rackId, mfgDate, expDate);
+            return Ok(result);
+        }
+
         [HttpPost("sync")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Sync()

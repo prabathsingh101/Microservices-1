@@ -34,5 +34,12 @@ namespace Inventory.Application.Common.Interfaces
         Task<StockRefillDetailsDto> GetRefillDetailsAsync(Guid productId);
 
         Task<byte[]> GenerateStockExcel(List<Guid> productIds);
+
+        Task<List<BatchTransactionDto>> GetBatchTransactionsAsync(
+            Guid productId,
+            Guid warehouseId,
+            Guid rackId,
+            DateTime? mfgDate,
+            DateTime? expDate);
     }
 }
