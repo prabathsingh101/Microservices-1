@@ -1,12 +1,13 @@
 using AutoMapper;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Features.PurchaseOrders.Queries;
+using Inventory.Application.PurchaseOrders.DTOs;
 using MediatR;
 using Microsoft.EntityFrameworkCore; 
 
 namespace Inventory.Application.Features.PurchaseOrders.Handlers
 {
-    public class GetDateRangePurchaseOrdersQueryHandler : IRequestHandler<GetDateRangePurchaseOrdersQuery, PagedResponse<PurchaseOrderDto>>
+    public class GetDateRangePurchaseOrdersQueryHandler : IRequestHandler<GetDateRangePurchaseOrdersQuery, PurchaseOrderPagedResponse>
     {
         private readonly IPurchaseOrderRepository _repo;
         private readonly IInventoryDbContext _context; 
@@ -19,9 +20,9 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
             _context = context;
         }
 
-        public async Task<PagedResponse<PurchaseOrderDto>> Handle(GetDateRangePurchaseOrdersQuery query, CancellationToken ct)
+        public async Task<PurchaseOrderPagedResponse> Handle(GetDateRangePurchaseOrdersQuery query, CancellationToken ct)
         {
-            // 1. Fetch PO Data
+            // 1. Fetch PO Data with stats
             var result = await _repo.GetDateRangePagedOrdersAsync(query.Request);
 
             // 2. Mapping with Net Quantity Logic
@@ -98,11 +99,12 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 }).ToList()
             }).ToList();
 
-            return new PagedResponse<PurchaseOrderDto>(
+            return new PurchaseOrderPagedResponse(
                 dtos,
                 result.Total,
-                query.Request.PageIndex,
-                query.Request.PageSize
+                result.TotalAmount,
+                result.TodayCount,
+                result.MonthCount
             );
         }
     }

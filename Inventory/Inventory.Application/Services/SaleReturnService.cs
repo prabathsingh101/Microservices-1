@@ -106,7 +106,8 @@ public class SaleReturnService : ISaleReturnService
                     TaxPercent = i.TaxPercentage,
                     Total = i.TotalAmount,
                     MfgDate = i.MfgDate,
-                    ExpDate = i.ExpDate
+                    ExpDate = i.ExpDate,
+                    IsExpiryRequired = i.Product.IsExpiryRequired
                 }).ToList()
             })
             .FirstOrDefaultAsync();

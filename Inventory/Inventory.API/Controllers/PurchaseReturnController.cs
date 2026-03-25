@@ -225,9 +225,9 @@ namespace Inventory.API.Controllers
 
         [HttpGet("summary")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetSummary()
+        public async Task<IActionResult> GetSummary([FromQuery] bool isQuick = false)
         {
-            var result = await _repository.GetPurchaseReturnSummaryAsync();
+            var result = await _repository.GetPurchaseReturnSummaryAsync(isQuick);
             return Ok(result);
         }
     }

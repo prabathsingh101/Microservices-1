@@ -35,6 +35,6 @@ public interface IPurchaseReturnRepository
     Task<byte[]> ExportPurchaseReturnsToExcelAsync(DateTime? fromDate, DateTime? toDate);
 
     Task<List<PendingPRDto>> GetPendingPurchaseReturnsAsync();
-    Task<PurchaseReturnSummaryDto> GetPurchaseReturnSummaryAsync();
+    Task<PurchaseReturnSummaryDto> GetPurchaseReturnSummaryAsync(bool isQuick = false);
     Task<bool> BulkOutwardAsync(List<Guid> ids);
 }

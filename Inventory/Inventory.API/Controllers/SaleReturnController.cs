@@ -105,9 +105,9 @@ namespace Inventory.API.Controllers;
 
     [HttpGet("summary")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<ActionResult<SaleReturnSummaryDto>> GetSummary()
+    public async Task<ActionResult<SaleReturnSummaryDto>> GetSummary([FromQuery] bool isQuick = false)
     {
-        var summary = await _repo.GetDashboardSummaryAsync();
+        var summary = await _repo.GetDashboardSummaryAsync(isQuick);
         return Ok(summary);
     }
 

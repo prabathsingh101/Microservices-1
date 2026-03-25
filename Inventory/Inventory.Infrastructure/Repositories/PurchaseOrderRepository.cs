@@ -117,11 +117,12 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     /// </summary>
     /// <param name="request"></param>
     /// <returns></returns>
-    public async Task<(IEnumerable<PurchaseOrder> Data, int Total)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request)
+    public async Task<(IEnumerable<PurchaseOrder> Data, int Total, decimal TotalAmount, int TodayCount, int MonthCount)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request)
     {
         // STEP 1: Base Query - AsNoTracking use karein fast read ke liye
         var query = _context.PurchaseOrders
             .AsNoTracking()
+            .Where(x => x.IsQuick == request.IsQuick)
             .AsQueryable();
 
         // 1. GLOBAL SEARCH FIX (Including 'Received' status logic)
@@ -168,12 +169,23 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             }
         }
 
-        // STEP 2: Get Total Count before adding heavy Includes (Fast performance)
+        // 🎯 STEP 2: Calculate Dashboard Stats (Before Pagination)
         var total = await query.CountAsync();
+        
+        // Total amount based on the current filtered view
+        var totalAmount = await query.SumAsync(x => (decimal?)x.GrandTotal) ?? 0;
+
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var tomorrow = today.AddDays(1);
+
+        // Counts based on the current filtered view (ignoring date filters for global counts is common but here we stick to current view base)
+        var todayCount = await query.Where(x => x.PoDate >= today && x.PoDate < tomorrow).CountAsync();
+        var monthCount = await query.Where(x => x.PoDate >= monthStart).CountAsync();
 
         // 4. DYNAMIC SORTING FIX (Considering 'Received' status and all columns)
         bool isDesc = request.SortOrder?.ToLower() == "desc";
-        string sortField = request.SortField?.ToLower().Trim();
+        string sortField = request.SortOrder != null ? request.SortField?.ToLower().Trim() : "podate";
 
         query = sortField switch
         {
@@ -201,7 +213,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .AsSplitQuery() // Split queries for better multi-include performance
             .ToListAsync();
 
-        return (data, total);
+        return (data, total, totalAmount, todayCount, monthCount);
     }
     public async Task<PurchaseOrder?> GetByIdWithItemsAsync(int id, CancellationToken ct)
     {

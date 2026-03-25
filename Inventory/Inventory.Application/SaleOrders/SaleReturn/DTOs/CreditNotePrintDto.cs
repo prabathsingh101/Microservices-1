@@ -25,4 +25,5 @@ public class ReturnItemPrintDto
     public decimal Total { get; set; }
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
+    public bool IsExpiryRequired { get; set; }
 }

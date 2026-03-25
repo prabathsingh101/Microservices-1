@@ -22,7 +22,7 @@ public interface ISaleReturnRepository
 
     Task<List<SaleReturnExportDto>> GetExportDataAsync(DateTime? fromDate, DateTime? toDate);
 
-    Task<SaleReturnSummaryDto> GetDashboardSummaryAsync();
+    Task<SaleReturnSummaryDto> GetDashboardSummaryAsync(bool isQuick = false);
     Task<List<PendingSRDto>> GetPendingSaleReturnsAsync();
     Task<SaleReturnHeader?> GetSaleReturnByIdAsync(int id);
     Task<bool> BulkInwardAsync(List<int> ids);

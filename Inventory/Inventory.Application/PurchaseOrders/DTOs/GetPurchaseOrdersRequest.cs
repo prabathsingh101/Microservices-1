@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.DTOs;
+using Inventory.Application.Common.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -17,6 +17,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
 
+        public bool IsQuick { get; set; }
         public List<FilterDto>? Filters { get; set; }
     }
 }

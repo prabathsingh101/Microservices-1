@@ -29,6 +29,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public decimal TaxAmount { get; set; }
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public bool IsExpiryRequired { get; set; }
         public string? CreatedBy { get; set; }
         public string? ModifiedBy { get; set; }
     }

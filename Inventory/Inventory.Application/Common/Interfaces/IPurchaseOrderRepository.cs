@@ -1,4 +1,9 @@
-﻿using Inventory.Application.PurchaseOrders.DTOs;
+using Inventory.Application.PurchaseOrders.DTOs;
+using Inventory.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Inventory.Application.Common.Interfaces
 {
@@ -12,7 +17,7 @@ namespace Inventory.Application.Common.Interfaces
           string sortOrder,
           string filter);
 
-        Task<(IEnumerable<PurchaseOrder> Data, int Total)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request);
+        Task<(IEnumerable<PurchaseOrder> Data, int Total, decimal TotalAmount, int TodayCount, int MonthCount)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request);
         Task<PurchaseOrder?> GetByIdWithItemsAsync(int id, CancellationToken ct);
         void Update(PurchaseOrder po);
         void RemoveItem(PurchaseOrderItem item);

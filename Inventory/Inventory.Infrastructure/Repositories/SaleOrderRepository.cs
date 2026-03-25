@@ -184,15 +184,8 @@ public class SaleOrderRepository : ISaleOrderRepository
             .AsNoTracking()
             .AsQueryable();
 
-        if (isQuick)
-        {
-            query = query.Where(o => o.SONumber.Contains("-Q-"));
-        }
-        else 
-        {
-            // Strictly exclude QuickOrders from Standard list
-            query = query.Where(o => !o.SONumber.Contains("-Q-"));
-        }
+        // 1. Strict Quick vs Standard Filtering
+        query = query.Where(o => o.IsQuick == isQuick);
 
         // 2. Searching logic [cite: 2026-02-03]
         if (!string.IsNullOrEmpty(searchTerm))

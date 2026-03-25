@@ -47,10 +47,8 @@ namespace Inventory.Infrastructure.Repositories
                 query = query.Where(x => x.ReturnDate <= endOfToDate);
             }
 
-            if (isQuick)
-            {
-                query = query.Where(x => x.IsQuick == true);
-            }
+            // 3. Strict Quick vs Standard Filtering
+            query = query.Where(x => x.IsQuick == isQuick);
 
             // 3. Optimized Status Widget Filter
             if (!string.IsNullOrEmpty(status))
@@ -256,35 +254,36 @@ namespace Inventory.Infrastructure.Repositories
                     TotalAmount = h.TotalAmount, //
                     Status = h.Status,
                     IsQuick = h.IsQuick,
-                    // CustomerId hum bad mein name se replace karenge
                     CustomerName = h.CustomerId.ToString()
                 })
                 .ToListAsync();
         }
-
-        public async Task<SaleReturnSummaryDto> GetDashboardSummaryAsync()
+        
+        public async Task<SaleReturnSummaryDto> GetDashboardSummaryAsync(bool isQuick = false)
         {
             var today = DateTime.Today;
+            var tomorrow = today.AddDays(1);
+            var queryBase = _context.SaleReturnHeaders.Where(x => x.IsQuick == isQuick);
 
-            // 1. Aaj kitne returns aaye
-            // 1. Aaj kitne returns aaye
-            var totalToday = await _context.SaleReturnHeaders
-                .CountAsync(x => x.ReturnDate.Date == today);
+            // 1. Aaj kitne returns aaye (Range check is safer than .Date)
+            var totalToday = await queryBase
+                .CountAsync(x => x.ReturnDate >= today && x.ReturnDate < tomorrow);
 
             // 2. Confirmed/Inwarded returns ka count aur refund value (DB Side Aggregation)
-            var confirmedQuery = _context.SaleReturnHeaders
+            var confirmedQuery = queryBase
                 .Where(x => x.Status.ToUpper() == "CONFIRMED" || x.Status.ToUpper() == "INWARDED");
 
-            var totalRefundValue = await confirmedQuery.SumAsync(x => x.TotalAmount);
+            var totalRefundValue = await confirmedQuery.SumAsync(x => (decimal?)x.TotalAmount) ?? 0;
             var confirmedCount = await confirmedQuery.CountAsync();
 
-            // 3. Pending Inward Count (Confirmed but no GatePassNo AND NOT Quick)
-            var pendingInwardCount = await _context.SaleReturnHeaders
-                .CountAsync(x => x.Status.ToUpper() == "CONFIRMED" && (x.GatePassNo == null || x.GatePassNo == "") && x.IsQuick == false);
+            // 3. Pending Inward Count (Confirmed but no GatePassNo) - Module specific
+            var pendingInwardCount = await queryBase
+                .CountAsync(x => (x.Status.ToUpper() == "CONFIRMED" || x.Status.ToUpper() == "INWARDED") && (x.GatePassNo == null || x.GatePassNo == ""));
 
             // 4. Stock re-filled pcs (Items table se sum)
             var totalPcs = await _context.SaleReturnItems
-                .SumAsync(x => x.ReturnQty);
+                .Where(x => x.SaleReturnHeader.IsQuick == isQuick)
+                .SumAsync(x => (decimal?)x.ReturnQty) ?? 0;
 
             return new SaleReturnSummaryDto
             {

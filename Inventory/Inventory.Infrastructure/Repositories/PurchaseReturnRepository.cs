@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Inventory.Domain.Entities;
+using System.Linq;
 
 namespace Inventory.Infrastructure.Repositories;
 
@@ -29,7 +30,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     // 1. UI Form ke liye Rejected Items fetch karein
     public async Task<List<RejectedItemDto>> GetRejectedItemsBySupplierAsync(int supplierId)
     {
-        // Robusted query: Fetching directly from GRN details to avoid join failures with PO [cite: PR List Fix]
         var query = from gd in _context.GRNDetails
                         .Include(x => x.Product)
                         .Include(x => x.Warehouse)
@@ -42,7 +42,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         ProductName = gd.Product != null ? gd.Product.Name : "Ukn-" + gd.ProductId.ToString().Substring(0,8),
                         GrnRef = gh.GRNNumber,
                         RejectedQty = gd.RejectedQty,
-                        Rate = gd.UnitRate, // Using rate from GRN directly
+                        Rate = gd.UnitRate,
                         GstPercent = gd.GstPercent,
                         DiscountPercent = gd.DiscountPercent,
                         CurrentStock = gd.Product != null ? gd.Product.CurrentStock : 0,
@@ -81,7 +81,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<List<ReceivedStockDto>> GetReceivedStockBySupplierAsync(int supplierId)
     {
-        // accepted stock fetch [cite: PR List Fix]
         var query = from gd in _context.GRNDetails
                         .Include(x => x.Product)
                         .Include(x => x.Warehouse)
@@ -94,7 +93,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         ProductName = (gd.Product != null && !string.IsNullOrEmpty(gd.Product.Name)) ? gd.Product.Name : "Product-" + gd.ProductId.ToString().Substring(0, 8),
                         GrnRef = gh.GRNNumber,
                         AvailableQty = gd.ReceivedQty - gd.RejectedQty,
-                        Rate = gd.UnitRate, // Using rate from GRN directly
+                        Rate = gd.UnitRate,
                         GstPercent = gd.GstPercent,
                         DiscountPercent = gd.DiscountPercent,
                         ReceivedDate = gh.ReceivedDate,
@@ -112,7 +111,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
         return result;
     }
-
 
     public async Task<bool> CreatePurchaseReturnAsync(Inventory.Domain.Entities.PurchaseReturn returnData)
     {
@@ -164,12 +162,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         totalHeaderTax += itemTax;
                     }
 
-                    // Stock Update Logic: 
-                    // Calculate how much we are taking from 'Accepted' (CurrentStock) vs 'Rejected' bucket
                     decimal initialRejectedQty = grnDetail.RejectedQty;
                     decimal qtyToReturn = item.ReturnQty;
 
-                    // 1. Update GRN Detail counts (Deducting from Total Received)
                     if (grnDetail.RejectedQty >= qtyToReturn)
                     {
                         grnDetail.RejectedQty -= qtyToReturn;
@@ -186,9 +181,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
                     _context.GRNDetails.Update(grnDetail);
 
-                    // 2. Update Product Master Stock
-                    // CurrentStock in Product table ONLY tracks Accepted (sellable) items.
-                    // If we return items that were previously rejected, they don't affect CurrentStock.
                     decimal deductionFromCurrentStock = Math.Max(0, qtyToReturn - initialRejectedQty);
 
                     if (deductionFromCurrentStock > 0)
@@ -199,10 +191,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                             product.CurrentStock -= deductionFromCurrentStock;
                             _context.Products.Update(product);
 
-                            // 🆕 Record Inventory Transaction
                             var returnTx = new InventoryTransaction(
                                 item.ProductId,
-                                -item.ReturnQty, // Negative because it is REDUCING stock (returning to supplier)
+                                -item.ReturnQty,
                                 returnData.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn",
                                 returnData.ReturnNumber,
                                 grnDetail.WarehouseId,
@@ -213,7 +204,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                             await _context.InventoryTransactions.AddAsync(returnTx);
                         }
                     }
-                } // End Foreach
+                }
 
                 returnData.SubTotal = totalHeaderSubTotal;
                 returnData.TotalTax = totalHeaderTax;
@@ -233,7 +224,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                        "System"
                    );
                 }
-                catch { /* Log if needed */ }
+                catch { }
 
                 return true;
             }
@@ -245,30 +236,22 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             }
         });
     }
-    
 
     public async Task<PurchaseReturnPagedResponse> GetPurchaseReturnsAsync(
-    string? search,
-    int pageIndex,
-    int pageSize,
-    DateTime? fromDate = null,
-    DateTime? toDate = null,
-    string? status = null,
-    string? sortField = "ReturnDate",
-    string? sortOrder = "desc",
-    bool isQuick = false)
+        string? search,
+        int pageIndex,
+        int pageSize,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? status = null,
+        string? sortField = "ReturnDate",
+        string? sortOrder = "desc",
+        bool isQuick = false)
     {
-        // 1. Initial Query with NoTracking for high performance
-        var query = _context.PurchaseReturns
-            .AsNoTracking()
-            .AsQueryable();
+        var query = _context.PurchaseReturns.AsNoTracking().AsQueryable();
 
-        if (isQuick)
-        {
-            query = query.Where(x => x.IsQuick == true);
-        }
+        query = query.Where(x => x.IsQuick == isQuick);
 
-        // 2. Date Filtering Logic
         if (fromDate.HasValue)
             query = query.Where(x => x.ReturnDate >= fromDate.Value);
 
@@ -278,7 +261,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             query = query.Where(x => x.ReturnDate <= endOfToDate);
         }
 
-        // 2.5 Status Filter Logic [cite: 2026-02-23]
         if (!string.IsNullOrEmpty(status))
         {
             if (status.ToUpper() == "TODAY")
@@ -297,15 +279,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             }
         }
 
-        // 3. Robust Searching Logic
         if (!string.IsNullOrEmpty(search))
         {
             var s = search.ToLower().Trim();
-
-            // Step A: Microservice se matching Supplier IDs fetch karein
             var matchedSupplierIds = await GetSupplierIdsByNameFromMicroservice(s);
 
-            // Step B: Search by ReturnNumber, Remarks, or Supplier
             query = query.Where(x =>
                 (x.ReturnNumber != null && x.ReturnNumber.ToLower().Contains(s)) ||
                 (x.Remarks != null && x.Remarks.ToLower().Contains(s)) ||
@@ -313,10 +291,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             );
         }
 
-        // 4. Server-side Count (Fast performance)
         var totalCount = await query.CountAsync();
 
-        // 5. SORTING LOGIC: Mapping UI fields to DB columns
         bool isDesc = sortOrder?.ToLower() == "desc" || string.IsNullOrEmpty(sortOrder);
         string effectiveSortField = sortField?.ToLower().Trim() switch
         {
@@ -324,7 +300,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             "returnnumber" => "ReturnNumber",
             "returndate" => "ReturnDate",
             "id" => "Id",
-            _ => "ReturnDate" // Default: ReturnDate load orders by date
+            _ => "ReturnDate"
         };
 
         if (isDesc)
@@ -332,7 +308,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         else
             query = query.OrderBy(x => EF.Property<object>(x, effectiveSortField));
 
-        // 6. Execution & Pagination
         var pagedData = await query
             .Skip(pageIndex * pageSize)
             .Take(pageSize)
@@ -341,13 +316,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         if (pagedData == null || !pagedData.Any())
             return new PurchaseReturnPagedResponse { Items = new List<PurchaseReturnListDto>(), TotalCount = totalCount };
 
-        // 7. Bulk Data Enrichment (Supplier Names & Items)
         var supplierIds = pagedData.Select(x => (long)x.SupplierId).Distinct().ToList();
         var supplierNames = await GetSupplierNamesFromMicroservice(supplierIds);
 
         var pagedIds = pagedData.Select(x => x.Id).ToList();
         
-        // Items enrichment using Split Query pattern for efficiency
         var grnDetailsList = await _context.PurchaseReturnItems
             .AsNoTracking()
             .Where(ri => pagedIds.Contains(ri.PurchaseReturnId))
@@ -359,7 +332,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             .GroupBy(x => x.PurchaseReturnId)
             .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(i => i.GrnRef).Distinct()));
 
-        // 8. Final Mapping
         var items = pagedData.Select(x => new PurchaseReturnListDto
         {
             Id = x.Id,
@@ -376,14 +348,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         return new PurchaseReturnPagedResponse { Items = items, TotalCount = totalCount };
     }
 
-    // 9. Helper Method to fetch matching Supplier IDs [cite: 2026-02-04]
     private async Task<List<int>> GetSupplierIdsByNameFromMicroservice(string name)
     {
         return await _supplierClient.SearchSupplierIdsByNameAsync(name);
     }
-
-
-
 
     private async Task<Dictionary<long, string>> GetSupplierNamesFromMicroservice(List<long> supplierIds)
     {
@@ -406,19 +374,15 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         return dict;
     }
 
-
     public async Task<PurchaseReturnDetailDto?> GetPurchaseReturnByIdAsync(Guid id)
     {
-        // 1. Optimize: Eager Loading use karein aur database par ek hi lightweight call bhein
         var purchaseReturn = await _context.PurchaseReturns
-            .AsNoTracking() // Read-only query ke liye best performance
-            .Include(x => x.Items) // Navigation property se items fetch karein
+            .AsNoTracking()
+            .Include(x => x.Items)
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (purchaseReturn == null) return null;
 
-        // 2. Optimization: Items aur Products ka mapping database level ki jagah memory mein karein
-        // Taaki nested join ka timeout load khatam ho jaye
         var itemDtos = await (from pri in _context.PurchaseReturnItems.AsNoTracking()
                               join p in _context.Products.AsNoTracking() on pri.ProductId equals p.Id
                               where pri.PurchaseReturnId == id
@@ -433,17 +397,15 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                   DiscountPercent = pri.DiscountPercent,
                                   TaxAmount = pri.TaxAmount,
                                   TotalAmount = pri.TotalAmount,
-                                  // Backfill from original GRN if not saved directly in PR record [cite: 2026-03-24]
                                   MfgDate = pri.MfgDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.MfgDate).FirstOrDefault(),
-                                  ExpDate = pri.ExpDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.ExpDate).FirstOrDefault()
+                                  ExpDate = pri.ExpDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.ExpDate).FirstOrDefault(),
+                                  IsExpiryRequired = p.IsExpiryRequired
                               }).ToListAsync();
 
-        // 3. Supplier Name fetch karein
         var supplierDict = await GetSupplierNamesFromMicroservice(new List<long> { (long)purchaseReturn.SupplierId });
         string sName = supplierDict.ContainsKey((long)purchaseReturn.SupplierId)
                        ? supplierDict[(long)purchaseReturn.SupplierId] : "Unknown";
 
-        // 4. Final DTO Mapping (No functional changes, purely performance fix)
         return new PurchaseReturnDetailDto
         {
             Id = purchaseReturn.Id,
@@ -451,7 +413,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             ReturnDate = purchaseReturn.ReturnDate,
             SupplierId = purchaseReturn.SupplierId,
             SupplierName = sName,
-            Status = "Completed", // Existing requirement status fix
+            Status = "Completed",
             Remarks = purchaseReturn.Remarks,
             Items = itemDtos,
             IsQuick = purchaseReturn.IsQuick,
@@ -463,7 +425,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<byte[]> ExportPurchaseReturnsToExcelAsync(DateTime? fromDate, DateTime? toDate)
     {
-        // 1. Database se Purchase Returns fetch karein [cite: 2026-02-04]
         var data = await _context.PurchaseReturns
             .AsNoTracking()
             .Where(x => (!fromDate.HasValue || x.ReturnDate >= fromDate) &&
@@ -471,15 +432,12 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             .OrderByDescending(x => x.ReturnDate)
             .ToListAsync();
 
-        // 2. Microservice se Supplier Names fetch karein [cite: 2026-02-04]
         var supplierIds = data.Select(x => (long)x.SupplierId).Distinct().ToList();
-        var supplierNamesDict = await GetSupplierNamesFromMicroservice(supplierIds); // Aapka existing helper method
+        var supplierNamesDict = await GetSupplierNamesFromMicroservice(supplierIds);
 
         using (var workbook = new XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Debit Notes");
-
-            // Headers definition [cite: 2026-02-04]
             string[] headers = { "Return #", "Date", "Supplier Name", "Sub Total", "Tax Amount", "Grand Total", "Remarks" };
             for (int i = 0; i < headers.Length; i++)
             {
@@ -490,31 +448,23 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 cell.Style.Font.FontColor = XLColor.White;
             }
 
-            // 3. Fill Data Rows with Supplier Names [cite: 2026-02-04]
             int currentRow = 2;
             foreach (var item in data)
             {
                 worksheet.Cell(currentRow, 1).Value = item.ReturnNumber;
                 worksheet.Cell(currentRow, 2).Value = item.ReturnDate.ToString("dd-MMM-yyyy");
-
-                // --- FIX: Microservice dictionary se naam map karein --- [cite: 2026-02-04]
                 string sName = supplierNamesDict.ContainsKey((long)item.SupplierId)
                                ? supplierNamesDict[(long)item.SupplierId]
                                : "Unknown Supplier";
                 worksheet.Cell(currentRow, 3).Value = sName;
-
                 worksheet.Cell(currentRow, 4).Value = item.SubTotal;
                 worksheet.Cell(currentRow, 5).Value = item.TotalTax;
                 worksheet.Cell(currentRow, 6).Value = item.GrandTotal;
                 worksheet.Cell(currentRow, 7).Value = item.Remarks;
-
-                // Formatting [cite: 2026-02-04]
                 worksheet.Range(currentRow, 4, currentRow, 6).Style.NumberFormat.Format = "₹ #,##0.00";
                 currentRow++;
             }
-
             worksheet.Columns().AdjustToContents();
-
             using (var stream = new MemoryStream())
             {
                 workbook.SaveAs(stream);
@@ -552,7 +502,6 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             else
                 pr.SupplierName = "Unknown Supplier";
         }
-
         return returns;
     }
 
@@ -581,28 +530,27 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         return true;
     }
 
-    public async Task<PurchaseReturnSummaryDto> GetPurchaseReturnSummaryAsync()
+    public async Task<PurchaseReturnSummaryDto> GetPurchaseReturnSummaryAsync(bool isQuick = false)
     {
         var today = DateTime.Today;
+        var tomorrow = today.AddDays(1);
+        var queryBase = _context.PurchaseReturns.Where(x => x.IsQuick == isQuick);
 
-        // 1. Aaj kitne returns huye
-        var totalToday = await _context.PurchaseReturns
-            .CountAsync(x => x.ReturnDate.Date == today);
-
+        // 1. Aaj kitne returns aaye (Range check is safer than .Date)
+        var totalToday = await queryBase.CountAsync(x => x.ReturnDate >= today && x.ReturnDate < tomorrow);
+        
         // 2. Confirmed returns ka count aur refund value
-        var confirmedQuery = _context.PurchaseReturns
-            .Where(x => x.Status == "Confirmed");
-
-        var totalRefundValue = await confirmedQuery.SumAsync(x => x.GrandTotal);
+        var confirmedQuery = queryBase.Where(x => x.Status == "Confirmed");
+        var totalRefundValue = await confirmedQuery.SumAsync(x => (decimal?)x.GrandTotal) ?? 0;
         var confirmedCount = await confirmedQuery.CountAsync();
-
-        // 3. Pending Outward Count (Confirmed but no GatePassNo)
-        var pendingOutwardCount = await _context.PurchaseReturns
-            .CountAsync(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""));
-
+        
+        // 3. Pending Outward Count (Confirmed but no GatePassNo) - Module specific
+        var pendingOutwardCount = await queryBase.CountAsync(x => x.Status == "Confirmed" && (string.IsNullOrEmpty(x.GatePassNo)));
+        
         // 4. Stock reduced pcs (Items table se sum)
         var totalPcs = await _context.PurchaseReturnItems
-            .SumAsync(x => x.ReturnQty);
+            .Where(x => x.PurchaseReturn.IsQuick == isQuick)
+            .SumAsync(x => (decimal?)x.ReturnQty) ?? 0;
 
         return new PurchaseReturnSummaryDto
         {

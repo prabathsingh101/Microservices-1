@@ -1,11 +1,11 @@
-﻿namespace Inventory.Application.Features.PurchaseOrders.Queries
-{
-    using Inventory.Application.PurchaseOrders.DTOs;
-    using MediatR;
+using Inventory.Application.PurchaseOrders.DTOs;
+using MediatR;
 
-    public class GetDateRangePurchaseOrdersQuery : IRequest<PagedResponse<PurchaseOrderDto>>
+namespace Inventory.Application.Features.PurchaseOrders.Queries
+{
+    public class GetDateRangePurchaseOrdersQuery : IRequest<PurchaseOrderPagedResponse>
     {
-        public GetPurchaseOrdersRequest Request { get; set; } // Ye line honi chahiye
+        public GetPurchaseOrdersRequest Request { get; set; }
         public GetDateRangePurchaseOrdersQuery(GetPurchaseOrdersRequest request) => Request = request;
     }
 }

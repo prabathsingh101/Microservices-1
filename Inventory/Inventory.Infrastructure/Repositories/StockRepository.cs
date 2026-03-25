@@ -485,13 +485,13 @@ namespace Inventory.Infrastructure.Repositories
 
                 // Group both by Batch (Mfg/Exp) to get Net Sold per batch
                 var specificSales = grossSales.Where(s => s.MfgDate != null || s.ExpDate != null)
-                    .GroupBy(s => new { s.MfgDate, s.ExpDate })
-                    .Select(g => new { g.Key.MfgDate, g.Key.ExpDate, Qty = g.Sum(x => x.Qty) })
+                    .GroupBy(s => new { Mfg = s.MfgDate?.Date, Exp = s.ExpDate?.Date })
+                    .Select(g => new { MfgDate = g.Key.Mfg, ExpDate = g.Key.Exp, Qty = g.Sum(x => x.Qty) })
                     .ToList();
 
                 var specificReturns = batchReturns.Where(r => r.MfgDate != null || r.ExpDate != null)
-                    .GroupBy(r => new { r.MfgDate, r.ExpDate })
-                    .Select(g => new { g.Key.MfgDate, g.Key.ExpDate, Qty = g.Sum(x => x.Qty) })
+                    .GroupBy(r => new { Mfg = r.MfgDate?.Date, Exp = r.ExpDate?.Date })
+                    .Select(g => new { MfgDate = g.Key.Mfg, ExpDate = g.Key.Exp, Qty = g.Sum(x => x.Qty) })
                     .ToList();
 
                 var genericSalesSum = grossSales.Where(s => s.MfgDate == null && s.ExpDate == null).Sum(s => s.Qty);
@@ -500,12 +500,17 @@ namespace Inventory.Infrastructure.Repositories
                 // 1. Deduct Net Specific Sales from their matching batches
                 foreach (var sSale in specificSales)
                 {
-                    var sReturnQty = specificReturns.FirstOrDefault(r => r.MfgDate == sSale.MfgDate && r.ExpDate == sSale.ExpDate)?.Qty ?? 0;
+                    var sReturnQty = specificReturns.FirstOrDefault(r => 
+                        (r.MfgDate == null && sSale.MfgDate == null || r.MfgDate != null && sSale.MfgDate != null && r.MfgDate.Value.Date == sSale.MfgDate.Value.Date) && 
+                        (r.ExpDate == null && sSale.ExpDate == null || r.ExpDate != null && sSale.ExpDate != null && r.ExpDate.Value.Date == sSale.ExpDate.Value.Date))?.Qty ?? 0;
                     var netBatchSold = sSale.Qty - sReturnQty;
 
                     if (netBatchSold > 0)
                     {
-                        var matchingBatch = allBatches.FirstOrDefault(b => b.ManufacturingDate == sSale.MfgDate && b.ExpiryDate == sSale.ExpDate && b.AvailableQty > 0);
+                        var matchingBatch = allBatches.FirstOrDefault(b => 
+                            (b.ManufacturingDate == null && sSale.MfgDate == null || b.ManufacturingDate != null && sSale.MfgDate != null && b.ManufacturingDate.Value.Date == sSale.MfgDate.Value.Date) && 
+                            (b.ExpiryDate == null && sSale.ExpDate == null || b.ExpiryDate != null && sSale.ExpDate != null && b.ExpiryDate.Value.Date == sSale.ExpDate.Value.Date) && 
+                            b.AvailableQty > 0);
                         if (matchingBatch != null)
                         {
                             matchingBatch.AvailableQty -= netBatchSold;
