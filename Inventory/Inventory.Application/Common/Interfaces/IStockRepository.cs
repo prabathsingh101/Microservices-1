@@ -2,6 +2,7 @@ using Inventory.Application.GRN.DTOs.Stock;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Inventory.Application.Common.Interfaces
 {
@@ -16,8 +17,9 @@ namespace Inventory.Application.Common.Interfaces
             DateTime? startDate,
             DateTime? endDate,
             Guid? warehouseId = null,
-            Guid? rackId = null
-);
+            Guid? rackId = null,
+            bool showPurged = false
+        );
 
         Task<StockPagedResponseDto> GetDisposedStockAsync(
             string? search,
@@ -29,7 +31,7 @@ namespace Inventory.Application.Common.Interfaces
             DateTime? endDate,
             Guid? warehouseId = null,
             Guid? rackId = null
-);
+        );
 
         Task<StockRefillDetailsDto> GetRefillDetailsAsync(Guid productId);
 

@@ -33,10 +33,11 @@ namespace Inventory.API.Controllers
            [FromQuery] DateTime? endDate,
            [FromQuery] Guid? warehouseId,
            [FromQuery] Guid? rackId,
+           [FromQuery] bool showPurged = false,
            [FromQuery] int pageIndex = 0,
            [FromQuery] int pageSize = 10)
         {
-            var command = new GetCurrentStockCommand(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId);
+            var command = new GetCurrentStockCommand(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId, showPurged);
             var result = await _mediator.Send(command);
             return Ok(result);
         }

@@ -306,23 +306,24 @@ namespace Inventory.Infrastructure.Repositories
 
 
     public async Task<StockPagedResponseDto> GetCurrentStockAsync(
-    string? search,
-    string? sortField,
-    string? sortOrder,
-    int pageIndex,
-    int pageSize,
-    DateTime? startDate = null,
-    DateTime? endDate = null,
-    Guid? warehouseId = null,
-    Guid? rackId = null)
+        string? search,
+        string? sortField,
+        string? sortOrder,
+        int pageIndex,
+        int pageSize,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        Guid? warehouseId = null,
+        Guid? rackId = null,
+        bool showPurged = false)
         {
             // STEP 1: Base Query - GRNDetails se start karenge traceability ke liye
             var baseQuery = _context.GRNDetails.AsNoTracking().AsQueryable();
 
             if (startDate.HasValue)
-                baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate >= startDate.Value);
+                baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate.Date >= startDate.Value.Date);
             if (endDate.HasValue)
-                baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate <= endDate.Value);
+                baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate.Date <= endDate.Value.Date);
 
             if (warehouseId.HasValue && warehouseId.Value != Guid.Empty)
                 baseQuery = baseQuery.Where(x => x.WarehouseId == warehouseId.Value);
@@ -375,8 +376,24 @@ namespace Inventory.Infrastructure.Repositories
                     // ManufacturingDate & ExpiryDate: computed in STEP 4 loop (earliest expiry batch logic)
                 });
 
-            // STEP 2B: Filter out entirely empty locations (no inventory ever inwarded or all moved out)
-            groupedQuery = groupedQuery.Where(x => x.TotalReceived > 0);
+            // STEP 2B: Filter out entirely empty locations
+            // We only show empty rows if:
+            // 1. It's an Expired Rack (to see PURGED history) - only if showPurged is ON
+            // 2. It's a regular rack but has some inwarded qty (to see SOLD OUT history)
+            if (!showPurged)
+            {
+                // Normal view: Show only items with physical stock
+                groupedQuery = groupedQuery.Where(x => x.TotalReceived > 0 || x.TotalRejected > 0);
+            }
+            else
+            {
+                // Review Purged view: Show items with stock OR items in Expired Racks (for history)
+                groupedQuery = groupedQuery.Where(x => 
+                    x.TotalReceived > 0 || 
+                    x.TotalRejected > 0 || 
+                    (x.RackName.Contains("E1") || (x.RackName != null && x.RackName.Contains("Expired")))
+                );
+            }
 
             // STEP 3: Search & Sorting
             if (!string.IsNullOrEmpty(search))
@@ -416,9 +433,10 @@ namespace Inventory.Infrastructure.Repositories
                 // 4. Update Net Stats
                 item.TotalSold = grossSold - totalSaleReturn;
                 
-                // 🎯 5. Final Stock Update: Net Sellable Stock Calculation
-                // Inward - Rejected - Expired - Sold
-                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalExpired - item.TotalSold;
+                // 🎯 5. Final Stock Update: Physical Stock Calculation
+                // Rule: Show what's in the rack until it is completely deleted (purged)
+                // Inward - Rejected - Sold
+                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold;
 
                 // 6. BUSINESS RULE: Main row mein sabse pehle expire hone wali batch dikhao
                 //    In normal racks, check usable stock (Received - Rejected > 0). 

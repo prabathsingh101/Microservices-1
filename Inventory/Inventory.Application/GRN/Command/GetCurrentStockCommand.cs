@@ -1,4 +1,4 @@
-﻿using Inventory.Application.GRN.DTOs.Stock;
+using Inventory.Application.GRN.DTOs.Stock;
 using MediatR;
 
 public record GetCurrentStockCommand(
@@ -10,5 +10,6 @@ public record GetCurrentStockCommand(
     DateTime? StartDate, // Added
     DateTime? EndDate,    // Added
     Guid? WarehouseId = null,
-    Guid? RackId = null
+    Guid? RackId = null,
+    bool ShowPurged = false
 ) : IRequest<StockPagedResponseDto>;

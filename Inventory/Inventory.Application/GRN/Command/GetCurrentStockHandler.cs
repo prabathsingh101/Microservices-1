@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.GRN.DTOs.Stock;
 using MediatR;
 
@@ -18,7 +18,8 @@ public class GetCurrentStockHandler : IRequestHandler<GetCurrentStockCommand, St
             request.StartDate,
             request.EndDate,
             request.WarehouseId,
-            request.RackId
+            request.RackId,
+            request.ShowPurged
         );
     }
 }
