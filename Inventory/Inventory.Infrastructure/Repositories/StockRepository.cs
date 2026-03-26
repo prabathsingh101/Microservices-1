@@ -365,8 +365,24 @@ namespace Inventory.Infrastructure.Repositories
 
                     // TotalReceived: Gross inward quantity
                     TotalReceived = group.Sum(x => x.ReceivedQty),
-                    TotalRejected = group.Sum(x => (x.Rack != null && (x.Rack.Name.Contains("E1") || (x.Rack.Description != null && x.Rack.Description.Contains("Expired")))) ? 0 : x.RejectedQty),
-                    TotalExpired = group.Sum(x => (x.Rack != null && (x.Rack.Name.Contains("E1") || (x.Rack.Description != null && x.Rack.Description.Contains("Expired")))) ? x.RejectedQty : 0),
+                    TotalRejected = group.Sum(x => (x.Rack != null && (
+                        x.Rack.Name.ToLower().Contains("e1") || 
+                        (x.Rack.Description != null && (
+                            x.Rack.Description.ToLower().Contains("expired") || 
+                            x.Rack.Description.ToLower().Contains("damaged") || 
+                            x.Rack.Description.ToLower().Contains("rejected") ||
+                            x.Rack.Description.ToLower().Contains("purged")
+                        ))
+                    )) ? 0 : x.RejectedQty),
+                    TotalExpired = group.Sum(x => (x.Rack != null && (
+                        x.Rack.Name.ToLower().Contains("e1") || 
+                        (x.Rack.Description != null && (
+                            x.Rack.Description.ToLower().Contains("expired") || 
+                            x.Rack.Description.ToLower().Contains("damaged") || 
+                            x.Rack.Description.ToLower().Contains("rejected") ||
+                            x.Rack.Description.ToLower().Contains("purged")
+                        ))
+                    )) ? x.RejectedQty : 0),
 
                     // AvailableStock: Inward balance for this specific location
                     AvailableStock = group.Sum(x => x.ReceivedQty - x.RejectedQty),
@@ -442,7 +458,7 @@ namespace Inventory.Infrastructure.Repositories
                 //    In normal racks, check usable stock (Received - Rejected > 0). 
                 //    In Expired racks, check gross received so we still see the date.
                 var earliestBatch = await _context.GRNDetails
-                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId && g.ExpDate != null && g.ReceivedQty > 0)
+                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId && g.ExpDate != null)
                     .OrderBy(g => g.ExpDate)
                     .Select(g => new { g.MfgDate, g.ExpDate })
                     .FirstOrDefaultAsync();
@@ -455,7 +471,7 @@ namespace Inventory.Infrastructure.Repositories
                 else
                 {
                     var latestBatch = await _context.GRNDetails
-                        .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId && g.ReceivedQty > 0)
+                        .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
                         .OrderByDescending(g => g.Id)
                         .Select(g => new { g.MfgDate, g.ExpDate })
                         .FirstOrDefaultAsync();
@@ -480,15 +496,63 @@ namespace Inventory.Infrastructure.Repositories
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
-                        ExpiredQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? allG.RejectedQty : 0,
-                        RejectedQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? 0 : allG.RejectedQty,
+                        ExpiredQty = (allG.Rack != null && (
+                            allG.Rack.Name.ToLower().Contains("e1") || 
+                            (allG.Rack.Description != null && (
+                                allG.Rack.Description.ToLower().Contains("expired") || 
+                                allG.Rack.Description.ToLower().Contains("damaged") || 
+                                allG.Rack.Description.ToLower().Contains("rejected") ||
+                                allG.Rack.Description.ToLower().Contains("purged")
+                            ))
+                        )) ? allG.RejectedQty : 0,
+                        RejectedQty = (allG.Rack != null && (
+                            allG.Rack.Name.ToLower().Contains("e1") || 
+                            (allG.Rack.Description != null && (
+                                allG.Rack.Description.ToLower().Contains("expired") || 
+                                allG.Rack.Description.ToLower().Contains("damaged") || 
+                                allG.Rack.Description.ToLower().Contains("rejected") ||
+                                allG.Rack.Description.ToLower().Contains("purged")
+                            ))
+                        )) ? 0 : allG.RejectedQty,
                         WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
                         RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,
                         ExpiryDate = allG.ExpDate,
                         IsExpiryRequired = allG.Product.IsExpiryRequired,
-                        AvailableQty = allG.ReceivedQty - allG.RejectedQty // Initial
+                        AvailableQty = allG.ReceivedQty - allG.RejectedQty // Net Initial
                     }).ToListAsync();
+
+                // 🎯 7B. Fetch Purge History for these batches (since we reduce ReceivedQty on purge, we must check transactions)
+                foreach (var h in allBatches)
+                {
+                    // Dynamic identification repeat for filtering transactions if needed, but we check by ID or Batch
+                    var purgeQty = await _context.InventoryTransactions
+                        .Where(it => it.ProductId == h.ProductId && 
+                                     it.WarehouseId == h.WarehouseId && 
+                                     it.RackId == h.RackId && 
+                                     (it.TransactionType == "StockPurge-OUT" || it.TransactionType == "StockAdjustment-OUT") &&
+                                     it.ExpDate.HasValue && h.ExpiryDate.HasValue && it.ExpDate.Value.Date == h.ExpiryDate.Value.Date)
+                        .SumAsync(it => (decimal?)it.Quantity) ?? 0;
+
+                    if (purgeQty > 0)
+                    {
+                        h.IsAlreadyPurged = true;
+                        // 🛠️ FIX: Restore visual representation for purged items
+                        // We show the quantity that WAS expired/received before the purge
+                        if (h.ReceivedQty == 0) 
+                        {
+                            h.ReceivedQty = purgeQty; 
+                            h.ExpiredQty = purgeQty;
+                            // h.AvailableQty remains 0 (Received - Rejected = 0 because Rejected was also reduced)
+                        }
+                        else 
+                        {
+                            // If it was only partially purged
+                            h.ExpiredQty += purgeQty;
+                            h.ReceivedQty += purgeQty;
+                        }
+                    }
+                }
 
                 // 🎯 Calculate Batch-wise "Sold" strictly (Net of Sales and Returns)
                 var grossSales = await _context.SaleOrderItems
@@ -564,6 +628,12 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 item.History = allBatches.Take(15).ToList(); // Return top 15 batches with real AvailableQty
+                
+                // 🎯 If the location has no physical stock left but was once purged (Expired Rack case)
+                if (item.AvailableStock == 0 && item.History.Any(h => h.IsAlreadyPurged))
+                {
+                    item.IsAlreadyPurged = true;
+                }
             }
 
             return new StockPagedResponseDto

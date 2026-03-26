@@ -20,9 +20,12 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
 
         public async Task<bool> Handle(MoveToExpiredRackCommand request, CancellationToken ct)
         {
-            // 1. Find the Expired Rack (Rack E1 / Expired Products)
+            // 1. Find the Expired Rack (Rack E1 / Expired Products / Damaged / Rejected)
             var targetRack = await _context.Racks
-                .FirstOrDefaultAsync(r => r.Description.Contains("Expired") || r.Name.Contains("E1"), ct);
+                .FirstOrDefaultAsync(r => r.Name.ToLower().Contains("e1") || 
+                                          (r.Description != null && (r.Description.ToLower().Contains("expired") || 
+                                                                     r.Description.ToLower().Contains("damaged") || 
+                                                                     r.Description.ToLower().Contains("rejected"))), ct);
 
             if (targetRack == null)
                 throw new Exception("Destination 'Expired Rack' not found in system. Please create a rack with description 'Expired Products'.");

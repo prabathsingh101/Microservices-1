@@ -169,20 +169,75 @@ internal sealed class GetProductsPagedQueryHandler
             imageUrl = p.ImageUrl
         }).ToList();
 
-        // 🆕 Fetch Mfg and Exp dates for each item based on available stock
+        // 🆕 Fetch accurate Location and Expiry based on ACTUAL available stock
         foreach (var item in items)
         {
-            var earliestBatch = await _context.GRNDetails
+            // We want to find the first batch that actually has stock remaining
+            // We'll iterate through batches sorted by expiry date
+            var batches = await _context.GRNDetails
                 .AsNoTracking()
                 .Where(g => g.ProductId == item.id && (g.ReceivedQty - g.RejectedQty) > 0)
                 .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
-                .Select(g => new { g.MfgDate, g.ExpDate })
-                .FirstOrDefaultAsync(cancellationToken);
+                .Select(g => new { 
+                    g.WarehouseId, 
+                    g.RackId, 
+                    WarehouseName = g.Warehouse.Name, 
+                    RackName = g.Rack.Name, 
+                    g.MfgDate, 
+                    g.ExpDate,
+                    g.ReceivedQty,
+                    g.RejectedQty
+                })
+                .ToListAsync(cancellationToken);
 
-            if (earliestBatch != null)
+            foreach (var batch in batches)
             {
-                item.manufacturingDate = earliestBatch.MfgDate;
-                item.expiryDate = earliestBatch.ExpDate;
+                // Calculate sold quantity for this specific batch location
+                var soldQty = await _context.SaleOrderItems
+                    .Where(si => si.ProductId == item.id && 
+                                 si.WarehouseId == batch.WarehouseId && 
+                                 si.RackId == batch.RackId &&
+                                 (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .SumAsync(si => (decimal?)si.Qty, cancellationToken) ?? 0;
+
+                var returns = await _context.SaleReturnItems
+                    .Where(sri => sri.ProductId == item.id && 
+                                  sri.WarehouseId == batch.WarehouseId && 
+                                  sri.RackId == batch.RackId &&
+                                  (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
+                    .SumAsync(sri => (decimal?)sri.ReturnQty, cancellationToken) ?? 0;
+
+                var available = (batch.ReceivedQty - batch.RejectedQty) - (soldQty - returns);
+
+                if (available > 0)
+                {
+                    // Found the first batch with stock!
+                    item.manufacturingDate = batch.MfgDate;
+                    item.expiryDate = batch.ExpDate;
+                    item.defaultRackName = batch.RackName;
+                    item.defaultWarehouseName = batch.WarehouseName;
+                    
+                    // Update the row-level stock to be accurate for this rack if we want, 
+                    // but the Master list DTO usually wants the Total current stock.
+                    // Keep item.currentStock as it is (total) or update it to 'available'?
+                    // User said "Search Products popup Rack A5 stock 5". Use ACTUAL available for that Rack! 
+                    item.currentStock = available; 
+                    break;
+                }
+            }
+            
+            // If no batches with stock found, fallback to the any earliest received batch for status/date
+            if (item.expiryDate == null)
+            {
+                var fallback = batches.FirstOrDefault();
+                if (fallback != null)
+                {
+                    item.manufacturingDate = fallback.MfgDate;
+                    item.expiryDate = fallback.ExpDate;
+                    item.defaultRackName = fallback.RackName;
+                    item.defaultWarehouseName = fallback.WarehouseName;
+                    item.currentStock = 0;
+                }
             }
         }
 

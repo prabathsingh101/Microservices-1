@@ -30,9 +30,17 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                             g.WarehouseId == request.WarehouseId &&
                             g.RackId == request.RackId);
 
-            // Fetch rack info to check if it's an expired rack
+            // Fetch rack info to check if it's an expired/unusable rack
             var rack = await _context.Racks.FirstOrDefaultAsync(r => r.Id == request.RackId, ct);
-            bool isExpiredRack = rack != null && (rack.Name.Contains("E1") || (rack.Description != null && rack.Description.Contains("Expired")));
+            bool isExpiredRack = rack != null && (
+                rack.Name.ToLower().Contains("e1") || 
+                (rack.Description != null && (
+                    rack.Description.ToLower().Contains("expired") || 
+                    rack.Description.ToLower().Contains("damaged") || 
+                    rack.Description.ToLower().Contains("rejected") ||
+                    rack.Description.ToLower().Contains("purged")
+                ))
+            );
 
             // Fetch batches to perform matching safely
             var allLocationBatches = await query.ToListAsync(ct);

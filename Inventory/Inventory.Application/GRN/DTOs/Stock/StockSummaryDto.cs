@@ -18,6 +18,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public decimal TotalRejected { get; set; }
         public decimal TotalExpired { get; set; }
         public decimal TotalSold { get; set; }
+        public bool IsAlreadyPurged { get; set; }
 
         public Guid? WarehouseId { get; set; }
         public string? WarehouseName { get; set; }
@@ -54,5 +55,6 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public DateTime? ExpiryDate { get; set; }
         public bool IsExpiryRequired { get; set; }
         public decimal AvailableQty { get; set; }
+        public bool IsAlreadyPurged { get; set; }
     }
 }

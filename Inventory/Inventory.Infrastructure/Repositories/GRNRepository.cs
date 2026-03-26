@@ -486,16 +486,16 @@ namespace Inventory.Infrastructure.Repositories
                     )) : 0,
 
                     RejectedQty = d.RejectedQty,
-                    ActualRejectedQty = (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired"))) ? 0 : d.RejectedQty,
-                    ExpiredQty = (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired"))) ? d.RejectedQty : 0,
+                    ActualRejectedQty = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected")))) ? 0 : d.RejectedQty,
+                    ExpiredQty = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected")))) ? d.RejectedQty : 0,
                     UnitRate = d.UnitRate,
                     RackName = d.Rack.Name,
-                    IsExpired = (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired")))
+                    IsExpired = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected"))))
                 }).ToList(),
 
                 TotalRejected = g.GRNItems.Sum(d => d.RejectedQty),
-                TotalActualRejected = g.GRNItems.Where(d => !(d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired")))).Sum(d => d.RejectedQty),
-                TotalExpired = g.GRNItems.Where(d => (d.Rack.Name.Contains("E1") || (d.Rack.Description != null && d.Rack.Description.Contains("Expired")))).Sum(d => d.RejectedQty)
+                TotalActualRejected = g.GRNItems.Where(d => !(d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected"))))).Sum(d => d.RejectedQty),
+                TotalExpired = g.GRNItems.Where(d => (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected"))))).Sum(d => d.RejectedQty)
             });
 
             // 3. Sorting Fix
