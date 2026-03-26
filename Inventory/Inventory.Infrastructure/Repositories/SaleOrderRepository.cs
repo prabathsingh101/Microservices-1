@@ -469,7 +469,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                 MfgDate = x.MfgDate,
                 ExpDate = x.ExpDate,
                 WarehouseId = x.WarehouseId,
+                WarehouseName = x.Warehouse != null ? x.Warehouse.Name : null,
                 RackId = x.RackId,
+                RackName = x.Rack != null ? x.Rack.Name : null,
                 CurrentStock = _context.Products.Where(p => p.Id == x.ProductId).Select(p => p.CurrentStock).FirstOrDefault(),
 
                 // 72 Hours Policy Calculation (More LINQ-friendly comparison)
@@ -484,7 +486,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                                  (x.MfgDate == null || sr.MfgDate == x.MfgDate) && 
                                  (x.ExpDate == null || sr.ExpDate == x.ExpDate))
                     .Sum(sr => (decimal?)sr.ReturnQty) ?? 0),
-
+                
                 // Fetch GRN and PO references based on Product/Warehouse/Rack/Batch metadata
                 GrnNumber = _context.GRNDetails
                     .Where(g => g.ProductId == x.ProductId && 
