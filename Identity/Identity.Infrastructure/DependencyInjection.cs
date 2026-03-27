@@ -1,4 +1,4 @@
-﻿using Identity.Application.Interfaces;
+using Identity.Application.Interfaces;
 using Identity.Infrastructure.Persistence;
 using Identity.Infrastructure.Repositories;
 using Identity.Infrastructure.Security;
@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository,  RefreshTokenRepository>();
         services.AddScoped<IMenuRepository, MenuRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+        services.AddScoped<IRolePrintSettingRepository, RolePrintSettingRepository>();
 
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 

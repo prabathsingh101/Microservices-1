@@ -1,4 +1,4 @@
-﻿using Identity.Domain.Entities;
+using Identity.Domain.Entities;
 using Identity.Domain.Menus;
 using Identity.Domain.Permissions;
 using Identity.Domain.Roles;
@@ -20,6 +20,7 @@ public class IdentityDbContext : DbContext
     public DbSet<Domain.Users.UserRole> UserRoles => Set<Domain.Users.UserRole>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Domain.PrintSettings.RolePrintSetting> RolePrintSettings => Set<Domain.PrintSettings.RolePrintSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

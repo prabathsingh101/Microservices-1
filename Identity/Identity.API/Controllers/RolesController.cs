@@ -38,4 +38,18 @@ public class RolesController : ControllerBase
         await _permissionRepository.UpdateRolePermissionsAsync(roleId, permissions);
         return Ok();
     }
+
+    [HttpGet("{roleId}/print-settings")]
+    public async Task<IActionResult> GetPrintSettings(int roleId, [FromServices] IRolePrintSettingRepository printRepo)
+    {
+        var settings = await printRepo.GetPrintSettingsByRoleIdAsync(roleId);
+        return Ok(settings);
+    }
+
+    [HttpPut("{roleId}/print-settings")]
+    public async Task<IActionResult> UpdatePrintSettings(int roleId, [FromBody] IEnumerable<Domain.PrintSettings.RolePrintSetting> settings, [FromServices] IRolePrintSettingRepository printRepo)
+    {
+        await printRepo.UpdateRolePrintSettingsAsync(roleId, settings);
+        return Ok();
+    }
 }
