@@ -13,6 +13,7 @@ public sealed record UpdateProductCommand(
     string hsncode,
     decimal basepurchaseprice,
     decimal mrp,
+    decimal discount,
     decimal defaultgst,
     int minstock,
     bool trackinventory,

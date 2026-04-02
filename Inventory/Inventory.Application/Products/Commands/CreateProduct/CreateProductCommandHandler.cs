@@ -30,6 +30,7 @@ public sealed class CreateProductCommandHandler
             hsncode: request.hsncode,
             basepurchaseprice: request.basepurchaseprice,
             mrp: request.mrp,
+            discount: request.discount,
             defaultgst: request.defaultgst,
             minstock: request.minstock,
             trackinventory: request.trackinventory,

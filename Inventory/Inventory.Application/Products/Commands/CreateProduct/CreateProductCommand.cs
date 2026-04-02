@@ -10,6 +10,7 @@ public sealed record CreateProductCommand(
     string hsncode,   
     decimal basepurchaseprice,
     decimal mrp,
+    decimal discount,
     decimal saleRate,
     decimal defaultgst,
     int minstock,

@@ -15,7 +15,9 @@ public class Product
 
     public decimal BasePurchasePrice { get; set; }=0;
     public decimal MRP { get; set; }=0;
+    public decimal Discount { get; set; } = 0;
     public decimal? SaleRate { get; set; }
+
     public decimal? DefaultGst { get; set; }
     public string HSNCode { get; private set; } = null!;
     public int MinStock { get;  set; } = 0;
@@ -49,6 +51,7 @@ public class Product
         string hsncode,
         decimal basepurchaseprice,
         decimal mrp,
+        decimal discount,
         decimal defaultgst,
         int minstock,
         bool trackinventory,
@@ -69,6 +72,7 @@ public class Product
         SubcategoryId = subcategoryid;
         Name = productname;
         Sku = sku;
+        Discount = discount;
         SaleRate = saleRate;
         Brand = brand;
         Unit = unit;
@@ -95,6 +99,7 @@ public class Product
         string name,
         string sku,
         decimal saleRate,
+        decimal discount,
         string brand,
         string unit,
         string hsncode,
@@ -120,6 +125,7 @@ public class Product
         SubcategoryId = subcategoryid;
         Name = name;
         Sku = sku;
+        Discount = discount;
         SaleRate = saleRate;
         Brand = brand;        
         Unit = unit;

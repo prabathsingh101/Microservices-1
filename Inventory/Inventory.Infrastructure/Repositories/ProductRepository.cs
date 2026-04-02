@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Products.DTOs;
 using Inventory.Application.Stock;
@@ -251,12 +251,12 @@ public sealed class ProductRepository : IProductRepository
 
                 var expectedHeaders = new List<string> { 
                     "Category", "Subcategory", "ProductName", "SKU", "Brand", "Unit", 
-                    "BasePrice", "MRP", "SaleRate", "GST%", "HSNCode", "MinStock", 
+                    "BasePrice", "MRP", "Discount", "SaleRate", "GST%", "HSNCode", "MinStock", 
                     "DamagedStock", "ProductType", "TrackInventory", "Active", "Description" 
                 };
                 
                 var actualHeaders = new List<string>();
-                for (int i = 1; i <= 17; i++)
+                for (int i = 1; i <= 18; i++)
                 {
                     actualHeaders.Add(headerRow.Cell(i).Value.ToString()?.Trim());
                 }
@@ -297,15 +297,16 @@ public sealed class ProductRepository : IProductRepository
                         var unit = row.Cell(6).Value.ToString()?.Trim();
                         var basePriceVal = row.Cell(7).Value;
                         var mrpVal = row.Cell(8).Value;
-                        var saleRateVal = row.Cell(9).Value;
-                        var gstVal = row.Cell(10).Value;
-                        var hsn = row.Cell(11).Value.ToString()?.Trim();
-                        var minStockVal = row.Cell(12).Value;
-                        var damagedStockVal = row.Cell(13).Value;
-                        var pType = row.Cell(14).Value.ToString()?.Trim();
-                        var trackInv = row.Cell(15).Value.ToString()?.Trim().ToUpper() == "TRUE";
-                        var active = row.Cell(16).Value.ToString()?.Trim().ToUpper() == "TRUE";
-                        var desc = row.Cell(17).Value.ToString()?.Trim();
+                        var discountVal = row.Cell(9).Value;
+                        var saleRateVal = row.Cell(10).Value;
+                        var gstVal = row.Cell(11).Value;
+                        var hsn = row.Cell(12).Value.ToString()?.Trim();
+                        var minStockVal = row.Cell(13).Value;
+                        var damagedStockVal = row.Cell(14).Value;
+                        var pType = row.Cell(15).Value.ToString()?.Trim();
+                        var trackInv = row.Cell(16).Value.ToString()?.Trim().ToUpper() == "TRUE";
+                        var active = row.Cell(17).Value.ToString()?.Trim().ToUpper() == "TRUE";
+                        var desc = row.Cell(18).Value.ToString()?.Trim();
 
                         // Skip Empty Rows
                         if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(catName)) continue;
@@ -344,11 +345,12 @@ public sealed class ProductRepository : IProductRepository
                         fileNames.Add(name.ToLower());
 
                         // Parsing
-                        decimal basePrice = 0, mrp = 0, saleRate = 0, gst = 0, damagedStock = 0;
+                        decimal basePrice = 0, mrp = 0, discount = 0, saleRate = 0, gst = 0, damagedStock = 0;
                         int minStock = 0;
 
                         if (!basePriceVal.IsBlank) decimal.TryParse(basePriceVal.ToString(), out basePrice);
                         if (!mrpVal.IsBlank) decimal.TryParse(mrpVal.ToString(), out mrp);
+                        if (!discountVal.IsBlank) decimal.TryParse(discountVal.ToString(), out discount);
                         if (!saleRateVal.IsBlank) decimal.TryParse(saleRateVal.ToString(), out saleRate);
                         if (!gstVal.IsBlank) decimal.TryParse(gstVal.ToString(), out gst);
                         if (!damagedStockVal.IsBlank) decimal.TryParse(damagedStockVal.ToString(), out damagedStock);
@@ -373,6 +375,7 @@ public sealed class ProductRepository : IProductRepository
                             hsn ?? "",
                             basePrice,
                             mrp,
+                            discount,
                             gst,
                             minStock,
                             trackInv,

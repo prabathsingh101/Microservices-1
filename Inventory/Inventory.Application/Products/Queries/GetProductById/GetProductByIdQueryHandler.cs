@@ -34,6 +34,7 @@ public sealed class GetProductByIdQueryHandler
             hsnCode=p.HSNCode,
             basePurchasePrice = p.BasePurchasePrice,
             mrp = p.MRP,
+            discount = p.Discount,
             saleRate = p.SaleRate,
             defaultGst = p.DefaultGst,
             minStock =p.MinStock,

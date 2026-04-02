@@ -33,6 +33,7 @@ internal sealed class UpdateProductCommandHandler
             name: request.productname,
             sku: request.sku,
             saleRate: request.saleRate,
+            discount: request.discount,
             brand: request.brand,
             unit: request.unit,
             hsncode: request.hsncode,
