@@ -32,6 +32,12 @@ namespace Inventory.Domain.Entities.SO
         public decimal Rate { get; set; } // Unit rate [cite: 6]
 
         [Column(TypeName = "decimal(18,2)")]
+        public decimal MRP { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DiscountAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
         public decimal DiscountPercent { get; set; } // Item discount [cite: 6]
 
         [Column(TypeName = "decimal(18,2)")]

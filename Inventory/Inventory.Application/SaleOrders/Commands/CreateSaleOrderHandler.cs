@@ -85,6 +85,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 Qty = i.Qty,
                 Unit = i.Unit,
                 Rate = i.Rate,
+                MRP = i.MRP,
+                DiscountAmount = i.DiscountAmount,
                 DiscountPercent = i.DiscountPercent,
                 GSTPercent = i.GstPercent,
                 TaxAmount = i.TaxAmount,

@@ -110,6 +110,8 @@ internal sealed class GetProductsPagedQueryHandler
                 p.BasePurchasePrice,
                 p.CurrentStock,
                 p.DamagedStock,
+                p.MRP,
+                p.Discount,
                 p.DefaultGst,
                 p.IsExpiryRequired,
                 p.Description,
@@ -141,6 +143,7 @@ internal sealed class GetProductsPagedQueryHandler
             subcategoryId = p.SubcategoryId,
             subcategoryName = p.SubcategoryName,
             sku = p.Sku,
+            mrp = p.MRP,
             saleRate = p.SaleRate,
             productName = p.Name,
             unit = p.Unit,
@@ -150,6 +153,7 @@ internal sealed class GetProductsPagedQueryHandler
             currentStock = p.CurrentStock,
             damagedStock = p.DamagedStock,
             defaultGst = p.DefaultGst,
+            discount = p.Discount,
             isExpiryRequired = p.IsExpiryRequired,
 
             // 🆕 Mapping New Field

@@ -36,6 +36,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal Qty { get; set; }
         public string Unit { get; set; }
         public decimal Rate { get; set; }
+        public decimal MRP { get; set; }
+        public decimal DiscountAmount { get; set; }
         public decimal DiscountPercent { get; set; }
         public decimal GstPercent { get; set; }
         public decimal TaxAmount { get; set; }
