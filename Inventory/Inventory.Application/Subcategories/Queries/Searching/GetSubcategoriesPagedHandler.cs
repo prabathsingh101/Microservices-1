@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Common.Models;
 using Inventory.Application.Subcategories.DTOs;
 using MediatR;
@@ -121,6 +121,7 @@ namespace Inventory.Application.Subcategories.Queries.Searching
                 .Select(x => new SubcategoryDto
                 {
                     Id = x.Id,
+                    CategoryId = x.CategoryId,
                     CategoryName = x.Category.CategoryName,
                     Description = x.Description,
                     SubcategoryName = x.SubcategoryName,
