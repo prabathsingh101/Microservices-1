@@ -186,7 +186,11 @@ namespace Inventory.API.Controllers
                 worksheet.Cell(1, 3).Value = "Category";
                 worksheet.Cell(1, 4).Value = "Min Stock";
                 worksheet.Cell(1, 5).Value = "Current Stock";
-                worksheet.Cell(1, 6).Value = "Unit";
+                worksheet.Cell(1, 6).Value = "Discount";
+                worksheet.Cell(1, 7).Value = "Unit";
+                worksheet.Cell(1, 8).Value = "Warehouse";
+                worksheet.Cell(1, 9).Value = "Rack";
+                worksheet.Cell(1, 10).Value = "Expiry";
 
                 // Styling: Bold headers and background color
                 var headerRow = worksheet.Row(1);
@@ -202,7 +206,11 @@ namespace Inventory.API.Controllers
                     worksheet.Cell(row, 3).Value = data[i].Category;
                     worksheet.Cell(row, 4).Value = data[i].MinStock;
                     worksheet.Cell(row, 5).Value = data[i].CurrentStock;
-                    worksheet.Cell(row, 6).Value = data[i].Unit;
+                    worksheet.Cell(row, 6).Value = data[i].Discount;
+                    worksheet.Cell(row, 7).Value = data[i].Unit;
+                    worksheet.Cell(row, 8).Value = data[i].Warehouse;
+                    worksheet.Cell(row, 9).Value = data[i].Rack;
+                    worksheet.Cell(row, 10).Value = data[i].IsExpiryRequired ? "Yes" : "No";
 
                     // Low stock indication (Optional highlighting)
                     worksheet.Cell(row, 5).Style.Font.FontColor = XLColor.Red;
@@ -263,6 +271,7 @@ namespace Inventory.API.Controllers
                             <th>Product Name</th>
                             <th>SKU</th>
                             <th>Category</th>
+                            <th>Discount</th>
                             <th>Current Stock</th>
                             <th>Min Stock</th>
                             <th>Unit</th>
@@ -277,6 +286,7 @@ namespace Inventory.API.Controllers
                     <td>{item.ProductName}</td>
                     <td>{item.SKU}</td>
                     <td>{item.Category}</td>
+                    <td>{item.Discount}</td>
                     <td class='low-stock-alert'>{item.CurrentStock}</td>
                     <td>{item.MinStock}</td>
                     <td>{item.Unit}</td>

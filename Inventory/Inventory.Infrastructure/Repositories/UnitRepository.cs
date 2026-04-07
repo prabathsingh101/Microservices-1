@@ -40,5 +40,7 @@ namespace Inventory.Infrastructure.Repositories
         {
             return await _context.Units.AnyAsync(u => u.Name.ToLower() == name.ToLower());
         }
+
+        public IQueryable<UnitMaster> Query() => _context.Units.AsQueryable();
     }
 }

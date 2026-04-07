@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 
 namespace Inventory.Application.Common.Interfaces;
 
@@ -10,4 +10,5 @@ public interface IUnitRepository
     Task UpdateAsync(UnitMaster unit);
     Task DeleteAsync(int id);
     Task<bool> ExistsAsync(string name);
+    IQueryable<UnitMaster> Query();
 }

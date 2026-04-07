@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -129,16 +129,21 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                     .AsNoTracking()
                     .ToDictionaryAsync(c => c.CategoryName.ToLower().Trim(), c => c.Id);
 
-                // 3. Pre-fetch existing Subcategories for duplicate check (All records, not just active)
-                var existingSubcats = await _context.Subcategories
-                    .AsNoTracking()
-                    .Select(s => new { s.SubcategoryCode, s.SubcategoryName, s.IsActive })
-                    .ToListAsync();
-
-                var codeSet = new HashSet<string>(existingSubcats.Select(x => x.SubcategoryCode.ToLower().Trim()));
-                var activeNameSet = new HashSet<string>(existingSubcats.Where(x => x.IsActive).Select(x => x.SubcategoryName.ToLower().Trim()));
+                // 3. Pre-fetch existing Subcategories for Upsert logic (Update if exists, Insert if new)
+                // We don't use AsNoTracking() so we can update existing entities
+                var dbSubcategories = await _context.Subcategories.ToListAsync();
+                var dbSubcatsByCode = dbSubcategories.ToDictionary(s => s.SubcategoryCode.ToLower().Trim(), s => s);
+                
+                // Track by name (active only)
+                var dbSubcatsByName = new Dictionary<string, Subcategory>();
+                foreach(var s in dbSubcategories.Where(x => x.IsActive))
+                {
+                    var nameKey = s.SubcategoryName.ToLower().Trim();
+                    if (!dbSubcatsByName.ContainsKey(nameKey)) dbSubcatsByName.Add(nameKey, s);
+                }
 
                 var newSubcategories = new List<Subcategory>();
+                int updateCount = 0;
                 
                 // Track duplicates within the file itself
                 var fileCodes = new HashSet<string>();
@@ -183,7 +188,7 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                         // Category Lookup
                         if (!categories.TryGetValue(catNameValue.ToLower(), out var categoryId))
                         {
-                            errors.Add($"Row {rowNum}: Category '{catNameValue}' not found in DB. Available categories: {string.Join(", ", categories.Keys.Take(5))}");
+                            errors.Add($"Row {rowNum}: Category '{catNameValue}' not found.");
                             continue;
                         }
 
@@ -193,18 +198,9 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                             errors.Add($"Row {rowNum}: Duplicate Code '{code}' in file.");
                             continue;
                         }
-                        
-                        // Duplicate Check (DB Level)
-                        if (codeSet.Contains(code.ToLower()))
+                        if (fileNames.Contains(name.ToLower()))
                         {
-                            errors.Add($"Row {rowNum}: Code '{code}' already exists in DB.");
-                            continue;
-                        }
-
-                        // Name Check
-                        if (activeNameSet.Contains(name.ToLower()) || fileNames.Contains(name.ToLower()))
-                        {
-                            errors.Add($"Row {rowNum}: Active Subcategory with Name '{name}' already exists.");
+                            errors.Add($"Row {rowNum}: Duplicate Name '{name}' in file.");
                             continue;
                         }
 
@@ -222,16 +218,46 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                              }
                         }
 
-                        var subcategory = new Subcategory(
-                            categoryId,
-                            code,
-                            name,
-                            defaultGst,
-                            description,
-                            true // Active by default
-                        );
+                        // 4. UPSERT LOGIC
+                        Subcategory? existingSubcat = null;
 
-                        newSubcategories.Add(subcategory);
+                        // Priority 1: Check by Code
+                        if (dbSubcatsByCode.TryGetValue(code.ToLower(), out var subByCode))
+                        {
+                            existingSubcat = subByCode;
+                        }
+                        // Priority 2: Check by Name
+                        else if (dbSubcatsByName.TryGetValue(name.ToLower(), out var subByName))
+                        {
+                            existingSubcat = subByName;
+                        }
+
+                        if (existingSubcat != null)
+                        {
+                            // UPDATE EXISTING
+                            existingSubcat.Update(
+                                code: code,
+                                name: name,
+                                categoryid: categoryId,
+                                defaultgst: defaultGst,
+                                description: description,
+                                isActive: true
+                            );
+                            updateCount++;
+                        }
+                        else
+                        {
+                            // INSERT NEW
+                            var subcategory = new Subcategory(
+                                categoryId,
+                                code,
+                                name,
+                                defaultGst,
+                                description,
+                                true // Active by default
+                            );
+                            newSubcategories.Add(subcategory);
+                        }
                         successCount++;
                     }
                     catch (Exception ex)
@@ -240,14 +266,14 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                     }
                 }
 
-                if (!newSubcategories.Any() && !errors.Any())
+                if (!newSubcategories.Any() && updateCount == 0 && !errors.Any())
                 {
-                    errors.Add("No valid data rows found in the file after the header.");
+                    errors.Add("No valid data rows found in the file.");
                 }
 
-                if (newSubcategories.Any())
+                if (newSubcategories.Any() || updateCount > 0)
                 {
-                    await _context.Subcategories.AddRangeAsync(newSubcategories);
+                    if (newSubcategories.Any()) await _context.Subcategories.AddRangeAsync(newSubcategories);
                     await _context.SaveChangesAsync();
                 }
             }

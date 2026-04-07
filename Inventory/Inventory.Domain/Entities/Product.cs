@@ -90,7 +90,7 @@ public class Product
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;
-        ImageUrl = imageUrl;
+        ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? "/assets/images/placeholder-product.png" : imageUrl;
     }
 
     public void Update(        
@@ -143,7 +143,14 @@ public class Product
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;
-        ImageUrl = imageUrl;
+        if (!string.IsNullOrWhiteSpace(imageUrl))
+        {
+            ImageUrl = imageUrl;
+        }
+        else if (string.IsNullOrWhiteSpace(ImageUrl)) 
+        {
+             ImageUrl = "/assets/images/placeholder-product.png";
+        }
         ModifiedOn = modifiedon ?? DateTime.UtcNow;       
     }
 }

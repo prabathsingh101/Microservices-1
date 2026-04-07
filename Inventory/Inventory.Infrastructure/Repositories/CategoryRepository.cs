@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using DocumentFormat.OpenXml.InkML;
 using Inventory.Domain.Entities;
 using Inventory.Infrastructure.Persistence;
@@ -118,16 +118,21 @@ public sealed class CategoryRepository : ICategoryRepository
 
                 var dataRows = rows.Skip(1);
 
-                // 2. Pre-fetch Categories for duplicate check (All records for Code, Active only for Name)
-                var existingCategories = await _db.Categories
-                    .AsNoTracking()
-                    .Select(c => new { c.CategoryCode, c.CategoryName, c.IsActive })
-                    .ToListAsync();
+                // 2. Pre-fetch Categories for Upsert logic (Update if exists, Insert if new)
+                // We don't use AsNoTracking() so we can update existing entities
+                var dbCategories = await _db.Categories.ToListAsync();
+                var dbCatsByCode = dbCategories.ToDictionary(c => c.CategoryCode.ToLower().Trim(), c => c);
                 
-                var allCodeSet = new HashSet<string>(existingCategories.Select(x => x.CategoryCode.ToLower().Trim()));
-                var activeNameSet = new HashSet<string>(existingCategories.Where(x => x.IsActive).Select(x => x.CategoryName.ToLower().Trim()));
+                // Track by name as well (only for active ones to match existing logic)
+                var dbCatsByName = new Dictionary<string, Category>();
+                foreach(var c in dbCategories.Where(x => x.IsActive))
+                {
+                    var nameKey = c.CategoryName.ToLower().Trim();
+                    if (!dbCatsByName.ContainsKey(nameKey)) dbCatsByName.Add(nameKey, c);
+                }
 
                 var newCategories = new List<Category>();
+                int updateCount = 0;
 
                 // 3. In-File Duplicate Check
                 var fileCodes = new HashSet<string>();
@@ -174,18 +179,6 @@ public sealed class CategoryRepository : ICategoryRepository
                              continue;
                         }
 
-                        // Duplicate Check (DB Level) - All for Code, Active for Name
-                        if (allCodeSet.Contains(code.ToLower()))
-                        {
-                            errors.Add($"Row {rowNum}: Code '{code}' already exists in database.");
-                            continue;
-                        }
-                        if (activeNameSet.Contains(name.ToLower()))
-                        {
-                            errors.Add($"Row {rowNum}: Active Category with Name '{name}' already exists.");
-                            continue;
-                        }
-
                         fileCodes.Add(code.ToLower());
                         fileNames.Add(name.ToLower());
 
@@ -200,17 +193,46 @@ public sealed class CategoryRepository : ICategoryRepository
                              }
                         }
 
-                        // Create Category
-                        var category = new Category(
-                            name,
-                            code,
-                            defaultGst,
-                            description,
-                            true, // IsActive
-                            null // ParentCategoryId
-                        );
-                        
-                        newCategories.Add(category);
+                        // 4. UPSERT LOGIC
+                        Category? existingCategory = null;
+
+                        // Priority 1: Check by Code
+                        if (dbCatsByCode.TryGetValue(code.ToLower(), out var catByCode))
+                        {
+                            existingCategory = catByCode;
+                        }
+                        // Priority 2: Check by Name
+                        else if (dbCatsByName.TryGetValue(name.ToLower(), out var catByName))
+                        {
+                            existingCategory = catByName;
+                        }
+
+                        if (existingCategory != null)
+                        {
+                            // UPDATE EXISTING
+                            existingCategory.Update(
+                                name: name,
+                                code: code,
+                                defaultGst: defaultGst,
+                                description: description,
+                                isActive: true, // Upsert enforces active
+                                parentCategoryId: null
+                            );
+                            updateCount++;
+                        }
+                        else
+                        {
+                            // INSERT NEW
+                            var category = new Category(
+                                name,
+                                code,
+                                defaultGst,
+                                description,
+                                true, // IsActive
+                                null // ParentCategoryId
+                            );
+                            newCategories.Add(category);
+                        }
                         successCount++;
                      }
                      catch(Exception ex)
@@ -219,14 +241,14 @@ public sealed class CategoryRepository : ICategoryRepository
                      }
                 }
 
-                if (!newCategories.Any() && !errors.Any())
+                if (!newCategories.Any() && updateCount == 0 && !errors.Any())
                 {
                     errors.Add("No valid data rows found in the file.");
                 }
 
-                if (newCategories.Any())
+                if (newCategories.Any() || updateCount > 0)
                 {
-                    await _db.Categories.AddRangeAsync(newCategories);
+                    if (newCategories.Any()) await _db.Categories.AddRangeAsync(newCategories);
                     await _db.SaveChangesAsync();
                 }
             }

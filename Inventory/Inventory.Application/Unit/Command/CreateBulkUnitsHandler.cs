@@ -1,7 +1,8 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using MediatR;
 using System;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -22,25 +23,32 @@ namespace Inventory.Application.Units.Command
 
         public async Task<bool> Handle(CreateBulkUnitsCommand request, CancellationToken ct)
         {
-            var existingItems = await _repo.GetAllAsync();
-            var existingUnits = existingItems.Select(u => u.Name.ToLower()).ToHashSet();
-            var unitsToAdd = new List<UnitMaster>();
+            // 1. Pre-fetch tracked entities for upsert logic
+            var dbUnits = await _repo.Query().ToListAsync(ct);
+            var unitsByName = dbUnits.ToDictionary(u => u.Name.ToLower().Trim(), u => u);
+            
+            // Track duplicates within the same batch
+            var processedNames = new HashSet<string>();
 
             foreach (var item in request.Units)
             {
-                if (!string.IsNullOrWhiteSpace(item.Name) && !existingUnits.Contains(item.Name.ToLower()))
+                if (string.IsNullOrWhiteSpace(item.Name)) continue;
+                
+                var nameKey = item.Name.ToLower().Trim();
+                if (processedNames.Contains(nameKey)) continue; // Skip if duplicated in batch
+                processedNames.Add(nameKey);
+
+                if (unitsByName.TryGetValue(nameKey, out var existingUnit))
                 {
-                    var unit = new UnitMaster(item.Name, item.Description);
-                    unitsToAdd.Add(unit);
-                    existingUnits.Add(item.Name.ToLower()); // Prevent duplicates within the same batch
+                    // UPDATE
+                    existingUnit.Update(item.Name, item.Description, true);
                 }
-            }
-
-            if (unitsToAdd.Count == 0) return true; // Nothing to add, but not an error
-
-            foreach (var unit in unitsToAdd)
-            {
-                await _repo.AddAsync(unit);
+                else
+                {
+                    // INSERT
+                    var unit = new UnitMaster(item.Name, item.Description);
+                    await _repo.AddAsync(unit);
+                }
             }
 
             return await _uow.SaveChangesAsync(ct) > 0; 
