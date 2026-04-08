@@ -19,12 +19,15 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 {
     private readonly InventoryDbContext _context;
     private readonly ISupplierClient _supplierClient;
+    private readonly ICompanyClient _companyClient;
 
     public PurchaseReturnRepository(InventoryDbContext context, 
-        ISupplierClient supplierClient)
+        ISupplierClient supplierClient,
+        ICompanyClient companyClient)
     {
         _context = context;
         _supplierClient = supplierClient;
+        _companyClient = companyClient;
     }
 
     // 1. UI Form ke liye Rejected Items fetch karein
@@ -81,33 +84,52 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<List<ReceivedStockDto>> GetReceivedStockBySupplierAsync(int supplierId)
     {
-        var query = from gd in _context.GRNDetails
+        // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
+        var company = await _companyClient.GetCompanyProfileAsync();
+        int windowValue = company?.PurchaseReturnWindowValue ?? 72;
+        string windowUnit = company?.PurchaseReturnWindowUnit ?? "Hours";
+
+        // 2. Calculate dynamic limit date
+        double totalHours = windowUnit switch 
+        {
+            "Hours" => windowValue,
+            "Days" => windowValue * 24,
+            "Months" => windowValue * 30 * 24,
+            _ => windowValue
+        };
+        
+        var now = DateTime.Now;
+        var limitDate = now.AddHours(-totalHours);
+
+        var rawList = await (from gd in _context.GRNDetails
                         .Include(x => x.Product)
                         .Include(x => x.Warehouse)
                         .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
                     where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0
-                    select new ReceivedStockDto
-                    {
-                        ProductId = gd.ProductId,
-                        ProductName = (gd.Product != null && !string.IsNullOrEmpty(gd.Product.Name)) ? gd.Product.Name : "Product-" + gd.ProductId.ToString().Substring(0, 8),
-                        GrnRef = gh.GRNNumber,
-                        AvailableQty = gd.ReceivedQty - gd.RejectedQty,
-                        Rate = gd.UnitRate,
-                        GstPercent = gd.GstPercent,
-                        DiscountPercent = gd.DiscountPercent,
-                        ReceivedDate = gh.ReceivedDate,
-                        CurrentStock = gd.Product != null ? gd.Product.CurrentStock : 0,
-                        WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
-                        RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
-                        MfgDate = gd.MfgDate,
-                        ExpDate = gd.ExpDate
-                    };
+                    select new { gd, gh }).ToListAsync();
 
-        var result = await query
-            .OrderByDescending(x => x.ReceivedDate)
-            .ThenByDescending(x => x.GrnRef)
-            .ToListAsync();
+        var result = rawList.Select(x => new ReceivedStockDto
+        {
+            ProductId = x.gd.ProductId,
+            ProductName = (x.gd.Product != null && !string.IsNullOrEmpty(x.gd.Product.Name)) ? x.gd.Product.Name : "Product-" + x.gd.ProductId.ToString().Substring(0, 8),
+            GrnRef = x.gh.GRNNumber,
+            AvailableQty = x.gd.ReceivedQty - x.gd.RejectedQty,
+            Rate = x.gd.UnitRate,
+            GstPercent = x.gd.GstPercent,
+            DiscountPercent = x.gd.DiscountPercent,
+            ReceivedDate = x.gh.ReceivedDate,
+            CurrentStock = x.gd.Product != null ? x.gd.Product.CurrentStock : 0,
+            WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : "N/A",
+            RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
+            MfgDate = x.gd.MfgDate,
+            ExpDate = x.gd.ExpDate,
+            IsReturnable = x.gh.ReceivedDate >= limitDate,
+            RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours)
+        })
+        .OrderByDescending(x => x.ReceivedDate)
+        .ThenByDescending(x => x.GrnRef)
+        .ToList();
 
         return result;
     }

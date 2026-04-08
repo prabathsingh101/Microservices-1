@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Company.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CompanyDbContext))]
-    partial class CompanyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260408090628_AddReturnPolicyDisclaimer")]
+    partial class AddReturnPolicyDisclaimer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -181,28 +184,18 @@ namespace Company.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PurchaseReturnPolicyDisclaimer")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PurchaseReturnWindowUnit")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PurchaseReturnWindowValue")
-                        .HasColumnType("int");
-
                     b.Property<string>("RegistrationNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("SaleReturnPolicyDisclaimer")
+                    b.Property<string>("ReturnPolicyDisclaimer")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("SaleReturnWindowUnit")
+                    b.Property<string>("ReturnWindowUnit")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("SaleReturnWindowValue")
+                    b.Property<int>("ReturnWindowValue")
                         .HasColumnType("int");
 
                     b.Property<string>("SmtpEmail")

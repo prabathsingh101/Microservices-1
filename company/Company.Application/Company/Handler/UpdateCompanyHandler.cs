@@ -70,8 +70,12 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.Website = cmd.Request.Website;
             profile.Message = cmd.Request.Message;
             profile.DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage;
-            profile.ReturnWindowValue = cmd.Request.ReturnWindowValue;
-            profile.ReturnWindowUnit = cmd.Request.ReturnWindowUnit;
+            profile.SaleReturnWindowValue = cmd.Request.SaleReturnWindowValue;
+            profile.SaleReturnWindowUnit = cmd.Request.SaleReturnWindowUnit;
+            profile.SaleReturnPolicyDisclaimer = cmd.Request.SaleReturnPolicyDisclaimer;
+            profile.PurchaseReturnWindowValue = cmd.Request.PurchaseReturnWindowValue;
+            profile.PurchaseReturnWindowUnit = cmd.Request.PurchaseReturnWindowUnit;
+            profile.PurchaseReturnPolicyDisclaimer = cmd.Request.PurchaseReturnPolicyDisclaimer;
 
             // 2. Address Update
             if (profile.CompanyAddress != null)

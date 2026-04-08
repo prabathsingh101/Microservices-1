@@ -39,8 +39,12 @@ namespace Company.Application.Company.Queries
                 data.Website,
                 data.Message,
                 data.DriverWhatsAppMessage,
-                data.ReturnWindowValue,
-                data.ReturnWindowUnit,
+                data.SaleReturnWindowValue,
+                data.SaleReturnWindowUnit,
+                data.SaleReturnPolicyDisclaimer,
+                data.PurchaseReturnWindowValue,
+                data.PurchaseReturnWindowUnit,
+                data.PurchaseReturnPolicyDisclaimer,
                 data.IsActive,
                 // Nested Address Record
                 new AddressDto(

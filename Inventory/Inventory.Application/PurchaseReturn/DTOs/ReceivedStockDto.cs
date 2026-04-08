@@ -17,6 +17,8 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public string? RackName { get; set; }
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public bool IsReturnable { get; set; } = true;
+        public double RemainingHours { get; set; }
     }
 }
 

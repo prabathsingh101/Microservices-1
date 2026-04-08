@@ -463,8 +463,8 @@ public class SaleOrderRepository : ISaleOrderRepository
         
         // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
         var company = await _companyClient.GetCompanyProfileAsync();
-        int windowValue = company?.ReturnWindowValue ?? 72;
-        string windowUnit = company?.ReturnWindowUnit ?? "Hours";
+        int windowValue = company?.SaleReturnWindowValue ?? 72;
+        string windowUnit = company?.SaleReturnWindowUnit ?? "Hours";
 
         // 2. Calculate dynamic limit date
         double totalHours = windowUnit switch 

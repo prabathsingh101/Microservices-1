@@ -65,8 +65,12 @@ namespace Company.Application.Company.Commands.Create.Handler
                 Website = cmd.Request.Website,
                 Message = cmd.Request.Message,
                 DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage,
-                ReturnWindowValue = cmd.Request.ReturnWindowValue,
-                ReturnWindowUnit = cmd.Request.ReturnWindowUnit,
+                SaleReturnWindowValue = cmd.Request.SaleReturnWindowValue,
+                SaleReturnWindowUnit = cmd.Request.SaleReturnWindowUnit,
+                SaleReturnPolicyDisclaimer = cmd.Request.SaleReturnPolicyDisclaimer,
+                PurchaseReturnWindowValue = cmd.Request.PurchaseReturnWindowValue,
+                PurchaseReturnWindowUnit = cmd.Request.PurchaseReturnWindowUnit,
+                PurchaseReturnPolicyDisclaimer = cmd.Request.PurchaseReturnPolicyDisclaimer,
                 IsActive = true,
 
                 CompanyAddress = new Address
