@@ -1,4 +1,4 @@
-﻿using Company.Application.Common.Interfaces;
+using Company.Application.Common.Interfaces;
 using Company.Application.DTOs;
 using MediatR;
 
@@ -43,6 +43,8 @@ namespace Company.Application.Company.Queries
                 data.Website,
                 data.Message,
                 data.DriverWhatsAppMessage,
+                data.ReturnWindowValue,
+                data.ReturnWindowUnit,
                 data.IsActive,
                
                 new AddressDto(

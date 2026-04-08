@@ -1,4 +1,4 @@
-﻿namespace Company.Application.DTOs
+namespace Company.Application.DTOs
 {
     // Response ke liye use hoga (Read Operations)
     public record CompanyProfileDto(
@@ -19,6 +19,8 @@
         string? Website,
         string? Message,
         string? DriverWhatsAppMessage,
+        int ReturnWindowValue,
+        string ReturnWindowUnit,
         bool IsActive,
         AddressDto Address, // Aapke request ke hisaab se name match
         BankDetailDto BankInfo,
@@ -75,6 +77,8 @@
         string? Website,
         string? Message,
         string? DriverWhatsAppMessage,
+        int ReturnWindowValue,
+        string ReturnWindowUnit,
         AddressDto Address,
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories

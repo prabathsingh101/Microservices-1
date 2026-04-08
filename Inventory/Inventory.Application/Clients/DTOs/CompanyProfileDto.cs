@@ -18,6 +18,8 @@ namespace Inventory.Application.Clients.DTOs
         public string PrimaryPhone { get; set; }
         public string Website { get; set; }
         public bool IsActive { get; set; }
+        public int ReturnWindowValue { get; set; }
+        public string ReturnWindowUnit { get; set; }
         public AddressDto Address { get; set; }
         public BankDetailDto BankInfo { get; set; }
     }

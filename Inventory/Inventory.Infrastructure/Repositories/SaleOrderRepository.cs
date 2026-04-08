@@ -19,11 +19,13 @@ public class SaleOrderRepository : ISaleOrderRepository
     private IDbContextTransaction? _transaction; 
     private readonly HttpClient _httpClient;
     private readonly ICustomerClient _customerClient;
+    private readonly ICompanyClient _companyClient;
    
-    public SaleOrderRepository(InventoryDbContext context, IHttpClientFactory httpClientFactory, ICustomerClient customerClient)
+    public SaleOrderRepository(InventoryDbContext context, IHttpClientFactory httpClientFactory, ICustomerClient customerClient, ICompanyClient companyClient)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _customerClient = customerClient;
+        _companyClient = companyClient;
        
         if (httpClientFactory == null) throw new ArgumentNullException(nameof(httpClientFactory));
 
@@ -458,7 +460,22 @@ public class SaleOrderRepository : ISaleOrderRepository
     }    public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(int saleOrderId)
     {
         var now = DateTime.Now;
-        var limitDate = now.AddHours(-72);
+        
+        // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
+        var company = await _companyClient.GetCompanyProfileAsync();
+        int windowValue = company?.ReturnWindowValue ?? 72;
+        string windowUnit = company?.ReturnWindowUnit ?? "Hours";
+
+        // 2. Calculate dynamic limit date
+        double totalHours = windowUnit switch 
+        {
+            "Hours" => windowValue,
+            "Days" => windowValue * 24,
+            "Months" => windowValue * 30 * 24,
+            _ => windowValue
+        };
+        
+        var limitDate = now.AddHours(-totalHours);
 
         return await _context.SaleOrderItems
             .AsNoTracking()
@@ -478,9 +495,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                 RackName = x.Rack != null ? x.Rack.Name : null,
                 CurrentStock = _context.Products.Where(p => p.Id == x.ProductId).Select(p => p.CurrentStock).FirstOrDefault(),
 
-                // 72 Hours Policy Calculation (More LINQ-friendly comparison)
+                // Dynamic Policy Calculation
                 IsReturnable = x.SaleOrder.SODate >= limitDate,
-                ReturnWindowRemainingHours = Math.Max(0, 72 - (now - x.SaleOrder.SODate).TotalHours),
+                ReturnWindowRemainingHours = Math.Max(0, totalHours - (now - x.SaleOrder.SODate).TotalHours),
 
                 // CRITICAL FIX: Original Sold (10) minus Already Returned (5) = Display (5)
                 SoldQty = x.Qty - (_context.SaleReturnItems

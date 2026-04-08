@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -24,6 +24,8 @@ namespace Company.Domain.Entities
         public string? Website { get; set; }
         public string? Message { get; set; } // WhatsApp/SMS reminder message
         public string? DriverWhatsAppMessage { get; set; } // Custom message for driver tracking
+        public int ReturnWindowValue { get; set; } = 72; // Default 72 hours
+        public string ReturnWindowUnit { get; set; } = "Hours"; // "Hours", "Days", "Months"
         public bool IsActive { get; set; } = true;
 
         // Foreign Keys

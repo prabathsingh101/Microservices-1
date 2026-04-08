@@ -35,6 +35,8 @@ namespace Company.Application.Company.Queries
                 data.Website,
                 data.Message,
                 data.DriverWhatsAppMessage,
+                data.ReturnWindowValue,
+                data.ReturnWindowUnit,
                 data.IsActive,
                 new AddressDto(
                     data.CompanyAddress.Id,

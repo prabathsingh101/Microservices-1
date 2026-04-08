@@ -1,4 +1,4 @@
-﻿using Company.Application.Common.Interfaces;
+using Company.Application.Common.Interfaces;
 using Company.Application.DTOs; // Aapke Records yahan hain
 using MediatR;
 
@@ -39,6 +39,8 @@ namespace Company.Application.Company.Queries
                 data.Website,
                 data.Message,
                 data.DriverWhatsAppMessage,
+                data.ReturnWindowValue,
+                data.ReturnWindowUnit,
                 data.IsActive,
                 // Nested Address Record
                 new AddressDto(

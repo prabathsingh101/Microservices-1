@@ -1,4 +1,4 @@
-﻿using Company.Application.Common.Interfaces;
+using Company.Application.Common.Interfaces;
 using Company.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
@@ -65,6 +65,8 @@ namespace Company.Application.Company.Commands.Create.Handler
                 Website = cmd.Request.Website,
                 Message = cmd.Request.Message,
                 DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage,
+                ReturnWindowValue = cmd.Request.ReturnWindowValue,
+                ReturnWindowUnit = cmd.Request.ReturnWindowUnit,
                 IsActive = true,
 
                 CompanyAddress = new Address
