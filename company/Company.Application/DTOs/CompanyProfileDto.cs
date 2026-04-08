@@ -26,6 +26,10 @@ namespace Company.Application.DTOs
         string PurchaseReturnWindowUnit,
         string? PurchaseReturnPolicyDisclaimer,
         bool IsActive,
+        string? InvoiceFooterMessage,
+        string? EstimateFooterMessage,
+        string? PurchaseOrderFooterMessage,
+        string? SaleOrderFooterMessage,
         AddressDto Address, // Aapke request ke hisaab se name match
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories
@@ -87,6 +91,10 @@ namespace Company.Application.DTOs
         int PurchaseReturnWindowValue,
         string PurchaseReturnWindowUnit,
         string? PurchaseReturnPolicyDisclaimer,
+        string? InvoiceFooterMessage,
+        string? EstimateFooterMessage,
+        string? PurchaseOrderFooterMessage,
+        string? SaleOrderFooterMessage,
         AddressDto Address,
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories

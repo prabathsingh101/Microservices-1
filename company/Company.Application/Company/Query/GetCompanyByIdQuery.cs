@@ -46,6 +46,10 @@ namespace Company.Application.Company.Queries
                 data.PurchaseReturnWindowUnit,
                 data.PurchaseReturnPolicyDisclaimer,
                 data.IsActive,
+                data.InvoiceFooterMessage,
+                data.EstimateFooterMessage,
+                data.PurchaseOrderFooterMessage,
+                data.SaleOrderFooterMessage,
                 // Nested Address Record
                 new AddressDto(
                     data.CompanyAddress.Id,

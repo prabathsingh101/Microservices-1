@@ -76,6 +76,10 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.PurchaseReturnWindowValue = cmd.Request.PurchaseReturnWindowValue;
             profile.PurchaseReturnWindowUnit = cmd.Request.PurchaseReturnWindowUnit;
             profile.PurchaseReturnPolicyDisclaimer = cmd.Request.PurchaseReturnPolicyDisclaimer;
+            profile.InvoiceFooterMessage = cmd.Request.InvoiceFooterMessage;
+            profile.EstimateFooterMessage = cmd.Request.EstimateFooterMessage;
+            profile.PurchaseOrderFooterMessage = cmd.Request.PurchaseOrderFooterMessage;
+            profile.SaleOrderFooterMessage = cmd.Request.SaleOrderFooterMessage;
 
             // 2. Address Update
             if (profile.CompanyAddress != null)

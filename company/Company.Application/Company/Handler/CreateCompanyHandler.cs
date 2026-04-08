@@ -72,6 +72,10 @@ namespace Company.Application.Company.Commands.Create.Handler
                 PurchaseReturnWindowUnit = cmd.Request.PurchaseReturnWindowUnit,
                 PurchaseReturnPolicyDisclaimer = cmd.Request.PurchaseReturnPolicyDisclaimer,
                 IsActive = true,
+                InvoiceFooterMessage = cmd.Request.InvoiceFooterMessage,
+                EstimateFooterMessage = cmd.Request.EstimateFooterMessage,
+                PurchaseOrderFooterMessage = cmd.Request.PurchaseOrderFooterMessage,
+                SaleOrderFooterMessage = cmd.Request.SaleOrderFooterMessage,
 
                 CompanyAddress = new Address
                 {

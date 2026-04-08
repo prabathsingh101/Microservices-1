@@ -33,6 +33,12 @@ namespace Company.Domain.Entities
         public string? PurchaseReturnPolicyDisclaimer { get; set; }
         public bool IsActive { get; set; } = true;
 
+        // Print Footer Messages [cite: 2026-04-08]
+        public string? InvoiceFooterMessage { get; set; }
+        public string? EstimateFooterMessage { get; set; }
+        public string? PurchaseOrderFooterMessage { get; set; }
+        public string? SaleOrderFooterMessage { get; set; }
+
         // Foreign Keys
         public int AddressId { get; set; }
         public virtual Address CompanyAddress { get; set; } = null!;

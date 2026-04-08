@@ -42,6 +42,10 @@ namespace Company.Application.Company.Queries
                 data.PurchaseReturnWindowUnit,
                 data.PurchaseReturnPolicyDisclaimer,
                 data.IsActive,
+                data.InvoiceFooterMessage,
+                data.EstimateFooterMessage,
+                data.PurchaseOrderFooterMessage,
+                data.SaleOrderFooterMessage,
                 new AddressDto(
                     data.CompanyAddress.Id,
                     data.CompanyAddress.AddressLine1,
