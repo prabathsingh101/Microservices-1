@@ -26,25 +26,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
             var result = await _repo.GetDateRangePagedOrdersAsync(query.Request);
 
             // 2. Mapping with Net Quantity Logic
-            var dtos = result.Data.Select(x => new PurchaseOrderDto
-            {
-                Id = x.Id,
-                PoNumber = x.PoNumber,
-                SupplierName = x.SupplierName,
-                PoDate = x.PoDate,
-                TotalTax = x.TotalTax,
-                GrandTotal = x.GrandTotal,
-                SubTotal = x.SubTotal,
-                ExpectedDeliveryDate = x.ExpectedDeliveryDate,
-                CreatedBy = x.CreatedBy,
-                CreatedDate = x.CreatedDate ?? DateTime.MinValue,
-                UpdatedDate = x.UpdatedDate,
-                Remarks = x.Remarks,
-                Status = (x.GrnHeaders != null && x.GrnHeaders.Any())
-                         ? (x.Items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received")
-                         : x.Status,
-
-                Items = x.Items.Select(item => {
+            var dtos = result.Data.Select(x => {
+                var items = x.Items.Select(item => {
                     // Fetch all GRN Details for this specific PO Item
                     var grnSummary = _context.GRNDetails
                         .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
@@ -96,7 +79,33 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                             .Select(gd => gd.Rack != null ? gd.Rack.Name : null)
                             .FirstOrDefault()
                     };
-                }).ToList()
+                }).ToList();
+
+                return new PurchaseOrderDto
+                {
+                    Id = x.Id,
+                    PoNumber = x.PoNumber,
+                    SupplierName = x.SupplierName,
+                    PoDate = x.PoDate,
+                    TotalTax = x.TotalTax,
+                    GrandTotal = x.GrandTotal,
+                    SubTotal = x.SubTotal,
+                    ExpectedDeliveryDate = x.ExpectedDeliveryDate,
+                    CreatedBy = x.CreatedBy,
+                    CreatedDate = x.CreatedDate ?? DateTime.MinValue,
+                    UpdatedDate = x.UpdatedDate,
+                    Remarks = x.Remarks,
+                    IsDispatched = x.IsDispatched,
+                    Status = (x.GrnHeaders != null && x.GrnHeaders.Any())
+                             ? (x.Items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received")
+                             : x.Status,
+
+                    Items = items,
+                    TotalOrdered = items.Sum(i => i.Qty),
+                    TotalReceived = items.Sum(i => i.ReceivedQty),
+                    TotalAccepted = items.Sum(i => i.AcceptedQty),
+                    TotalRejected = items.Sum(i => i.RejectedQty)
+                };
             }).ToList();
 
             return new PurchaseOrderPagedResponse(

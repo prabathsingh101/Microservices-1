@@ -23,6 +23,11 @@ public class PurchaseOrderDto
     public string UpdatedBy { get; set; }
     public DateTime CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
+    public bool IsDispatched { get; set; }
+    public decimal TotalOrdered { get; set; }
+    public decimal TotalReceived { get; set; }
+    public decimal TotalAccepted { get; set; }
+    public decimal TotalRejected { get; set; }
 
     public string? Remarks { get; set; }
 
@@ -60,7 +65,8 @@ public class PurchaseOrderDto
             CreatedBy = entity.CreatedBy,
             UpdatedBy = entity.UpdatedBy,
             CreatedDate = entity.CreatedDate,
-            UpdatedDate = entity.UpdatedDate
+            UpdatedDate = entity.UpdatedDate,
+            IsDispatched = entity.IsDispatched
         };
 
         // Agar child items exist karte hain toh unhe map karein

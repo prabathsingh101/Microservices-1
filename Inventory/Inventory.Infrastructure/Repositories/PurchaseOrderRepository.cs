@@ -876,4 +876,15 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
         return replacementNeeded > 0 ? replacementNeeded : 0;
     }
+
+    public async Task<bool> ToggleDispatchStatusAsync(int id)
+    {
+        var po = await _context.PurchaseOrders.FindAsync(id);
+        if (po == null) return false;
+
+        po.IsDispatched = !po.IsDispatched;
+        po.UpdatedDate = DateTime.Now;
+
+        return await _context.SaveChangesAsync() > 0;
+    }
 }

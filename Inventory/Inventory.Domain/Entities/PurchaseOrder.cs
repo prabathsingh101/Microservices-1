@@ -29,6 +29,7 @@ public class PurchaseOrder
     public string? CreatedBy { get; set; } //
     public string? UpdatedBy { get; set; } //
     public bool IsQuick { get; set; } // Flag for Quick vs Standard Purchase
+    public bool IsDispatched { get; set; } = false; // Flag for In-Transit tracking
     public DateTime? CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
     public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();

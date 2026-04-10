@@ -49,6 +49,7 @@ namespace Inventory.Application.Common.Interfaces
         Task<PODocumentDto> GetPODetailsForPrintAsync(long id);
 
         Task<PORepoPrintResponse> GeneratePOReportPdfAsync(long id);
+        Task<bool> ToggleDispatchStatusAsync(int id);
         Task<decimal> GetTotalReturnedQtyAsync(int poId);
     }
 

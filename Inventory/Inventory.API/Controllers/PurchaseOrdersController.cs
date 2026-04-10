@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Features.PurchaseOrders.Queries;
 using Inventory.Application.PurchaseOrders.Commands.Delete;
 using Inventory.Application.PurchaseOrders.Commands.Update;
@@ -395,6 +395,16 @@ namespace Inventory.API.Controllers
         {
             var qty = await _purchaseOrderRepository.GetTotalReturnedQtyAsync(poId);
             return Ok(new { replacementQty = qty });
+        }
+        [HttpPut("{id}/toggle-dispatch")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        public async Task<IActionResult> ToggleDispatch(int id)
+        {
+            var result = await _purchaseOrderRepository.ToggleDispatchStatusAsync(id);
+            if (result)
+                return Ok(new { success = true, message = "Dispatch status updated successfully." });
+
+            return NotFound(new { success = false, message = "Purchase Order not found." });
         }
     }
 }
