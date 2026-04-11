@@ -9,7 +9,16 @@ using Scalar.AspNetCore;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Serilog;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 builder.Services.AddControllers();
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -107,4 +116,16 @@ using (var scope = app.Services.CreateScope())
 
 app.MapControllers();
 
-app.Run();
+try
+{
+    Log.Information("Starting Inventory.API Service...");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Inventory.API Service failed to start");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

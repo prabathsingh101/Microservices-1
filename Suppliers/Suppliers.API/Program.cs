@@ -5,8 +5,16 @@ using Suppliers.Infrastructure.Repositories;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Security.Claims;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
 
@@ -88,4 +96,16 @@ using (var scope = app.Services.CreateScope())
 
 app.MapControllers();
 
-app.Run();
+try
+{
+    Log.Information("Starting Suppliers.API Service...");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Suppliers.API Service failed to start");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

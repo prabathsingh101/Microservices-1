@@ -1,8 +1,16 @@
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 using Polly.Registry;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 builder.Services.AddCors(options =>
 {
@@ -57,4 +65,16 @@ app.MapReverseProxy(proxyPipeline =>
     });
 });
 
-app.Run();
+try
+{
+    Log.Information("Starting Gateway Service...");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Gateway Service failed to start");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
