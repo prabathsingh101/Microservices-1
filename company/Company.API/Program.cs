@@ -1,5 +1,6 @@
 using Company.Infrastructure;
 using Company.Application;
+using Company.API.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -83,6 +84,7 @@ app.UseStaticFiles();
 // CORS hamesha Auth se pehle hona chahiye
 app.MapHealthChecks("/health");
 app.UseCors("AllowAngularDev");
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 

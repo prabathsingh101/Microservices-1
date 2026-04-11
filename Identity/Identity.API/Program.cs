@@ -1,9 +1,9 @@
-
 using FluentValidation.AspNetCore;
 using Identity.API.Extensions;
 using Identity.Application.Interfaces;
 using Identity.Infrastructure;
 using Identity.Infrastructure.Persistence;
+using Identity.API.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -22,18 +22,14 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddControllers()
     .AddFluentValidation();
 
 builder.Services.AddIdentityApplication();
-// -------------------- Infrastructure -----------------
 builder.Services.AddIdentityInfrastructure(builder.Configuration);
 
-// Password hasher
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
@@ -41,21 +37,17 @@ builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
     p.AllowAnyHeader()
      .AllowAnyMethod()
      .AllowAnyOrigin()
-     .WithExposedHeaders("Content-Disposition"); // <-- important
+     .WithExposedHeaders("Content-Disposition");
 }));
 
-// -------------------- JWT Authentication --------------
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var jwt = builder.Configuration.GetSection("Jwt");
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
             RoleClaimType = ClaimTypes.Role,
-            
             NameClaimType = ClaimTypes.NameIdentifier,
-
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -68,25 +60,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
 builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
-
 builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
+
+// Middleware Pipeline
 app.UseCors("AllowAngularDev");
+
+// Global Exception Handler - Catch everything!
+app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
+
 app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
-
-// app.UseHttpsRedirection();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -94,9 +88,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate(); 
 }
 
-
 app.MapControllers();
-
 
 try
 {
@@ -111,5 +103,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
-

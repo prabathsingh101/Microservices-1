@@ -1,6 +1,7 @@
 using employeepayroll.Infrastructure;
 using employeepayroll.Infrastructure.Persistence;
 using employeepayroll.Application;
+using employeepayroll.API.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -84,6 +85,7 @@ app.UseStaticFiles();
 // CORS hamesha Auth se pehle hona chahiye
 app.MapHealthChecks("/health");
 app.UseCors("AllowAngularDev");
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 

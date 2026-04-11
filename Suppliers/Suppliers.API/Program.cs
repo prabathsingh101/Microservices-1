@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Suppliers.Application.Interfaces;
 using Suppliers.Infrastructure.Repositories;
 using Microsoft.IdentityModel.Tokens;
+using Suppliers.API.Middlewares;
 using Scalar.AspNetCore;
 using System.Security.Claims;
 using Serilog;
@@ -79,7 +80,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
-app.UseCors("AllowAngularDev"); 
+app.UseCors("AllowAngularDev");
+app.UseMiddleware<ExceptionMiddleware>();
 app.MapHealthChecks("/health");
 
 app.UseHttpsRedirection();

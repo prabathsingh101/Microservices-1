@@ -1,6 +1,7 @@
 using Customers.Application;
 using Customers.Infrastructure;
 using Customers.Infrastructure.Persistence;
+using Customers.API.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -82,6 +83,7 @@ if (app.Environment.IsDevelopment())
 }
 app.MapHealthChecks("/health");
 app.UseCors("AllowAngularDev");
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 
