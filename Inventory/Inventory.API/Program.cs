@@ -79,7 +79,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 PDFHelper.CustomAssemblyLoadContext.LoadNativeLibrary();
-builder.Services.AddAuthorization();
+builder.Services.AddHealthChecks();
 builder.Services.AddHttpContextAccessor(); // Required for IHttpContextAccessor
 
 var app = builder.Build();
@@ -95,6 +95,7 @@ app.UseCors("AllowAngularDev");
 app.UseMiddleware<Inventory.API.Middleware.ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
+app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -1,4 +1,4 @@
-﻿
+
 using FluentValidation.AspNetCore;
 using Identity.API.Extensions;
 using Identity.Application.Interfaces;
@@ -54,13 +54,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],            
             IssuerSigningKey = new SymmetricSecurityKey(
-            System.Text.Encoding.ASCII.GetBytes(jwt["Key"]!)),
+            System.Text.Encoding.UTF8.GetBytes(jwt["Key"]!)),
             ClockSkew = TimeSpan.Zero,
         };
     });
 
 
 builder.Services.AddAuthorization();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -72,6 +73,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
+app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
 

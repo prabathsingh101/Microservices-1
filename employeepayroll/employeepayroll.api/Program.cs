@@ -57,6 +57,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -73,6 +74,7 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 // CORS hamesha Auth se pehle hona chahiye
+app.MapHealthChecks("/health");
 app.UseCors("AllowAngularDev");
 
 app.UseHttpsRedirection();
