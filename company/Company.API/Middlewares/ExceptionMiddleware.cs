@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Serilog.Context;
 
 namespace Company.API.Middlewares;
 
@@ -18,14 +19,24 @@ public class ExceptionMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        try
+        var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
+        
+        if (!context.Response.Headers.ContainsKey("X-Correlation-ID"))
         {
-            await _next(context);
+            context.Response.Headers.Add("X-Correlation-ID", correlationId);
         }
-        catch (Exception ex)
+
+        using (LogContext.PushProperty("CorrelationId", correlationId))
         {
-            _logger.LogError(ex, "An unhandled exception occurred during the request to {Path}", context.Request.Path);
-            await HandleExceptionAsync(context, ex);
+            try
+            {
+                await _next(context);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unhandled exception occurred during the request to {Path}. CorrelationId: {CorrelationId}", context.Request.Path, correlationId);
+                await HandleExceptionAsync(context, ex);
+            }
         }
     }
 

@@ -39,15 +39,33 @@ namespace Identity.API.Controllers
                 
                 // Base filter logic
                 var whereClause = " WHERE 1=1";
-                if (!string.IsNullOrEmpty(level)) whereClause += " AND Level = @level";
-                if (!string.IsNullOrEmpty(serviceName)) whereClause += " AND ServiceName = @serviceName";
-                if (!string.IsNullOrEmpty(search)) whereClause += " AND (Message LIKE @search OR ServiceName LIKE @search OR Level LIKE @search)";
+                var parameters = new DynamicParameters();
+                parameters.Add("offset", (pageNumber - 1) * pageSize);
+                parameters.Add("pageSize", pageSize);
+
+                if (!string.IsNullOrWhiteSpace(level))
+                {
+                    whereClause += " AND Level = @level";
+                    parameters.Add("level", level);
+                }
+
+                if (!string.IsNullOrWhiteSpace(serviceName))
+                {
+                    whereClause += " AND ServiceName = @serviceName";
+                    parameters.Add("serviceName", serviceName);
+                }
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    whereClause += " AND (UPPER(Message) LIKE @search OR UPPER(ServiceName) LIKE @search OR UPPER(Level) LIKE @search)";
+                    parameters.Add("search", $"%{search.ToUpper()}%");
+                }
 
                 // Get Total Count
                 var countSql = $"SELECT COUNT(*) FROM AppLogs {whereClause}";
-                var totalCount = await connection.ExecuteScalarAsync<int>(countSql, new { level, serviceName, search = $"%{search}%" });
+                var totalCount = await connection.ExecuteScalarAsync<int>(countSql, parameters);
 
-                // Sanitize Sort Column (Important for SQL Injection prevention with Dynamic Order By)
+                // Sanitize Sort Column
                 var allowedColumns = new[] { "Id", "Message", "Level", "TimeStamp", "ServiceName", "CorrelationId" };
                 if (!allowedColumns.Contains(sortBy)) sortBy = "TimeStamp";
                 if (sortOrder.ToUpper() != "ASC" && sortOrder.ToUpper() != "DESC") sortOrder = "DESC";
@@ -59,14 +77,7 @@ namespace Identity.API.Controllers
                                 ORDER BY {sortBy} {sortOrder}
                                 OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
 
-                var offset = (pageNumber - 1) * pageSize;
-                var logs = await connection.QueryAsync<SystemLogDto>(dataSql, new { 
-                    level, 
-                    serviceName, 
-                    search = $"%{search}%", 
-                    offset, 
-                    pageSize 
-                });
+                var logs = await connection.QueryAsync<SystemLogDto>(dataSql, parameters);
                 
                 return Ok(new PaginatedResult<SystemLogDto> { 
                     Items = logs, 
@@ -95,19 +106,33 @@ namespace Identity.API.Controllers
             }
         }
 
+        [HttpGet("levels")]
+        public async Task<ActionResult<IEnumerable<string>>> GetLevels()
+        {
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                var sql = "SELECT DISTINCT Level FROM AppLogs WHERE Level IS NOT NULL";
+                var levels = await connection.QueryAsync<string>(sql);
+                return Ok(levels);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearLogs()
         {
             try
             {
                 using var connection = new SqlConnection(_connectionString);
-                // Explicitly specifying dbo schema just in case
                 await connection.ExecuteAsync("DELETE FROM dbo.AppLogs");
                 return Ok(new { message = "Logs cleared successfully." });
             }
             catch (Exception ex)
             {
-                // Returning full exception as JSON for better frontend diagnostics
                 return StatusCode(500, new { message = ex.Message });
             }
         }

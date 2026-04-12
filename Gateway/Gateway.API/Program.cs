@@ -49,6 +49,28 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
+    
+    // Add to request headers so downstream services receive it
+    if (!context.Request.Headers.ContainsKey("X-Correlation-ID"))
+    {
+        context.Request.Headers.Append("X-Correlation-ID", correlationId);
+    }
+
+    // Add to response headers for client tracking
+    if (!context.Response.Headers.ContainsKey("X-Correlation-ID"))
+    {
+        context.Response.Headers.Append("X-Correlation-ID", correlationId);
+    }
+
+    using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
+    {
+        await next();
+    }
+});
+
 app.UseRouting();
 app.UseCors("AllowAll");
 
