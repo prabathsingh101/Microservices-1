@@ -6,9 +6,14 @@ using Microsoft.Data.SqlClient;
 
 namespace Identity.API.Controllers
 {
+    public class PaginatedResult<T>
+    {
+        public IEnumerable<T> Items { get; set; }
+        public int TotalCount { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
-    // [Authorize(Roles = "Admin")] // Logs Admin ke liye restrict karne ke liye
     public class SystemLogsController : ControllerBase
     {
         private readonly string _connectionString;
@@ -19,31 +24,54 @@ namespace Identity.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SystemLogDto>>> GetLogs(
+        public async Task<ActionResult<PaginatedResult<SystemLogDto>>> GetLogs(
             [FromQuery] string level = null, 
             [FromQuery] string serviceName = null,
-            [FromQuery] int limit = 100)
+            [FromQuery] string search = null,
+            [FromQuery] int pageNumber = 1, 
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string sortBy = "TimeStamp",
+            [FromQuery] string sortOrder = "DESC")
         {
             try
             {
                 using var connection = new SqlConnection(_connectionString);
                 
-                var sql = @"SELECT TOP (@limit) 
-                                Id, Message, Level, TimeStamp, Exception, ServiceName, CorrelationId 
-                            FROM AppLogs 
-                            WHERE 1=1";
+                // Base filter logic
+                var whereClause = " WHERE 1=1";
+                if (!string.IsNullOrEmpty(level)) whereClause += " AND Level = @level";
+                if (!string.IsNullOrEmpty(serviceName)) whereClause += " AND ServiceName = @serviceName";
+                if (!string.IsNullOrEmpty(search)) whereClause += " AND (Message LIKE @search OR ServiceName LIKE @search OR Level LIKE @search)";
 
-                if (!string.IsNullOrEmpty(level))
-                    sql += " AND Level = @level";
+                // Get Total Count
+                var countSql = $"SELECT COUNT(*) FROM AppLogs {whereClause}";
+                var totalCount = await connection.ExecuteScalarAsync<int>(countSql, new { level, serviceName, search = $"%{search}%" });
 
-                if (!string.IsNullOrEmpty(serviceName))
-                    sql += " AND ServiceName = @serviceName";
+                // Sanitize Sort Column (Important for SQL Injection prevention with Dynamic Order By)
+                var allowedColumns = new[] { "Id", "Message", "Level", "TimeStamp", "ServiceName", "CorrelationId" };
+                if (!allowedColumns.Contains(sortBy)) sortBy = "TimeStamp";
+                if (sortOrder.ToUpper() != "ASC" && sortOrder.ToUpper() != "DESC") sortOrder = "DESC";
 
-                sql += " ORDER BY TimeStamp DESC";
+                // Get Paginated & Sorted Data
+                var dataSql = $@"SELECT Id, Message, Level, TimeStamp, Exception, ServiceName, CorrelationId 
+                                FROM AppLogs 
+                                {whereClause}
+                                ORDER BY {sortBy} {sortOrder}
+                                OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
 
-                var logs = await connection.QueryAsync<SystemLogDto>(sql, new { level, serviceName, limit });
+                var offset = (pageNumber - 1) * pageSize;
+                var logs = await connection.QueryAsync<SystemLogDto>(dataSql, new { 
+                    level, 
+                    serviceName, 
+                    search = $"%{search}%", 
+                    offset, 
+                    pageSize 
+                });
                 
-                return Ok(logs);
+                return Ok(new PaginatedResult<SystemLogDto> { 
+                    Items = logs, 
+                    TotalCount = totalCount 
+                });
             }
             catch (Exception ex)
             {
@@ -73,12 +101,14 @@ namespace Identity.API.Controllers
             try
             {
                 using var connection = new SqlConnection(_connectionString);
-                await connection.ExecuteAsync("TRUNCATE TABLE AppLogs");
-                return Ok("Logs cleared successfully.");
+                // Explicitly specifying dbo schema just in case
+                await connection.ExecuteAsync("DELETE FROM dbo.AppLogs");
+                return Ok(new { message = "Logs cleared successfully." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                // Returning full exception as JSON for better frontend diagnostics
+                return StatusCode(500, new { message = ex.Message });
             }
         }
     }
