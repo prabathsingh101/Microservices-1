@@ -1,6 +1,7 @@
-﻿
+
 using Identity.Application.Commands.RegisterUser;
 using Identity.Application.Interfaces;
+using Identity.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 
@@ -11,17 +12,20 @@ public class RegisterUserHandler
     private readonly IRoleRepository _roles;
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IUnitOfWork _uow;
+    private readonly ISubscriptionRepository _subscriptions;
 
     public RegisterUserHandler(
         IUserRepository users,
         IRoleRepository roles,
         IPasswordHasher<User> passwordHasher,
-        IUnitOfWork uow)
+        IUnitOfWork uow,
+        ISubscriptionRepository subscriptions)
     {
         _users = users;
         _roles = roles;
         _passwordHasher = passwordHasher;
         _uow = uow;
+        _subscriptions = subscriptions;
     }
 
     public async Task<Guid> Handle(
@@ -55,6 +59,11 @@ public class RegisterUserHandler
         }
 
         await _users.AddAsync(user);
+
+        // --- Create Default 7-day Trial ---
+        var trial = new Subscription(user.Id, "Trial", 7);
+        await _subscriptions.AddAsync(trial);
+
         await _uow.SaveChangesAsync(cancellationToken);
 
         return user.Id;

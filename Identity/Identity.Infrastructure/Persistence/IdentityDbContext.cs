@@ -20,10 +20,17 @@ public class IdentityDbContext : DbContext
     public DbSet<Domain.Users.UserRole> UserRoles => Set<Domain.Users.UserRole>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Domain.PrintSettings.RolePrintSetting> RolePrintSettings => Set<Domain.PrintSettings.RolePrintSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PlanType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PaymentTxnId).HasMaxLength(100);
+        });
 
         modelBuilder.Entity<Menu>()
         .HasMany(m => m.Children)

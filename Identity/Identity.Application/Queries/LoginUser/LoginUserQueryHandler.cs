@@ -1,4 +1,4 @@
-﻿using Identity.Application.Common;
+using Identity.Application.Common;
 using Identity.Application.DTOs;
 using Identity.Application.Interfaces;
 using Identity.Application.Queries.LoginUser;
@@ -14,19 +14,22 @@ public class LoginUserQueryHandler
     private readonly IPasswordHasher<User> _hasher;
     private readonly IJwtService _jwt;
     private readonly IUnitOfWork _uow;
+    private readonly ISubscriptionRepository _subscriptions;
 
     public LoginUserQueryHandler(
         IUserRepository users,
         IRefreshTokenRepository tokens,
         IPasswordHasher<User> hasher,
         IJwtService jwt,
-        IUnitOfWork uow)
+        IUnitOfWork uow,
+        ISubscriptionRepository subscriptions)
     {
         _users = users;
         _tokens = tokens;
         _hasher = hasher;
         _jwt = jwt;
         _uow = uow;
+        _subscriptions = subscriptions;
     }
 
     public async Task<Result<AuthResponse>> Handle(
@@ -45,6 +48,23 @@ public class LoginUserQueryHandler
         if (verify == PasswordVerificationResult.Failed)
             return Result<AuthResponse>.Failure("Invalid credentials");
 
+        // --- Subscription Check ---
+        bool isExpired = false;
+        string subStatus = "Active";
+        var subscription = await _subscriptions.GetByUserIdAsync(user.Id);
+        if (subscription != null)
+        {
+            if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
+            {
+                isExpired = true;
+                subStatus = "Expired";
+            }
+            else
+            {
+                subStatus = subscription.PlanType;
+            }
+        }
+
         // ✅ SAFE: bulk revoke
         await _tokens.RevokeAllAsync(user.Id);
 
@@ -57,7 +77,8 @@ public class LoginUserQueryHandler
 
         // 2. Explicitly mapping UserId (AGAR auth.UserId zero/empty aa raha hai toh ye line zaroori hai)
         auth.UserId = user.Id;
-        // Agar user.Id pehle se string/guid hai toh seedha set karein: auth.UserId = user.Id;
+        auth.IsSubscriptionExpired = isExpired;
+        auth.SubscriptionStatus = subStatus;
 
         await _tokens.AddAsync(
             new RefreshToken(

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 namespace Identity.Infrastructure.Persistence;
@@ -19,7 +19,7 @@ public class IdentityDbContextFactory
 
         optionsBuilder.UseSqlServer(
             configuration.GetConnectionString("IdentityDb")
-            ?? "Server=Server=LAPTOP-MM46D5U5;Database=IdentityDb;user id=sa;password=Anand@raj12345;Trusted_Connection=True;TrustServerCertificate=True");
+            ?? "Server=LAPTOP-MM46D5U5;Database=IdentityDb;user id=sa;password=Anand@raj12345;Trusted_Connection=True;TrustServerCertificate=True");
 
         return new IdentityDbContext(optionsBuilder.Options);
     }

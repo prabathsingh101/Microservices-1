@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuRepository, MenuRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IRolePrintSettingRepository, RolePrintSettingRepository>();
+        services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 

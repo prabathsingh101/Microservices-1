@@ -1,4 +1,4 @@
-﻿namespace Identity.Application.DTOs
+namespace Identity.Application.DTOs
 {
     public class AuthResponse
     {
@@ -8,5 +8,7 @@
         public string RefreshToken { get; init; } = null!;
         public DateTime ExpiresAt { get; init; }
         public List<string> Roles { get; init; } = new();
+        public string SubscriptionStatus { get; set; } = "Active";
+        public bool IsSubscriptionExpired { get; set; } = false;
     }
 }
