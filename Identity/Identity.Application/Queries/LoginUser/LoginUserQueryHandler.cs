@@ -48,20 +48,30 @@ public class LoginUserQueryHandler
         if (verify == PasswordVerificationResult.Failed)
             return Result<AuthResponse>.Failure("Invalid credentials");
 
-        // --- Subscription Check ---
+        // --- Company Subscription Check ---
         bool isExpired = false;
         string subStatus = "Active";
-        var subscription = await _subscriptions.GetByUserIdAsync(user.Id);
-        if (subscription != null)
+
+        if (user.CompanyId.HasValue)
         {
-            if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
+            var subscription = await _subscriptions.GetByCompanyIdAsync(user.CompanyId.Value);
+            if (subscription != null)
             {
-                isExpired = true;
-                subStatus = "Expired";
+                if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
+                {
+                    isExpired = true;
+                    subStatus = "Expired";
+                }
+                else
+                {
+                    subStatus = subscription.PlanType;
+                }
             }
-            else
+            else 
             {
-                subStatus = subscription.PlanType;
+                // No subscription record found for company -> Treat as no access or default trial?
+                // For now, let's assume active if missing to avoid locking out existing data during transition
+                subStatus = "No Subscription";
             }
         }
 

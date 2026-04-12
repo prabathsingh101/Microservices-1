@@ -5,7 +5,8 @@ namespace Identity.Domain.Entities
     public class Subscription
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
-        public Guid UserId { get; private set; } // Link to the primary admin user of the customer
+        public Guid CompanyId { get; private set; } // Link to the company/tenant
+        public string CompanyName { get; private set; } = string.Empty; // Cached name for display
         public string PlanType { get; private set; } = "Trial"; // Trial, Monthly, Yearly
         public DateTime StartDate { get; private set; }
         public DateTime EndDate { get; private set; }
@@ -15,12 +16,13 @@ namespace Identity.Domain.Entities
 
         private Subscription() { }
 
-        public Subscription(Guid userId, string planType, int trialDays)
+        public Subscription(Guid companyId, string companyName, string planType, int durationDays)
         {
-            UserId = userId;
+            CompanyId = companyId;
+            CompanyName = companyName;
             PlanType = planType;
             StartDate = DateTime.UtcNow;
-            EndDate = StartDate.AddDays(trialDays);
+            EndDate = StartDate.AddDays(durationDays);
             IsActive = true;
         }
 

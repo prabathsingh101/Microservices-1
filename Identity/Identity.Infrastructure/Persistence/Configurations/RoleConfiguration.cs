@@ -1,4 +1,4 @@
-﻿using Identity.Domain.Roles;
+using Identity.Domain.Roles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,7 +24,8 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
             new Role(3, "Employee"),
             new Role(4, "Warehouse"),
             new Role(5, "Super Admin"),
-            new Role(6, "Manager")
+            new Role(6, "Manager"),
+            new Role(7, "Customer")
         );
     }
 }

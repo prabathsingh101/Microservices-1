@@ -1,4 +1,4 @@
-﻿using Identity.Domain.Entities;
+using Identity.Domain.Entities;
 using Identity.Domain.Users;
 
 public class User
@@ -7,6 +7,7 @@ public class User
     private readonly List<RefreshToken> _refreshTokens = new();
 
     public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid? CompanyId { get; private set; } // Link to their business organization
     public string UserName { get; private set; } = default!;
     public string Email { get; private set; } = default!;
     public string PasswordHash { get; private set; } = default!;
@@ -30,6 +31,11 @@ public class User
     public void SetPasswordHash(string hash)
     {
         PasswordHash = hash;
+    }
+
+    public void SetCompanyId(Guid companyId)
+    {
+        CompanyId = companyId;
     }
 
     public void AssignRole(int roleId)

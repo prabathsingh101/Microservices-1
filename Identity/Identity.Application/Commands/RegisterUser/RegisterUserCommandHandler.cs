@@ -60,8 +60,11 @@ public class RegisterUserHandler
 
         await _users.AddAsync(user);
 
-        // --- Create Default 7-day Trial ---
-        var trial = new Subscription(user.Id, "Trial", 7);
+        // --- Create Default Company & 7-day Trial ---
+        var companyId = Guid.NewGuid();
+        user.SetCompanyId(companyId);
+        
+        var trial = new Subscription(companyId, $"{user.UserName}'s Business", "Trial", 7);
         await _subscriptions.AddAsync(trial);
 
         await _uow.SaveChangesAsync(cancellationToken);

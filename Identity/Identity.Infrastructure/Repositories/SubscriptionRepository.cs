@@ -2,6 +2,9 @@ using Identity.Application.Interfaces;
 using Identity.Domain.Entities;
 using Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Identity.Infrastructure.Repositories
 {
@@ -14,10 +17,15 @@ namespace Identity.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<Subscription?> GetByUserIdAsync(Guid userId)
+        public async Task<Subscription?> GetByCompanyIdAsync(Guid companyId)
         {
             return await _context.Subscriptions
-                .FirstOrDefaultAsync(s => s.UserId == userId);
+                .FirstOrDefaultAsync(s => s.CompanyId == companyId);
+        }
+
+        public async Task<List<Subscription>> GetAllAsync()
+        {
+            return await _context.Subscriptions.ToListAsync();
         }
 
         public async Task AddAsync(Subscription subscription)

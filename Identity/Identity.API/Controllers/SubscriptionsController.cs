@@ -22,22 +22,18 @@ namespace Identity.API.Controllers
         public async Task<IActionResult> GetAll()
         {
             var subscriptions = await _context.Subscriptions
-                .Join(_context.Users, 
-                      s => s.UserId, 
-                      u => u.Id, 
-                      (s, u) => new 
-                      {
-                          s.Id,
-                          s.UserId,
-                          u.UserName,
-                          u.Email,
-                          s.PlanType,
-                          s.StartDate,
-                          s.EndDate,
-                          s.IsActive,
-                          s.PaymentTxnId,
-                          DaysRemaining = (s.EndDate - DateTime.UtcNow).Days
-                      })
+                .Select(s => new 
+                {
+                    s.Id,
+                    s.CompanyId,
+                    CustomerName = s.CompanyName,
+                    s.PlanType,
+                    s.StartDate,
+                    s.EndDate,
+                    s.IsActive,
+                    s.PaymentTxnId,
+                    DaysRemaining = (s.EndDate - DateTime.UtcNow).Days
+                })
                 .ToListAsync();
 
             return Ok(subscriptions);
@@ -72,12 +68,12 @@ namespace Identity.API.Controllers
             // Utils.verifyPaymentSignature(attributes, secret)
             
             var subscription = await _context.Subscriptions
-                .FirstOrDefaultAsync(s => s.UserId == dto.UserId);
+                .FirstOrDefaultAsync(s => s.CompanyId == dto.CompanyId);
 
             if (subscription == null)
             {
                 // Create new subscription if somehow missing
-                subscription = new Identity.Domain.Entities.Subscription(dto.UserId, "Premium", dto.DurationDays);
+                subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, dto.CompanyName, "Premium", dto.DurationDays);
                 _context.Subscriptions.Add(subscription);
             }
 
@@ -91,16 +87,10 @@ namespace Identity.API.Controllers
         [HttpPost("onboard")]
         public async Task<IActionResult> Onboard([FromBody] Identity.Application.DTOs.OnboardCustomerDto dto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-            if (user == null)
-            {
-                return BadRequest(new { Message = "User with this email not found. Please register the user first." });
-            }
-
-            var subscription = await _context.Subscriptions.FirstOrDefaultAsync(s => s.UserId == user.Id);
+            var subscription = await _context.Subscriptions.FirstOrDefaultAsync(s => s.CompanyId == dto.CompanyId);
             if (subscription == null)
             {
-                subscription = new Identity.Domain.Entities.Subscription(user.Id, dto.PlanType, dto.DurationDays);
+                subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, dto.CompanyName, dto.PlanType, dto.DurationDays);
                 _context.Subscriptions.Add(subscription);
             }
             else
