@@ -62,9 +62,7 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
                 GateEntryTime = request.GateEntryTime,
                 SecurityGuard = request.SecurityGuard,
                 Status = request.Status, // 1 = Entered/Created
-                Remarks = request.Remarks,
-                CreatedBy = request.CreatedBy,
-                CreatedAt = DateTime.UtcNow
+                Remarks = request.Remarks
             };
 
             _context.GatePasses.Add(entity);
@@ -72,7 +70,10 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
             // --- NEW: Update Reference Table with GatePassNo ---
             if (request.ReferenceType == 3) // 3 = SaleOrder
             {
-                var ids = request.ReferenceId.Split(',').Select(id => int.TryParse(id, out int parsedId) ? parsedId : 0).Where(id => id > 0).ToList();
+                var ids = request.ReferenceId.Split(',')
+                    .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : Guid.Empty)
+                    .Where(id => id != Guid.Empty)
+                    .ToList();
                 var saleOrders = await _context.SaleOrders.Where(s => ids.Contains(s.Id)).ToListAsync(cancellationToken);
                 foreach (var so in saleOrders)
                 {
@@ -81,8 +82,11 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
             }
             else if (request.ReferenceType == 5) // 5 = SaleReturn
             {
-                var ids = request.ReferenceId.Split(',').Select(id => int.TryParse(id, out int parsedId) ? parsedId : 0).Where(id => id > 0).ToList();
-                var saleReturns = await _context.SaleReturnHeaders.Where(s => ids.Contains(s.SaleReturnHeaderId)).ToListAsync(cancellationToken);
+                var ids = request.ReferenceId.Split(',')
+                    .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : Guid.Empty)
+                    .Where(id => id != Guid.Empty)
+                    .ToList();
+                var saleReturns = await _context.SaleReturnHeaders.Where(s => ids.Contains(s.Id)).ToListAsync(cancellationToken);
                 foreach (var sr in saleReturns)
                 {
                     sr.GatePassNo = entity.PassNo;
@@ -103,7 +107,10 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
             }
             else if (request.ReferenceType == 1) // 1 = PurchaseOrder
             {
-                var ids = request.ReferenceId.Split(',').Select(id => int.TryParse(id, out int parsedId) ? parsedId : 0).Where(id => id > 0).ToList();
+                var ids = request.ReferenceId.Split(',')
+                    .Select(id => Guid.TryParse(id, out Guid parsedId) ? parsedId : Guid.Empty)
+                    .Where(id => id != Guid.Empty)
+                    .ToList();
                 var purchaseOrders = await _context.PurchaseOrders.Where(p => ids.Contains(p.Id)).ToListAsync(cancellationToken);
                 foreach (var po in purchaseOrders)
                 {

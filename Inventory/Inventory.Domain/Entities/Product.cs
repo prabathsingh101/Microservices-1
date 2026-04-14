@@ -1,6 +1,6 @@
 namespace Inventory.Domain.Entities;
 
-public class Product
+public class Product : Inventory.Domain.Common.BaseAuditableEntity
 {
     public Guid Id { get; private set; }
     public Guid CategoryId { get; private set; }
@@ -25,10 +25,9 @@ public class Product
     public bool TrackInventory { get; private set; }    
     public bool IsActive { get;  set; }
     public string? Description { get; private set; }
-    public string? CreatedBy { get; set; }
-    public DateTime? CreatedOn { get; set; }
-    public DateTime? ModifiedOn { get; set; }
-    public string? ModifiedBy { get; set; }
+    
+    // Audit fields are now in BaseAuditableEntity
+
     public string ProductType { get; set; } = string.Empty;
     public decimal DamagedStock { get; set; } = 0;
     public bool IsExpiryRequired { get; set; } = false;
@@ -110,7 +109,7 @@ public class Product
         bool trackinventory,
         bool isactive,
         string? description,
-        string updatedby,
+        string ModifiedBy,
         string ? productType,
         decimal damagedStock,
         Guid? defaultWarehouseId = null,
@@ -137,7 +136,7 @@ public class Product
         TrackInventory = trackinventory;
         IsActive = isactive;
         Description = description;    
-        ModifiedBy = updatedby;
+        ModifiedBy = ModifiedBy;
         ProductType = productType; 
         DamagedStock = damagedStock;
         DefaultWarehouseId = defaultWarehouseId;

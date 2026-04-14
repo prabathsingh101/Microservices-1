@@ -1,4 +1,8 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.DTOs;
 using System.Collections.Generic;
 
-public record GetAllSuppliersQuery() : IRequest<IEnumerable<SupplierDto>>;
+namespace Suppliers.Application.Features.Suppliers.Queries
+{
+    public record GetAllSuppliersQuery() : IRequest<IEnumerable<SupplierDto>>;
+}

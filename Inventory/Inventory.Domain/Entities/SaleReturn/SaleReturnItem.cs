@@ -6,8 +6,8 @@ namespace Inventory.Domain.Entities;
 public class SaleReturnItem : BaseAuditableEntity
 {
     [Key]
-    public int SaleReturnItemId { get; set; }
-    public int SaleReturnHeaderId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SaleReturnHeaderId { get; set; }
     public virtual SaleReturnHeader SaleReturnHeader { get; set; } = null!;
 
     [Required]

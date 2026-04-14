@@ -1,16 +1,13 @@
-﻿namespace Inventory.Domain.Entities;
+using Inventory.Domain.Common;
 
-public sealed class Subcategory
+namespace Inventory.Domain.Entities;
+
+public sealed class Subcategory : BaseAuditableEntity
 {
     public Guid Id { get; set; }
 
     public Guid CategoryId { get; set; }
     public Category Category { get; set; }
-    public int? CreatedBy { get; set; }
-
-    public DateTime? CreatedOn { get; set; } = DateTime.Now;
-    public DateTime? ModifiedOn { get; set; } = DateTime.UtcNow;
-    public int? ModifiedBy { get; set; }
     public string? SubcategoryCode { get; set; } = null!;
     public string? SubcategoryName { get; set; }=null!;
     public decimal DefaultGst { get; set; }

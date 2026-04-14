@@ -1,6 +1,8 @@
+using Suppliers.Infrastructure.Persistence;
+using Suppliers.Application.Features.Suppliers.Handlers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Suppliers.Application.Interfaces;
+using Suppliers.Application.Common.Interfaces;
 using Suppliers.Infrastructure.Repositories;
 using Microsoft.IdentityModel.Tokens;
 using Suppliers.API.Middlewares;

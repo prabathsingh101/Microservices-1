@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Microsoft.AspNetCore.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -40,7 +40,7 @@ public class CustomerClient : ICustomerClient
         }
     }
 
-    public async Task<Dictionary<int, string>> GetCustomerNamesAsync(List<int> customerIds)
+    public async Task<Dictionary<Guid, string>> GetCustomerNamesAsync(List<Guid> customerIds)
     {
         var client = _httpClientFactory.CreateClient("CustomerService");
         AddAuthorizationHeader(client);
@@ -50,10 +50,10 @@ public class CustomerClient : ICustomerClient
 
         if (response.IsSuccessStatusCode)
         {
-            return await response.Content.ReadFromJsonAsync<Dictionary<int, string>>() ?? new();
+            return await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>() ?? new();
         }
 
-        return new Dictionary<int, string>();
+        return new Dictionary<Guid, string>();
     }
 
     public async Task<List<CustomerLookupDto>> GetCustomersForLookupAsync()
@@ -63,9 +63,9 @@ public class CustomerClient : ICustomerClient
         return await client.GetFromJsonAsync<List<CustomerLookupDto>>("api/customers/lookup") ?? new();
     }
 
-    public async Task<List<int>> SearchCustomerIdsByNameAsync(string searchName)
+    public async Task<List<Guid>> SearchCustomerIdsByNameAsync(string searchName)
     {
-        if (string.IsNullOrWhiteSpace(searchName)) return new List<int>();
+        if (string.IsNullOrWhiteSpace(searchName)) return new List<Guid>();
 
         var client = _httpClientFactory.CreateClient("CustomerService");
         AddAuthorizationHeader(client);
@@ -76,7 +76,7 @@ public class CustomerClient : ICustomerClient
 
             if (response.IsSuccessStatusCode)
             {
-                return await response.Content.ReadFromJsonAsync<List<int>>() ?? new List<int>();
+                return await response.Content.ReadFromJsonAsync<List<Guid>>() ?? new List<Guid>();
             }
         }
         catch (Exception ex)
@@ -85,10 +85,10 @@ public class CustomerClient : ICustomerClient
             Console.WriteLine($"Error in SearchCustomerIdsByNameAsync: {ex.Message}");
         }
 
-        return new List<int>();
+        return new List<Guid>();
     }
 
-    public async Task RecordSaleAsync(int customerId, decimal amount, string referenceId, string description, string createdBy)
+    public async Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy)
     {
         var client = _httpClientFactory.CreateClient("CustomerService");
         AddAuthorizationHeader(client);
@@ -112,7 +112,7 @@ public class CustomerClient : ICustomerClient
         }
     }
 
-    public async Task<CustomerLookupDto?> GetCustomerByIdAsync(int id)
+    public async Task<CustomerLookupDto?> GetCustomerByIdAsync(Guid id)
     {
         var client = _httpClientFactory.CreateClient("CustomerService");
         AddAuthorizationHeader(client);

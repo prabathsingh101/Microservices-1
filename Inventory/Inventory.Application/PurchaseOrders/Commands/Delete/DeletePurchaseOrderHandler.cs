@@ -1,4 +1,4 @@
-﻿// Application/Handlers/DeletePurchaseOrderHandler.cs
+// Application/Handlers/DeletePurchaseOrderHandler.cs
 using Inventory.Application.Common.Interfaces;
 using MediatR;
 

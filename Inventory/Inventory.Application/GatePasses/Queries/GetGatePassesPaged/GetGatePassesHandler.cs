@@ -51,7 +51,7 @@ namespace Inventory.Application.GatePasses.Queries.GetGatePassesPaged
 
             // 4. DYNAMIC SORTING
             bool isDesc = request.SortOrder?.ToLower() == "desc";
-            string sortField = request.SortField?.ToLower().Trim() ?? "createdat";
+            string sortField = request.SortField?.ToLower().Trim() ?? "createdon";
 
             query = sortField switch
             {
@@ -60,8 +60,8 @@ namespace Inventory.Application.GatePasses.Queries.GetGatePassesPaged
                 "gateentrytime" or "entrytime" => isDesc ? query.OrderByDescending(x => x.GateEntryTime) : query.OrderBy(x => x.GateEntryTime),
                 "referenceno" => isDesc ? query.OrderByDescending(x => x.ReferenceNo) : query.OrderBy(x => x.ReferenceNo),
                 "vehicleno" => isDesc ? query.OrderByDescending(x => x.VehicleNo) : query.OrderBy(x => x.VehicleNo),
-                "createdat" => isDesc ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
-                _ => query.OrderByDescending(x => x.CreatedAt)
+                "createdon" => isDesc ? query.OrderByDescending(x => x.CreatedOn) : query.OrderBy(x => x.CreatedOn),
+                _ => query.OrderByDescending(x => x.CreatedOn)
             };
 
             // 5. PAGINATION

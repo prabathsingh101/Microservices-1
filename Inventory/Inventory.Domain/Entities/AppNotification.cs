@@ -1,6 +1,8 @@
-﻿public class AppNotification
+using Inventory.Domain.Common;
+
+public class AppNotification : BaseAuditableEntity
 {
-    public long Id { get; set; } // Primary Key
+    public Guid Id { get; set; } = Guid.NewGuid(); // Primary Key
     public string Title { get; set; } // Alert Header (e.g., "Low Stock")
     public string Message { get; set; } // Detail Text
     public string Type { get; set; } // 'Inventory', 'PO', 'Security'

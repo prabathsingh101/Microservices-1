@@ -1,10 +1,10 @@
 public class GrnPrintDto
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public string GrnNumber { get; set; } = string.Empty;
-    public int? PurchaseOrderId { get; set; }
+    public Guid? PurchaseOrderId { get; set; }
     public string? PoNumber { get; set; }
-    public int SupplierId { get; set; }
+    public Guid SupplierId { get; set; }
     public string SupplierName { get; set; } = string.Empty; // Microservice se resolve hoga
     public DateTime ReceivedDate { get; set; }
     public string Status { get; set; } = string.Empty; // e.g., "Received"

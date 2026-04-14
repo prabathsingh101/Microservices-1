@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.PriceLists.DTOs;
 using Inventory.Domain.PriceLists;
 using Inventory.Infrastructure.Persistence;
@@ -25,7 +25,7 @@ internal sealed class PriceListRepository : IPriceListRepository
         return Task.CompletedTask;
     }
 
-    // ✅ THIS IS THE METHOD YOU ASKED FOR
+    // ? THIS IS THE METHOD YOU ASKED FOR
     public Task DeleteAsync(PriceList priceList)
     {
         _context.PriceLists.Remove(priceList);

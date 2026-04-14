@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.PriceLists;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

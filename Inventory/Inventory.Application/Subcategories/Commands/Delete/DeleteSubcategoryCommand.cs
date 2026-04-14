@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 
 namespace Inventory.Application.Subcategories.Commands.Delete;
 

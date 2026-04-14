@@ -1,6 +1,6 @@
 using MediatR;
 using Suppliers.Application.Features.Suppliers.Queries;
-using Suppliers.Application.Interfaces;
+using Suppliers.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
 

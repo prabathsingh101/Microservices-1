@@ -1,8 +1,10 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.Common.Interfaces;
+using Suppliers.Application.DTOs;
 using Suppliers.Application.Features.Suppliers.Queries;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Suppliers.Application.Features.Suppliers.Handlers
 {
@@ -12,26 +14,24 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
 
         public GetSupplierByIdHandler(ISupplierRepository repository)
         {
-            _repository = repository; // Fix for CS8618
+            _repository = repository;
         }
 
-        public async Task<SupplierDto?> Handle(GetSupplierByIdQuery request, CancellationToken ct)
+        public async Task<SupplierDto?> Handle(GetSupplierByIdQuery request, CancellationToken cancellationToken)
         {
-            var supplier = await _repository.GetByIdAsync(request.Id);
+            var s = await _repository.GetByIdAsync(request.Id);
+            if (s == null) return null;
 
-            if (supplier == null) return null;
-
-            // Manual mapping to SupplierDto
             return new SupplierDto(
-                supplier.Id,
-                supplier.Name,
-                supplier.Phone,
-                supplier.GstIn,
-                supplier.Address,
-                supplier.Email,
-                supplier.IsActive,
-                supplier.CreatedBy,
-                supplier.DefaultPriceListId // Ye value ab frontend console mein dikhegi
+                s.Id,
+                s.Name,
+                s.Phone,
+                s.GstIn,
+                s.Address,
+                s.Email,
+                s.IsActive,
+                s.CreatedBy,
+                s.DefaultPriceListId
             );
         }
     }

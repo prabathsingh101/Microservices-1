@@ -1,16 +1,21 @@
-﻿namespace Identity.Domain.Roles;
+using Identity.Domain.Common;
 
-public class Role
+namespace Identity.Domain.Roles;
+
+public class Role : IMultiTenant
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
     public string RoleName { get; set; } = default!;
+    
+    public Guid? CompanyId { get; set; } // NULL = System Role, GUID = Customer Role
 
     private Role() { } // EF Core
 
-    public Role(int id, string roleName)
+    public Role(string roleName, Guid? companyId = null)
     {
-        Id = id;
+        Id = Guid.NewGuid();
         RoleName = roleName;
+        CompanyId = companyId;
     }
 }

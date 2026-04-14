@@ -83,7 +83,7 @@ namespace Inventory.API.Controllers
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             // MediatR ke through Query ko Handler tak bhejna
             var query = new GetPurchaseOrderByIdQuery(id);
@@ -106,7 +106,7 @@ namespace Inventory.API.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdatePurchaseOrderDto dto)
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePurchaseOrderDto dto)
         {
             // 1. Validation: URL ID aur Body ID match honi chahiye
             if (id != dto.Id)
@@ -142,7 +142,7 @@ namespace Inventory.API.Controllers
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             try
             {
@@ -239,7 +239,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("po-items/{poId}")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetPOItemsForGRN(int poId)
+        public async Task<IActionResult> GetPOItemsForGRN(Guid poId)
         {
             var result = await _mediator.Send(new GetPOItemsForGRNQuery(poId));
             return Ok(result);
@@ -249,9 +249,9 @@ namespace Inventory.API.Controllers
         /// Dashboard se lastPurchaseOrderId (int) lekar Header details fetch karta hai
         /// </summary>
         /// <param name="lastPurchaseOrderId">Integer format ID</param>
-        [HttpGet("header-details/{lastPurchaseOrderId:int}")]
+        [HttpGet("header-details/{lastPurchaseOrderId:guid}")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<ActionResult<POHeaderDetailsDto>> GetHeaderDetails(int lastPurchaseOrderId)
+        public async Task<ActionResult<POHeaderDetailsDto>> GetHeaderDetails(Guid lastPurchaseOrderId)
         {
             // 1. Query create karein [cite: 2026-01-22]
             var query = new GetPOHeaderDetailsQuery(lastPurchaseOrderId);
@@ -302,7 +302,7 @@ namespace Inventory.API.Controllers
 
         [HttpPost("bulk-sent-for-approval")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> BulkSentForApproval([FromBody] List<long> ids)
+        public async Task<IActionResult> BulkSentForApproval([FromBody] List<Guid> ids)
         {
             var result = await _purchaseOrderRepository.BulkSentForApprovalAsync(ids);
             if (result) return Ok(new { message = "Selected POs sent for approval successfully." });
@@ -312,7 +312,7 @@ namespace Inventory.API.Controllers
 
         [HttpPost("bulk-approve")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> BulkApprove([FromBody] List<long> ids)
+        public async Task<IActionResult> BulkApprove([FromBody] List<Guid> ids)
         {
             if (ids == null || !ids.Any())
                 return BadRequest(new { message = "No POs selected for approval." });
@@ -331,7 +331,7 @@ namespace Inventory.API.Controllers
 
         [HttpPost("bulk-reject")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> BulkReject([FromBody] List<long> ids)
+        public async Task<IActionResult> BulkReject([FromBody] List<Guid> ids)
         {
             if (ids == null || !ids.Any())
                 return BadRequest(new { message = "No POs selected for rejection." });
@@ -355,7 +355,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("{id}/print-details")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetPrintDetails(long id)
+        public async Task<IActionResult> GetPrintDetails(Guid id)
         {
             var result = await _purchaseOrderRepository.GetPODetailsForPrintAsync(id);
 
@@ -373,7 +373,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("{id}/download-pdf")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> DownloadPdf(long id)
+        public async Task<IActionResult> DownloadPdf(Guid id)
         {
             
             var response = await _purchaseOrderRepository.GeneratePOReportPdfAsync(id);
@@ -391,14 +391,14 @@ namespace Inventory.API.Controllers
 
         [HttpGet("replacement-qty/{poId}")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetReplacementQty(int poId)
+        public async Task<IActionResult> GetReplacementQty(Guid poId)
         {
             var qty = await _purchaseOrderRepository.GetTotalReturnedQtyAsync(poId);
             return Ok(new { replacementQty = qty });
         }
         [HttpPut("{id}/toggle-dispatch")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> ToggleDispatch(int id)
+        public async Task<IActionResult> ToggleDispatch(Guid id)
         {
             var result = await _purchaseOrderRepository.ToggleDispatchStatusAsync(id);
             if (result)

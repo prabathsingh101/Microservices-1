@@ -1,4 +1,4 @@
-﻿using Identity.Application.Interfaces;
+using Identity.Application.Interfaces;
 using Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,12 +15,16 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> ExistsByEmailAsync(string email)
     {
-        return await _context.Users.AnyAsync(u => u.Email == email);
+        return await _context.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.Email == email);
     }
 
     public async Task<bool> ExistsByUserNameAsync(string userName)
     {
-        return await _context.Users.AnyAsync(u => u.UserName == userName);
+        return await _context.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.UserName == userName);
     }
 
     public async Task AddAsync(User user)
@@ -32,6 +36,7 @@ public class UserRepository : IUserRepository
     {
         // Login ke waqt bhi roles lagte hain, isliye include yahan bhi hona chahiye
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Email == email);
@@ -41,6 +46,7 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(Guid id)
     {
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
             .Include(u => u.RefreshTokens)
@@ -52,6 +58,7 @@ public class UserRepository : IUserRepository
         // 1. AsNoTracking: Performance badhane ke liye (kyunki ye sirf fetch operation hai)
         // 2. AsSplitQuery: Multiple joins se hone wale Cartesian Explosion aur Timeout ko rokne ke liye
         return await _context.Users
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
@@ -64,6 +71,7 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByRefreshTokenAsync(string refreshToken)
     {
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(u => u.RefreshTokens)
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
@@ -82,6 +90,16 @@ public class UserRepository : IUserRepository
         return await _context.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
+            .OrderBy(u => u.UserName)
+            .ToListAsync();
+    }
+
+    public async Task<List<User>> GetByCompanyAsync(Guid companyId)
+    {
+        return await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .Where(u => u.CompanyId == companyId)
             .OrderBy(u => u.UserName)
             .ToListAsync();
     }

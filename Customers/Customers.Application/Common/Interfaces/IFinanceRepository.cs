@@ -1,5 +1,6 @@
 using Customers.Application.DTOs;
 using Customers.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -8,7 +9,7 @@ namespace Customers.Application.Common.Interfaces
     public interface IFinanceRepository
     {
         Task AddReceiptAsync(CustomerReceipt receipt);
-        Task<CustomerLedger?> GetLastLedgerEntryAsync(int customerId);
+        Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid customerId);
         Task AddLedgerEntryAsync(CustomerLedger ledgerEntry);
         Task SaveChangesAsync();
 

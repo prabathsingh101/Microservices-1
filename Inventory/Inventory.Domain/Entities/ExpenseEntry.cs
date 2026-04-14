@@ -1,9 +1,11 @@
+using Inventory.Domain.Common;
+
 namespace Inventory.Domain.Entities;
 
-public class ExpenseEntry
+public class ExpenseEntry : BaseAuditableEntity
 {
-    public int Id { get; set; }
-    public int CategoryId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CategoryId { get; set; }
     public virtual ExpenseCategory? Category { get; set; }
     public decimal Amount { get; set; }
     public DateTime ExpenseDate { get; set; }
@@ -11,9 +13,4 @@ public class ExpenseEntry
     public string? ReferenceNo { get; set; }
     public string? Remarks { get; set; }
     public string? AttachmentPath { get; set; }
-
-    public DateTime? CreatedDate { get; set; } = DateTime.Now;
-    public DateTime? UpdatedDate { get; set; } = DateTime.Now;
-    public string? CreatedBy { get; set; }
-    public string? UpdatedBy { get; set; }
 }

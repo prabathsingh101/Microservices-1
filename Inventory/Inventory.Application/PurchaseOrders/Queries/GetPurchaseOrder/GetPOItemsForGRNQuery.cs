@@ -1,5 +1,5 @@
-﻿// poId integer hai lekin returns Guid based items
+// poId integer hai lekin returns Guid based items
 using Inventory.Application.PurchaseOrders.DTOs;
 using MediatR;
 
-public record GetPOItemsForGRNQuery(int PoId) : IRequest<IEnumerable<POItemForGRNDto>>;
+public record GetPOItemsForGRNQuery(Guid PoId) : IRequest<IEnumerable<POItemForGRNDto>>;

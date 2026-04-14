@@ -6,10 +6,10 @@ namespace Inventory.Application.SaleOrders.DTOs
 {
     public class SaleOrderListDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string SoNumber { get; set; } = string.Empty;
         public DateTime SoDate { get; set; }
-        public int CustomerId { get; set; } // Mapping ke liye zaroori hai
+        public Guid CustomerId { get; set; } // Mapping ke liye zaroori hai
         public string CustomerName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? GatePassNo { get; set; }

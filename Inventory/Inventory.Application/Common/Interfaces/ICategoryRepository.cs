@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 
 public interface ICategoryRepository

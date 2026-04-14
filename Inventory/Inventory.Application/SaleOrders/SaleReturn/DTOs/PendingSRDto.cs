@@ -4,7 +4,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.DTOs
 {
     public class PendingSRDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string ReturnNumber { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
         public DateTime ReturnDate { get; set; }

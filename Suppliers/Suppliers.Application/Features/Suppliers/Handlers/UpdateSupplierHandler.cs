@@ -1,31 +1,38 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.Common.Interfaces;
+using Suppliers.Application.Features.Suppliers.Commands;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-public class UpdateSupplierHandler : IRequestHandler<UpdateSupplierCommand, bool>
+namespace Suppliers.Application.Features.Suppliers.Handlers
 {
-    private readonly ISupplierRepository _repository;
-
-    public UpdateSupplierHandler(ISupplierRepository repository)
+    public class UpdateSupplierHandler : IRequestHandler<UpdateSupplierCommand, bool>
     {
-        _repository = repository;
-    }
+        private readonly ISupplierRepository _repository;
 
-    public async Task<bool> Handle(UpdateSupplierCommand request, CancellationToken cancellationToken)
-    {
-        var supplier = await _repository.GetByIdAsync(request.Id);
+        public UpdateSupplierHandler(ISupplierRepository repository)
+        {
+            _repository = repository;
+        }
 
-        if (supplier == null) return false;
+        public async Task<bool> Handle(UpdateSupplierCommand request, CancellationToken cancellationToken)
+        {
+            var supplier = await _repository.GetByIdAsync(request.Id);
+            if (supplier == null) return false;
 
-        // DDD: Entity method call
-        supplier.UpdateDetails(
-            request.SupplierData.name,
-            request.SupplierData.phone,
-            request.SupplierData.gstIn,
-            request.SupplierData.address,
-            request.SupplierData.email,
-            request.SupplierData.isActive,
-            request.SupplierData.defaultpricelistId);
+            supplier.UpdateDetails(
+                request.SupplierData.name,
+                request.SupplierData.phone,
+                request.SupplierData.gstIn,
+                request.SupplierData.address,
+                request.SupplierData.email,
+                request.SupplierData.isActive,
+                request.SupplierData.defaultpricelistId
+            );
 
-        await _repository.UpdateAsync(supplier);
-        return true;
+            await _repository.UpdateAsync(supplier);
+            return true;
+        }
     }
 }

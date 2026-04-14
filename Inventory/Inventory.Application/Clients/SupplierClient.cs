@@ -1,4 +1,4 @@
-﻿/*
+/*
 using Inventory.Application.Clients;
 using Inventory.Application.PurchaseReturn;
 using System.Net.Http.Json;

@@ -1,5 +1,5 @@
 using MediatR;
-using Suppliers.Application.Interfaces;
+using Suppliers.Application.Common.Interfaces;
 using Suppliers.Application.Features.Suppliers.Queries;
 using Suppliers.Application.DTOs;
 using System.Collections.Generic;

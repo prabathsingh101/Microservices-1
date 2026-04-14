@@ -1,9 +1,11 @@
 using Customers.Application.Common.Interfaces;
 using Customers.Application.Common.Models;
 using Customers.Application.DTOs;
-
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Customers.Application.Features.Queries;
 
@@ -62,8 +64,8 @@ internal sealed class GetCustomersPagedQueryHandler
         {
             "customerName" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.CustomerName) : query.OrderByDescending(x => x.CustomerName),
             "phone" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.Phone) : query.OrderByDescending(x => x.Phone),
-            "createdAt" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.CreatedAt) : query.OrderByDescending(x => x.CreatedAt),
-            _ => query.OrderByDescending(x => x.CreatedAt)
+            "createdAt" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.CreatedOn) : query.OrderByDescending(x => x.CreatedOn),
+            _ => query.OrderByDescending(x => x.CreatedOn)
         };
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -81,9 +83,8 @@ internal sealed class GetCustomersPagedQueryHandler
                 GstNumber = x.GstNumber,
                 CreditLimit = x.CreditLimit,
                 Status = x.Status,
-                BillingAddress = x.BillingAddress != null ? x.BillingAddress.AddressLine : null,
-                ShippingAddress = x.ShippingAddress != null ? x.ShippingAddress.AddressLine : null,
-                CreatedBy = x.CreatedBy
+                BillingAddressLine = x.BillingAddress != null ? x.BillingAddress.AddressLine : null,
+                ShippingAddressLine = x.ShippingAddress != null ? x.ShippingAddress.AddressLine : null
             })
             .ToListAsync(cancellationToken);
               

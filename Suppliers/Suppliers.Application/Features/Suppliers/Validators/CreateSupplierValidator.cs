@@ -1,11 +1,13 @@
-﻿using FluentValidation;
+using FluentValidation;
+using Suppliers.Application.Features.Suppliers.Commands;
 
-public class CreateSupplierValidator : AbstractValidator<CreateSupplierCommand>
+namespace Suppliers.Application.Features.Suppliers.Validators
 {
-    public CreateSupplierValidator()
+    public class CreateSupplierValidator : AbstractValidator<CreateSupplierCommand>
     {
-        RuleFor(x => x.SupplierData.name).NotEmpty().WithMessage("Supplier name is required.");
-        RuleFor(x => x.SupplierData.phone).Length(10).WithMessage("Phone number must be 10 digits.");
-
+        public CreateSupplierValidator()
+        {
+            RuleFor(x => x.SupplierData.name).NotEmpty().WithMessage("Supplier name is required.");
+        }
     }
 }

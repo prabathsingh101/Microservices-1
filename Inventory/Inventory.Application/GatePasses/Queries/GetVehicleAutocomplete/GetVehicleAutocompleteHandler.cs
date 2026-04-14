@@ -26,7 +26,7 @@ namespace Inventory.Application.GatePasses.Queries.GetVehicleAutocomplete
             var vehicles = await _context.GatePasses
                 .AsNoTracking()
                 .Where(x => x.VehicleNo.ToLower().Contains(searchTerm))
-                .OrderByDescending(x => x.CreatedAt)
+                .OrderByDescending(x => x.CreatedOn)
                 .Select(x => new 
                 {
                     x.VehicleNo,

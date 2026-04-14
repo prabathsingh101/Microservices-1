@@ -1,12 +1,13 @@
 using MediatR;
+using System;
 
 namespace Customers.Application.Features.Commands
 {
     public class DeleteCustomerCommand : IRequest<bool>
     {
-        public int Id { get; }
+        public Guid Id { get; }
 
-        public DeleteCustomerCommand(int id)
+        public DeleteCustomerCommand(Guid id)
         {
             Id = id;
         }

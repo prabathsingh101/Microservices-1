@@ -1,8 +1,8 @@
-﻿namespace Identity.Application.DTOs;
+namespace Identity.Application.DTOs;
 
 public record RegisterUserDto(
     string UserName,
     string Email,
     string Password,
-    List<int> RoleIds
+    List<Guid> RoleIds
 );

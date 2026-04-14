@@ -1,14 +1,15 @@
 using Suppliers.Application.DTOs;
 using Suppliers.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Suppliers.Application.Interfaces // Adjust namespace if needed
+namespace Suppliers.Application.Common.Interfaces
 {
     public interface IFinanceRepository
     {
         Task AddPaymentAsync(SupplierPayment payment);
-        Task<SupplierLedger?> GetLastLedgerEntryAsync(int supplierId);
+        Task<SupplierLedger?> GetLastLedgerEntryAsync(Guid supplierId);
         Task AddLedgerEntryAsync(SupplierLedger ledgerEntry);
         Task SaveChangesAsync();
 
@@ -18,7 +19,7 @@ namespace Suppliers.Application.Interfaces // Adjust namespace if needed
         Task<Dictionary<string, decimal>> GetGRNPaymentStatusesAsync(List<string> grnNumbers);
         Task<PaginatedListDto<PaymentReportDto>> GetPaymentsReportAsync(PaymentReportRequestDto request);
         Task<decimal> GetTotalPendingDuesAsync();
-        Task<Dictionary<int, decimal>> GetSupplierBalancesAsync(List<int> supplierIds);
+        Task<Dictionary<Guid, decimal>> GetSupplierBalancesAsync(List<Guid> supplierIds);
         Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months);
         Task<bool> IsReferenceUniqueAsync(string referenceNumber);
     }

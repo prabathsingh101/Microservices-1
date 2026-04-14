@@ -5,7 +5,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
     public class PendingPRDto
     {
         public Guid Id { get; set; }
-        public int SupplierId { get; set; }
+        public Guid SupplierId { get; set; }
         public string ReturnNumber { get; set; } = string.Empty;
         public string SupplierName { get; set; } = string.Empty;
         public DateTime ReturnDate { get; set; }

@@ -1,23 +1,29 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.Common.Interfaces;
+using Suppliers.Application.Features.Suppliers.Commands;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-public class DeleteSupplierHandler : IRequestHandler<DeleteSupplierCommand, bool>
+namespace Suppliers.Application.Features.Suppliers.Handlers
 {
-    private readonly ISupplierRepository _repository;
-
-    public DeleteSupplierHandler(ISupplierRepository repository)
+    public class DeleteSupplierHandler : IRequestHandler<DeleteSupplierCommand, bool>
     {
-        _repository = repository;
-    }
+        private readonly ISupplierRepository _repository;
 
-    public async Task<bool> Handle(DeleteSupplierCommand request, CancellationToken cancellationToken)
-    {
-        var supplier = await _repository.GetByIdAsync(request.Id);
-        if (supplier == null) return false;
+        public DeleteSupplierHandler(ISupplierRepository repository)
+        {
+            _repository = repository;
+        }
 
-        // DDD: Entity method for soft delete
-        supplier.Deactivate();
+        public async Task<bool> Handle(DeleteSupplierCommand request, CancellationToken cancellationToken)
+        {
+            var supplier = await _repository.GetByIdAsync(request.Id);
+            if (supplier == null) return false;
 
-        await _repository.UpdateAsync(supplier);
-        return true;
+            supplier.Deactivate();
+            await _repository.UpdateAsync(supplier);
+            return true;
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -102,7 +102,7 @@ namespace Inventory.Application.Services
                 <p>Discount: {data.TotalDiscount:N2}</p>
                 <p>Tax: {data.TotalTax:N2}</p>
                 <hr/>
-                <h3>Grand Total: ₹{data.GrandTotal:N2}</h3>
+                <h3>Grand Total: ?{data.GrandTotal:N2}</h3>
             </div>
         </body>
         </html>");

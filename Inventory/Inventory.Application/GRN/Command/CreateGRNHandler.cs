@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.GRN.Command;
 using Inventory.Application.Services;
@@ -39,7 +39,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             Remarks = dto.Remarks,
             CreatedBy = dto.CreatedBy,
             Status = "Received",
-            UpdatedOn = DateTime.Now
+            ModifiedOn = DateTime.Now
         };
 
         var details = dto.Items.Select(i => new GRNDetail
@@ -59,7 +59,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             RackId = i.RackId,
             MfgDate = i.ManufacturingDate,
             ExpDate = i.ExpiryDate,
-            UpdatedOn = DateTime.Now
+            ModifiedOn = DateTime.Now
         }).ToList();
 
         var grnNumber = await _repo.SaveGRNWithStockUpdate(header, details);

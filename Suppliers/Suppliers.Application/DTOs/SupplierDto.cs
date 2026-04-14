@@ -1,5 +1,9 @@
-﻿public record SupplierDto(
-    int id,
+using System;
+
+namespace Suppliers.Application.DTOs;
+
+public record SupplierDto(
+    Guid id,
     string name,
     string phone,
     string? gstIn,

@@ -38,18 +38,18 @@ public class User
         CompanyId = companyId;
     }
 
-    public void AssignRole(int roleId)
+    public void AssignRole(Guid roleId)
     {
         if (_userRoles.Any(r => r.RoleId == roleId))
             return;
 
-        _userRoles.Add(new UserRole(Id, roleId));
+        _userRoles.Add(new UserRole(Id, roleId, this.CompanyId));
     }
 
     // ✅ FIXED
     public void AddRefreshToken(string token, DateTime expiresAt)
     {
-        _refreshTokens.Add(new RefreshToken(Id, token, expiresAt));
+        _refreshTokens.Add(new RefreshToken(Id, token, expiresAt, this.CompanyId));
     }
 
     public void RevokeRefreshToken(string token)
@@ -65,14 +65,14 @@ public class User
         IsActive = isActive;
     }
 
-    public void UpdateRoles(List<int> roleIds)
+    public void UpdateRoles(List<Guid> roleIds)
     {
         _userRoles.RemoveAll(r => !roleIds.Contains(r.RoleId));
         foreach (var roleId in roleIds)
         {
             if (!_userRoles.Any(r => r.RoleId == roleId))
             {
-                _userRoles.Add(new UserRole(Id, roleId));
+                _userRoles.Add(new UserRole(Id, roleId, this.CompanyId));
             }
         }
     }

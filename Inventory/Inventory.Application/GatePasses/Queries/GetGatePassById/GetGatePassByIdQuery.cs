@@ -3,5 +3,5 @@ using MediatR;
 
 namespace Inventory.Application.GatePasses.Queries.GetGatePassById
 {
-    public record GetGatePassByIdQuery(int Id) : IRequest<GatePassDto?>;
+    public record GetGatePassByIdQuery(Guid Id) : IRequest<GatePassDto?>;
 }

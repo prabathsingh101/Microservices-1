@@ -30,7 +30,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
     public async Task<object> Handle(CreateSaleOrderCommand request, CancellationToken cancellationToken)
     {
         var dto = request.OrderDto;
-        bool isEdit = dto.Id > 0;
+        bool isEdit = dto.Id != Guid.Empty;
         string? existingSONo = null;
         string? oldStatus = null;
 
@@ -146,7 +146,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                     }
                 }
 
-                int savedId;
+                Guid savedId;
                 if (isEdit)
                 {
                     await _repo.UpdateAsync(saleOrder);

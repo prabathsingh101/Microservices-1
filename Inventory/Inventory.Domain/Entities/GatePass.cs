@@ -1,10 +1,10 @@
-using System;
+using Inventory.Domain.Common;
 
 namespace Inventory.Domain.Entities
 {
-    public class GatePass
+    public class GatePass : BaseAuditableEntity
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string PassNo { get; set; }
         public string PassType { get; set; } // Inward / Outward
         public int ReferenceType { get; set; } // 1=PO, 2=GRN...
@@ -23,7 +23,5 @@ namespace Inventory.Domain.Entities
         public string SecurityGuard { get; set; }
         public int Status { get; set; } // 1=Entered...
         public string? Remarks { get; set; }
-        public string? CreatedBy { get; set; }
-        public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

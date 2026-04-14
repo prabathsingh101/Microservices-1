@@ -1,15 +1,8 @@
 using MediatR;
+using System;
 using System.Collections.Generic;
 
 namespace Suppliers.Application.Features.Suppliers.Queries
 {
-    public class GetSupplierBalancesQuery : IRequest<Dictionary<int, decimal>>
-    {
-        public List<int> SupplierIds { get; set; }
-
-        public GetSupplierBalancesQuery(List<int> supplierIds)
-        {
-            SupplierIds = supplierIds;
-        }
-    }
+    public record GetSupplierBalancesQuery(List<Guid> SupplierIds) : IRequest<Dictionary<Guid, decimal>>;
 }

@@ -37,8 +37,10 @@ public static class DependencyInjection
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-
-
+        
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, Services.CurrentUserService>();
+        services.AddScoped<IOnboardingService, Services.OnboardingService>();
         return services;
     }
 }

@@ -1,4 +1,4 @@
-﻿using Inventory.Application.SaleOrders.DTOs;
+using Inventory.Application.SaleOrders.DTOs;
 using MediatR;
 using System;
 using System.Collections.Generic;

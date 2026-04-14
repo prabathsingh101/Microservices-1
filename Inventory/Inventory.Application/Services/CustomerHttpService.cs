@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net.Http.Json;
 using System.Text;
@@ -21,10 +21,10 @@ namespace Inventory.Application.Services
             _saleReturnRepository = returnRepository;
         }
 
-        public async Task<Dictionary<int, string>> GetCustomerNamesAsync(List<int> customerIds)
+        public async Task<Dictionary<Guid, string>> GetCustomerNamesAsync(List<Guid> customerIds)
         {
             if (customerIds == null || !customerIds.Any())
-                return new Dictionary<int, string>();
+                return new Dictionary<Guid, string>();
 
             try
             {
@@ -32,8 +32,8 @@ namespace Inventory.Application.Services
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var data = await response.Content.ReadFromJsonAsync<Dictionary<int, string>>();
-                    return data ?? new Dictionary<int, string>();
+                    var data = await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>();
+                    return data ?? new Dictionary<Guid, string>();
                 }
             }
             catch (Exception ex)
@@ -42,7 +42,7 @@ namespace Inventory.Application.Services
                 Console.WriteLine($"Customer Microservice call failed: {ex.Message}");
             }
 
-            return new Dictionary<int, string>();
+            return new Dictionary<Guid, string>();
         }
 
         

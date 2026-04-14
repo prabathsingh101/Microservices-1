@@ -1,4 +1,4 @@
-﻿// Application/Handlers/BulkDeletePOItemsHandler.cs
+// Application/Handlers/BulkDeletePOItemsHandler.cs
 using Inventory.Application.Common.Interfaces;
 using MediatR;
 

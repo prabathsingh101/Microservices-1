@@ -53,7 +53,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _mediator.Send(new GetGatePassByIdQuery(id));
             if (result == null) return NotFound();

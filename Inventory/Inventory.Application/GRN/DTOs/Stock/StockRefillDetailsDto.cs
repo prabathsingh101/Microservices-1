@@ -1,7 +1,7 @@
-﻿public class StockRefillDetailsDto
+public class StockRefillDetailsDto
 {
     // --- Header Section (Top Row) ---
-    public int SupplierId { get; set; }               // 'Select Supplier' Dropdown
+    public Guid SupplierId { get; set; }               // 'Select Supplier' Dropdown
     public string SupplierName { get; set; }         // Display Name (From PO History)
     public Guid? PriceListId { get; set; }           // 'Applicable Price List' Dropdown
     public string PoNumber { get; set; }             // 'PO Number' Read-only field

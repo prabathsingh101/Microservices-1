@@ -45,7 +45,7 @@ public class ExpenseEntriesController : ControllerBase
 
     [HttpGet("{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _context.ExpenseEntries
             .Include(x => x.Category)
@@ -66,7 +66,7 @@ public class ExpenseEntriesController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> Update(int id, ExpenseEntry entry)
+    public async Task<IActionResult> Update(Guid id, ExpenseEntry entry)
     {
         if (id != entry.Id) return BadRequest();
 
@@ -80,7 +80,7 @@ public class ExpenseEntriesController : ControllerBase
         existing.ReferenceNo = entry.ReferenceNo;
         existing.Remarks = entry.Remarks;
         existing.AttachmentPath = entry.AttachmentPath;
-        existing.UpdatedDate = DateTime.Now;
+        existing.ModifiedOn = DateTime.Now;
 
         await _context.SaveChangesAsync();
         return Ok(existing);
@@ -88,7 +88,7 @@ public class ExpenseEntriesController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         var entry = await _context.ExpenseEntries.FindAsync(id);
         if (entry == null) return NotFound();

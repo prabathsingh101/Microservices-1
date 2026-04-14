@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Categories.DTOs;
+using Inventory.Application.Categories.DTOs;
 using Inventory.Application.Common.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +22,7 @@ internal sealed class GetCategoriesPagedQueryHandler
             .AsQueryable();
 
         // ============================
-        // 🔍 GLOBAL SEARCH
+        // ?? GLOBAL SEARCH
         // ============================
         if (!string.IsNullOrWhiteSpace(request.Query.Search))
         {
@@ -36,7 +36,7 @@ internal sealed class GetCategoriesPagedQueryHandler
         }
 
         // ============================
-        // 🎯 COLUMN FILTERS (FIXED)
+        // ?? COLUMN FILTERS (FIXED)
         // ============================
         if (request.Query.Filters != null && request.Query.Filters.Any())
         {
@@ -68,7 +68,7 @@ internal sealed class GetCategoriesPagedQueryHandler
         }
 
         // ============================
-        // 🔃 SORTING
+        // ?? SORTING
         // ============================
         query = request.Query.SortBy switch
         {
@@ -97,12 +97,12 @@ internal sealed class GetCategoriesPagedQueryHandler
         };
 
         // ============================
-        // 📊 COUNT
+        // ?? COUNT
         // ============================
         var totalCount = await query.CountAsync(cancellationToken);
 
         // ============================
-        // 📄 PAGING + DTO
+        // ?? PAGING + DTO
         // ============================
         var items = await query
             .Skip((request.Query.PageNumber - 1) * request.Query.PageSize)

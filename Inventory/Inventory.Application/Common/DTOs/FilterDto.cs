@@ -1,4 +1,4 @@
-﻿namespace Inventory.Application.Common.DTOs
+namespace Inventory.Application.Common.DTOs
 {
     public class FilterDto
     {

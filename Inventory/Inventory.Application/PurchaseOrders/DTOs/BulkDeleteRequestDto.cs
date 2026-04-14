@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,7 +6,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
 {
     public class BulkDeleteRequestDto
     {
-        public int PurchaseOrderId { get; set; }
-        public List<int> ItemIds { get; set; } = new();
+        public Guid PurchaseOrderId { get; set; }
+        public List<Guid> ItemIds { get; set; } = new();
     }
 }

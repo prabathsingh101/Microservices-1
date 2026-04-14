@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Suppliers.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Suppliers.Domain.Interfaces;
 using System;
 using System.Collections.Generic;

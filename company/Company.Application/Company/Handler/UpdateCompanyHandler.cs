@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Hosting; // IWebHostEnvironment ke liye
 
 namespace Company.Application.Company.Commands.Update.Handler
 {
-    public class UpdateCompanyHandler : IRequestHandler<UpdateCompanyCommand, int>
+    public class UpdateCompanyHandler : IRequestHandler<UpdateCompanyCommand, Guid>
     {
         private readonly ICompanyRepository _repo;
         private readonly IWebHostEnvironment _environment; // wwwroot access ke liye
@@ -16,12 +16,12 @@ namespace Company.Application.Company.Commands.Update.Handler
             _environment = environment;
         }
 
-        public async Task<int> Handle(UpdateCompanyCommand cmd, CancellationToken ct)
+        public async Task<Guid> Handle(UpdateCompanyCommand cmd, CancellationToken ct)
         {
             // Pehle existing profile load karte hain with related data
             var profile = await _repo.GetByIdAsync(cmd.Id); // Fix: Use cmd.Id instead of GetCompanyProfileAsync
 
-            if (profile == null) return 0;
+            if (profile == null) return Guid.Empty;
 
             // --- Logo Update Logic ---
             if (!string.IsNullOrEmpty(cmd.Request.LogoUrl) && cmd.Request.LogoUrl.Contains("base64"))

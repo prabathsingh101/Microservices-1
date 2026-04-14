@@ -1,6 +1,6 @@
-﻿using MediatR;
+using MediatR;
 
 namespace Company.Application.Company.Commands.Delete
 {
-    public record DeleteCompanyCommand(int Id) : IRequest<bool>;
+    public record DeleteCompanyCommand(Guid Id) : IRequest<bool>;
 }

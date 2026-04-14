@@ -67,7 +67,7 @@ namespace Inventory.API.Controllers;
 
     [HttpGet("print/{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> Print(int id)
+    public async Task<IActionResult> Print(Guid id)
     {
         var printData = await _service.GetPrintDataAsync(id);
 
@@ -82,7 +82,7 @@ namespace Inventory.API.Controllers;
 
     [HttpGet("print-data/{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> GetPrintData(int id)
+    public async Task<IActionResult> GetPrintData(Guid id)
     {
         var data = await _service.GetPrintDataAsync(id);
 
@@ -121,7 +121,7 @@ namespace Inventory.API.Controllers;
 
     [HttpGet("details/{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _repo.GetSaleReturnByIdAsync(id);
         if (result == null) return NotFound();
@@ -130,7 +130,7 @@ namespace Inventory.API.Controllers;
 
     [HttpPost("bulk-inward")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> BulkInward([FromBody] List<int> ids)
+    public async Task<IActionResult> BulkInward([FromBody] List<Guid> ids)
     {
         if (ids == null || !ids.Any()) return BadRequest("No IDs provided");
 

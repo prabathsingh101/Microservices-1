@@ -12,7 +12,7 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task AddAsync(UnitMaster unit) => await _context.Units.AddAsync(unit);
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Guid id)
         {
             var unit = await _context.Units.FindAsync(id);
             if (unit != null)
@@ -28,7 +28,7 @@ namespace Inventory.Infrastructure.Repositories
                          .ToListAsync();
         }
 
-        public async Task<UnitMaster> GetByIdAsync(int id) => await _context.Units.FindAsync(id);
+        public async Task<UnitMaster> GetByIdAsync(Guid id) => await _context.Units.FindAsync(id);
 
         public Task UpdateAsync(UnitMaster unit)
         {

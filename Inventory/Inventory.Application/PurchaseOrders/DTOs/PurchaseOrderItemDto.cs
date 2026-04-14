@@ -1,7 +1,7 @@
 public class PurchaseOrderItemDto
 {
-    public int Id { get; set; }
-    public int PurchaseOrderId { get; set; }
+    public Guid Id { get; set; }
+    public Guid PurchaseOrderId { get; set; }
     public Guid ProductId { get; set; }
     public string ProductName { get; set; }
     public decimal Qty { get; set; }

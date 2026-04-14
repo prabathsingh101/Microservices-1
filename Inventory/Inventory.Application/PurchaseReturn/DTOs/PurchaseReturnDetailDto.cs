@@ -10,7 +10,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public Guid Id { get; set; }
         public string ReturnNumber { get; set; } = string.Empty;
         public DateTime ReturnDate { get; set; }
-        public long SupplierId { get; set; }
+        public Guid SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public string Status { get; set; }

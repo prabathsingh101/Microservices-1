@@ -14,18 +14,18 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
             .IsRequired()
             .HasMaxLength(50);
 
-        builder.HasIndex(x => x.RoleName)
+        builder.HasIndex(x => new { x.RoleName, x.CompanyId })
             .IsUnique();
 
-        // ✅ SEED DATA
+        // ✅ SEED DATA with Fixed GUIDs for System Roles
         builder.HasData(
-            new Role(1, "Admin"),
-            new Role(2, "User"),
-            new Role(3, "Employee"),
-            new Role(4, "Warehouse"),
-            new Role(5, "Super Admin"),
-            new Role(6, "Manager"),
-            new Role(7, "Customer")
+            new Role("Admin") { Id = Guid.Parse("00000000-0000-0000-0000-000000000001") },
+            new Role("User") { Id = Guid.Parse("00000000-0000-0000-0000-000000000002") },
+            new Role("Employee") { Id = Guid.Parse("00000000-0000-0000-0000-000000000003") },
+            new Role("Warehouse") { Id = Guid.Parse("00000000-0000-0000-0000-000000000004") },
+            new Role("Super Admin") { Id = Guid.Parse("00000000-0000-0000-0000-000000000005") },
+            new Role("Manager") { Id = Guid.Parse("00000000-0000-0000-0000-000000000006") },
+            new Role("Customer") { Id = Guid.Parse("00000000-0000-0000-0000-000000000007") }
         );
     }
 }

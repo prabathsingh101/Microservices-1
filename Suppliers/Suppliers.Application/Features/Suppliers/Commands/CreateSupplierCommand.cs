@@ -1,3 +1,8 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.DTOs;
+using System;
 
-public record CreateSupplierCommand(CreateSupplierDto SupplierData) : IRequest<int>;
+namespace Suppliers.Application.Features.Suppliers.Commands
+{
+    public record CreateSupplierCommand(CreateSupplierDto SupplierData) : IRequest<Guid>;
+}

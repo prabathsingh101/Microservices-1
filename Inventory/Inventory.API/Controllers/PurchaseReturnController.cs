@@ -23,7 +23,7 @@ namespace Inventory.API.Controllers
         // Recommended Route
         [HttpGet("rejected-items/{supplierId}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetRejectedItems(int supplierId)
+        public async Task<IActionResult> GetRejectedItems(Guid supplierId)
         {
             try
             {
@@ -63,7 +63,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("get-received-stock/{supplierId}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetReceivedStock(int supplierId)
+        public async Task<IActionResult> GetReceivedStock(Guid supplierId)
         {
             try
             {
@@ -104,7 +104,7 @@ namespace Inventory.API.Controllers
                     CreatedOn = DateTime.Now,
                     CreatedBy = returnDto.CreatedBy,
                     ModifiedBy = returnDto.ModifiedBy,
-                    UpdatedOn = DateTime.Now,
+                    ModifiedOn = DateTime.Now,
                     Items = new List<Inventory.Domain.Entities.PurchaseReturnItem>()
                 };
 
@@ -126,7 +126,7 @@ namespace Inventory.API.Controllers
                         CreatedOn = DateTime.Now,
                         CreatedBy = item.CreatedBy ?? returnDto.CreatedBy,
                         ModifiedBy = item.ModifiedBy ?? returnDto.ModifiedBy,
-                        UpdatedOn = DateTime.Now
+                        ModifiedOn = DateTime.Now
                     });
                 }
 

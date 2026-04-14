@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,8 +6,8 @@ namespace Inventory.Application.GRN.DTOs
 {
     public class SaveGRNCommandDTO
     {
-        public int POHeaderId { get; set; }
-        public int SupplierId { get; set; }
+        public Guid POHeaderId { get; set; }
+        public Guid SupplierId { get; set; }
         public DateTime ReceivedDate { get; set; }
         public string? GatePassNo { get; set; }
         public string Remarks { get; set; }

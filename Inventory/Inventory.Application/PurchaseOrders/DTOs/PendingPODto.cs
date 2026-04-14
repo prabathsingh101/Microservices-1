@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,7 +6,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
 {
     public class PendingPODto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string PoNumber { get; set; }
         public string SupplierName { get; set; }
         public DateTime PoDate { get; set; }

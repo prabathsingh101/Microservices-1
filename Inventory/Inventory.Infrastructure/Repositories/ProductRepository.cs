@@ -212,7 +212,7 @@ public sealed class ProductRepository : IProductRepository
                 Product = "PO: " + po.PoNumber, // Ya item name join karke
                 Type = "Purchase",
                 Qty = po.GrandTotal, // Simplified for example
-                Date = po.CreatedDate,
+                Date = po.CreatedOn,
                 Status = po.Status
             });
 
@@ -224,7 +224,7 @@ public sealed class ProductRepository : IProductRepository
                 Product = "SO: " + so.Id,
                 Type = "Sale",
                 Qty = so.GrandTotal,
-                Date = so.CreatedAt,
+                Date = so.CreatedOn,
                 Status = "Completed"
             });
 
@@ -429,7 +429,7 @@ public sealed class ProductRepository : IProductRepository
                                 trackinventory: trackInv,
                                 isactive: active,
                                 description: desc,
-                                updatedby: "BulkUpload",
+                                ModifiedBy: "BulkUpload",
                                 productType: mappedType,
                                 damagedStock: damagedStock,
                                 defaultWarehouseId: warehouseId,

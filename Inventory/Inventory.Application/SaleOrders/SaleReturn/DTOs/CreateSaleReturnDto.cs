@@ -1,8 +1,8 @@
 public class CreateSaleReturnDto
 {
     public DateTime ReturnDate { get; set; }
-    public int SaleOrderId { get; set; }
-    public int CustomerId { get; set; }
+    public Guid SaleOrderId { get; set; }
+    public Guid CustomerId { get; set; }
     public string? Remarks { get; set; }
     public bool IsQuick { get; set; }
     public string? CreatedBy { get; set; }

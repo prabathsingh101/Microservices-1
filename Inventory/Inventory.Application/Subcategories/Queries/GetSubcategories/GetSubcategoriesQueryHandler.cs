@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Subcategories.DTOs;
 

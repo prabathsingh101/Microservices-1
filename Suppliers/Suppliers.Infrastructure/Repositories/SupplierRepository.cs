@@ -1,76 +1,82 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Suppliers.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Suppliers.Application.Common.Interfaces;
 using Suppliers.Application.DTOs;
+using Suppliers.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-public class SupplierRepository : ISupplierRepository
+namespace Suppliers.Infrastructure.Repositories
 {
-    private readonly SupplierDbContext _context;
-
-    public SupplierRepository(SupplierDbContext context)
+    public class SupplierRepository : ISupplierRepository
     {
-        _context = context;
-    }
+        private readonly SupplierDbContext _context;
 
-    public IQueryable<Supplier> Query() => _context.Suppliers.AsNoTracking();
+        public SupplierRepository(SupplierDbContext context)
+        {
+            _context = context;
+        }
 
-    public async Task<IEnumerable<Supplier>> GetAllAsync() =>
-        await _context.Suppliers.AsNoTracking().ToListAsync();
+        public IQueryable<Supplier> Query() => _context.Suppliers.AsNoTracking();
 
-    public async Task<Supplier?> GetByIdAsync(int id)
-    {
-        // AsNoTracking performance ke liye behtar hai read operations mein
-        return await _context.Suppliers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == id);
-    }
+        public async Task<IEnumerable<Supplier>> GetAllAsync() =>
+            await _context.Suppliers.AsNoTracking().ToListAsync();
 
-    public async Task AddAsync(Supplier supplier)
-    {
-        await _context.Suppliers.AddAsync(supplier);
-        await _context.SaveChangesAsync();
-    }
+        public async Task<Supplier?> GetByIdAsync(Guid id)
+        {
+            return await _context.Suppliers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
 
-    public async Task UpdateAsync(Supplier supplier)
-    {
-        _context.Suppliers.Update(supplier);
-        await _context.SaveChangesAsync();
-    }
-    public async Task<bool> ExistsAsync(int id)
-    {
-        return await _context.Suppliers.AnyAsync(s => s.Id == id);
-    }
-    public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+        public async Task AddAsync(Supplier supplier)
+        {
+            await _context.Suppliers.AddAsync(supplier);
+            await _context.SaveChangesAsync();
+        }
 
-    public async Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<int> ids)
-    {
-        // 1. Safety check
-        if (ids == null || !ids.Any()) return new List<SupplierSelectDto>();
+        public async Task UpdateAsync(Supplier supplier)
+        {
+            _context.Suppliers.Update(supplier);
+            await _context.SaveChangesAsync();
+        }
+        public async Task<bool> ExistsAsync(Guid id)
+        {
+            return await _context.Suppliers.AnyAsync(s => s.Id == id);
+        }
+        public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 
-        // 2. Fresh data fetch logic [cite: 2026-02-03]
-        var suppliers = await _context.Suppliers
-            .AsNoTracking() // Cache skip karke fresh DB query chalaye [cite: 2026-02-03]
-            .Where(s => ids.Contains(s.Id)) // SQL mein 'WHERE Id IN (1)' banayega
-            .OrderBy(s => s.Name)
-            .Select(s => new SupplierSelectDto
-            {
-                Id = s.Id,
-                Name = s.Name
-            })
-            .ToListAsync();
+        public async Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<Guid> ids)
+        {
+            if (ids == null || !ids.Any()) return new List<SupplierSelectDto>();
 
-        return suppliers ?? new List<SupplierSelectDto>();
-    }
+            var suppliers = await _context.Suppliers
+                .AsNoTracking()
+                .Where(s => ids.Contains(s.Id))
+                .OrderBy(s => s.Name)
+                .Select(s => new SupplierSelectDto
+                {
+                    Id = s.Id,
+                    Name = s.Name
+                })
+                .ToListAsync();
 
-    public async Task<List<int>> GetIdsByNameAsync(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return new List<int>();
+            return suppliers ?? new List<SupplierSelectDto>();
+        }
 
-        var s = name.ToLower().Trim();
+        public async Task<List<Guid>> GetIdsByNameAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return new List<Guid>();
 
-        return await _context.Suppliers
-            .AsNoTracking()
-            .Where(s_ent => s_ent.Name.ToLower().Contains(s))
-            .Select(s_ent => s_ent.Id)
-            .ToListAsync();
+            var s = name.ToLower().Trim();
+
+            return await _context.Suppliers
+                .AsNoTracking()
+                .Where(s_ent => s_ent.Name.ToLower().Contains(s))
+                .Select(s_ent => s_ent.Id)
+                .ToListAsync();
+        }
     }
 }
-

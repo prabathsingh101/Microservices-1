@@ -29,7 +29,7 @@ public class MenuRepository : IMenuRepository
         return await _context.Menus.ToListAsync();
     }
 
-    public async Task<Menu?> GetByIdAsync(int id)
+    public async Task<Menu?> GetByIdAsync(Guid id)
     {
         return await _context.Menus.FindAsync(id);
     }
@@ -46,7 +46,7 @@ public class MenuRepository : IMenuRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(Guid id)
     {
         var menu = await GetByIdAsync(id);
         if (menu != null)

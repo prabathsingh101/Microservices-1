@@ -1,6 +1,6 @@
-﻿namespace Inventory.Domain.PriceLists;
+namespace Inventory.Domain.PriceLists;
 
-public class PriceList
+public class PriceList : Inventory.Domain.Common.BaseAuditableEntity
 {
     public Guid Id { get;  set; }
     public string Name { get; set; }
@@ -12,10 +12,6 @@ public class PriceList
     public DateTime ValidFrom { get;  set; }
     public DateTime? ValidTo { get;  set; }
     public bool IsActive { get;  set; }
-    public DateTime? CreatedOn { get;  set; } = DateTime.Now;
-    public string?  CreatedBy { get; set; }
-    public DateTime? UpdatedOn { get;  set; } = DateTime.Now;
-    public string? UpdatedBy { get;  set; }
 
     // Relationship
     public List<PriceListItem> PriceListItems { get;  set; } = new();

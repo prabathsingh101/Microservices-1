@@ -1,7 +1,7 @@
 using MediatR;
 using Suppliers.Application.DTOs;
 using Suppliers.Application.Features.Suppliers.Commands;
-using Suppliers.Application.Interfaces;
+using Suppliers.Application.Common.Interfaces;
 using Suppliers.Domain.Entities;
 using System;
 using System.Threading;
@@ -9,15 +9,14 @@ using System.Threading.Tasks;
 
 namespace Suppliers.Application.Features.Suppliers.Handlers
 {
-    public class RecordSupplierPaymentHandler(IFinanceRepository repository) : IRequestHandler<RecordSupplierPaymentCommand, int>
+    public class RecordSupplierPaymentHandler(IFinanceRepository repository) : IRequestHandler<RecordSupplierPaymentCommand, Guid>
     {
         private readonly IFinanceRepository _repository = repository;
 
-        public async Task<int> Handle(RecordSupplierPaymentCommand request, CancellationToken cancellationToken)
+        public async Task<Guid> Handle(RecordSupplierPaymentCommand request, CancellationToken cancellationToken)
         {
             var paymentDto = request.PaymentData;
 
-            // 🎯 Unique Reference/Cheque Number Check
             if (!string.IsNullOrWhiteSpace(paymentDto.ReferenceNumber))
             {
                 var isUnique = await _repository.IsReferenceUniqueAsync(paymentDto.ReferenceNumber);
@@ -32,7 +31,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 SupplierId = paymentDto.SupplierId,
                 Amount = paymentDto.Amount,
                 PaymentDate = paymentDto.PaymentDate,
-                PaymentMode = paymentDto.PaymentMode,
+                PaymentMode = paymentDto.PaymentMode ?? "Other",
                 ReferenceNumber = paymentDto.ReferenceNumber,
                 Remarks = paymentDto.Remarks,
                 CreatedBy = paymentDto.CreatedBy
@@ -47,7 +46,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
             {
                 SupplierId = paymentDto.SupplierId,
                 TransactionType = "Payment",
-                ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : "PAY-" + System.Guid.NewGuid().ToString().Substring(0, 8),
+                ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : "PAY-" + Guid.NewGuid().ToString().Substring(0, 8),
                 Debit = paymentDto.Amount,
                 Credit = 0,
                 Balance = currentBalance,
@@ -58,7 +57,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
             await _repository.AddLedgerEntryAsync(supplierLedger);
             await _repository.SaveChangesAsync();
 
-            return supplierPayment.Id; // Assuming Id is updated after AddAsync/SaveChanges? Wait, AddAsync usually doesn't update Id unless using EF Core Change Tracker and SaveChanges.
+            return supplierPayment.Id;
         }
     }
 }

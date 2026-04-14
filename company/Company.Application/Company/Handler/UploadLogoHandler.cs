@@ -21,7 +21,7 @@ namespace Company.Application.Company.Handler
             profile.LogoUrl = request.LogoUrl;
             var result = await _repo.UpsertCompanyProfileAsync(profile);
             
-            return result > 0;
+            return result != Guid.Empty;
         }
     }
 }

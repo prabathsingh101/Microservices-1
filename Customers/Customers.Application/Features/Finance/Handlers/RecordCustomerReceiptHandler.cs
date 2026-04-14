@@ -1,6 +1,7 @@
 using MediatR;
 using Customers.Application.Common.Interfaces;
 using Customers.Application.Features.Finance.Commands;
+using Customers.Application.DTOs;
 using Customers.Domain.Entities;
 using System;
 using System.Threading;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Customers.Application.Features.Finance.Handlers
 {
-    public class RecordCustomerReceiptHandler : IRequestHandler<RecordCustomerReceiptCommand, int>
+    public class RecordCustomerReceiptHandler : IRequestHandler<RecordCustomerReceiptCommand, Guid>
     {
         private readonly IFinanceRepository _repository;
 
@@ -17,11 +18,10 @@ namespace Customers.Application.Features.Finance.Handlers
             _repository = repository;
         }
 
-        public async Task<int> Handle(RecordCustomerReceiptCommand request, CancellationToken cancellationToken)
+        public async Task<Guid> Handle(RecordCustomerReceiptCommand request, CancellationToken cancellationToken)
         {
             var receiptDto = request.ReceiptData;
 
-            // 🎯 Unique Reference/Cheque Number Check
             if (!string.IsNullOrWhiteSpace(receiptDto.ReferenceNumber))
             {
                 var isUnique = await _repository.IsReferenceUniqueAsync(receiptDto.ReferenceNumber);
@@ -36,11 +36,10 @@ namespace Customers.Application.Features.Finance.Handlers
                 CustomerId = receiptDto.CustomerId,
                 Amount = receiptDto.Amount,
                 ReceiptDate = receiptDto.ReceiptDate,
-                ReceiptMode = receiptDto.ReceiptMode,
+                ReceiptMode = receiptDto.ReceiptMode ?? "Other",
                 ReferenceNumber = receiptDto.ReferenceNumber,
                 Remarks = receiptDto.Remarks,
-                CreatedBy = receiptDto.CreatedBy,
-                CreatedDate = DateTime.Now
+                CreatedBy = receiptDto.CreatedBy
             };
 
             await _repository.AddReceiptAsync(customerReceipt);
@@ -53,14 +52,14 @@ namespace Customers.Application.Features.Finance.Handlers
                 CustomerId = receiptDto.CustomerId,
                 TransactionType = "Receipt",
                 ReferenceId = string.IsNullOrWhiteSpace(receiptDto.ReferenceNumber) 
-                    ? "REC-" + System.Guid.NewGuid().ToString().Substring(0, 8) 
+                    ? "REC-" + Guid.NewGuid().ToString().Substring(0, 8) 
                     : receiptDto.ReferenceNumber,
                 Debit = 0,
                 Credit = receiptDto.Amount,
                 Balance = currentBalance,
                 TransactionDate = receiptDto.ReceiptDate,
                 Description = "Receipt Received: " + receiptDto.ReceiptMode,
-                CreatedDate = DateTime.Now
+                CreatedBy = receiptDto.CreatedBy
             };
 
             await _repository.AddLedgerEntryAsync(ledgerEntry);

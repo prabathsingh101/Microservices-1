@@ -1,4 +1,4 @@
-﻿public class LowStockProductDto
+public class LowStockProductDto
 {
     public Guid Id { get; set; }
     public string CategoryName { get; set; } // Category table se join karke

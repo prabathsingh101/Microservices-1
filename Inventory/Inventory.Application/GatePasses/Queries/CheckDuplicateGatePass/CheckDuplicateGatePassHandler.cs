@@ -23,7 +23,7 @@ namespace Inventory.Application.GatePasses.Queries.CheckDuplicateGatePass
             var existingPass = await _context.GatePasses
                 .AsNoTracking()
                 .Where(x => x.ReferenceNo == request.ReferenceNo && x.PassType == request.PassType && x.Status == 1) // 1 = Entered
-                .OrderByDescending(x => x.CreatedAt)
+                .OrderByDescending(x => x.CreatedOn)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (existingPass != null)

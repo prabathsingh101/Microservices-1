@@ -5,6 +5,9 @@ using Suppliers.Application.DTOs;
 using Suppliers.Application.Features.Suppliers.Commands;
 using Suppliers.Application.Features.Suppliers.Queries;
 using Suppliers.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Suppliers.API.Controllers
 {
@@ -19,40 +22,22 @@ namespace Suppliers.API.Controllers
             _mediator = mediator;
         }
 
-        // 1. Supplier Ledger (Khaata)
         [HttpPost("ledger")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> GetLedger([FromBody] SupplierLedgerRequestDto request)
         {
             var result = await _mediator.Send(new GetSupplierLedgerQuery(request));
             return Ok(result);
         }
 
-        // 2. Payment Entry
         [HttpPost("payment-entry")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> RecordPayment([FromBody] SupplierPayment payment)
+        public async Task<IActionResult> RecordPayment([FromBody] SupplierPaymentDto paymentDto)
         {
-            var command = new RecordSupplierPaymentCommand(new SupplierPaymentDto
-            {
-                SupplierId = payment.SupplierId,
-                Amount = payment.Amount,
-                PaymentDate = payment.PaymentDate,
-                PaymentMode = payment.PaymentMode,
-                ReferenceNumber = payment.ReferenceNumber,
-                Remarks = payment.Remarks,
-                CreatedBy = payment.CreatedBy
-            });
-
+            var command = new RecordSupplierPaymentCommand(paymentDto);
             var id = await _mediator.Send(command);
-            payment.Id = id;
-
-            return Ok(payment);
+            return Ok(new { Id = id });
         }
 
-        // 2.1 Purchase Entry (From Inventory GRN)
         [HttpPost("purchase-entry")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> RecordPurchase([FromBody] SupplierPurchaseDto purchase)
         {
             var command = new RecordSupplierPurchaseCommand(purchase);
@@ -60,9 +45,7 @@ namespace Suppliers.API.Controllers
             return Ok(result);
         }
 
-        // 3. Pending Dues Report
         [HttpGet("pending-dues")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> GetPendingDues()
         {
             var result = await _mediator.Send(new GetPendingDuesQuery());
@@ -70,43 +53,35 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpGet("pending-total")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetPendingTotal()
         {
             var total = await _mediator.Send(new GetTotalPendingDuesQuery());
             return Ok(new { TotalPending = total });
         }
 
-        // 4. Total Payments (For P&L)
         [HttpPost("total-payments")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> GetTotalPayments([FromBody] DateRangeDto dateRange)
         {
             var totalPayments = await _mediator.Send(new GetTotalPaymentsQuery(dateRange));
             return Ok(new { TotalPayments = totalPayments });
         }
 
-        // 5. GRN Payment Status (For Inventory List)
         [HttpPost("get-grn-statuses")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> GetGRNStatuses([FromBody] List<string> grnNumbers)
         {
             var result = await _mediator.Send(new GetGRNPaymentStatusesQuery(grnNumbers));
             return Ok(result);
         }
 
-        // 5.1 Supplier Balances
         [HttpPost("get-balances")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetSupplierBalances([FromBody] List<int> supplierIds)
+        public async Task<IActionResult> GetSupplierBalances([FromBody] List<Guid> supplierIds)
         {
             var result = await _mediator.Send(new GetSupplierBalancesQuery(supplierIds));
             return Ok(result);
         }
 
-        // 6. Payments Report
         [HttpPost("payments-report")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> GetPaymentsReport([FromBody] PaymentReportRequestDto request)
         {
             var result = await _mediator.Send(new GetPaymentsReportQuery(request));

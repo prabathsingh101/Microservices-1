@@ -13,19 +13,22 @@ public class RegisterUserHandler
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IUnitOfWork _uow;
     private readonly ISubscriptionRepository _subscriptions;
+    private readonly ICurrentUserService _currentUserService;
 
     public RegisterUserHandler(
         IUserRepository users,
         IRoleRepository roles,
         IPasswordHasher<User> passwordHasher,
         IUnitOfWork uow,
-        ISubscriptionRepository subscriptions)
+        ISubscriptionRepository subscriptions,
+        ICurrentUserService currentUserService)
     {
         _users = users;
         _roles = roles;
         _passwordHasher = passwordHasher;
         _uow = uow;
         _subscriptions = subscriptions;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Guid> Handle(
@@ -60,12 +63,19 @@ public class RegisterUserHandler
 
         await _users.AddAsync(user);
 
-        // --- Create Default Company & 7-day Trial ---
-        var companyId = Guid.NewGuid();
-        user.SetCompanyId(companyId);
-        
-        var trial = new Subscription(companyId, $"{user.UserName}'s Business", "Trial", 7);
-        await _subscriptions.AddAsync(trial);
+        // --- Multi-tenant Handling ---
+        // 1. Check if an Admin is creating this user (from Token)
+        if (_currentUserService.CompanyId.HasValue)
+        {
+            user.SetCompanyId(_currentUserService.CompanyId.Value);
+        }
+        // 2. Or if explicitly provided in request (e.g. from System Admin portal)
+        else if (request.CompanyId.HasValue)
+        {
+            user.SetCompanyId(request.CompanyId.Value);
+        }
+        // 3. Otherwise, it's a new public signup - leave CompanyId NULL for now
+        // User will call 'setup-company' after trial activation.
 
         await _uow.SaveChangesAsync(cancellationToken);
 

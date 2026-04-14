@@ -1,4 +1,4 @@
-﻿using Company.Application.Common.Interfaces;
+using Company.Application.Common.Interfaces;
 using Company.Application.Common.Models;
 using Company.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +10,16 @@ namespace Company.Infrastructure.Repositories
     public class CompanyRepository : ICompanyRepository
     {
         private readonly CompanyDbContext _context;
-        public CompanyRepository(CompanyDbContext context) => _context = context;
+        private readonly ICurrentUserService _currentUserService;
+
+        public CompanyRepository(CompanyDbContext context, ICurrentUserService currentUserService)
+        {
+            _context = context;
+            _currentUserService = currentUserService;
+        }
 
         // --- CREATE ---
-        public async Task<int> InsertCompanyAsync(CompanyProfile company)
+        public async Task<Guid> InsertCompanyAsync(CompanyProfile company)
         {
             _context.CompanyProfiles.Add(company);
             await _context.SaveChangesAsync();
@@ -21,7 +27,7 @@ namespace Company.Infrastructure.Repositories
         }
 
         // --- UPDATE ---
-        public async Task<int> UpsertCompanyProfileAsync(CompanyProfile profile)
+        public async Task<Guid> UpsertCompanyProfileAsync(CompanyProfile profile)
         {
             _context.CompanyProfiles.Update(profile);
             await _context.SaveChangesAsync();
@@ -31,15 +37,17 @@ namespace Company.Infrastructure.Repositories
         // --- READ: GET MASTER PROFILE (Optimized) ---
         public async Task<CompanyProfile?> GetCompanyProfileAsync()
         {
+            var companyId = _currentUserService.CompanyId;
+            
             return await _context.CompanyProfiles
                 .Include(c => c.CompanyAddress)
                 .Include(c => c.BankInformation)
-                .Include(c => c.AuthorizedSignatories) // Signatories load karein
-                .FirstOrDefaultAsync();
+                .Include(c => c.AuthorizedSignatories)
+                .FirstOrDefaultAsync(c => c.Id == companyId);
         }
 
         // --- READ: GET BY ID ---
-        public async Task<CompanyProfile?> GetByIdAsync(int id)
+        public async Task<CompanyProfile?> GetByIdAsync(Guid id)
         {
             return await _context.CompanyProfiles
                 .Include(c => c.CompanyAddress)
@@ -50,7 +58,7 @@ namespace Company.Infrastructure.Repositories
 
 
         // --- DELETE ---
-        public async Task<bool> DeleteCompanyProfileAsync(int id)
+        public async Task<bool> DeleteCompanyProfileAsync(Guid id)
         {
             // Record search kar rahe hain delete karne se pehle
             var company = await _context.CompanyProfiles.FindAsync(id);

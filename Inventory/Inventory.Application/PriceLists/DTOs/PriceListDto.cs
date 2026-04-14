@@ -1,4 +1,4 @@
-﻿namespace Inventory.Application.PriceLists.DTOs;
+namespace Inventory.Application.PriceLists.DTOs;
 
 // Poore Price List ki detail fetch karne ke liye DTO
 public sealed class PriceListDto
@@ -20,8 +20,8 @@ public sealed class PriceListDto
     // --- Audit Info ---
     public DateTime? createdOn { get; set; }
     public string? createdBy { get; set; }
-    public DateTime? updatedOn { get; set; }
-    public string? updatedBy { get; set; }
+    public DateTime? ModifiedOn { get; set; }
+    public string? ModifiedBy { get; set; }
 
     // --- Table Items (Details) ---
     // Niche table ki rows ko collect karne ke liye list

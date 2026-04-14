@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.PriceLists;
+using Inventory.Domain.PriceLists;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

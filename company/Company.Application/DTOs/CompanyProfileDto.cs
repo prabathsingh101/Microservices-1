@@ -2,7 +2,7 @@ namespace Company.Application.DTOs
 {
     // Response ke liye use hoga (Read Operations)
     public record CompanyProfileDto(
-        int Id,
+        Guid Id,
         string Name,
         string? Tagline,
         string RegistrationNumber,

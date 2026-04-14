@@ -1,3 +1,7 @@
-﻿using MediatR;
+using MediatR;
+using System;
 
-public record DeleteSupplierCommand(int Id) : IRequest<bool>;
+namespace Suppliers.Application.Features.Suppliers.Commands
+{
+    public record DeleteSupplierCommand(Guid Id) : IRequest<bool>;
+}

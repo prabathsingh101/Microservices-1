@@ -1,29 +1,37 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.Common.Interfaces;
+using Suppliers.Domain.Entities;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Suppliers.Application.Features.Suppliers.Commands;
 
-public class CreateSupplierHandler : IRequestHandler<CreateSupplierCommand, int>
+namespace Suppliers.Application.Features.Suppliers.Handlers
 {
-    private readonly ISupplierRepository _repository;
-
-    public CreateSupplierHandler(ISupplierRepository repository)
+    public class CreateSupplierHandler : IRequestHandler<CreateSupplierCommand, Guid>
     {
-        _repository = repository;
-    }
+        private readonly ISupplierRepository _repository;
 
-    public async Task<int> Handle(CreateSupplierCommand request, CancellationToken cancellationToken)
-    {
-        var supplier = new Supplier(
-            request.SupplierData.name,
-            request.SupplierData.phone,
-            request.SupplierData.gstIn,
-            request.SupplierData.address,
-            request.SupplierData.email,
-            request.SupplierData.createdBy,
-            request.SupplierData.isActive,
-            request.SupplierData.defaultpricelistId
-            
-        );
+        public CreateSupplierHandler(ISupplierRepository repository)
+        {
+            _repository = repository;
+        }
 
-        await _repository.AddAsync(supplier);
-        return supplier.Id;
+        public async Task<Guid> Handle(CreateSupplierCommand request, CancellationToken cancellationToken)
+        {
+            var supplier = new Supplier(
+                request.SupplierData.name,
+                request.SupplierData.phone,
+                request.SupplierData.gstIn,
+                request.SupplierData.address,
+                request.SupplierData.email,
+                request.SupplierData.createdBy,
+                request.SupplierData.isActive,
+                request.SupplierData.defaultpricelistId
+            );
+
+            await _repository.AddAsync(supplier);
+            return supplier.Id;
+        }
     }
 }

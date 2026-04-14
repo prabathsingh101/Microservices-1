@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Units.DTOs;
 using MediatR;
 using System.Collections.Generic;

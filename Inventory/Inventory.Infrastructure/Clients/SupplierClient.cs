@@ -43,7 +43,7 @@ namespace Inventory.Infrastructure.Clients
             }
         }
 
-        public async Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<int> supplierIds)
+        public async Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<Guid> supplierIds)
         {
             try
             {
@@ -64,7 +64,7 @@ namespace Inventory.Infrastructure.Clients
             }
         }
 
-        public async Task<bool> RecordPurchaseAsync(int supplierId, decimal amount, string referenceId, string description, string createdBy)
+        public async Task<bool> RecordPurchaseAsync(Guid supplierId, decimal amount, string referenceId, string description, string createdBy)
         {
             try
             {
@@ -114,9 +114,9 @@ namespace Inventory.Infrastructure.Clients
             throw new HttpRequestException($"Supplier Service Request Failed: {response.StatusCode}");
         }
 
-        public async Task<Dictionary<int, decimal>> GetSupplierBalancesAsync(List<int> supplierIds)
+        public async Task<Dictionary<Guid, decimal>> GetSupplierBalancesAsync(List<Guid> supplierIds)
         {
-            if (supplierIds == null || !supplierIds.Any()) return new Dictionary<int, decimal>();
+            if (supplierIds == null || !supplierIds.Any()) return new Dictionary<Guid, decimal>();
 
             try
             {
@@ -125,18 +125,18 @@ namespace Inventory.Infrastructure.Clients
                 var response = await client.PostAsJsonAsync("api/finance/get-balances", supplierIds);
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadFromJsonAsync<Dictionary<int, decimal>>() ?? new Dictionary<int, decimal>();
+                    return await response.Content.ReadFromJsonAsync<Dictionary<Guid, decimal>>() ?? new Dictionary<Guid, decimal>();
                 }
-                return new Dictionary<int, decimal>();
+                return new Dictionary<Guid, decimal>();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[SupplierClient] Connect Error: {ex.Message}");
-                return new Dictionary<int, decimal>();
+                return new Dictionary<Guid, decimal>();
             }
         }
 
-        public async Task<bool> RecordPurchaseReturnAsync(int supplierId, decimal amount, string referenceId, string description, string createdBy)
+        public async Task<bool> RecordPurchaseReturnAsync(Guid supplierId, decimal amount, string referenceId, string description, string createdBy)
         {
             var payload = new
             {
@@ -163,9 +163,9 @@ namespace Inventory.Infrastructure.Clients
             return true;
         }
 
-        public async Task<List<int>> SearchSupplierIdsByNameAsync(string name)
+        public async Task<List<Guid>> SearchSupplierIdsByNameAsync(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return new List<int>();
+            if (string.IsNullOrWhiteSpace(name)) return new List<Guid>();
 
             try
             {
@@ -175,7 +175,7 @@ namespace Inventory.Infrastructure.Clients
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadFromJsonAsync<List<int>>() ?? new List<int>();
+                    return await response.Content.ReadFromJsonAsync<List<Guid>>() ?? new List<Guid>();
                 }
                 else
                 {
@@ -188,10 +188,10 @@ namespace Inventory.Infrastructure.Clients
                 Console.WriteLine($"[SupplierClient] Search Error: {ex.Message}");
             }
 
-            return new List<int>();
+            return new List<Guid>();
         }
 
-        public async Task<SupplierSelectDto?> GetSupplierByIdAsync(int id)
+        public async Task<SupplierSelectDto?> GetSupplierByIdAsync(Guid id)
         {
             var client = _httpClientFactory.CreateClient("SupplierServiceClient");
             AddAuthorizationHeader(client);

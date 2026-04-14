@@ -8,5 +8,5 @@ public interface IMenuService
     Task<IEnumerable<Menu>> GetAllMenusAsync();
     Task CreateAsync(Menu menu);
     Task UpdateAsync(Menu menu);
-    Task DeleteAsync(int id);
+    Task DeleteAsync(Guid id);
 }

@@ -1,4 +1,4 @@
-﻿namespace Inventory.Application.Common.Models;
+namespace Inventory.Application.Common.Models;
 
 public class Result
 {

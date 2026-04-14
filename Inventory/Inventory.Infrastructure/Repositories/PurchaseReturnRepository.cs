@@ -31,7 +31,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     }
 
     // 1. UI Form ke liye Rejected Items fetch karein
-    public async Task<List<RejectedItemDto>> GetRejectedItemsBySupplierAsync(int supplierId)
+    public async Task<List<RejectedItemDto>> GetRejectedItemsBySupplierAsync(Guid supplierId)
     {
         var query = from gd in _context.GRNDetails
                         .Include(x => x.Product)
@@ -82,7 +82,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         return new List<SupplierSelectDto>();
     }
 
-    public async Task<List<ReceivedStockDto>> GetReceivedStockBySupplierAsync(int supplierId)
+    public async Task<List<ReceivedStockDto>> GetReceivedStockBySupplierAsync(Guid supplierId)
     {
         // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
         var company = await _companyClient.GetCompanyProfileAsync();
@@ -338,7 +338,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         if (pagedData == null || !pagedData.Any())
             return new PurchaseReturnPagedResponse { Items = new List<PurchaseReturnListDto>(), TotalCount = totalCount };
 
-        var supplierIds = pagedData.Select(x => (long)x.SupplierId).Distinct().ToList();
+        var supplierIds = pagedData.Select(x => x.SupplierId).Distinct().ToList();
         var supplierNames = await GetSupplierNamesFromMicroservice(supplierIds);
 
         var pagedIds = pagedData.Select(x => x.Id).ToList();
@@ -359,7 +359,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             Id = x.Id,
             ReturnNumber = x.ReturnNumber,
             ReturnDate = x.ReturnDate,
-            SupplierName = supplierNames.GetValueOrDefault((long)x.SupplierId, "Unknown"),
+            SupplierName = supplierNames.GetValueOrDefault(x.SupplierId, "Unknown"),
             GrnRef = grnLookup.GetValueOrDefault(x.Id, "N/A"),
             TotalAmount = x.GrandTotal,
             Status = "Completed",
@@ -370,22 +370,22 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         return new PurchaseReturnPagedResponse { Items = items, TotalCount = totalCount };
     }
 
-    private async Task<List<int>> GetSupplierIdsByNameFromMicroservice(string name)
+    private async Task<List<Guid>> GetSupplierIdsByNameFromMicroservice(string name)
     {
         return await _supplierClient.SearchSupplierIdsByNameAsync(name);
     }
 
-    private async Task<Dictionary<long, string>> GetSupplierNamesFromMicroservice(List<long> supplierIds)
+    private async Task<Dictionary<Guid, string>> GetSupplierNamesFromMicroservice(List<Guid> supplierIds)
     {
-        var dict = new Dictionary<long, string>();
+        var dict = new Dictionary<Guid, string>();
         if (supplierIds == null || !supplierIds.Any()) return dict;
 
         try
         {
-            var suppliers = await _supplierClient.GetSuppliersByIdsAsync(supplierIds.Select(x => (int)x).ToList());
+            var suppliers = await _supplierClient.GetSuppliersByIdsAsync(supplierIds);
             if (suppliers != null)
             {
-                dict = suppliers.ToDictionary(x => (long)x.Id, x => x.Name);
+                dict = suppliers.ToDictionary(x => x.Id, x => x.Name);
             }
         }
         catch (Exception ex)
@@ -424,9 +424,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                   IsExpiryRequired = p.IsExpiryRequired
                               }).ToListAsync();
 
-        var supplierDict = await GetSupplierNamesFromMicroservice(new List<long> { (long)purchaseReturn.SupplierId });
-        string sName = supplierDict.ContainsKey((long)purchaseReturn.SupplierId)
-                       ? supplierDict[(long)purchaseReturn.SupplierId] : "Unknown";
+        var supplierDict = await GetSupplierNamesFromMicroservice(new List<Guid> { purchaseReturn.SupplierId });
+        string sName = supplierDict.ContainsKey(purchaseReturn.SupplierId)
+                       ? supplierDict[purchaseReturn.SupplierId] : "Unknown";
 
         return new PurchaseReturnDetailDto
         {
@@ -454,7 +454,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             .OrderByDescending(x => x.ReturnDate)
             .ToListAsync();
 
-        var supplierIds = data.Select(x => (long)x.SupplierId).Distinct().ToList();
+        var supplierIds = data.Select(x => x.SupplierId).Distinct().ToList();
         var supplierNamesDict = await GetSupplierNamesFromMicroservice(supplierIds);
 
         using (var workbook = new XLWorkbook())
@@ -475,8 +475,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             {
                 worksheet.Cell(currentRow, 1).Value = item.ReturnNumber;
                 worksheet.Cell(currentRow, 2).Value = item.ReturnDate.ToString("dd-MMM-yyyy");
-                string sName = supplierNamesDict.ContainsKey((long)item.SupplierId)
-                               ? supplierNamesDict[(long)item.SupplierId]
+                string sName = supplierNamesDict.ContainsKey(item.SupplierId)
+                               ? supplierNamesDict[item.SupplierId]
                                : "Unknown Supplier";
                 worksheet.Cell(currentRow, 3).Value = sName;
                 worksheet.Cell(currentRow, 4).Value = item.SubTotal;
@@ -514,12 +514,12 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
         if (returns == null || !returns.Any()) return new List<PendingPRDto>();
 
-        var supplierIds = returns.Select(r => (long)r.SupplierId).Distinct().ToList();
+        var supplierIds = returns.Select(r => r.SupplierId).Distinct().ToList();
         var supplierNames = await GetSupplierNamesFromMicroservice(supplierIds);
 
         foreach (var pr in returns)
         {
-            if (supplierNames != null && supplierNames.TryGetValue((long)pr.SupplierId, out var name))
+            if (supplierNames != null && supplierNames.TryGetValue(pr.SupplierId, out var name))
                 pr.SupplierName = name;
             else
                 pr.SupplierName = "Unknown Supplier";

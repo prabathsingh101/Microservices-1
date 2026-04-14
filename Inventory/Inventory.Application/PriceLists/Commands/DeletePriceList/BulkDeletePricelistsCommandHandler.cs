@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using MediatR;
 
 namespace Inventory.Application.PriceLists.Commands.DeletePriceList

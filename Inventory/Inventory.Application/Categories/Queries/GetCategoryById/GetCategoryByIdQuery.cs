@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Inventory.Application.Categories.DTOs;
 
 namespace Inventory.Application.Categories.Queries.GetCategoryById;

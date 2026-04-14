@@ -1,4 +1,4 @@
-﻿using Inventory.Application.PriceLists.DTOs;
+using Inventory.Application.PriceLists.DTOs;
 using MediatR;
 
 public record CreatePriceListCommand(

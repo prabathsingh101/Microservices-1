@@ -2,8 +2,8 @@ namespace Inventory.Application.PurchaseOrders.DTOs
 {
     public class UpdatePurchaseOrderDto
     {
-        public int Id { get; set; }
-        public int SupplierId { get; set; }
+        public Guid Id { get; set; }
+        public Guid SupplierId { get; set; }
         public string? SupplierName { get; set; }
         public string? PoNumber { get; set; }
         public Guid PriceListId { get; set; }
@@ -14,7 +14,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
-        public string? UpdatedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalTax { get; set; }
         public decimal GrandTotal { get; set; }

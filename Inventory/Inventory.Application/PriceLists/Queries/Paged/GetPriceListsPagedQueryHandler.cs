@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Common.Models;
 using Inventory.Application.PriceLists.DTOs;
 using MediatR;
@@ -22,7 +22,7 @@ namespace Inventory.Application.PriceLists.Queries.Paged
         {
             var query = _repository.Query();
 
-            // 🔍 SEARCH
+            // ?? SEARCH
             if (!string.IsNullOrWhiteSpace(request.Request.Search))
             {
                 var search = request.Request.Search.ToLower();
@@ -31,7 +31,7 @@ namespace Inventory.Application.PriceLists.Queries.Paged
                     x.Code.ToLower().Contains(search));
             }
 
-            // 🔃 SORT
+            // ?? SORT
             query = request.Request.SortBy switch
             {
                 "name" => request.Request.SortDirection == "asc"

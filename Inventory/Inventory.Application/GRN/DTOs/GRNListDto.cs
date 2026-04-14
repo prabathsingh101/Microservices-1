@@ -4,11 +4,11 @@ namespace Inventory.Application.GRN.DTOs
 {
     public class GRNListDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string GRNNo { get; set; }
         public string RefPO { get; set; }
         public string SupplierName { get; set; }
-        public int SupplierId { get; set; }  // For payment navigation
+        public Guid SupplierId { get; set; }  // For payment navigation
         public DateTime ReceivedDate { get; set; }
         public string Status { get; set; } // Completed or Partial
         public string? GatePassNo { get; set; }

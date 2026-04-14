@@ -1,16 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Inventory.Domain.Common;
 
 namespace Inventory.Domain.Entities.SO
 {
-    public class SaleOrderItem
+    public class SaleOrderItem : BaseAuditableEntity
     {
         [Key]
-        
-        public int Id { get; set; } // Primary Key [cite: 6]
+        public Guid Id { get; set; } = Guid.NewGuid();
 
         [Required]
-        public int SaleOrderId { get; set; } // SaleOrder link [cite: 6]
+        public Guid SaleOrderId { get; set; } // SaleOrder link [cite: 6]
 
         [ForeignKey("SaleOrderId")]
         public virtual SaleOrder SaleOrder { get; set; }

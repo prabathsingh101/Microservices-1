@@ -5,7 +5,7 @@ namespace Inventory.Application.GatePasses.DTOs
 {
     public class GatePassDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string PassNo { get; set; }
         public string PassType { get; set; }
         public int ReferenceType { get; set; }
@@ -25,7 +25,7 @@ namespace Inventory.Application.GatePasses.DTOs
         public int Status { get; set; }
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
-        public DateTime? CreatedAt { get; set; }
+        public DateTime? CreatedOn { get; set; }
 
         public static GatePassDto FromEntity(GatePass entity)
         {
@@ -51,7 +51,7 @@ namespace Inventory.Application.GatePasses.DTOs
                 Status = entity.Status,
                 Remarks = entity.Remarks,
                 CreatedBy = entity.CreatedBy,
-                CreatedAt = entity.CreatedAt
+                CreatedOn = entity.CreatedOn
             };
         }
     }

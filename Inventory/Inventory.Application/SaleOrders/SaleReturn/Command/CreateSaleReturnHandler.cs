@@ -61,7 +61,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     CreatedOn = DateTime.Now,
                     CreatedBy = i.CreatedBy ?? dto.CreatedBy,
                     ModifiedBy = i.ModifiedBy ?? dto.ModifiedBy,
-                    UpdatedOn = DateTime.Now
+                    ModifiedOn = DateTime.Now
                 };
             }).ToList();
 
@@ -77,7 +77,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 CreatedOn = DateTime.Now,
                 CreatedBy = dto.CreatedBy,
                 ModifiedBy = dto.ModifiedBy,
-                UpdatedOn = DateTime.Now,
+                ModifiedOn = DateTime.Now,
                 
                 // Header Level Aggregations
                 SubTotal = items.Sum(x => x.ReturnQty * x.UnitPrice),

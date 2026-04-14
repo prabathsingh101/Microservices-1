@@ -6,10 +6,10 @@ namespace Inventory.Application.SaleOrders.DTOs
 {
     public class SaleOrderDetailDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string SoNumber { get; set; } = string.Empty;
         public DateTime SoDate { get; set; }
-        public int CustomerId { get; set; }
+        public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = "Loading..."; // Placeholder for Microservice data
         public string Status { get; set; } = string.Empty;
         public decimal GrandTotal { get; set; }

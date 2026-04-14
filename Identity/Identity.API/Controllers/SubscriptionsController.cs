@@ -26,7 +26,7 @@ namespace Identity.API.Controllers
                 {
                     s.Id,
                     s.CompanyId,
-                    CustomerName = s.CompanyName,
+                    CustomerName = s.CompanyName ?? "Unknown Company",
                     s.PlanType,
                     s.StartDate,
                     s.EndDate,

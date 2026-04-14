@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.PriceLists.DTOs;
 
@@ -34,8 +34,8 @@ public sealed class GetPriceListsQueryHandler
             remarks = pl.Remarks,
             createdOn = pl.CreatedOn,
             createdBy = pl.CreatedBy,
-            updatedOn = pl.UpdatedOn,
-            updatedBy = pl.UpdatedBy,
+            ModifiedOn = pl.ModifiedOn,
+            ModifiedBy = pl.ModifiedBy,
           
         }).ToList();
     }

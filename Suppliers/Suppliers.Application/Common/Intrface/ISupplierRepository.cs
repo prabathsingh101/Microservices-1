@@ -1,14 +1,22 @@
-﻿using Suppliers.Application.DTOs;
+using Suppliers.Application.DTOs;
+using Suppliers.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-public interface ISupplierRepository
+namespace Suppliers.Application.Common.Interfaces
 {
-    IQueryable<Supplier> Query();
-    Task<Supplier?> GetByIdAsync(int id);
-    Task<bool> ExistsAsync(int id);
-    Task<IEnumerable<Supplier>> GetAllAsync();
-    Task AddAsync(Supplier supplier);
-    Task UpdateAsync(Supplier supplier);
-    Task SaveChangesAsync();
-    Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<int> ids);
-    Task<List<int>> GetIdsByNameAsync(string name);
+    public interface ISupplierRepository
+    {
+        IQueryable<Supplier> Query();
+        Task<Supplier?> GetByIdAsync(Guid id);
+        Task<bool> ExistsAsync(Guid id);
+        Task<IEnumerable<Supplier>> GetAllAsync();
+        Task AddAsync(Supplier supplier);
+        Task UpdateAsync(Supplier supplier);
+        Task SaveChangesAsync();
+        Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<Guid> ids);
+        Task<List<Guid>> GetIdsByNameAsync(string name);
+    }
 }

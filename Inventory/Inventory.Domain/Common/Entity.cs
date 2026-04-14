@@ -1,4 +1,4 @@
-﻿namespace Inventory.Domain.Common;
+namespace Inventory.Domain.Common;
 
 public abstract class Entity
 {

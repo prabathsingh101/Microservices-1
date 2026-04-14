@@ -89,7 +89,7 @@ namespace Inventory.Infrastructure.Repositories
                 "soref" => "SaleOrder.SONumber",
                 "customername" => "CustomerId", // Proxy sort by ID for remote names
                 "createdon" => "CreatedOn",
-                "id" => "SaleReturnHeaderId",
+                "id" => "Id",
                 _ => "CreatedOn" // Default newest record first
             };
 
@@ -107,7 +107,7 @@ namespace Inventory.Infrastructure.Repositories
                 .Take(pageSize)
                 .Select(x => new SaleReturnListDto
                 {
-                    SaleReturnHeaderId = x.SaleReturnHeaderId,
+                    SaleReturnHeaderId = x.Id,
                     ReturnNumber = x.ReturnNumber,
                     ReturnDate = x.ReturnDate,
                     CustomerId = x.CustomerId,
@@ -213,7 +213,7 @@ namespace Inventory.Infrastructure.Repositories
             });
         }
 
-        public async Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null)
+        public async Task<decimal> GetRemainingReturnableQtyAsync(Guid saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null)
         {
             // 1. Get total quantity sold for THIS specifically batch-matched line item
             var totalSold = await _context.SaleOrderItems
@@ -303,7 +303,7 @@ namespace Inventory.Infrastructure.Repositories
                 .OrderByDescending(x => x.ReturnDate)
                 .Select(x => new PendingSRDto
                 {
-                    Id = x.SaleReturnHeaderId,
+                    Id = x.Id,
                     ReturnNumber = x.ReturnNumber,
                     ReturnDate = x.ReturnDate,
                     Status = x.Status,
@@ -321,7 +321,7 @@ namespace Inventory.Infrastructure.Repositories
                 .AsNoTracking()
                 .Where(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
                 .OrderByDescending(x => x.ReturnDate)
-                .Select(x => new { x.SaleReturnHeaderId, x.CustomerId })
+                .Select(x => new { x.Id, x.CustomerId })
                 .ToListAsync();
 
             var customerIds = detailedReturns.Select(x => x.CustomerId).Distinct().ToList();
@@ -329,7 +329,7 @@ namespace Inventory.Infrastructure.Repositories
 
             foreach (var r in returns)
             {
-                var original = detailedReturns.First(x => x.SaleReturnHeaderId == r.Id);
+                var original = detailedReturns.First(x => x.Id == r.Id);
                 r.CustomerName = customerMap != null && customerMap.ContainsKey(original.CustomerId) 
                                  ? customerMap[original.CustomerId] 
                                  : "Unknown Customer";
@@ -338,10 +338,10 @@ namespace Inventory.Infrastructure.Repositories
             return returns;
         }
 
-        public async Task<bool> BulkInwardAsync(List<int> ids)
+        public async Task<bool> BulkInwardAsync(List<Guid> ids)
         {
             var records = await _context.SaleReturnHeaders
-                .Where(x => ids.Contains(x.SaleReturnHeaderId))
+                .Where(x => ids.Contains(x.Id))
                 .ToListAsync();
 
             if (!records.Any()) return false;
@@ -363,12 +363,12 @@ namespace Inventory.Infrastructure.Repositories
             return true;
         }
 
-        public async Task<SaleReturnHeader?> GetSaleReturnByIdAsync(int id)
+        public async Task<SaleReturnHeader?> GetSaleReturnByIdAsync(Guid id)
         {
             return await _context.SaleReturnHeaders
                 .Include(x => x.ReturnItems)
                 .ThenInclude(i => i.Product)
-                .FirstOrDefaultAsync(x => x.SaleReturnHeaderId == id);
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
     }
 }

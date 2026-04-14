@@ -44,7 +44,7 @@ internal sealed class UpdateProductCommandHandler
             trackinventory: request.trackinventory,
             isactive: request.isactive,
             description: request.description,
-            updatedby: request.updatedby,
+            ModifiedBy: request.ModifiedBy,
             productType: request.productType,
             damagedStock: request.damagedStock,
             defaultWarehouseId: request.defaultwarehouseid,

@@ -72,7 +72,7 @@ namespace Inventory.Infrastructure.Repositories
         //        {
         //            item.GRNHeaderId = header.Id;
         //            item.CreatedOn = DateTime.Now;
-        //            item.UpdatedOn = DateTime.Now;
+        //            item.ModifiedOn = DateTime.Now;
 
         //            await _context.GRNDetails.AddAsync(item);
 
@@ -111,7 +111,7 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<string> SaveGRNWithStockUpdate(GRNHeader header, List<GRNDetail> details)
         {
-            if (header.PurchaseOrderId == 0)
+            if (header.PurchaseOrderId == Guid.Empty)
             {
                 throw new Exception("Purchase Order Reference is missing. Cannot save GRN.");
             }
@@ -158,9 +158,9 @@ namespace Inventory.Infrastructure.Repositories
                     foreach (var item in details)
                     {
                         // Link detail to header (EF will automatically fill header.Id on save)
-                        item.GRNHeaderId = 0; // Will be set by EF navigation 
+                        item.GRNHeaderId = Guid.Empty; // Will be set by EF navigation 
                         item.CreatedOn = DateTime.Now;
-                        item.UpdatedOn = DateTime.Now;
+                        item.ModifiedOn = DateTime.Now;
                         
                         // Add detail to header collection
                         header.GRNItems ??= new List<GRNDetail>();
@@ -278,18 +278,18 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<string> GenerateGRNNumber()
         {
-            var lastId = await _context.GRNHeaders.OrderByDescending(x => x.Id).Select(x => x.Id).FirstOrDefaultAsync();
-            return $"GRN-{DateTime.Now.Year}-{(lastId + 1022 + 1)}";
+            var count = await _context.GRNHeaders.CountAsync();
+            return $"GRN-{DateTime.Now.Year}-{(count + 1022 + 1)}";
         }
 
-        public async Task<POForGRNDTO?> GetPODataForGRN(string poIds, int? grnHeaderId = null, string? gatePassNo = null)
+        public async Task<POForGRNDTO?> GetPODataForGRN(string poIds, Guid? grnHeaderId = null, string? gatePassNo = null)
         {
-            var idList = new List<int>();
+            var idList = new List<Guid>();
             if (!string.IsNullOrEmpty(poIds))
             {
                 idList = poIds.Split(',')
-                              .Select(s => int.TryParse(s, out int id) ? id : 0)
-                              .Where(id => id > 0)
+                              .Select(s => Guid.TryParse(s, out Guid id) ? id : Guid.Empty)
+                              .Where(id => id != Guid.Empty)
                               .ToList();
             }
 
@@ -301,7 +301,7 @@ namespace Inventory.Infrastructure.Repositories
                     .Select(x => x.PurchaseOrderId)
                     .FirstOrDefaultAsync();
 
-                if (poId > 0) idList.Add(poId);
+                if (poId != Guid.Empty) idList.Add(poId);
                 else return null; 
             }
 
@@ -325,12 +325,12 @@ namespace Inventory.Infrastructure.Repositories
             // 4. Map DTO
             var dto = new POForGRNDTO
             {
-                POHeaderId = isBulk ? 0 : firstPO.Id,
+                POHeaderId = isBulk ? Guid.Empty : firstPO.Id,
                 PONumber = isBulk ? string.Join(", ", pos.Select(p => p.PoNumber)) : (firstPO.PoNumber ?? ""),
                 GrnNumber = grnHeaderId != null ?
                             _context.GRNHeaders.Where(x => x.Id == grnHeaderId).Select(x => x.GRNNumber).FirstOrDefault() :
                             "AUTO-GEN",
-                SupplierId = sameSupplier ? allSupplierIds.First() : 0,
+                SupplierId = sameSupplier ? allSupplierIds.First() : Guid.Empty,
                 SupplierName = sameSupplier ? (pos.First().SupplierName ?? "Unknown") : "Multiple Suppliers",
                 Remarks = grnHeaderId != null ?
                           _context.GRNHeaders.Where(x => x.Id == grnHeaderId).Select(x => x.Remarks).FirstOrDefault() : ""
@@ -341,7 +341,7 @@ namespace Inventory.Infrastructure.Repositories
             if (grnHeaderId != null)
             {
                 // VIEW MODE: Saved GRN details load karein (Assuming View Mode is always for 1 GRN linked to 1 PO)
-                int singlePoId = idList.First();
+                Guid singlePoId = idList.First();
                 items = await (from d in _context.GRNDetails
                              join poi in _context.PurchaseOrderItems on new { d.GRNHeader.PurchaseOrderId, d.ProductId } equals new { poi.PurchaseOrderId, poi.ProductId }
                              where d.GRNHeaderId == grnHeaderId
@@ -646,7 +646,7 @@ namespace Inventory.Infrastructure.Repositories
             // Step 3: Supplier Microservice Call
             try
             {
-                var suppliers = await _supplierClient.GetSuppliersByIdsAsync(new List<int> { grnData.SupplierId });
+                var suppliers = await _supplierClient.GetSuppliersByIdsAsync(new List<Guid> { grnData.SupplierId });
                 grnData.SupplierName = suppliers.FirstOrDefault()?.Name ?? "Supplier Not Found";
             }
             catch

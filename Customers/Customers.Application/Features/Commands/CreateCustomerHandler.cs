@@ -1,13 +1,15 @@
-﻿using Customers.Application.Common.Interfaces;
+using Customers.Application.Common.Interfaces;
 using Customers.Application.Features.Commands;
 using Customers.Domain.Entities;
 using MediatR;
-using static Customers.Domain.Entities.Customer;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Customers.Application.Features.Handlers;
 
 public class CreateCustomerHandler
-    : IRequestHandler<CreateCustomerCommand, int>
+    : IRequestHandler<CreateCustomerCommand, Guid>
 {
     private readonly ICustomerRepository _repo;
 
@@ -16,29 +18,29 @@ public class CreateCustomerHandler
         _repo = repo;
     }
 
-    public async Task<int> Handle(
+    public async Task<Guid> Handle(
         CreateCustomerCommand request,
         CancellationToken cancellationToken)
     {
         var dto = request.Dto;
 
         var customer = new Customer(
-            dto.CustomerName,
-            dto.CustomerType,
-            dto.Phone,
+            dto.CustomerName ?? string.Empty,
+            dto.CustomerType ?? "Regular",
+            dto.Phone ?? string.Empty,
             dto.Email,
             dto.GstNumber,
-            dto.CreditLimit,
-            new Address(dto.BillingAddress),
+            dto.CreditLimit, // Changed from dto.CreditLimit ?? 0m because it's not nullable
+            new Address(dto.BillingAddress ?? string.Empty),
             string.IsNullOrWhiteSpace(dto.ShippingAddress)
                 ? null
                 : new Address(dto.ShippingAddress),
-            dto.CustomerStatus,
-            dto.CreatedBy
+            dto.CustomerStatus ?? "Active",
+            dto.CreatedBy ?? "System"
         );
 
         await _repo.AddAsync(customer);
 
-        return customer.Id;   // INT
+        return customer.Id;
     }
 }

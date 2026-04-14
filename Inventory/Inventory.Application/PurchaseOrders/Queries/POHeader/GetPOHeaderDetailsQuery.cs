@@ -1,4 +1,4 @@
-﻿using Inventory.Application.PurchaseOrders.DTOs;
+using Inventory.Application.PurchaseOrders.DTOs;
 using MediatR;
 
-public record GetPOHeaderDetailsQuery(int PurchaseOrderId) : IRequest<POHeaderDetailsDto>;
+public record GetPOHeaderDetailsQuery(Guid PurchaseOrderId) : IRequest<POHeaderDetailsDto>;

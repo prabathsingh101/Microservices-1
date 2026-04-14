@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Common;
+using Inventory.Domain.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,8 +7,8 @@ namespace Inventory.Domain.Entities
 {
     public class GRNDetail: BaseAuditableEntity
     {
-        public int Id { get; set; }
-        public int GRNHeaderId { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid GRNHeaderId { get; set; }
         public GRNHeader GRNHeader { get; set; }
         public Guid ProductId { get; set; }    
         public Product Product { get; set; }

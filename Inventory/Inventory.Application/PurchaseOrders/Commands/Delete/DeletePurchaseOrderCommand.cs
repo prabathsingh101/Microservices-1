@@ -1,3 +1,3 @@
-﻿using MediatR;
+using MediatR;
 
-public record DeletePurchaseOrderCommand(int Id) : IRequest<bool>;
+public record DeletePurchaseOrderCommand(Guid Id) : IRequest<bool>;

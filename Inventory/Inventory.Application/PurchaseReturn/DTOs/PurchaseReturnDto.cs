@@ -6,7 +6,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
 {
     public class PurchaseReturnDto
     {
-        public int SupplierId { get; set; } // Changed to int [cite: 2026-02-03]
+        public Guid SupplierId { get; set; } // Changed to Guid
         public DateTime ReturnDate { get; set; }
         public string Remarks { get; set; }
         public bool IsQuick { get; set; }

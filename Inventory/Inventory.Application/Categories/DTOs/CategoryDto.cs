@@ -1,4 +1,4 @@
-﻿namespace Inventory.Application.Categories.DTOs;
+namespace Inventory.Application.Categories.DTOs;
 
 public sealed class CategoryDto
 {

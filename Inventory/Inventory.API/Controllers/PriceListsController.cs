@@ -1,4 +1,4 @@
-﻿using Inventory.API.Common;
+using Inventory.API.Common;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Common.Models;
 using Inventory.Application.PriceLists.Commands.DeletePriceList;

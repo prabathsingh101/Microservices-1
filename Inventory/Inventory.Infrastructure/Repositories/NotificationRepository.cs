@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -33,7 +33,7 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<int> GetUnreadCountAsync() =>
             await _context.AppNotifications.CountAsync(n => !n.IsRead);
 
-        public async Task<bool> MarkAsReadAsync(long id)
+        public async Task<bool> MarkAsReadAsync(Guid id)
         {
             var notif = await _context.AppNotifications.FindAsync(id);
             if (notif == null) return false;

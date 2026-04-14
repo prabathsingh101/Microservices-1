@@ -871,7 +871,7 @@ namespace Inventory.Infrastructure.Repositories
                 .OrderByDescending(t => t.CreatedOn)
                 .Select(t => new BatchTransactionDto
                 {
-                    TransactionDate = t.CreatedOn.AddHours(5).AddMinutes(30), // IST
+                    TransactionDate = t.CreatedOn.HasValue ? t.CreatedOn.Value.AddHours(5).AddMinutes(30) : DateTime.UtcNow, // IST
                     TransactionType = t.TransactionType,
                     ReferenceId = t.ReferenceId,
                     Quantity = t.Quantity,

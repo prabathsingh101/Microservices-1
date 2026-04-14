@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Categories.DTOs;
+using Inventory.Application.Categories.DTOs;
 using Inventory.Application.Subcategories.DTOs;
 using MediatR;
 using System;

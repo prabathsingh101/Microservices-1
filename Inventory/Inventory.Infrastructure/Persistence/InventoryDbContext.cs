@@ -8,8 +8,15 @@ namespace Inventory.Infrastructure.Persistence;
 public sealed class InventoryDbContext : DbContext,
     Application.Common.Interfaces.IInventoryDbContext
 {
-    public InventoryDbContext(DbContextOptions<InventoryDbContext> options)
-        : base(options) { }
+    private readonly Application.Common.Interfaces.ICurrentUserService _currentUserService;
+
+    public InventoryDbContext(
+        DbContextOptions<InventoryDbContext> options,
+        Application.Common.Interfaces.ICurrentUserService currentUserService)
+        : base(options) 
+    {
+        _currentUserService = currentUserService;
+    }
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Subcategory> Subcategories => Set<Subcategory>();
@@ -114,14 +121,21 @@ public sealed class InventoryDbContext : DbContext,
         // SaleReturn Configurations
         modelBuilder.Entity<SaleReturnHeader>(builder =>
         {
+            builder.HasKey(x => x.Id);
             builder.Property(x => x.SubTotal).HasPrecision(18, 2);
             builder.Property(x => x.TaxAmount).HasPrecision(18, 2);
             builder.Property(x => x.DiscountAmount).HasPrecision(18, 2);
             builder.Property(x => x.TotalAmount).HasPrecision(18, 2);
+
+            builder.HasMany(x => x.ReturnItems)
+                   .WithOne(x => x.SaleReturnHeader)
+                   .HasForeignKey(x => x.SaleReturnHeaderId)
+                   .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SaleReturnItem>(builder =>
         {
+            builder.HasKey(x => x.Id);
             builder.Property(x => x.ReturnQty).HasPrecision(18, 2);
             builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
             builder.Property(x => x.DiscountPercent).HasPrecision(18, 2);
@@ -205,36 +219,62 @@ public sealed class InventoryDbContext : DbContext,
             entity.Property(e => e.TaxAmount).HasPrecision(18, 2);
             entity.Property(e => e.Total).HasPrecision(18, 2);
         });
+
+        // --- 🔒 GLOBAL MULTI-TENANT FILTER ---
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(Inventory.Domain.Common.IMultiTenant).IsAssignableFrom(entityType.ClrType))
+            {
+                var method = typeof(InventoryDbContext).GetMethod(nameof(SetGlobalQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.MakeGenericMethod(entityType.ClrType);
+                method?.Invoke(this, new object[] { modelBuilder });
+            }
+        }
+    }
+
+    private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, Inventory.Domain.Common.IMultiTenant
+    {
+        modelBuilder.Entity<TEntity>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        ApplyIndianTime();
+        ApplyAuditAndTenantInfo();
         return base.SaveChangesAsync(cancellationToken);
     }
 
     public override int SaveChanges()
     {
-        ApplyIndianTime();
+        ApplyAuditAndTenantInfo();
         return base.SaveChanges();
     }
 
-    private void ApplyIndianTime()
+    private void ApplyAuditAndTenantInfo()
     {
         var entries = ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
         DateTime utcNow = DateTime.UtcNow;
+        var currentCompanyId = _currentUserService.CompanyId;
 
         foreach (var entry in entries)
         {
             var entity = entry.Entity;
             var type = entity.GetType();
 
+            // Set CompanyId for Multi-tenant entities
+            if (entry.State == EntityState.Added && entity is Inventory.Domain.Common.IMultiTenant tenantEntity)
+            {
+                if (tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty)
+                {
+                    tenantEntity.CompanyId = currentCompanyId;
+                }
+            }
+
             if (entry.State == EntityState.Added)
             {
-                // Handle Creation Date
-                var createdProps = new[] { "CreatedOn", "CreatedDate", "CreatedAt", "CreatedDateTim" };
+                // ... same creation logic ...
+                var createdProps = new[] { "CreatedOn", "CreatedOn", "CreatedAt", "CreatedOnTim" };
                 foreach (var propName in createdProps)
                 {
                     var prop = type.GetProperty(propName);
@@ -248,9 +288,8 @@ public sealed class InventoryDbContext : DbContext,
                     }
                 }
             }
-
-            // Handle Update Date (for both Added and Modified)
-            var updateProps = new[] { "UpdatedOn", "UpdatedDate", "ModifiedOn", "UpdatedAt" };
+            // ... same update logic ...
+            var updateProps = new[] { "ModifiedOn", "ModifiedOn", "ModifiedOn", "UpdatedAt" };
             foreach (var propName in updateProps)
             {
                 var prop = type.GetProperty(propName);

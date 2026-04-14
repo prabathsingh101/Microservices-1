@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Clients;
+using Inventory.Application.Clients;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Services;
 using MediatR;

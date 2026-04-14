@@ -42,7 +42,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("GetPOData")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetPOData([FromQuery] string poIds, [FromQuery] int? grnHeaderId = null, [FromQuery] string? gatePassNo = null)
+        public async Task<IActionResult> GetPOData([FromQuery] string poIds, [FromQuery] Guid? grnHeaderId = null, [FromQuery] string? gatePassNo = null)
         {
             // Mediator query mein ab string poIds jayenge
             var data = await _mediator.Send(new GetPOForGRNQuery(poIds, grnHeaderId, gatePassNo));

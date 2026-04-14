@@ -1,4 +1,4 @@
-﻿namespace Identity.Application.Interfaces;
+namespace Identity.Application.Interfaces;
 
 public interface IUserRepository
 {
@@ -13,5 +13,6 @@ public interface IUserRepository
     Task<User?> GetByResetTokenAsync(string resetToken);
     Task<User?> GetByIdAsync(Guid id);
     Task<List<User>> GetAllUsersAsync();
+    Task<List<User>> GetByCompanyAsync(Guid companyId);
     Task UpdateAsync(User user);
 }

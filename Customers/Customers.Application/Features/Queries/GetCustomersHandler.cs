@@ -1,4 +1,4 @@
-﻿using Customers.Application.Common.Interfaces;
+using Customers.Application.Common.Interfaces;
 using Customers.Application.DTOs;
 using Customers.Application.Features.Queries;
 using MediatR;

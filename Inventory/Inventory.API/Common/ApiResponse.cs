@@ -1,4 +1,4 @@
-﻿namespace Inventory.API.Common;
+namespace Inventory.API.Common;
 
 public sealed class ApiResponse<T>
 {

@@ -1,6 +1,6 @@
-﻿namespace Inventory.Domain.Entities;
+namespace Inventory.Domain.Entities;
 
-public class Category
+public class Category : Inventory.Domain.Common.BaseAuditableEntity
 {
     public Guid Id { get; private set; }
     public string? CategoryCode { get; set; } = null!;
@@ -14,11 +14,6 @@ public class Category
     public virtual Category? ParentCategory { get;  set; } // Self-referencing property
     public virtual ICollection<Category> SubCategories { get;  set; } = new List<Category>();
     // --- Subcategory Logic End ---
-
-    public DateTime? CreatedOn { get; set; }
-    public DateTime? UpdatedOn { get; set; }
-    public int? UpdatedBy { get; set; }
-    public int? CreatedBy { get; set; }
 
     public Category() { } // EF Core
 

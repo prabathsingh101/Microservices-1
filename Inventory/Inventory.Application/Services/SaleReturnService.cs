@@ -72,14 +72,14 @@ public class SaleReturnService : ISaleReturnService
         return await _repository.CreateSaleReturnAsync(entity);
     }
 
-    public async Task<CreditNotePrintDto?> GetPrintDataAsync(int id)
+    public async Task<CreditNotePrintDto?> GetPrintDataAsync(Guid id)
     {
         // 1. Database se core data fetch karein (SaleOrders ke saath Join karke)
         var data = await _context.SaleReturnHeaders
             .AsNoTracking()
             .Include(h => h.ReturnItems)
             .ThenInclude(i => i.Product)
-            .Where(h => h.SaleReturnHeaderId == id)
+            .Where(h => h.Id == id)
             .Select(h => new CreditNotePrintDto
             {
                 ReturnNumber = h.ReturnNumber,
@@ -121,7 +121,7 @@ public class SaleReturnService : ISaleReturnService
         }
 
         // 2. Customer Name laane ke liye Helper Method (Dictionary Logic)
-        var customerIds = new List<int> { data.CustomerId };
+        var customerIds = new List<Guid> { data.CustomerId };
         var customerNames = await _customerHttpService.GetCustomerNamesAsync(customerIds);
 
         if (customerNames != null && customerNames.ContainsKey(data.CustomerId))
@@ -154,7 +154,8 @@ public class SaleReturnService : ISaleReturnService
         var data = await _repository.GetExportDataAsync(fromDate, toDate);
 
         // Microservice se names laao [cite: 2026-02-06]
-        var customerIds = data.Select(x => int.Parse(x.CustomerName)).Distinct().ToList();
+        var customerIds = data.Select(x => Guid.TryParse(x.CustomerName, out Guid g) ? g : Guid.Empty)
+                              .Where(g => g != Guid.Empty).Distinct().ToList();
         var customerNames = await _customerHttpService.GetCustomerNamesAsync(customerIds);
 
         using (var workbook = new XLWorkbook())
@@ -172,7 +173,7 @@ public class SaleReturnService : ISaleReturnService
             int row = 2;
             foreach (var item in data)
             {
-                int cId = int.Parse(item.CustomerName);
+                Guid cId = Guid.TryParse(item.CustomerName, out Guid g) ? g : Guid.Empty;
                 worksheet.Cell(row, 1).Value = item.ReturnNumber;
                 worksheet.Cell(row, 2).Value = item.ReturnDate;
                 // Name replace karein [cite: 2026-02-06]

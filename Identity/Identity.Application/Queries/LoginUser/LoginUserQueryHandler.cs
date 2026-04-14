@@ -15,6 +15,7 @@ public class LoginUserQueryHandler
     private readonly IJwtService _jwt;
     private readonly IUnitOfWork _uow;
     private readonly ISubscriptionRepository _subscriptions;
+    private readonly IRolePermissionRepository _permissionRepository;
 
     public LoginUserQueryHandler(
         IUserRepository users,
@@ -22,7 +23,8 @@ public class LoginUserQueryHandler
         IPasswordHasher<User> hasher,
         IJwtService jwt,
         IUnitOfWork uow,
-        ISubscriptionRepository subscriptions)
+        ISubscriptionRepository subscriptions,
+        IRolePermissionRepository permissionRepository)
     {
         _users = users;
         _tokens = tokens;
@@ -30,16 +32,19 @@ public class LoginUserQueryHandler
         _jwt = jwt;
         _uow = uow;
         _subscriptions = subscriptions;
+        _permissionRepository = permissionRepository;
     }
 
     public async Task<Result<AuthResponse>> Handle(
     LoginUserQuery request,
     CancellationToken ct)
     {
+        // 1. Fetch user with roles
         var user = await _users.GetWithRolesByEmailAsync(request.Dto.Email);
         if (user == null)
             return Result<AuthResponse>.Failure("Invalid credentials");
 
+        // 2. Verify Password
         var verify = _hasher.VerifyHashedPassword(
             user,
             user.PasswordHash,
@@ -48,7 +53,8 @@ public class LoginUserQueryHandler
         if (verify == PasswordVerificationResult.Failed)
             return Result<AuthResponse>.Failure("Invalid credentials");
 
-        // --- Company Subscription Check ---
+        // 3. Company Subscription Check
+        string? companyName = null;
         bool isExpired = false;
         string subStatus = "Active";
 
@@ -57,6 +63,7 @@ public class LoginUserQueryHandler
             var subscription = await _subscriptions.GetByCompanyIdAsync(user.CompanyId.Value);
             if (subscription != null)
             {
+                companyName = subscription.CompanyName;
                 if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
                 {
                     isExpired = true;
@@ -69,27 +76,30 @@ public class LoginUserQueryHandler
             }
             else 
             {
-                // No subscription record found for company -> Treat as no access or default trial?
-                // For now, let's assume active if missing to avoid locking out existing data during transition
                 subStatus = "No Subscription";
             }
         }
 
-        // ✅ SAFE: bulk revoke
+        // 4. Fetch Permissions for all User Roles
+        var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
+        var aggregatedPermissions = await _permissionRepository.GetAggregatedPermissionsAsync(roleIds);
+
+        // 5. Revoke old tokens
         await _tokens.RevokeAllAsync(user.Id);
 
-        var roles = user.UserRoles
-            .Select(r => r.Role.RoleName)
+        var rolesStrings = user.UserRoles
+            .Select(r => r.Role?.RoleName ?? "User")
             .ToList();
 
-        // 1. Generate Auth object (Yahan check karein ki Generate method ID set karta hai ya nahi)
-        var auth = _jwt.Generate(user, roles);
+        // 6. Generate JWT
+        var auth = _jwt.Generate(user, rolesStrings, companyName);
 
-        // 2. Explicitly mapping UserId (AGAR auth.UserId zero/empty aa raha hai toh ye line zaroori hai)
-        auth.UserId = user.Id;
+        // 7. Additional mapping
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
+        auth.Permissions = aggregatedPermissions.ToList();
 
+        // 8. Add Refresh Token
         await _tokens.AddAsync(
             new RefreshToken(
                 user.Id,
@@ -98,7 +108,6 @@ public class LoginUserQueryHandler
 
         await _uow.SaveChangesAsync(ct);
 
-        // 3. Return the fully mapped response
         return Result<AuthResponse>.Success(auth);
     }
 }

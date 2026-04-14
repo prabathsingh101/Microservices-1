@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,7 +20,7 @@ public class NotificationsController : ControllerBase
 
     [HttpPost("{id}/mark-read")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> MarkRead(long id)
+    public async Task<IActionResult> MarkRead(Guid id)
     {
         var result = await _repo.MarkAsReadAsync(id);
         return result ? Ok() : BadRequest("Notification not found");

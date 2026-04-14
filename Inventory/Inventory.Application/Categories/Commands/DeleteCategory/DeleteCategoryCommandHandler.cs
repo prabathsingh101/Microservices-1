@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using MediatR;
 
 internal sealed class DeleteCategoryCommandHandler
@@ -24,7 +24,7 @@ internal sealed class DeleteCategoryCommandHandler
         if (category is null)
             throw new KeyNotFoundException("Category not found");
 
-        // ✅ BUSINESS RULE
+        // ? BUSINESS RULE
         if (await _repository.HasSubcategoriesAsync(request.Id))
             throw new InvalidOperationException(
                 "Cannot delete category with subcategories");

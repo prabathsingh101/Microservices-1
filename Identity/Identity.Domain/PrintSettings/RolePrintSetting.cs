@@ -6,18 +6,21 @@ namespace Identity.Domain.PrintSettings;
 public class RolePrintSetting
 {
     [Key]
-    public int Id { get; set; }
-    public int RoleId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid RoleId { get; set; }
+    public Guid? CompanyId { get; set; }
     public string PageName { get; set; } = string.Empty;
     public string PrintFormat { get; set; } = string.Empty; // "A4" or "THERMAL"
 
     public Role? Role { get; private set; }
 
-    public RolePrintSetting(int roleId, string pageName, string printFormat)
+    public RolePrintSetting(Guid roleId, string pageName, string printFormat, Guid? companyId = null)
     {
+        Id = Guid.NewGuid();
         RoleId = roleId;
         PageName = pageName;
         PrintFormat = printFormat;
+        CompanyId = companyId;
     }
 
     public RolePrintSetting() { }

@@ -34,7 +34,7 @@ public class SaleOrderController : ControllerBase
 
     [HttpPost("export")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-    public async Task<IActionResult> ExportSaleOrderReport([FromBody] List<int> orderIds) // Guid se int mein badla
+    public async Task<IActionResult> ExportSaleOrderReport([FromBody] List<Guid> orderIds) // Guid
     {
         // 1. Validation check karein taaki 400 error handle ho sake
         if (orderIds == null || !orderIds.Any())
@@ -116,7 +116,7 @@ public class SaleOrderController : ControllerBase
 
     [HttpPatch("{id}/status")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] StatusUpdateDto request)
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] StatusUpdateDto request)
     {
         if (request == null || string.IsNullOrEmpty(request.Status))
             return BadRequest("Status data is missing.");
@@ -139,7 +139,7 @@ public class SaleOrderController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _mediator.Send(new DeleteSaleOrderCommand(id));
         if (result)
@@ -157,7 +157,7 @@ public class SaleOrderController : ControllerBase
 
     [HttpGet("{id}")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-    public async Task<ActionResult<SaleOrderDetailDto>> GetOrder(int id)
+    public async Task<ActionResult<SaleOrderDetailDto>> GetOrder(Guid id)
     {
         var order = await _saleRepo.GetSaleOrderByIdAsync(id);
 
@@ -226,9 +226,9 @@ public class SaleOrderController : ControllerBase
 
     [HttpGet("orders-by-customer/{customerId}")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-    public async Task<IActionResult> GetOrdersByCustomer(int customerId)
+    public async Task<IActionResult> GetOrdersByCustomer(Guid customerId)
     {
-        if (customerId <= 0)
+        if (customerId == Guid.Empty)
         {
             return BadRequest("Invalid Customer Id");
         }
@@ -246,9 +246,9 @@ public class SaleOrderController : ControllerBase
 
     [HttpGet("grid-items/{saleOrderId}")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
-    public async Task<IActionResult> GetGridItems(int saleOrderId)
+    public async Task<IActionResult> GetGridItems(Guid saleOrderId)
     {
-        if (saleOrderId <= 0) return BadRequest("Invalid Sale Order ID");
+        if (saleOrderId == Guid.Empty) return BadRequest("Invalid Sale Order ID");
 
         // Repository se lightweight DTO list mangwana [cite: 2026-02-05]
         var items = await _saleRepo.GetItemsForGridByOrderIdAsync(saleOrderId);

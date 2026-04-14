@@ -1,4 +1,4 @@
-﻿public class PagedResponse<T>
+public class PagedResponse<T>
 {
     public List<T> Data { get; set; }
     public int TotalRecords { get; set; }

@@ -1,4 +1,4 @@
-﻿using Inventory.Application.PriceLists.DTOs;
+using Inventory.Application.PriceLists.DTOs;
 using MediatR;
 
 namespace Inventory.Application.PriceLists.Commands.UpdatePriceList;

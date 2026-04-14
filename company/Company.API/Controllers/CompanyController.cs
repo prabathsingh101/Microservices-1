@@ -1,4 +1,4 @@
-﻿using Company.Application.Company.Commands.Create;
+using Company.Application.Company.Commands.Create;
 using Company.Application.Company.Commands.Delete;
 using Company.Application.Company.Commands.Update;
 using Company.Application.Company.Commands.UploadLogo;
@@ -34,10 +34,10 @@ namespace Company.API.Controllers
 
         [HttpPut("update/{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpsertCompanyRequest req)
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpsertCompanyRequest req)
         {
             var resultId = await _mediator.Send(new UpdateCompanyCommand(id, req));
-            return resultId > 0 ? Ok(resultId) : NotFound();
+            return resultId != Guid.Empty ? Ok(resultId) : NotFound();
         }
 
         [HttpGet("profile")]
@@ -51,7 +51,7 @@ namespace Company.API.Controllers
         // 2. Get By ID
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _mediator.Send(new GetCompanyByIdQuery(id));
             return result != null ? Ok(result) : NotFound();
@@ -69,7 +69,7 @@ namespace Company.API.Controllers
         [HttpDelete("{id}")]
 
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var success = await _mediator.Send(new DeleteCompanyCommand(id));
             return success ? NoContent() : BadRequest("Could not delete profile.");
@@ -77,7 +77,7 @@ namespace Company.API.Controllers
 
         [HttpPost("upload-logo/{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> UploadLogo(int id, IFormFile file)
+        public async Task<IActionResult> UploadLogo(Guid id, IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
 

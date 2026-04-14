@@ -5,8 +5,7 @@ using MediatR;
 namespace Company.Application.Company.Queries
 {
     // Query
-    public record GetCompanyByIdQuery(int Id) : IRequest<CompanyProfileDto?>;
-
+    public record GetCompanyByIdQuery(Guid Id) : IRequest<CompanyProfileDto?>;
     // Handler
     public class GetCompanyByIdHandler : IRequestHandler<GetCompanyByIdQuery, CompanyProfileDto?>
     {

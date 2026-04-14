@@ -18,39 +18,39 @@ namespace Inventory.Application.Common.Interfaces
           string filter);
 
         Task<(IEnumerable<PurchaseOrder> Data, int Total, decimal TotalAmount, int TodayCount, int MonthCount)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request);
-        Task<PurchaseOrder?> GetByIdWithItemsAsync(int id, CancellationToken ct);
+        Task<PurchaseOrder?> GetByIdWithItemsAsync(Guid id, CancellationToken ct);
         void Update(PurchaseOrder po);
         void RemoveItem(PurchaseOrderItem item);
-        Task<bool> DeleteItemAsync(int itemId);
-        public Task<bool> BulkDeleteItemsAsync(List<int> itemIds);
-        Task UpdatePOTotalsAsync(int poId);
-        Task<PurchaseOrder> GetByIdAsync(int id);
-        Task<PurchaseOrder> GetByIdAsyncForUpdateStatus(int id);
+        Task<bool> DeleteItemAsync(Guid itemId);
+        public Task<bool> BulkDeleteItemsAsync(List<Guid> itemIds);
+        Task UpdatePOTotalsAsync(Guid poId);
+        Task<PurchaseOrder> GetByIdAsync(Guid id);
+        Task<PurchaseOrder> GetByIdAsyncForUpdateStatus(Guid id);
         void Delete(PurchaseOrder po);
-        Task<List<PurchaseOrder>> GetByIdsAsync(List<int> ids);
+        Task<List<PurchaseOrder>> GetByIdsAsync(List<Guid> ids);
         Task UpdateAsync(PurchaseOrder po);
-        Task<bool> UpdatePOStatusAsync(int id, string status);
+        Task<bool> UpdatePOStatusAsync(Guid id, string status);
         Task<bool> SaveChangesAsync();
         
         Task<IEnumerable<PendingPODto>> GetPendingPurchaseOrdersAsync();
 
-        Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(int poId);
+        Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(Guid poId);
 
-        Task<POHeaderDetailsDto?> GetPOHeaderAsync(int lastPurchaseOrderId);
+        Task<POHeaderDetailsDto?> GetPOHeaderAsync(Guid lastPurchaseOrderId);
 
         Task<ProductPriceDto?> GetPriceListRateAsync( Guid productId, Guid priceListId);
 
-        Task<bool> BulkSentForApprovalAsync(List<long> ids);
+        Task<bool> BulkSentForApprovalAsync(List<Guid> ids);
 
-        Task<bool> BulkApprovePOsAsync(List<long> ids, string approvedBy);
+        Task<bool> BulkApprovePOsAsync(List<Guid> ids, string approvedBy);
 
-        Task<bool> BulkRejectPOsAsync(List<long> ids, string rejectedBy);
+        Task<bool> BulkRejectPOsAsync(List<Guid> ids, string rejectedBy);
 
-        Task<PODocumentDto> GetPODetailsForPrintAsync(long id);
+        Task<PODocumentDto> GetPODetailsForPrintAsync(Guid id);
 
-        Task<PORepoPrintResponse> GeneratePOReportPdfAsync(long id);
-        Task<bool> ToggleDispatchStatusAsync(int id);
-        Task<decimal> GetTotalReturnedQtyAsync(int poId);
+        Task<PORepoPrintResponse> GeneratePOReportPdfAsync(Guid id);
+        Task<bool> ToggleDispatchStatusAsync(Guid id);
+        Task<decimal> GetTotalReturnedQtyAsync(Guid poId);
     }
 
     public interface IUnitOfWork

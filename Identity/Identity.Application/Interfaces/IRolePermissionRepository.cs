@@ -4,6 +4,8 @@ namespace Identity.Application.Interfaces;
 
 public interface IRolePermissionRepository
 {
-    Task<IEnumerable<RolePermission>> GetPermissionsByRoleIdAsync(int roleId);
-    Task UpdateRolePermissionsAsync(int roleId, IEnumerable<RolePermission> permissions);
+    Task<IEnumerable<RolePermission>> GetPermissionsByRoleIdAsync(Guid roleId);
+    Task UpdateRolePermissionsAsync(Guid roleId, IEnumerable<RolePermission> permissions);
+    Task<IEnumerable<DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds);
+    Task AddAsync(RolePermission permission);
 }

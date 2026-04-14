@@ -6,16 +6,16 @@ namespace Suppliers.Application.DTOs
 {
     public class SupplierLedgerResultDto
     {
-        public string SupplierName { get; set; }
-        public List<SupplierLedger> Ledger { get; set; }
+        public string? SupplierName { get; set; }
+        public List<SupplierLedger> Ledger { get; set; } = new();
     }
 
     public class SupplierLedgerRequestDto
     {
-        public int SupplierId { get; set; }
+        public Guid SupplierId { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string SearchTerm { get; set; }
+        public string? SearchTerm { get; set; }
         public string? TypeFilter { get; set; }
         public string? ReferenceFilter { get; set; }
         public int PageNumber { get; set; } = 1;
@@ -26,17 +26,17 @@ namespace Suppliers.Application.DTOs
 
     public class SupplierLedgerPagedResultDto
     {
-        public string SupplierName { get; set; }
-        public decimal CurrentBalance { get; set; }
-        public PaginatedListDto<SupplierLedger> Ledger { get; set; }
+        public string? SupplierName { get; set; }
+        public decimal currentBalance { get; set; }
+        public PaginatedListDto<SupplierLedger> Ledger { get; set; } = new();
     }
 
     public class PendingDueDto
     {
-        public int SupplierId { get; set; }
+        public Guid SupplierId { get; set; }
         public decimal PendingAmount { get; set; }
-        public string SupplierName { get; set; }
-        public string Status { get; set; }
+        public string? SupplierName { get; set; }
+        public string? Status { get; set; }
         public DateTime DueDate { get; set; }
         public string? LastReferenceId { get; set; }
     }
@@ -49,34 +49,34 @@ namespace Suppliers.Application.DTOs
 
     public class SupplierPurchaseDto
     {
-        public int SupplierId { get; set; }
+        public Guid SupplierId { get; set; }
         public decimal Amount { get; set; }
-        public string ReferenceId { get; set; } // GRN Number
-        public string Description { get; set; }
+        public string? ReferenceId { get; set; } // GRN Number
+        public string? Description { get; set; }
         public DateTime TransactionDate { get; set; }
-        public string CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
         public string? TransactionType { get; set; } // Added for Debit Notes
     }
 
     public class PaymentReportDto
     {
-        public int Id { get; set; }
-        public int SupplierId { get; set; }
-        public string SupplierName { get; set; }
+        public Guid Id { get; set; }
+        public Guid SupplierId { get; set; }
+        public string? SupplierName { get; set; }
         public decimal Amount { get; set; }
         public DateTime PaymentDate { get; set; }
-        public string PaymentMode { get; set; }
-        public string ReferenceNumber { get; set; }
-        public string Remarks { get; set; }
-        public string CreatedBy { get; set; }
+        public string? PaymentMode { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Remarks { get; set; }
+        public string? CreatedBy { get; set; }
     }
 
     public class PaymentReportRequestDto
     {
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
-        public int? SupplierId { get; set; }
-        public string SearchTerm { get; set; }
+        public Guid? SupplierId { get; set; }
+        public string? SearchTerm { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public string SortBy { get; set; } = "PaymentDate";
@@ -85,7 +85,7 @@ namespace Suppliers.Application.DTOs
 
     public class PaginatedListDto<T>
     {
-        public List<T> Items { get; set; }
+        public List<T> Items { get; set; } = new();
         public int TotalCount { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
@@ -94,7 +94,7 @@ namespace Suppliers.Application.DTOs
 
     public class MonthlyTrendDto
     {
-        public string Month { get; set; }
+        public string? Month { get; set; }
         public decimal Amount { get; set; }
     }
 }

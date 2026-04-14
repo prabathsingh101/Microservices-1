@@ -6,9 +6,9 @@ namespace Inventory.Application.SaleOrders.DTOs
 {
     public class CreateSaleOrderDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string? SONumber { get; set; } // Add this for consistency
-        public int CustomerId { get; set; }
+        public Guid CustomerId { get; set; }
         public DateTime SoDate { get; set; }
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string Remarks { get; set; }

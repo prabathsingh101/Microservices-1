@@ -2,7 +2,9 @@ using Customers.Application.Common.Interfaces;
 using Customers.Application.DTOs;
 using Customers.Application.Features.Queries;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Customers.Application.Features.Handlers
 {
@@ -19,7 +21,7 @@ namespace Customers.Application.Features.Handlers
         {
             var customer = await _repo.GetByIdAsync(request.Id);
 
-            if (customer == null) return null;
+            if (customer == null) return null!;
 
             return new CustomerDto
             {
@@ -30,8 +32,8 @@ namespace Customers.Application.Features.Handlers
                 Email = customer.Email,
                 GstNumber = customer.GstNumber,
                 CreditLimit = customer.CreditLimit,
-                BillingAddress = customer.BillingAddress?.AddressLine,
-                ShippingAddress = customer.ShippingAddress?.AddressLine,
+                BillingAddressLine = customer.BillingAddress?.AddressLine, // Updated naming
+                ShippingAddressLine = customer.ShippingAddress?.AddressLine, // Updated naming
                 Status = customer.Status
             };
         }

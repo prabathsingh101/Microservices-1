@@ -1,4 +1,4 @@
-﻿public class CustomerLookupDto
+public class CustomerLookupDto
 {
     public int Id { get; set; }
     public string CustomerName { get; set; } = string.Empty;

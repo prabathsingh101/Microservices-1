@@ -1,5 +1,6 @@
-﻿using Company.Application.Common.Interfaces;
+using Company.Application.Common.Interfaces;
 using Company.Infrastructure.Repositories;
+using Company.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,8 @@ namespace Company.Infrastructure
                     }));
 
             services.AddScoped<ICompanyRepository, CompanyRepository>();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
+            services.AddHttpContextAccessor();
 
             return services;
         }

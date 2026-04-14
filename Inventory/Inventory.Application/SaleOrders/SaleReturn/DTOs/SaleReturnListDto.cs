@@ -1,9 +1,9 @@
 public class SaleReturnListDto
 {
-    public int SaleReturnHeaderId { get; set; } // PK from DB
+    public Guid SaleReturnHeaderId { get; set; } // PK from DB
     public string ReturnNumber { get; set; } = string.Empty; //
     public DateTime ReturnDate { get; set; } //
-    public int CustomerId { get; set; } // To fetch name from Microservice
+    public Guid CustomerId { get; set; } // To fetch name from Microservice
     public string CustomerName { get; set; } = string.Empty; // Will be mapped in Service
     public string SoRef { get; set; } = string.Empty; // SONumber from SaleOrders
     public decimal TotalAmount { get; set; } //

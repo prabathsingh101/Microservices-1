@@ -1,4 +1,4 @@
-﻿using DinkToPdf;
+using DinkToPdf;
 using Inventory.Domain.Entities;
 using Inventory.Domain.Entities.SO;
 using Inventory.Domain.PriceLists;

@@ -19,8 +19,8 @@ namespace Inventory.Application.GRN.DTOs
         public decimal AcceptedQty { get; set; }
         public decimal TaxAmount { get; set; }
         public string? PONumber { get; set; }
-        public int POId { get; set; }
-        public int SupplierId { get; set; }
+        public Guid POId { get; set; }
+        public Guid SupplierId { get; set; }
         public string? SupplierName { get; set; }
         public bool IsReplacement { get; set; }
         public Guid? WarehouseId { get; set; }

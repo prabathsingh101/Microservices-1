@@ -14,14 +14,14 @@ public class RolePermissionRepository : IRolePermissionRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<RolePermission>> GetPermissionsByRoleIdAsync(int roleId)
+    public async Task<IEnumerable<RolePermission>> GetPermissionsByRoleIdAsync(Guid roleId)
     {
         return await _context.RolePermissions
             .Where(rp => rp.RoleId == roleId)
             .ToListAsync();
     }
 
-    public async Task UpdateRolePermissionsAsync(int roleId, IEnumerable<RolePermission> permissions)
+    public async Task UpdateRolePermissionsAsync(Guid roleId, IEnumerable<RolePermission> permissions)
     {
         var existingPermissions = await _context.RolePermissions
             .Where(rp => rp.RoleId == roleId)
@@ -41,7 +41,6 @@ public class RolePermissionRepository : IRolePermissionRepository
             {
                 // Add new record
                 incoming.RoleId = roleId;
-                incoming.Id = 0; // Ensure it's treated as new
                 await _context.RolePermissions.AddAsync(incoming);
             }
         }
@@ -57,4 +56,26 @@ public class RolePermissionRepository : IRolePermissionRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<IEnumerable<Application.DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds)
+    {
+        return await _context.RolePermissions
+            .Include(rp => rp.Menu)
+            .Where(rp => roleIds.Contains(rp.RoleId))
+            .GroupBy(rp => rp.MenuId)
+            .Select(g => new Application.DTOs.UserPermissionDto
+            {
+                MenuName = g.First().Menu!.Title,
+                ActionCode = g.First().Menu!.Url, 
+                CanView = g.Any(x => x.CanView),
+                CanAdd = g.Any(x => x.CanAdd),
+                CanEdit = g.Any(x => x.CanEdit),
+                CanDelete = g.Any(x => x.CanDelete)
+            })
+            .ToListAsync();
+    }
+
+    public async Task AddAsync(RolePermission permission)
+    {
+        await _context.RolePermissions.AddAsync(permission);
+    }
 }

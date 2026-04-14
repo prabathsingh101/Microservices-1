@@ -47,8 +47,8 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
             po.CgstAmount = dto.CgstAmount;
             po.SgstAmount = dto.SgstAmount;
             // Audit tracking: Update updated fields, leave CreatedBy unchanged
-            po.UpdatedDate = DateTime.UtcNow;
-            po.UpdatedBy = dto.UpdatedBy;
+            po.ModifiedOn = DateTime.UtcNow;
+            po.ModifiedBy = dto.ModifiedBy;
 
             // 3. Syncing Logic: Identify items that were removed in UI
             if (dto.Items != null)
@@ -65,8 +65,8 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
                 // 4. Update existing items or Add new ones
                 foreach (var itemDto in dto.Items)
                 {
-                    // Existing item check (assuming Id > 0 for existing items)
-                    var existingItem = po.Items.FirstOrDefault(i => i.Id == itemDto.Id && i.Id != 0);
+                    // Existing item check (assuming Id != Guid.Empty for existing items)
+                    var existingItem = po.Items.FirstOrDefault(i => i.Id == itemDto.Id && i.Id != Guid.Empty);
 
                     if (existingItem != null)
                     {

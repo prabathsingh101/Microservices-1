@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -31,7 +31,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
                .IsRequired();
 
         //builder.Property(x => x.CreatedOn).IsRequired();
-        //builder.Property(x => x.UpdatedOn).IsRequired();
-        //builder.Property(x => x.UpdatedBy).IsRequired();
+        //builder.Property(x => x.ModifiedOn).IsRequired();
+        //builder.Property(x => x.ModifiedBy).IsRequired();
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Identity.Domain.Entities;
+namespace Identity.Domain.Entities;
 
 public class RefreshToken
 {
@@ -9,18 +9,20 @@ public class RefreshToken
 
     // FK
     public Guid UserId { get; private set; }
+    public Guid? CompanyId { get; private set; }
 
     // Navigation (optional)
     public User? User { get; private set; }
 
     private RefreshToken() { } // EF Core
 
-    public RefreshToken(Guid userId, string token, DateTime expiresAt)
+    public RefreshToken(Guid userId, string token, DateTime expiresAt, Guid? companyId = null)
     {
         UserId = userId;
         Token = token;
         ExpiresAt = expiresAt;
         IsRevoked = false;
+        CompanyId = companyId;
     }
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;

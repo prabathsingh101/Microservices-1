@@ -100,7 +100,7 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<string> GetLastSONumberAsync() =>
         await _context.SaleOrders.OrderByDescending(x => x.Id).Select(x => x.SONumber).FirstOrDefaultAsync();
 
-    public async Task<int> SaveAsync(SaleOrder order)
+    public async Task<Guid> SaveAsync(SaleOrder order)
     {
         _context.SaleOrders.Add(order);
         await _context.SaveChangesAsync();
@@ -145,7 +145,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         }
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(Guid id)
     {
         var order = await _context.SaleOrders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id);
         if (order == null) return false;
@@ -155,11 +155,11 @@ public class SaleOrderRepository : ISaleOrderRepository
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<List<StockExportDto>> GetSaleReportDataAsync(List<int> orderIds) // logic according to integer IDs
+    public async Task<List<StockExportDto>> GetSaleReportDataAsync(List<Guid> orderIds)
     {
         // Selected Orders ke Product IDs fetch karein
         return await _context.SaleOrderItems
-            .Where(si => orderIds.Contains(si.SaleOrderId)) // Filter by selected integer IDs
+            .Where(si => orderIds.Contains(si.SaleOrderId)) // Filter by selected Guid IDs
             .GroupBy(si => new { si.ProductId, si.ProductName, si.Unit })
             .Select(group => new StockExportDto
             {
@@ -195,7 +195,7 @@ public class SaleOrderRepository : ISaleOrderRepository
             searchTerm = searchTerm.Trim().ToLower();
 
             // Fetch matching customer IDs from External Service
-            var matchingCustomerIds = new List<int>();
+            var matchingCustomerIds = new List<Guid>();
             try 
             {
                matchingCustomerIds = await _customerClient.SearchCustomerIdsByNameAsync(searchTerm);
@@ -310,7 +310,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         return (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount, todayCount, monthCount);
     }
 
-    public async Task<bool> UpdateSaleOrderStatusAsync(int id, string status)
+    public async Task<bool> UpdateSaleOrderStatusAsync(Guid id, string status)
     {
         // 1. Pehle Order fetch karein
         var order = await _context.SaleOrders.FindAsync(id);
@@ -375,7 +375,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         return saved;
     }
 
-    public async Task<SaleOrderDetailDto?> GetSaleOrderByIdAsync(int id)
+    public async Task<SaleOrderDetailDto?> GetSaleOrderByIdAsync(Guid id)
     {
         // 1. Database se Order aur uske Items fetch karein
         var order = await _context.SaleOrders
@@ -447,7 +447,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         return order;
     }
 
-    public async Task<List<SaleOrderLookupDto>> GetOrdersByCustomerAsync(int customerId)
+    public async Task<List<SaleOrderLookupDto>> GetOrdersByCustomerAsync(Guid customerId)
     {
         return await _context.SaleOrders
             .AsNoTracking()
@@ -457,7 +457,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SaleOrderId = x.Id,
                 SoNumber = x.SONumber // Display ke liye number
             }).ToListAsync();
-    }    public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(int saleOrderId)
+    }
+
+    public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(Guid saleOrderId)
     {
         var now = DateTime.Now;
         
@@ -570,7 +572,7 @@ public class SaleOrderRepository : ISaleOrderRepository
     }
 
     // Helper method jo actual Microservice call handle karega
-    private async Task<Dictionary<int, string>> GetCustomerNamesFromService(List<int> customerIds)
+    private async Task<Dictionary<Guid, string>> GetCustomerNamesFromService(List<Guid> customerIds)
     {
         try
         {
@@ -579,8 +581,8 @@ public class SaleOrderRepository : ISaleOrderRepository
 
             if (response.IsSuccessStatusCode)
             {
-                var data = await response.Content.ReadFromJsonAsync<Dictionary<int, string>>();
-                return data ?? new Dictionary<int, string>();
+                var data = await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>();
+                return data ?? new Dictionary<Guid, string>();
             }
         }
         catch (Exception ex)
@@ -589,6 +591,6 @@ public class SaleOrderRepository : ISaleOrderRepository
             Console.WriteLine($"Microservice call failed: {ex.Message}");
         }
 
-        return new Dictionary<int, string>();
+        return new Dictionary<Guid, string>();
     }
 }

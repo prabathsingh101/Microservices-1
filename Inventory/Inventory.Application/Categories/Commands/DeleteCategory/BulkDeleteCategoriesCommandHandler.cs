@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Categories.Commands.DeleteCategory;
+using Inventory.Application.Categories.Commands.DeleteCategory;
 using Inventory.Application.Common.Interfaces;
 using MediatR;
 
@@ -23,7 +23,7 @@ internal sealed class BulkDeleteCategoriesCommandHandler
         if (request.Ids == null || request.Ids.Count == 0)
             throw new InvalidOperationException("No categories selected");
 
-        // ✅ CHECK DEPENDENCIES FIRST
+        // ? CHECK DEPENDENCIES FIRST
         if (await _repository.HasSubcategoriesAsync(request.Ids))
             throw new InvalidOperationException(
                 "One or more categories contain subcategories and cannot be deleted");

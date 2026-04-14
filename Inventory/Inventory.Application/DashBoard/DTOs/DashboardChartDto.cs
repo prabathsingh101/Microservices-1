@@ -1,4 +1,4 @@
-﻿public class DashboardChartDto
+public class DashboardChartDto
 {
     // Trends Chart (Line Chart)
     public List<string> Labels { get; set; } = new(); // Jan, Feb...

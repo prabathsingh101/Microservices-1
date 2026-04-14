@@ -1,6 +1,8 @@
-﻿namespace Inventory.Domain.Entities
+using Inventory.Domain.Common;
+
+namespace Inventory.Domain.Entities
 {
-    public class InventoryTransaction
+    public class InventoryTransaction : BaseAuditableEntity
     {
         public Guid Id { get; private set; }
 
@@ -14,8 +16,6 @@
 
         public DateTime? MfgDate { get; private set; }
         public DateTime? ExpDate { get; private set; }
-
-        public DateTime CreatedOn { get; private set; }
 
         protected InventoryTransaction() { }
 
@@ -38,7 +38,6 @@
             RackId = rackId;
             MfgDate = mfgDate;
             ExpDate = expDate;
-            CreatedOn = DateTime.UtcNow;
         }
     }
 }

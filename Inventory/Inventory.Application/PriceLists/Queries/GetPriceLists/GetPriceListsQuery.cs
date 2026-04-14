@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Inventory.Application.PriceLists.DTOs;
 
 namespace Inventory.Application.PriceLists.Queries.GetPriceLists;

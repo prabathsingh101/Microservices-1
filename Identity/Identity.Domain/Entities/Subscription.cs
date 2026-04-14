@@ -6,7 +6,7 @@ namespace Identity.Domain.Entities
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
         public Guid CompanyId { get; private set; } // Link to the company/tenant
-        public string CompanyName { get; private set; } = string.Empty; // Cached name for display
+        public string? CompanyName { get; private set; } // Cached name for display
         public string PlanType { get; private set; } = "Trial"; // Trial, Monthly, Yearly
         public DateTime StartDate { get; private set; }
         public DateTime EndDate { get; private set; }

@@ -6,7 +6,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
 {
     public class UpdatePurchaseOrderItemDto
     {
-        public int Id { get; set; } // Agar 0 hai toh naya item add hoga
+        public Guid Id { get; set; } // Agar Guid.Empty hai toh naya item add hoga
         public Guid ProductId { get; set; } //
         public decimal Qty { get; set; }
         public string? Unit { get; set; }

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Suppliers.Application.Common.Models;
 using Suppliers.Application.DTOs;
 using Suppliers.Application.Features.Suppliers.Queries;
+using Suppliers.Application.Common.Interfaces;
+using Suppliers.Application.Features.Suppliers.Commands;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Suppliers.API.Controllers
 {
@@ -14,7 +20,6 @@ namespace Suppliers.API.Controllers
     public class SupplierController : ControllerBase
     {
         private readonly IMediator _mediator;
-
         private readonly ISupplierRepository _supplierRepository;
 
         public SupplierController(IMediator mediator, ISupplierRepository repository)
@@ -23,9 +28,8 @@ namespace Suppliers.API.Controllers
             _supplierRepository = repository;
         }
 
-        // CREATE: POST api/v1/supplier
         [HttpPost]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create([FromBody] CreateSupplierDto dto)
         {
             var command = new CreateSupplierCommand(dto);
@@ -33,46 +37,38 @@ namespace Suppliers.API.Controllers
             return Ok(id);
         }
 
-        // READ: GET api/v1/supplier
         [HttpGet]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetAll()
         {
-            // Yahan humein GetSuppliersQuery banani hogi (Next Step)
             var query = new GetAllSuppliersQuery();
             var result = await _mediator.Send(query);
             return Ok(result);
         }
 
-        // UPDATE: PUT api/v1/supplier/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] CreateSupplierDto dto)
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] CreateSupplierDto dto)
         {
             var result = await _mediator.Send(new UpdateSupplierCommand(id, dto));
-            return result ? NoContent() : NotFound();
+            return result ? Ok(result) : NotFound();
         }
 
-        // DELETE: DELETE api/v1/supplier/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> Delete(int id)
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(new DeleteSupplierCommand(id));
-            return result ? NoContent() : NotFound();
+            return result ? Ok(result) : NotFound();
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<IActionResult> GetById(int id)
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetById(Guid id)
         {
-            // 1. Query create karna
             var query = new GetSupplierByIdQuery(id);
-
-            // 2. Mediator ke through handler ko call karna
             var result = await _mediator.Send(query);
 
-            // 3. Agar supplier nahi mila toh 404, warna data ke saath 200 OK
             if (result == null)
             {
                 return NotFound(new { message = "Supplier not found" });
@@ -82,7 +78,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpPost("paged")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetSuppliers([FromBody] GridRequest query)
         {
             var result = await _mediator.Send(new GetSuppliersPagedQuery(query));
@@ -91,11 +87,8 @@ namespace Suppliers.API.Controllers
 
         [HttpPost("get-by-ids")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetSuppliersByIds([FromBody] List<int> ids)
+        public async Task<IActionResult> GetSuppliersByIds([FromBody] List<Guid> ids)
         {
-            // Debugging ke liye log lagayein
-            Console.WriteLine($"[SupplierService] Received IDs: {string.Join(",", ids)}"); 
-
             if (ids == null || ids.Count == 0)
             {
                 return Ok(new List<SupplierSelectDto>());
@@ -104,13 +97,9 @@ namespace Suppliers.API.Controllers
             try
             {
                 var suppliers = await _supplierRepository.GetSuppliersByIdsAsync(ids);
-
-                // Log results count
-                Console.WriteLine($"[SupplierService] Found {suppliers.Count} suppliers.");
-
-              return Ok(suppliers);
+                return Ok(suppliers);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 return StatusCode(500, new
                 {
@@ -121,12 +110,11 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpGet("search-ids")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
-        public async Task<ActionResult<List<int>>> SearchIdsByName([FromQuery] string name)
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<ActionResult<List<Guid>>> SearchIdsByName([FromQuery] string name)
         {
             var ids = await _supplierRepository.GetIdsByNameAsync(name);
             return Ok(ids);
         }
     }
 }
-

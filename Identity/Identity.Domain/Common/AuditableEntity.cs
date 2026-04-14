@@ -1,7 +1,8 @@
-﻿namespace Identity.Domain.Common;
+namespace Identity.Domain.Common;
 
-public abstract class AuditableEntity
+public abstract class AuditableEntity : IMultiTenant
 {
+    public Guid? CompanyId { get; set; }
     public DateTime CreatedAt { get; protected set; } = DateTime.UtcNow;
     public DateTime? ModifiedAt { get; protected set; }
 

@@ -29,6 +29,7 @@ builder.Services.AddApplication();
 
 // Infrastructure (DB)
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<Customers.Application.Common.Interfaces.ICurrentUserService, Customers.API.Services.CurrentUserService>();
 
 
 

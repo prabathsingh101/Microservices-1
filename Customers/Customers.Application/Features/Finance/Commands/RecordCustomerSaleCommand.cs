@@ -4,7 +4,5 @@ using System;
 
 namespace Customers.Application.Features.Finance.Commands
 {
-    public record RecordCustomerSaleCommand(CustomerSaleDto SaleDto) : IRequest<int>
-    {
-    }
+    public record RecordCustomerSaleCommand(CustomerSaleDto SaleDto) : IRequest<Guid>;
 }

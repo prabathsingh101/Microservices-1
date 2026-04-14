@@ -1,4 +1,4 @@
-﻿using Inventory.API.Common;
+using Inventory.API.Common;
 using Inventory.Application.Categories.Commands.CreateCategory;
 using Inventory.Application.Categories.Commands.DeleteCategory;
 using Inventory.Application.Categories.Commands.UpdateCategory;

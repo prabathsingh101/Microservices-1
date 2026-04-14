@@ -39,14 +39,14 @@ public class MenusController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, Menu menu)
+    public async Task<IActionResult> Update(Guid id, Menu menu)
     {
         await _menuService.UpdateAsync(menu);
         return Ok(menu);
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         await _menuService.DeleteAsync(id);
         return NoContent();

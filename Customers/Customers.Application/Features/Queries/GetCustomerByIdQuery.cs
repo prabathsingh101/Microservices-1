@@ -1,13 +1,15 @@
-using Customers.Application.DTOs;
 using MediatR;
+using Customers.Application.Common.Interfaces;
+using Customers.Application.DTOs;
+using System;
 
 namespace Customers.Application.Features.Queries
 {
     public class GetCustomerByIdQuery : IRequest<CustomerDto>
     {
-        public int Id { get; }
+        public Guid Id { get; set; }
 
-        public GetCustomerByIdQuery(int id)
+        public GetCustomerByIdQuery(Guid id)
         {
             Id = id;
         }

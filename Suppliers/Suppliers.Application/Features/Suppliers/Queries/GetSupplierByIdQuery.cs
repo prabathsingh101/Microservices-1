@@ -1,9 +1,8 @@
-﻿using MediatR;
+using MediatR;
+using Suppliers.Application.DTOs;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Suppliers.Application.Features.Suppliers.Queries
 {
-    public record GetSupplierByIdQuery(int Id) : IRequest<SupplierDto?>;
+    public record GetSupplierByIdQuery(Guid Id) : IRequest<SupplierDto?>;
 }

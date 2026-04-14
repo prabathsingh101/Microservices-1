@@ -18,12 +18,12 @@ public interface ISaleReturnRepository
        bool isQuick = false);
 
     Task<bool> CreateSaleReturnAsync(SaleReturnHeader returnHeader);
-    Task<decimal> GetRemainingReturnableQtyAsync(int saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null);
+    Task<decimal> GetRemainingReturnableQtyAsync(Guid saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null);
 
     Task<List<SaleReturnExportDto>> GetExportDataAsync(DateTime? fromDate, DateTime? toDate);
 
     Task<SaleReturnSummaryDto> GetDashboardSummaryAsync(bool isQuick = false);
     Task<List<PendingSRDto>> GetPendingSaleReturnsAsync();
-    Task<SaleReturnHeader?> GetSaleReturnByIdAsync(int id);
-    Task<bool> BulkInwardAsync(List<int> ids);
+    Task<SaleReturnHeader?> GetSaleReturnByIdAsync(Guid id);
+    Task<bool> BulkInwardAsync(List<Guid> ids);
 }

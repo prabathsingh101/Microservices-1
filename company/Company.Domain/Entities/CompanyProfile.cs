@@ -7,7 +7,7 @@ namespace Company.Domain.Entities
 {
     public class CompanyProfile
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty; // Aapki Company ka Naam
         public string? Tagline { get; set; } // Optional slogan
         public string RegistrationNumber { get; set; } = string.Empty; // PAN/VAT No.

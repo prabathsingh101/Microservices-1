@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Inventory.Application.Units.Command;
 using Inventory.Application.Units.DTOs;
 using Inventory.Application.Units.Queries;
@@ -68,7 +68,7 @@ namespace Inventory.API.Controllers
 
         [HttpPut("update/{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdateUnitCommand command)
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitCommand command)
         {
             if (id != command.Id) return BadRequest("ID mismatch");
             var result = await _mediator.Send(command);
@@ -77,7 +77,7 @@ namespace Inventory.API.Controllers
 
         [HttpDelete("delete/{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(new DeleteUnitCommand(id));
             return result ? Ok() : BadRequest("Could not delete unit");
@@ -85,7 +85,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("getbyid/{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var units = await _mediator.Send(new GetAllUnitsQuery());
             var unit = units.FirstOrDefault(u => u.Id == id);

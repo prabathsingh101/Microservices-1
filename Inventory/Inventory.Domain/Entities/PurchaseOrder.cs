@@ -2,11 +2,11 @@ using Inventory.Domain.Entities;
 using Inventory.Domain.PriceLists;
 using System.Net.NetworkInformation;
 
-public class PurchaseOrder
+public class PurchaseOrder : Inventory.Domain.Common.BaseAuditableEntity
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string PoNumber { get; set; } = string.Empty; // PO/26-27/0001
-    public int SupplierId { get; set; }
+    public Guid SupplierId { get; set; }
     public string? SupplierName { get; set; }
     public Guid PriceListId { get; set; }
     public PriceList? PriceList { get; set; }
@@ -26,12 +26,8 @@ public class PurchaseOrder
     public decimal? CgstAmount { get; set; }
     public decimal? SgstAmount { get; set; }
     public string Status { get; set; } = "Draft";
-    public string? CreatedBy { get; set; } //
-    public string? UpdatedBy { get; set; } //
     public bool IsQuick { get; set; } // Flag for Quick vs Standard Purchase
     public bool IsDispatched { get; set; } = false; // Flag for In-Transit tracking
-    public DateTime? CreatedDate { get; set; }
-    public DateTime? UpdatedDate { get; set; }
     public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     public virtual ICollection<GRNHeader> GrnHeaders { get; set; } = new List<GRNHeader>();
     public bool CanBeDeleted()
@@ -76,6 +72,6 @@ public class PurchaseOrder
         this.TcsAmount = (this.SubTotal * (this.TcsPercent ?? 0)) / 100;
 
         this.GrandTotal = this.SubTotal + this.TotalTax - (this.TdsAmount ?? 0) + (this.TcsAmount ?? 0);
-        this.UpdatedDate = DateTime.UtcNow;
+        this.ModifiedOn = DateTime.UtcNow;
     }
 }

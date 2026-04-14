@@ -1,4 +1,4 @@
-﻿namespace Inventory.Application.PriceLists.DTOs;
+namespace Inventory.Application.PriceLists.DTOs;
 
 public sealed class CreatePriceListDto
 {

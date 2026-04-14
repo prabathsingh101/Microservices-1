@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Inventory.Application.Subcategories.DTOs;
 
 namespace Inventory.Application.Subcategories.Queries.GetSubcategoryById;

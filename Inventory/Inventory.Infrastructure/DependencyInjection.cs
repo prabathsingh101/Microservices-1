@@ -1,4 +1,4 @@
-﻿using DinkToPdf;
+using DinkToPdf;
 using DinkToPdf.Contracts;
 using Inventory.Application.Clients;
 using Inventory.Application.Common.Interfaces;
@@ -65,6 +65,7 @@ namespace Inventory.Infrastructure
             services.AddScoped<IUnitRepository, UnitRepository>();
             services.AddScoped<IWarehouseRepository, WarehouseRepository>();
             services.AddScoped<IRackRepository, RackRepository>();
+            services.AddScoped<ICurrentUserService, Inventory.Infrastructure.Services.CurrentUserService>();
 
             services.AddScoped<IInventoryDbContext>(
             provider => provider.GetRequiredService<InventoryDbContext>());

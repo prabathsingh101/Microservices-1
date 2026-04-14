@@ -1,7 +1,11 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Suppliers.Application.Common.Interfaces;
 using Suppliers.Application.Common.Models;
 using Suppliers.Application.DTOs;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Suppliers.Application.Features.Suppliers.Queries;
 
@@ -60,8 +64,8 @@ internal sealed class GetSuppliersPagedQueryHandler
         {
             "name" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.Name) : query.OrderByDescending(x => x.Name),
             "phone" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.Phone) : query.OrderByDescending(x => x.Phone),
-            "createdDate" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.CreatedDate) : query.OrderByDescending(x => x.CreatedDate),
-            _ => query.OrderByDescending(x => x.CreatedDate)
+            "createdAt" => request.Query.SortDirection == "asc" ? query.OrderBy(x => x.CreatedOn) : query.OrderByDescending(x => x.CreatedOn),
+            _ => query.OrderByDescending(x => x.CreatedOn)
         };
 
         var totalCount = await query.CountAsync(cancellationToken);

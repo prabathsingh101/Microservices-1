@@ -23,16 +23,31 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var users = await _userRepository.GetAllUsersAsync();
-        // Project to DTO or simple object to avoid circular references and include role names as strings if frontend expects it
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        IEnumerable<User> users;
+
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            // Tenant Admin: Filter by their own company
+            users = await _userRepository.GetByCompanyAsync(companyId);
+        }
+        else
+        {
+            // Super Admin: See everything
+            users = await _userRepository.GetAllUsersAsync();
+        }
+
+        // Project results to prevent circular references and hide sensitive data
         var result = users.Select(u => new
         {
             u.Id,
             u.UserName,
             u.Email,
             u.IsActive,
+            u.CompanyId,
             Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList()
         });
+
         return Ok(result);
     }
 

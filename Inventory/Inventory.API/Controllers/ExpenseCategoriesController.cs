@@ -41,7 +41,7 @@ public class ExpenseCategoriesController : ControllerBase
 
     [HttpGet("{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _context.ExpenseCategories.FindAsync(id);
         if (result == null) return NotFound();
@@ -59,7 +59,7 @@ public class ExpenseCategoriesController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> Update(int id, ExpenseCategory category)
+    public async Task<IActionResult> Update(Guid id, ExpenseCategory category)
     {
         if (id != category.Id) return BadRequest();
         
@@ -69,7 +69,7 @@ public class ExpenseCategoriesController : ControllerBase
         existing.Name = category.Name;
         existing.Description = category.Description;
         existing.IsActive = category.IsActive;
-        existing.UpdatedDate = DateTime.Now;
+        existing.ModifiedOn = DateTime.Now;
 
         await _context.SaveChangesAsync();
         return Ok(existing);
@@ -77,7 +77,7 @@ public class ExpenseCategoriesController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         var category = await _context.ExpenseCategories.FindAsync(id);
         if (category == null) return NotFound();

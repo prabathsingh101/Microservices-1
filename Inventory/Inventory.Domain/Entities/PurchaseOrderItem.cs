@@ -1,9 +1,10 @@
+using Inventory.Domain.Common;
 using Inventory.Domain.Entities;
 
-public class PurchaseOrderItem
+public class PurchaseOrderItem : BaseAuditableEntity
 {
-    public int Id { get; set; }
-    public int PurchaseOrderId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PurchaseOrderId { get; set; }
     public Guid ProductId { get; set; }
     public Product? Product { get; set; } 
     public decimal Qty { get; set; }

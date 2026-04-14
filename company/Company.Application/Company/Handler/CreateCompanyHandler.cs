@@ -5,18 +5,20 @@ using Microsoft.AspNetCore.Hosting;
 
 namespace Company.Application.Company.Commands.Create.Handler
 {
-    public class CreateCompanyHandler : IRequestHandler<CreateCompanyCommand, int>
+    public class CreateCompanyHandler : IRequestHandler<CreateCompanyCommand, Guid>
     {
         private readonly ICompanyRepository _repo;
         private readonly IWebHostEnvironment _environment; // Path handle karne ke liye
+        private readonly ICurrentUserService _currentUserService;
 
-        public CreateCompanyHandler(ICompanyRepository repo, IWebHostEnvironment environment)
+        public CreateCompanyHandler(ICompanyRepository repo, IWebHostEnvironment environment, ICurrentUserService currentUserService)
         {
-            _repo = repo; //
+            _repo = repo; 
             _environment = environment;
+            _currentUserService = currentUserService;
         }
 
-        public async Task<int> Handle(CreateCompanyCommand cmd, CancellationToken ct)
+        public async Task<Guid> Handle(CreateCompanyCommand cmd, CancellationToken ct)
         {
             string logoPath = string.Empty;
 
@@ -49,6 +51,7 @@ namespace Company.Application.Company.Commands.Create.Handler
             // Mapping to Domain Entity
             var company = new CompanyProfile
             {
+                Id = _currentUserService.CompanyId ?? Guid.NewGuid(),
                 Name = cmd.Request.Name,
                 Tagline = cmd.Request.Tagline,
                 RegistrationNumber = cmd.Request.RegistrationNumber,

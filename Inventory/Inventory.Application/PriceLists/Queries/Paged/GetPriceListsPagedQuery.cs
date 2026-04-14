@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Models;
+using Inventory.Application.Common.Models;
 using Inventory.Application.PriceLists.DTOs;
 using MediatR;
 using System;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -8,7 +8,7 @@ namespace Inventory.Application.Common.Interfaces
     {
         Task<List<NotificationDto>> GetUnreadNotificationsAsync();
         Task<int> GetUnreadCountAsync();
-        Task<bool> MarkAsReadAsync(long id);
+        Task<bool> MarkAsReadAsync(Guid id);
         Task<bool> MarkAllAsReadAsync();
 
         // Modules ise call karke notification generate karenge

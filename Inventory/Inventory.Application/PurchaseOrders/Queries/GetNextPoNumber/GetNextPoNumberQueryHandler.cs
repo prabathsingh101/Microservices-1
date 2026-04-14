@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using Inventory.Application.PurchaseOrders.Queries.GetNextPoNumber;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

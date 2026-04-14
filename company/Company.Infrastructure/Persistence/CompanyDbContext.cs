@@ -1,4 +1,4 @@
-﻿using Company.Domain.Entities;
+using Company.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 public class CompanyDbContext : DbContext
@@ -18,6 +18,9 @@ public class CompanyDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // --- Model Configuration ---
+        modelBuilder.Entity<CompanyProfile>()
+            .Property(c => c.Id)
+            .ValueGeneratedNever();
 
         // CompanyProfile aur Address ke beech 1-to-1 relation
         modelBuilder.Entity<CompanyProfile>()

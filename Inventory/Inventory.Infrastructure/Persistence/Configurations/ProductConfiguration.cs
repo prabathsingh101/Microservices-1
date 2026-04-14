@@ -1,4 +1,4 @@
-﻿using Inventory.Domain.Entities;
+using Inventory.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -59,19 +59,19 @@ public sealed class ProductConfiguration
         builder.Property(x => x.SubcategoryId)
                .IsRequired();
 
-        // FK → Category
+        // FK ? Category
         builder.HasOne(p => p.Category)
                .WithMany()
                .HasForeignKey(p => p.CategoryId)
                .OnDelete(DeleteBehavior.Restrict);
 
-        // FK → Subcategory
+        // FK ? Subcategory
         builder.HasOne(p => p.Subcategory)
                .WithMany()
                .HasForeignKey(p => p.SubcategoryId)
                .OnDelete(DeleteBehavior.Restrict);
 
-        // FK → Default Warehouse/Rack
+        // FK ? Default Warehouse/Rack
         builder.HasOne(p => p.DefaultWarehouse)
                .WithMany()
                .HasForeignKey(p => p.DefaultWarehouseId)

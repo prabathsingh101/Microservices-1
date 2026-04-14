@@ -1,4 +1,4 @@
-﻿using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Common.Interfaces;
 using MediatR;
 
 public class GetPurchaseOrdersHandler : IRequestHandler<GetPurchaseOrdersQuery, PagedResponse<PurchaseOrderDto>>

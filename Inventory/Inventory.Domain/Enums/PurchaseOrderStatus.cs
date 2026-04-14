@@ -1,4 +1,4 @@
-﻿namespace Inventory.Domain.Enums;
+namespace Inventory.Domain.Enums;
 
 public enum PurchaseOrderStatus
 {

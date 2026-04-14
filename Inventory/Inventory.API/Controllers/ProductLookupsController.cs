@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +13,7 @@ public sealed class ProductLookupsController : ControllerBase
         _mediator = mediator;
     }
 
-    // ✅ Page-load API
+    // ? Page-load API
     [HttpGet]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetLookups()

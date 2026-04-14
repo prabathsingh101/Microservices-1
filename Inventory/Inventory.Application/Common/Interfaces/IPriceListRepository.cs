@@ -1,4 +1,4 @@
-﻿using Inventory.Application.PriceLists.DTOs;
+using Inventory.Application.PriceLists.DTOs;
 using Inventory.Domain.Entities;
 using Inventory.Domain.PriceLists;
 

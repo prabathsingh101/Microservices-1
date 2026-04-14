@@ -8,9 +8,12 @@ namespace Identity.Infrastructure.Persistence;
 
 public class IdentityDbContext : DbContext
 {
-    public IdentityDbContext(DbContextOptions<IdentityDbContext> options)
+    private readonly Application.Interfaces.ICurrentUserService _currentUserService;
+
+    public IdentityDbContext(DbContextOptions<IdentityDbContext> options, Application.Interfaces.ICurrentUserService currentUserService)
         : base(options)
     {
+        _currentUserService = currentUserService;
     }
 
     public DbSet<User> Users => Set<User>();
@@ -40,6 +43,42 @@ public class IdentityDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(
         typeof(IdentityDbContext).Assembly);
 
+        // modelBuilder.Entity<User>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+        modelBuilder.Entity<Role>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+        modelBuilder.Entity<RolePermission>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+        modelBuilder.Entity<Identity.Domain.Users.UserRole>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+        modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+
         base.OnModelCreating(modelBuilder);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyTenantInfo();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        ApplyTenantInfo();
+        return base.SaveChanges();
+    }
+
+    private void ApplyTenantInfo()
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added && e.Entity is Domain.Common.IMultiTenant);
+
+        var currentCompanyId = _currentUserService.CompanyId;
+
+        foreach (var entry in entries)
+        {
+            var tenantEntity = (Domain.Common.IMultiTenant)entry.Entity;
+            if (tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty)
+            {
+                tenantEntity.CompanyId = currentCompanyId;
+            }
+        }
     }
 }

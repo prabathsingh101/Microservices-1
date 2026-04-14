@@ -41,7 +41,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<string?> GetLastPoNumberAsync()
     {
         return await _context.PurchaseOrders.AsNoTracking()
-            .OrderByDescending(x => x.Id)
+            .OrderByDescending(x => x.CreatedOn)
             .Select(x => x.PoNumber)
             .FirstOrDefaultAsync();
     }
@@ -49,7 +49,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<string?> GetLatestPoNumberAsync()
     {
         return await _context.PurchaseOrders.AsNoTracking()
-            .OrderByDescending(x => x.Id)
+            .OrderByDescending(x => x.CreatedOn)
             .Select(x => x.PoNumber)
             .FirstOrDefaultAsync();
     }
@@ -72,7 +72,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
             query = query.Where(x =>
                 EF.Functions.Like(x.PoNumber, $"%{cleanFilter}%") ||
-                EF.Functions.Like(Convert.ToString(x.Id), $"%{cleanFilter}%") ||
+                EF.Functions.Like(x.Id.ToString(), $"%{cleanFilter}%") ||
                 EF.Functions.Like(x.Status, $"%{cleanFilter}%") ||
                 EF.Functions.Like(x.SupplierName, $"%{cleanFilter}%") // Direct DB column search
             );
@@ -98,7 +98,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         }
         else
         {
-            query = query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.Id);
+            query = query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn);
         }
 
         // 4. Execution
@@ -195,12 +195,12 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             "ponumber" => isDesc ? query.OrderByDescending(x => x.PoNumber) : query.OrderBy(x => x.PoNumber),
             "suppliername" => isDesc ? query.OrderByDescending(x => x.SupplierName) : query.OrderBy(x => x.SupplierName),
             "grandtotal" => isDesc ? query.OrderByDescending(x => x.GrandTotal) : query.OrderBy(x => x.GrandTotal),
-            "podate" => isDesc ? query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.Id) : query.OrderBy(x => x.PoDate).ThenByDescending(x => x.Id),
+            "podate" => isDesc ? query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn) : query.OrderBy(x => x.PoDate).ThenByDescending(x => x.CreatedOn),
             "expecteddeliverydate" => isDesc ? query.OrderByDescending(x => x.ExpectedDeliveryDate) : query.OrderBy(x => x.ExpectedDeliveryDate),
             "id" => isDesc ? query.OrderByDescending(x => x.Id) : query.OrderBy(x => x.Id),
             "createdby" => isDesc ? query.OrderByDescending(x => x.CreatedBy) : query.OrderBy(x => x.CreatedBy),
-            "createddate" => isDesc ? query.OrderByDescending(x => x.CreatedDate) : query.OrderBy(x => x.CreatedDate),
-            _ => query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.Id)
+            "CreatedOn" => isDesc ? query.OrderByDescending(x => x.CreatedOn) : query.OrderBy(x => x.CreatedOn),
+            _ => query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn)
         };
 
         // STEP 3: Optimized Data Fetch (Fetch only required items)
@@ -215,7 +215,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
         return (data, total, totalAmount, todayCount, monthCount);
     }
-    public async Task<PurchaseOrder?> GetByIdWithItemsAsync(int id, CancellationToken ct)
+    public async Task<PurchaseOrder?> GetByIdWithItemsAsync(Guid id, CancellationToken ct)
     {
       var data= await _context.PurchaseOrders.AsNoTracking()
             .Include(x => x.Items) // Yeh child table 'PurchaseOrderItems' se data layega
@@ -228,7 +228,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
     public void RemoveItem(PurchaseOrderItem item) => _context.PurchaseOrderItems.Remove(item);
 
-    public async Task<bool> DeleteItemAsync(int itemId)
+    public async Task<bool> DeleteItemAsync(Guid itemId)
     {
         var item = await _context.PurchaseOrderItems.FindAsync(itemId);
         if (item == null) return false;
@@ -237,7 +237,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task UpdatePOTotalsAsync(int poId)
+    public async Task UpdatePOTotalsAsync(Guid poId)
     {
         var items = await _context.PurchaseOrderItems.AsNoTracking()
                                   .Where(x => x.PurchaseOrderId == poId)
@@ -264,7 +264,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         }
     }
 
-    public async Task<bool> BulkDeleteItemsAsync(List<int> itemIds)
+    public async Task<bool> BulkDeleteItemsAsync(List<Guid> itemIds)
     {
         var items = await _context.PurchaseOrderItems.AsNoTracking()
                                   .Where(x => itemIds.Contains(x.Id))
@@ -276,7 +276,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<PurchaseOrder> GetByIdAsync(int id)
+    public async Task<PurchaseOrder> GetByIdAsync(Guid id)
     {
         return await _context.PurchaseOrders
             .Include(p => p.Items)
@@ -288,7 +288,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         _context.PurchaseOrders.Remove(po);
     }
 
-    public async Task<List<PurchaseOrder>> GetByIdsAsync(List<int> ids)
+    public async Task<List<PurchaseOrder>> GetByIdsAsync(List<Guid> ids)
     {
         return await _context.PurchaseOrders
             .Include(x => x.Items)
@@ -313,14 +313,14 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         // Agar 1 ya usse zyada rows affect hui hain toh true return karega
         return (await _context.SaveChangesAsync()) > 0;
     }
-    public async Task<PurchaseOrder> GetByIdAsyncForUpdateStatus(int id)
+    public async Task<PurchaseOrder> GetByIdAsyncForUpdateStatus(Guid id)
     {
         // PO ke saath uske items ko bhi load karna behtar hota hai (Optional)
         return await _context.PurchaseOrders.AsNoTracking()
                              .FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task<bool> UpdatePOStatusAsync(int id, string status)
+    public async Task<bool> UpdatePOStatusAsync(Guid id, string status)
     {
         // Id check aur fetch
         var po = await _context.PurchaseOrders.FindAsync(id);
@@ -370,6 +370,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 gp.ReferenceType == 1 && // 1 = PurchaseOrder
                 gp.ReferenceId == po.Id.ToString() && 
                 gp.Status == 1)) // 1 = Entered/At-Gate
+            .OrderByDescending(po => po.CreatedOn)
             .Select(po => new PendingPODto
             {
                 Id = po.Id,
@@ -379,18 +380,16 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 Status = po.Status,
                 ExpectedQty = po.Items.Sum(x => x.Qty - x.ReceivedQty) // Show balance quantity
             })
-            .OrderByDescending(po => po.Id)
             .ToListAsync();
     }
-    public async Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(int poId)
+    public async Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(Guid poId)
     {
         var poItems = await _context.PurchaseOrderItems.AsNoTracking()
             .Where(poi => poi.PurchaseOrderId == poId)
             .Include(poi => poi.Product)
             .ToListAsync();
 
-        var receivedQuantities = await _context.Set<GRNDetail>()
-
+        var receivedQuantities = await _context.GRNDetails.AsNoTracking()
             .Where(gi => gi.GRNHeader.PurchaseOrderId == poId)
             .GroupBy(gi => gi.ProductId)
             .Select(g => new { ProductId = g.Key, Total = g.Sum(x => (decimal?)x.ReceivedQty) ?? 0 })
@@ -410,7 +409,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         }).ToList();
     }
 
-    public async Task<POHeaderDetailsDto?> GetPOHeaderAsync(int lastPurchaseOrderId)
+    public async Task<POHeaderDetailsDto?> GetPOHeaderAsync(Guid lastPurchaseOrderId)
     {
         return await _context.PurchaseOrders.AsNoTracking()
         .Where(x => x.Id == lastPurchaseOrderId)
@@ -449,7 +448,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     /// </summary>
     /// <param name="ids"></param>
     /// <returns></returns>
-    public async Task<bool> BulkSentForApprovalAsync(List<long> ids)
+    public async Task<bool> BulkSentForApprovalAsync(List<Guid> ids)
     {
         // 1. Fetch Draft or Rejected POs
         var pos = await _context.PurchaseOrders
@@ -465,7 +464,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         foreach (var po in pos)
         {
             po.Status = "Submitted"; // Status Submitted kiya
-            po.UpdatedDate = DateTime.Now;
+            po.ModifiedOn = DateTime.Now;
         }
 
         // 3. Save Changes
@@ -496,7 +495,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     /// <param name="ids"></param>
     /// <param name="approvedBy"></param>
     /// <returns></returns>
-    public async Task<bool> BulkApprovePOsAsync(List<long> ids, string approvedBy)
+    public async Task<bool> BulkApprovePOsAsync(List<Guid> ids, string approvedBy)
     {
         // 1. Fetch Submitted POs
         var pos = await _context.PurchaseOrders
@@ -509,8 +508,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         foreach (var po in pos)
         {
             po.Status = "Approved";
-            po.UpdatedBy = approvedBy;
-            po.UpdatedDate = DateTime.Now;
+            po.ModifiedBy = approvedBy;
+            po.ModifiedOn = DateTime.Now;
         }
 
         // 3. Save Changes
@@ -581,7 +580,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     /// <param name="ids"></param>
     /// <param name="rejectedBy"></param>
     /// <returns></returns>
-    public async Task<bool> BulkRejectPOsAsync(List<long> ids, string rejectedBy)
+    public async Task<bool> BulkRejectPOsAsync(List<Guid> ids, string rejectedBy)
     {
         // 1. Sirf 'Submitted' status wale POs hi Reject kiye ja sakte hain
         var pos = await _context.PurchaseOrders
@@ -594,8 +593,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         {
             // 2. Status update to Rejected
             po.Status = "Rejected";
-            po.UpdatedBy = rejectedBy;
-            po.UpdatedDate = DateTime.Now;
+            po.ModifiedBy = rejectedBy;
+            po.ModifiedOn = DateTime.Now;
         }
 
         // 3. Save Changes
@@ -619,7 +618,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         return false;
     }
 
-    public async Task<PODocumentDto> GetPODetailsForPrintAsync(long id)
+    public async Task<PODocumentDto> GetPODetailsForPrintAsync(Guid id)
     {
         // 1. FIX: StringComparison ko hata kar simple '==' use karein taaki EF ise SQL mein translate kar sake
         // SQL Server default mein case-insensitive match hi karta hai
@@ -672,7 +671,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             }).FirstOrDefaultAsync();
     }
 
-    public async Task<PORepoPrintResponse> GeneratePOReportPdfAsync(long id)
+    public async Task<PORepoPrintResponse> GeneratePOReportPdfAsync(Guid id)
     {
         // 1. Timeout Fix: Simple query bina nested include ke
         var po = await _context.PurchaseOrders
@@ -858,7 +857,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         };
     }
 
-    public async Task<decimal> GetTotalReturnedQtyAsync(int poId)
+    public async Task<decimal> GetTotalReturnedQtyAsync(Guid poId)
     {
         // 1. Calculate Total Ordered
         var totalOrdered = await _context.PurchaseOrderItems
@@ -877,14 +876,23 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         return replacementNeeded > 0 ? replacementNeeded : 0;
     }
 
-    public async Task<bool> ToggleDispatchStatusAsync(int id)
+    public async Task<bool> ToggleDispatchStatusAsync(Guid id)
     {
         var po = await _context.PurchaseOrders.FindAsync(id);
         if (po == null) return false;
 
         po.IsDispatched = !po.IsDispatched;
-        po.UpdatedDate = DateTime.Now;
+        po.ModifiedOn = DateTime.Now;
 
+        return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> BulkDeleteAsync(List<Guid> ids)
+    {
+        var pos = await _context.PurchaseOrders.Where(x => ids.Contains(x.Id)).ToListAsync();
+        if(!pos.Any()) return false;
+        
+        _context.PurchaseOrders.RemoveRange(pos);
         return await _context.SaveChangesAsync() > 0;
     }
 }

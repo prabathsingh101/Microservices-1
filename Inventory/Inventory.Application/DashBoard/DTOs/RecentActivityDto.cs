@@ -1,4 +1,4 @@
-﻿public class RecentActivityDto
+public class RecentActivityDto
 {
     public string Product { get; set; } = string.Empty; // Product Name
     public string Type { get; set; } = string.Empty;    // "Sale" or "Purchase"
