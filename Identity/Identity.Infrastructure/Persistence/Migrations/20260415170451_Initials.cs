@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace Identity.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
@@ -187,16 +185,7 @@ namespace Identity.Infrastructure.Persistence.Migrations
             migrationBuilder.InsertData(
                 table: "Roles",
                 columns: new[] { "Id", "CompanyId", "RoleName" },
-                values: new object[,]
-                {
-                    { new Guid("00000000-0000-0000-0000-000000000001"), null, "Admin" },
-                    { new Guid("00000000-0000-0000-0000-000000000002"), null, "User" },
-                    { new Guid("00000000-0000-0000-0000-000000000003"), null, "Employee" },
-                    { new Guid("00000000-0000-0000-0000-000000000004"), null, "Warehouse" },
-                    { new Guid("00000000-0000-0000-0000-000000000005"), null, "Super Admin" },
-                    { new Guid("00000000-0000-0000-0000-000000000006"), null, "Manager" },
-                    { new Guid("00000000-0000-0000-0000-000000000007"), null, "Customer" }
-                });
+                values: new object[] { new Guid("00000000-0000-0000-0000-000000000001"), null, "Default Admin" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Menus_ParentId",
