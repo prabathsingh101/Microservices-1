@@ -83,7 +83,9 @@ namespace Company.Application.Company.Queries
             return new GridResponse<CompanyProfileDto>
             {
                 Items = itemsDto,
-                TotalCount = pagedData.TotalCount
+                TotalCount = pagedData.TotalCount,
+                ActiveCount = pagedData.ActiveCount,
+                InactiveCount = pagedData.InactiveCount
             };
         }
     }

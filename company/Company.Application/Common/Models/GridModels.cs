@@ -16,5 +16,7 @@ namespace Company.Application.Common.Models
     {
         public List<T> Items { get; set; } = new List<T>();
         public int TotalCount { get; set; }
+        public int ActiveCount { get; set; }
+        public int InactiveCount { get; set; }
     }
 }

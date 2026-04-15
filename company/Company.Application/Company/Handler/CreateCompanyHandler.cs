@@ -96,6 +96,7 @@ namespace Company.Application.Company.Commands.Create.Handler
                 existing.PurchaseOrderStatusUpdateMessage = cmd.Request.PurchaseOrderStatusUpdateMessage;
                 existing.SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage;
                 existing.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
+                existing.IsActive = true; 
 
                 // Sync Address
                 if (existing.CompanyAddress != null)

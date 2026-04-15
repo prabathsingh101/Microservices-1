@@ -100,13 +100,23 @@ namespace Company.Infrastructure.Repositories
                 query = query.OrderBy(c => c.Name);
             }
 
+            // Counts before paging but after filtering
+            var activeCount = await query.CountAsync(c => c.IsActive);
+            var inactiveCount = await query.CountAsync(c => !c.IsActive);
+
             // Pagination
             var items = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync();
 
-            return new GridResponse<CompanyProfile> { Items = items, TotalCount = total };
+            return new GridResponse<CompanyProfile> 
+            { 
+                Items = items, 
+                TotalCount = total,
+                ActiveCount = activeCount,
+                InactiveCount = inactiveCount
+            };
         }
     }
 }
