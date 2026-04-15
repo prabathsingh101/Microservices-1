@@ -73,6 +73,7 @@ namespace Company.Application.DTOs
 
     // Request ke liye use hoga (Create/Update)
     public record UpsertCompanyRequest(
+        Guid? CompanyId,
         string Name,
         string? Tagline,
         string RegistrationNumber,

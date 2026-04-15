@@ -123,7 +123,7 @@ namespace Company.Application.Company.Commands.Update.Handler
                 // Add or Update
                 foreach (var sDto in cmd.Request.AuthorizedSignatories)
                 {
-                    string signaturePath = sDto.SignatureImageUrl;
+                    string signaturePath = sDto.SignatureImageUrl ?? string.Empty;
                     if (!string.IsNullOrEmpty(sDto.SignatureImageUrl) && sDto.SignatureImageUrl.Contains("base64"))
                     {
                         string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "signatures");

@@ -55,13 +55,80 @@ namespace Company.Application.Company.Commands.Create.Handler
             }
             else
             {
-                logoPath = cmd.Request.LogoUrl; // Agar simple URL hai toh
+                logoPath = cmd.Request.LogoUrl ?? string.Empty; // Agar simple URL hai toh
             }
 
-            // Mapping to Domain Entity
+            // 🚀 ID/IDEMPOTENCY LOGIC:
+            // Priority: 1. ID from Request (CompanyId), 2. ID from Token, 3. New Guid
+            var targetId = cmd.Request.CompanyId ?? _currentUserService.CompanyId ?? Guid.NewGuid();
+            var existing = await _repo.GetByIdAsync(targetId);
+
+            if (existing != null)
+            {
+                // If exists, perform an UPDATE instead of skip
+                existing.Name = cmd.Request.Name;
+                existing.Tagline = cmd.Request.Tagline;
+                existing.RegistrationNumber = cmd.Request.RegistrationNumber;
+                existing.Gstin = cmd.Request.Gstin;
+                existing.LogoUrl = logoPath;
+                existing.PrimaryEmail = cmd.Request.PrimaryEmail;
+                existing.Email = cmd.Request.Email;
+                existing.SmtpEmail = cmd.Request.SmtpEmail;
+                existing.SmtpPassword = cmd.Request.SmtpPassword;
+                existing.SmtpHost = cmd.Request.SmtpHost;
+                existing.SmtpPort = cmd.Request.SmtpPort;
+                existing.SmtpUseSsl = cmd.Request.SmtpUseSsl ?? true;
+                existing.PrimaryPhone = cmd.Request.PrimaryPhone;
+                existing.Website = cmd.Request.Website;
+                existing.Message = cmd.Request.Message;
+                existing.DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage;
+                existing.SaleReturnWindowValue = cmd.Request.SaleReturnWindowValue;
+                existing.SaleReturnWindowUnit = cmd.Request.SaleReturnWindowUnit;
+                existing.SaleReturnPolicyDisclaimer = cmd.Request.SaleReturnPolicyDisclaimer;
+                existing.PurchaseReturnWindowValue = cmd.Request.PurchaseReturnWindowValue;
+                existing.PurchaseReturnWindowUnit = cmd.Request.PurchaseReturnWindowUnit;
+                existing.PurchaseReturnPolicyDisclaimer = cmd.Request.PurchaseReturnPolicyDisclaimer;
+                existing.InvoiceFooterMessage = cmd.Request.InvoiceFooterMessage;
+                existing.EstimateFooterMessage = cmd.Request.EstimateFooterMessage;
+                existing.PurchaseOrderFooterMessage = cmd.Request.PurchaseOrderFooterMessage;
+                existing.SaleOrderFooterMessage = cmd.Request.SaleOrderFooterMessage;
+                existing.PurchaseOrderCreationMessage = cmd.Request.PurchaseOrderCreationMessage;
+                existing.PurchaseOrderStatusUpdateMessage = cmd.Request.PurchaseOrderStatusUpdateMessage;
+                existing.SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage;
+                existing.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
+
+                // Sync Address
+                if (existing.CompanyAddress != null)
+                {
+                    existing.CompanyAddress.AddressLine1 = cmd.Request.Address.AddressLine1;
+                    existing.CompanyAddress.AddressLine2 = cmd.Request.Address.AddressLine2;
+                    existing.CompanyAddress.City = cmd.Request.Address.City;
+                    existing.CompanyAddress.State = cmd.Request.Address.State;
+                    existing.CompanyAddress.StateCode = cmd.Request.Address.StateCode;
+                    existing.CompanyAddress.PinCode = cmd.Request.Address.PinCode;
+                    existing.CompanyAddress.Country = cmd.Request.Address.Country ?? "India";
+                    existing.CompanyAddress.Email = cmd.Request.Address.Email;
+                }
+
+                // Sync Bank
+                if (existing.BankInformation != null)
+                {
+                    existing.BankInformation.BankName = cmd.Request.BankInfo.BankName;
+                    existing.BankInformation.BranchName = cmd.Request.BankInfo.BranchName;
+                    existing.BankInformation.AccountNumber = cmd.Request.BankInfo.AccountNumber;
+                    existing.BankInformation.IfscCode = cmd.Request.BankInfo.IfscCode;
+                    existing.BankInformation.AccountType = cmd.Request.BankInfo.AccountType ?? "Current";
+                    existing.BankInformation.Email = cmd.Request.BankInfo.Email;
+                }
+
+                await _repo.UpsertCompanyProfileAsync(existing);
+                return existing.Id;
+            }
+
+            // Mapping to Domain Entity for New Insert
             var company = new CompanyProfile
             {
-                Id = _currentUserService.CompanyId ?? Guid.NewGuid(),
+                Id = targetId,
                 Name = cmd.Request.Name,
                 Tagline = cmd.Request.Tagline,
                 RegistrationNumber = cmd.Request.RegistrationNumber,
@@ -123,14 +190,14 @@ namespace Company.Application.Company.Commands.Create.Handler
             {
                 foreach (var sDto in cmd.Request.AuthorizedSignatories)
                 {
-                    string signaturePath = sDto.SignatureImageUrl;
+                    string signaturePath = sDto.SignatureImageUrl ?? string.Empty;
                     if (!string.IsNullOrEmpty(sDto.SignatureImageUrl) && sDto.SignatureImageUrl.Contains("base64"))
                     {
-                        string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "signatures");
-                        if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+                        string sFolderPath = Path.Combine(_environment.WebRootPath, "uploads", "signatures");
+                        if (!Directory.Exists(sFolderPath)) Directory.CreateDirectory(sFolderPath);
 
                         string fileName = $"sig_{Guid.NewGuid()}.png";
-                        string fullPath = Path.Combine(folderPath, fileName);
+                        string fullPath = Path.Combine(sFolderPath, fileName);
 
                         var base64Data = sDto.SignatureImageUrl.Split(',')[1];
                         byte[] imageBytes = Convert.FromBase64String(base64Data);
@@ -147,13 +214,6 @@ namespace Company.Application.Company.Commands.Create.Handler
                         IsDefault = sDto.IsDefault
                     });
                 }
-            }
-
-            // 🚀 IDEMPOTENCY CHECK: if company already exists, don't re-insert
-            var existing = await _repo.GetByIdAsync(company.Id);
-            if (existing != null)
-            {
-                return existing.Id;
             }
 
             var resultId = await _repo.InsertCompanyAsync(company);
