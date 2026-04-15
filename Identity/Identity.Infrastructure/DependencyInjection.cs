@@ -1,4 +1,5 @@
 using Identity.Application.Interfaces;
+using Identity.Domain;
 using Identity.Infrastructure.Persistence;
 using Identity.Infrastructure.Repositories;
 using Identity.Infrastructure.Security;

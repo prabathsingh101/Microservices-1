@@ -12,11 +12,13 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public bool IsQuick { get; set; }
         public string? CreatedBy { get; set; }
         public string? ModifiedBy { get; set; }
+        public Guid? CompanyId { get; set; }
         public List<PurchaseReturnItemDto> Items { get; set; }
     }
 
     public class PurchaseReturnItemDto
     {
+        public Guid? CompanyId { get; set; }
         public Guid ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public string GrnRef { get; set; }

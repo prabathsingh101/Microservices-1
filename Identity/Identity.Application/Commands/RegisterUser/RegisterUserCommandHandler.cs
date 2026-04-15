@@ -1,9 +1,11 @@
 
 using Identity.Application.Commands.RegisterUser;
 using Identity.Application.Interfaces;
+using Identity.Domain.Users;
 using Identity.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
+using Identity.Domain;
 
 public class RegisterUserHandler
     : IRequestHandler<RegisterUserCommand, Guid>

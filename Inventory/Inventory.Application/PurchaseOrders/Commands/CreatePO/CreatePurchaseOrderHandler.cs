@@ -42,6 +42,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
 
                 var po = new PurchaseOrder
                 {
+                    CompanyId = dto.CompanyId,
                     PoNumber = generatedPoNumber,
                     SupplierId = dto.SupplierId,
                     SupplierName = dto.SupplierName,

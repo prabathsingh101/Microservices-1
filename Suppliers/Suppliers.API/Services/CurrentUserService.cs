@@ -18,8 +18,15 @@ namespace Suppliers.API.Services
         {
             get
             {
-                var companyIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
-                return Guid.TryParse(companyIdClaim, out var guid) ? guid : null;
+                // 1. JWT Claim
+                var claimValue = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
+                if (Guid.TryParse(claimValue, out var claimGuid)) return claimGuid;
+
+                // 2. Fallback: Request Header (Important for Super Admin)
+                var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Company-Id"].ToString();
+                if (Guid.TryParse(headerValue, out var headerGuid)) return headerGuid;
+
+                return null;
             }
         }
     }

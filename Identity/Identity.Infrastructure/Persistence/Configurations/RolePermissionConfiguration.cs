@@ -22,10 +22,9 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
         // Configure navigation properties as OPTIONAL
         // This prevents EF Core from requiring them during model validation
         builder.HasOne(rp => rp.Role)
-            .WithMany()
+            .WithMany(r => r.RolePermissions)
             .HasForeignKey(rp => rp.RoleId)
-            .OnDelete(DeleteBehavior.Cascade)
-            .IsRequired(false); // Navigation property is optional
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(rp => rp.Menu)
             .WithMany()

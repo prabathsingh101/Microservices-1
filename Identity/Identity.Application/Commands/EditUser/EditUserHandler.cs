@@ -1,5 +1,6 @@
 using Identity.Application.Common;
 using Identity.Application.Interfaces;
+using Identity.Domain;
 using Identity.Domain.Users;
 using MediatR;
 using Microsoft.AspNetCore.Identity;

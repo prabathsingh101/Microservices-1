@@ -44,6 +44,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 
                 return new SaleReturnItem
                 {
+                    CompanyId = dto.CompanyId,
                     ProductId = i.ProductId,
                     ReturnQty = i.ReturnQty,
                     UnitPrice = i.UnitPrice,
@@ -67,6 +68,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
 
             var header = new SaleReturnHeader
             {
+                CompanyId = dto.CompanyId,
                 CustomerId = dto.CustomerId,
                 SaleOrderId = dto.SaleOrderId,
                 ReturnDate = dto.ReturnDate,

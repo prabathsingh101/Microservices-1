@@ -1,3 +1,4 @@
+using Identity.Domain.Users;
 using Identity.Application.DTOs;
 using Identity.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -5,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Identity.Domain;
 
 namespace Identity.Infrastructure.Security;
 

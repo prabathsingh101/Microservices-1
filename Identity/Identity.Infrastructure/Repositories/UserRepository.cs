@@ -1,6 +1,8 @@
 using Identity.Application.Interfaces;
 using Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Identity.Domain.Users;
+using Identity.Domain;
 
 namespace Identity.Infrastructure.Repositories;
 
@@ -55,13 +57,14 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetWithRolesByEmailAsync(string email)
     {
-        // 1. AsNoTracking: Performance badhane ke liye (kyunki ye sirf fetch operation hai)
-        // 2. AsSplitQuery: Multiple joins se hone wale Cartesian Explosion aur Timeout ko rokne ke liye
+        // 🚀 UPDATED: Including RolePermissions and Menus for faster login logic
         return await _context.Users
             .IgnoreQueryFilters()
             .AsNoTracking()
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
+                    .ThenInclude(r => r.RolePermissions)
+                        .ThenInclude(rp => rp.Menu)
             .Include(u => u.RefreshTokens)
             .AsSplitQuery() // Isse query fast ho jayegi aur timeout nahi aayega
             .FirstOrDefaultAsync(u => u.Email == email);

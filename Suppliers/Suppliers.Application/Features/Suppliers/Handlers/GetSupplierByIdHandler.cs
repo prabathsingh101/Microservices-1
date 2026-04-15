@@ -31,7 +31,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 s.Email,
                 s.IsActive,
                 s.CreatedBy,
-                s.DefaultPriceListId
+                s.DefaultPriceListId,
+                s.CompanyId
             );
         }
     }

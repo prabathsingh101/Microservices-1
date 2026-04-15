@@ -54,6 +54,10 @@ namespace Company.Application.Company.Queries
                 data.EstimateFooterMessage,
                 data.PurchaseOrderFooterMessage,
                 data.SaleOrderFooterMessage,
+                data.PurchaseOrderCreationMessage,
+                data.PurchaseOrderStatusUpdateMessage,
+                data.SaleOrderCreationMessage,
+                data.SaleOrderConfirmationMessage,
                
                 new AddressDto(
                     data.CompanyAddress.Id,

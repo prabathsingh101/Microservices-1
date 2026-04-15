@@ -11,7 +11,8 @@ public record SupplierDto(
     string? email,
     bool? isActive,
     string? createdBy,
-    Guid? defaultpricelistId
+    Guid? defaultpricelistId,
+    Guid? companyId
 );
 
 public record CreateSupplierDto(
@@ -22,5 +23,6 @@ public record CreateSupplierDto(
     string? email,
     string? createdBy,
     Guid? defaultpricelistId,
-    bool isActive
+    bool isActive,
+    Guid? companyId
 );

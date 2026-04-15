@@ -16,11 +16,11 @@ public class IdentityDbContext : DbContext
         _currentUserService = currentUserService;
     }
 
-    public DbSet<User> Users => Set<User>();
-    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Identity.Domain.User> Users => Set<Identity.Domain.User>();
+    public DbSet<Identity.Domain.Roles.Role> Roles => Set<Identity.Domain.Roles.Role>();
     public DbSet<Menu> Menus => Set<Menu>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-    public DbSet<Domain.Users.UserRole> UserRoles => Set<Domain.Users.UserRole>();
+    public DbSet<Identity.Domain.Users.UserRole> UserRoles => Set<Identity.Domain.Users.UserRole>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
@@ -43,12 +43,10 @@ public class IdentityDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(
         typeof(IdentityDbContext).Assembly);
 
-        // modelBuilder.Entity<User>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
-        modelBuilder.Entity<Role>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
-        modelBuilder.Entity<RolePermission>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
-        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
-        modelBuilder.Entity<Identity.Domain.Users.UserRole>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
-        modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId);
+        // modelBuilder.Entity<Role>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
+        // modelBuilder.Entity<RolePermission>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
+        // modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
+        // modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
 
         base.OnModelCreating(modelBuilder);
     }

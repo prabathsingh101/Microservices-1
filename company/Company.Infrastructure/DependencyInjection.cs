@@ -26,6 +26,7 @@ namespace Company.Infrastructure
 
             services.AddScoped<ICompanyRepository, CompanyRepository>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+            services.AddHttpClient();
             services.AddHttpContextAccessor();
 
             return services;

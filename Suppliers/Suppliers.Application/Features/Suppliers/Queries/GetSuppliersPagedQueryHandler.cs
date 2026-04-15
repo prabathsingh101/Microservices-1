@@ -82,7 +82,8 @@ internal sealed class GetSuppliersPagedQueryHandler
                 x.Email,
                 x.IsActive,
                 x.CreatedBy,
-                x.DefaultPriceListId
+                x.DefaultPriceListId,
+                x.CompanyId
             ))
             .ToListAsync(cancellationToken);
 

@@ -42,6 +42,8 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Creat
 // Repository Inject karna
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
+builder.Services.AddScoped<ICurrentUserService, Suppliers.API.Services.CurrentUserService>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
 {

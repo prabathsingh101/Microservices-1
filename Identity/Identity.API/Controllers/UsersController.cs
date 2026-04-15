@@ -4,6 +4,7 @@ using Identity.Domain.Users;
 
 using MediatR;
 using Identity.Application.Commands.EditUser;
+using Identity.Domain;
 
 namespace Identity.API.Controllers;
 

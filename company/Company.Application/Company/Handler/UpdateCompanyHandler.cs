@@ -65,7 +65,7 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.SmtpPassword = cmd.Request.SmtpPassword;
             profile.SmtpHost = cmd.Request.SmtpHost;
             profile.SmtpPort = cmd.Request.SmtpPort;
-            profile.SmtpUseSsl = cmd.Request.SmtpUseSsl;
+            profile.SmtpUseSsl = cmd.Request.SmtpUseSsl ?? true;
             profile.PrimaryPhone = cmd.Request.PrimaryPhone;
             profile.Website = cmd.Request.Website;
             profile.Message = cmd.Request.Message;
@@ -80,6 +80,10 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.EstimateFooterMessage = cmd.Request.EstimateFooterMessage;
             profile.PurchaseOrderFooterMessage = cmd.Request.PurchaseOrderFooterMessage;
             profile.SaleOrderFooterMessage = cmd.Request.SaleOrderFooterMessage;
+            profile.PurchaseOrderCreationMessage = cmd.Request.PurchaseOrderCreationMessage;
+            profile.PurchaseOrderStatusUpdateMessage = cmd.Request.PurchaseOrderStatusUpdateMessage;
+            profile.SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage;
+            profile.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
 
             // 2. Address Update
             if (profile.CompanyAddress != null)
@@ -109,7 +113,10 @@ namespace Company.Application.Company.Commands.Update.Handler
             if (cmd.Request.AuthorizedSignatories != null)
             {
                 // Remove signatories not in the request
-                var requestIds = cmd.Request.AuthorizedSignatories.Select(s => s.Id).ToList();
+                var requestIds = cmd.Request.AuthorizedSignatories
+                    .Select(s => int.TryParse(s.Id?.ToString(), out var sid) ? sid : 0)
+                    .Where(id => id > 0)
+                    .ToList();
                 var toRemove = profile.AuthorizedSignatories.Where(s => !requestIds.Contains(s.Id)).ToList();
                 foreach (var s in toRemove) profile.AuthorizedSignatories.Remove(s);
 
@@ -131,7 +138,8 @@ namespace Company.Application.Company.Commands.Update.Handler
                         signaturePath = $"/uploads/signatures/{fileName}";
                     }
 
-                    var existing = profile.AuthorizedSignatories.FirstOrDefault(x => x.Id == sDto.Id && x.Id != 0);
+                    int sId = int.TryParse(sDto.Id?.ToString(), out var sid) ? sid : 0;
+                    var existing = profile.AuthorizedSignatories.FirstOrDefault(x => x.Id == sId && sId != 0);
                     if (existing != null)
                     {
                         existing.PersonName = sDto.PersonName;

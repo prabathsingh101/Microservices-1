@@ -1,3 +1,6 @@
+using Identity.Domain;
+using Identity.Domain.Users;
+
 namespace Identity.Application.Interfaces;
 
 public interface IUserRepository

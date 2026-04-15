@@ -23,5 +23,6 @@ namespace Identity.Application.DTOs
         public bool CanAdd { get; set; }
         public bool CanEdit { get; set; }
         public bool CanDelete { get; set; }
+        public string? AdditionalActions { get; set; } // e.g. "PRINT,APPROVE"
     }
 }

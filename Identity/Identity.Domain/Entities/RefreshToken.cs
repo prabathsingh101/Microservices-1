@@ -1,3 +1,5 @@
+using Identity.Domain.Users;
+
 namespace Identity.Domain.Entities;
 
 public class RefreshToken

@@ -59,6 +59,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
         var saleOrder = new SaleOrder
         {
             Id = dto.Id,
+            CompanyId = dto.CompanyId,
             SONumber = finalSONo,
             CustomerId = dto.CustomerId,
             SODate = dto.SoDate,

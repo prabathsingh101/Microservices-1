@@ -49,6 +49,10 @@ namespace Company.Application.Company.Queries
                 data.EstimateFooterMessage,
                 data.PurchaseOrderFooterMessage,
                 data.SaleOrderFooterMessage,
+                data.PurchaseOrderCreationMessage,
+                data.PurchaseOrderStatusUpdateMessage,
+                data.SaleOrderCreationMessage,
+                data.SaleOrderConfirmationMessage,
                 // Nested Address Record
                 new AddressDto(
                     data.CompanyAddress.Id,

@@ -1,6 +1,8 @@
 using Identity.Domain.Entities;
 using Identity.Domain.Users;
 
+namespace Identity.Domain;
+
 public class User
 {
     private readonly List<UserRole> _userRoles = new();

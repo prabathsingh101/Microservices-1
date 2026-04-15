@@ -19,7 +19,7 @@ public class IdentityDbContextFactory
 
         optionsBuilder.UseSqlServer(
             configuration.GetConnectionString("IdentityDb")
-            ?? "Server=LAPTOP-MM46D5U5;Database=IdentityDb;user id=sa;password=Anand@raj12345;TrustServerCertificate=True");
+            ?? "Server=localhost,1433;Database=IdentityDb;user id=sa;password=Anand@raj12345;TrustServerCertificate=True");
 
         return new IdentityDbContext(optionsBuilder.Options, new DesignTimeCurrentUserService());
     }

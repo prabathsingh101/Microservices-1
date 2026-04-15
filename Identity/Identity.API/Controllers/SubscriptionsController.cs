@@ -12,10 +12,12 @@ namespace Identity.API.Controllers
     public class SubscriptionsController : ControllerBase
     {
         private readonly IdentityDbContext _context;
+        private readonly IOnboardingService _onboardingService;
 
-        public SubscriptionsController(IdentityDbContext context)
+        public SubscriptionsController(IdentityDbContext context, IOnboardingService onboardingService)
         {
             _context = context;
+            _onboardingService = onboardingService;
         }
 
         [HttpGet]
@@ -99,6 +101,21 @@ namespace Identity.API.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // 🚀 BOOTSTRAP: Create Roles/Menus for this Company automatically
+            await _onboardingService.BootstrapCompanyAsync(dto.CompanyId, dto.CompanyName);
+
+            // 🚀 LINK USER: If UserId provided, link this user to the company
+            if (dto.UserId.HasValue)
+            {
+                var user = await _context.Users.FindAsync(dto.UserId.Value);
+                if (user != null)
+                {
+                    user.SetCompanyId(dto.CompanyId);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return Ok(new { Success = true, Message = "Customer onboarded successfully!" });
         }
     }

@@ -30,6 +30,10 @@ namespace Company.Application.DTOs
         string? EstimateFooterMessage,
         string? PurchaseOrderFooterMessage,
         string? SaleOrderFooterMessage,
+        string? PurchaseOrderCreationMessage,
+        string? PurchaseOrderStatusUpdateMessage,
+        string? SaleOrderCreationMessage,
+        string? SaleOrderConfirmationMessage,
         AddressDto Address, // Aapke request ke hisaab se name match
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories
@@ -37,7 +41,7 @@ namespace Company.Application.DTOs
 
     // Shared Records
     public record AddressDto(
-        int Id = 0, 
+        object? Id = null, 
         string AddressLine1 = "", 
         string AddressLine2 = "", 
         string City = "", 
@@ -49,7 +53,7 @@ namespace Company.Application.DTOs
     );
 
     public record BankDetailDto(
-        int Id = 0, 
+        object? Id = null, 
         string BankName = "", 
         string BranchName = "", 
         string AccountNumber = "", 
@@ -59,7 +63,7 @@ namespace Company.Application.DTOs
     );
 
     public record AuthorizedSignatoryDto(
-        int Id = 0, 
+        object? Id = null, 
         string PersonName = "", 
         string Designation = "", 
         string? SignatureImageUrl = null, 
@@ -80,7 +84,7 @@ namespace Company.Application.DTOs
         string? SmtpPassword,
         string? SmtpHost,
         int? SmtpPort,
-        bool SmtpUseSsl,
+        bool? SmtpUseSsl,
         string PrimaryPhone,
         string? Website,
         string? Message,
@@ -95,6 +99,10 @@ namespace Company.Application.DTOs
         string? EstimateFooterMessage,
         string? PurchaseOrderFooterMessage,
         string? SaleOrderFooterMessage,
+        string? PurchaseOrderCreationMessage,
+        string? PurchaseOrderStatusUpdateMessage,
+        string? SaleOrderCreationMessage,
+        string? SaleOrderConfirmationMessage,
         AddressDto Address,
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories

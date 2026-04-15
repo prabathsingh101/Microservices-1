@@ -2,20 +2,30 @@ using Company.Application.Common.Interfaces;
 using Company.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
+using System.Net.Http.Json;
 
 namespace Company.Application.Company.Commands.Create.Handler
 {
     public class CreateCompanyHandler : IRequestHandler<CreateCompanyCommand, Guid>
     {
         private readonly ICompanyRepository _repo;
-        private readonly IWebHostEnvironment _environment; // Path handle karne ke liye
+        private readonly IWebHostEnvironment _environment; 
         private readonly ICurrentUserService _currentUserService;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
-        public CreateCompanyHandler(ICompanyRepository repo, IWebHostEnvironment environment, ICurrentUserService currentUserService)
+        public CreateCompanyHandler(
+            ICompanyRepository repo, 
+            IWebHostEnvironment environment, 
+            ICurrentUserService currentUserService,
+            IHttpClientFactory httpClientFactory,
+            Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _repo = repo; 
             _environment = environment;
             _currentUserService = currentUserService;
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         public async Task<Guid> Handle(CreateCompanyCommand cmd, CancellationToken ct)
@@ -63,7 +73,7 @@ namespace Company.Application.Company.Commands.Create.Handler
                 SmtpPassword = cmd.Request.SmtpPassword,
                 SmtpHost = cmd.Request.SmtpHost,
                 SmtpPort = cmd.Request.SmtpPort,
-                SmtpUseSsl = cmd.Request.SmtpUseSsl,
+                SmtpUseSsl = cmd.Request.SmtpUseSsl ?? true,
                 PrimaryPhone = cmd.Request.PrimaryPhone,
                 Website = cmd.Request.Website,
                 Message = cmd.Request.Message,
@@ -79,6 +89,10 @@ namespace Company.Application.Company.Commands.Create.Handler
                 EstimateFooterMessage = cmd.Request.EstimateFooterMessage,
                 PurchaseOrderFooterMessage = cmd.Request.PurchaseOrderFooterMessage,
                 SaleOrderFooterMessage = cmd.Request.SaleOrderFooterMessage,
+                PurchaseOrderCreationMessage = cmd.Request.PurchaseOrderCreationMessage,
+                PurchaseOrderStatusUpdateMessage = cmd.Request.PurchaseOrderStatusUpdateMessage,
+                SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage,
+                SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage,
 
                 CompanyAddress = new Address
                 {
@@ -135,9 +149,41 @@ namespace Company.Application.Company.Commands.Create.Handler
                 }
             }
 
-            return await _repo.InsertCompanyAsync(company); //
+            // 🚀 IDEMPOTENCY CHECK: if company already exists, don't re-insert
+            var existing = await _repo.GetByIdAsync(company.Id);
+            if (existing != null)
+            {
+                return existing.Id;
+            }
 
+            var resultId = await _repo.InsertCompanyAsync(company);
 
+            // 🚀 CROSS-SERVICE SYNC: Tell Identity Service to create Subscription & Bootstrap Roles
+            try
+            {
+                var identityUrl = _configuration["ServiceUrls:IdentityApi"];
+                if (string.IsNullOrEmpty(identityUrl)) identityUrl = "http://identity.api:8080"; // Default for Docker
+
+                var client = _httpClientFactory.CreateClient();
+                var onboardDto = new
+                {
+                    CompanyId = resultId,
+                    CompanyName = company.Name,
+                    PlanType = "Trial",
+                    DurationDays = 30,
+                    UserId = _currentUserService.UserId
+                };
+
+                // Internal Call to Identity API
+                await client.PostAsJsonAsync($"{identityUrl.TrimEnd('/')}/api/admin/subscriptions/onboard", onboardDto);
+            }
+            catch (Exception ex)
+            {
+                // Using Console for quick logs in dev, should use ILogger in prod
+                Console.WriteLine($"[CRITICAL] Onboarding Sync Failed for Company {resultId}: {ex.Message}");
+            }
+
+            return resultId;
         }
     }
 }

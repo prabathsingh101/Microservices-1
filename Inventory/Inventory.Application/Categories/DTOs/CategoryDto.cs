@@ -3,6 +3,7 @@ namespace Inventory.Application.Categories.DTOs;
 public sealed class CategoryDto
 {
     public Guid id { get; set; }
+    public Guid? companyId { get; set; }
     public string categoryName { get; set; } = string.Empty;
     public string categoryCode { get; set; } = string.Empty;
     public decimal defaultGst { get; set; }

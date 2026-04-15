@@ -3,8 +3,6 @@ using Identity.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading.Tasks;
 
 namespace Identity.API.Controllers
 {
@@ -67,7 +65,7 @@ namespace Identity.API.Controllers
                 user.SetCompanyId(companyId);
 
                 // 5. BOOTSTRAP: Create Roles and Permissions
-                await _onboardingService.BootstrapCompanyAsync(companyId);
+                await _onboardingService.BootstrapCompanyAsync(companyId, request.CompanyName);
 
                 // 6. Assign Admin Role to this initial User
                 var adminRole = await _context.Roles

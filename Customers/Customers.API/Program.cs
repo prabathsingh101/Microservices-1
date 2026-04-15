@@ -31,17 +31,11 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<Customers.Application.Common.Interfaces.ICurrentUserService, Customers.API.Services.CurrentUserService>();
 
-
-
 builder.Services.AddControllers()
     .AddJsonOptions(options => {
         // Taaki dates aur complex objects sahi se serialize hon
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     });
-
-
-
-
 
 builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
 {
@@ -70,9 +64,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
 builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 

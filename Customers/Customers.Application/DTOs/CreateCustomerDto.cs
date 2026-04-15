@@ -1,4 +1,4 @@
-﻿using Customers.Domain.Enums;
+using Customers.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -20,5 +20,6 @@ namespace Customers.Application.DTOs
         public string? ShippingAddress { get; set; }
         public string? CustomerStatus { get; set; }
         public string? CreatedBy { get; set; }
+        public Guid? CompanyId { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using Inventory.Domain.Entities;
 public sealed class ProductDto
 {
     public Guid id { get; set; }
+    public Guid? companyId { get; set; }
     public Guid categoryId { get; set; }    
     public Guid subcategoryId { get; set; }
     public string categoryName { get; set; } = string.Empty;

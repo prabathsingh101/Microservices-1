@@ -5,6 +5,7 @@ namespace Inventory.Application.Subcategories.DTOs;
 public sealed class SubcategoryDto
 {
     public Guid Id { get; set; }
+    public Guid? CompanyId { get; set; }
     public Guid CategoryId { get; set; }
     public Category? Category { get; set; }
     public string SubcategoryCode { get; set; } = string.Empty;

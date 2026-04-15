@@ -18,4 +18,7 @@ public class Role : IMultiTenant
         RoleName = roleName;
         CompanyId = companyId;
     }
+
+    // Navigation Properties
+    public virtual ICollection<Identity.Domain.Permissions.RolePermission> RolePermissions { get; set; } = new List<Identity.Domain.Permissions.RolePermission>();
 }

@@ -11,6 +11,9 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Security.Claims;
 using Serilog;
+using Identity.Application.Services;
+using Identity.Domain.Users;
+using Identity.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +28,8 @@ builder.Host.UseSerilog();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers()
     .AddFluentValidation();
+
+builder.Services.AddHttpClient();
 
 builder.Services.AddIdentityApplication();
 builder.Services.AddIdentityInfrastructure(builder.Configuration);
