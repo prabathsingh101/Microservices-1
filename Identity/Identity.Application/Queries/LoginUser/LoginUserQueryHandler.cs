@@ -59,7 +59,7 @@ public class LoginUserQueryHandler
             request.Dto.Password);
 
         // 🛠️ DEBUG BYPASS: Force success for default admin during migration fix
-        if (request.Dto.Email == "default_admin@gmail.com" && request.Dto.Password == "Admin@123")
+        if (request.Dto.Email == "Default_Admin@gmail.com" && request.Dto.Password == "Admin@123")
         {
             Console.WriteLine("[DEBUG-HANDLER] Admin bypass triggered.");
             verify = PasswordVerificationResult.Success;

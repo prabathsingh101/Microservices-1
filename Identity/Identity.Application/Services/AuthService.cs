@@ -42,7 +42,7 @@ namespace Identity.Application.Services
             );
 
             // 🛠️ DEBUG BYPASS: Force success for default admin during migration fix
-            if (dto.Email == "default_admin@gmail.com" && dto.Password == "Admin@123")
+            if (dto.Email == "Default_Admin@gmail.com" && dto.Password == "Admin@123")
             {
                 Console.WriteLine("[DEBUG] Admin bypass triggered.");
                 result = PasswordVerificationResult.Success;
