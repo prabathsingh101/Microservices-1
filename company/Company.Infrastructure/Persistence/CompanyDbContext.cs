@@ -22,18 +22,18 @@ public class CompanyDbContext : DbContext
             .Property(c => c.Id)
             .ValueGeneratedNever();
 
-        // CompanyProfile aur Address ke beech 1-to-1 relation
-        modelBuilder.Entity<CompanyProfile>()
-            .HasOne(c => c.CompanyAddress)
-            .WithOne()
-            .HasForeignKey<CompanyProfile>(c => c.AddressId)
+        // CompanyProfile aur Address ke beech 1-to-Many relation
+        modelBuilder.Entity<Address>()
+            .HasOne<CompanyProfile>()
+            .WithMany(c => c.Addresses)
+            .HasForeignKey(a => a.CompanyProfileId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        // CompanyProfile aur BankDetail ke beech 1-to-1 relation
-        modelBuilder.Entity<CompanyProfile>()
-            .HasOne(c => c.BankInformation)
-            .WithOne()
-            .HasForeignKey<CompanyProfile>(c => c.BankDetailId)
+            
+        // CompanyProfile aur BankDetail ke beech 1-to-Many relation
+        modelBuilder.Entity<BankDetail>()
+            .HasOne<CompanyProfile>()
+            .WithMany(c => c.BankDetails)
+            .HasForeignKey(b => b.CompanyProfileId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // CompanyProfile aur AuthorizedSignatories ke beech 1-to-Many relation

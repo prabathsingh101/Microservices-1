@@ -51,24 +51,24 @@ namespace Company.Application.Company.Queries
                 data.SaleOrderCreationMessage,
                 data.SaleOrderConfirmationMessage,
                 new AddressDto(
-                    data.CompanyAddress.Id,
-                    data.CompanyAddress.AddressLine1,
-                    data.CompanyAddress.AddressLine2,
-                    data.CompanyAddress.City,
-                    data.CompanyAddress.State,
-                    data.CompanyAddress.StateCode,
-                    data.CompanyAddress.PinCode,
-                    data.CompanyAddress.Country,
-                    data.CompanyAddress.Email
+                    data.Addresses.FirstOrDefault()?.Id,
+                    data.Addresses.FirstOrDefault()?.AddressLine1 ?? "",
+                    data.Addresses.FirstOrDefault()?.AddressLine2 ?? "",
+                    data.Addresses.FirstOrDefault()?.City ?? "",
+                    data.Addresses.FirstOrDefault()?.State ?? "",
+                    data.Addresses.FirstOrDefault()?.StateCode ?? "",
+                    data.Addresses.FirstOrDefault()?.PinCode ?? "",
+                    data.Addresses.FirstOrDefault()?.Country ?? "India",
+                    data.Addresses.FirstOrDefault()?.Email
                 ),
                 new BankDetailDto(
-                    data.BankInformation.Id,
-                    data.BankInformation.BankName,
-                    data.BankInformation.BranchName,
-                    data.BankInformation.AccountNumber,
-                    data.BankInformation.IfscCode,
-                    data.BankInformation.AccountType,
-                    data.BankInformation.Email
+                    data.BankDetails.FirstOrDefault()?.Id,
+                    data.BankDetails.FirstOrDefault()?.BankName ?? "",
+                    data.BankDetails.FirstOrDefault()?.BranchName ?? "",
+                    data.BankDetails.FirstOrDefault()?.AccountNumber ?? "",
+                    data.BankDetails.FirstOrDefault()?.IfscCode ?? "",
+                    data.BankDetails.FirstOrDefault()?.AccountType ?? "Current",
+                    data.BankDetails.FirstOrDefault()?.Email
                 ),
                 data.AuthorizedSignatories.Select(s => new AuthorizedSignatoryDto(
                     s.Id,

@@ -24,34 +24,34 @@ namespace Company.Application.Company.Commands.Update.Handler
             if (profile == null) return Guid.Empty;
 
             // --- Logo Update Logic ---
-            if (!string.IsNullOrEmpty(cmd.Request.LogoUrl) && cmd.Request.LogoUrl.Contains("base64"))
+            if (!string.IsNullOrEmpty(cmd.Request.LogoUrl))
             {
-                // 1. Purani file delete karein agar exist karti hai
-                if (!string.IsNullOrEmpty(profile.LogoUrl))
+                if (cmd.Request.LogoUrl.Contains("base64"))
                 {
-                    var oldPath = Path.Combine(_environment.WebRootPath, profile.LogoUrl.TrimStart('/'));
-                    if (File.Exists(oldPath))
+                    // 1. Purani file delete karein
+                    if (!string.IsNullOrEmpty(profile.LogoUrl))
                     {
-                        File.Delete(oldPath);
+                        var oldPath = Path.Combine(_environment.WebRootPath, profile.LogoUrl.TrimStart('/'));
+                        if (File.Exists(oldPath)) File.Delete(oldPath);
                     }
+
+                    // 2. Nayi file save karein
+                    string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "logos");
+                    if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+
+                    string fileName = $"logo_{Guid.NewGuid()}.png";
+                    string fullPath = Path.Combine(folderPath, fileName);
+
+                    var base64Data = cmd.Request.LogoUrl.Split(',')[1];
+                    byte[] imageBytes = Convert.FromBase64String(base64Data);
+                    await File.WriteAllBytesAsync(fullPath, imageBytes);
+
+                    profile.LogoUrl = $"/uploads/logos/{fileName}";
                 }
-
-                // 2. Nayi file save karein
-                string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "logos");
-                if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
-
-                string fileName = $"logo_{Guid.NewGuid()}.png";
-                string fullPath = Path.Combine(folderPath, fileName);
-
-                var base64Data = cmd.Request.LogoUrl.Split(',')[1];
-                byte[] imageBytes = Convert.FromBase64String(base64Data);
-                await File.WriteAllBytesAsync(fullPath, imageBytes);
-
-                profile.LogoUrl = $"/uploads/logos/{fileName}"; // Relative path update
-            }
-            else
-            {
-                profile.LogoUrl = cmd.Request.LogoUrl; // Fix: Keep existing logo URL if simple path
+                else
+                {
+                    profile.LogoUrl = cmd.Request.LogoUrl;
+                }
             }
 
             // 1. Main Profile Fields Update
@@ -86,27 +86,55 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
 
             // 2. Address Update
-            if (profile.CompanyAddress != null)
+            var addr = profile.Addresses.FirstOrDefault();
+            if (addr != null)
             {
-                profile.CompanyAddress.AddressLine1 = cmd.Request.Address.AddressLine1;
-                profile.CompanyAddress.AddressLine2 = cmd.Request.Address.AddressLine2;
-                profile.CompanyAddress.City = cmd.Request.Address.City;
-                profile.CompanyAddress.State = cmd.Request.Address.State;
-                profile.CompanyAddress.StateCode = cmd.Request.Address.StateCode; // Max 2 chars
-                profile.CompanyAddress.PinCode = cmd.Request.Address.PinCode;
-                profile.CompanyAddress.Country = cmd.Request.Address.Country;
-                profile.CompanyAddress.Email = cmd.Request.Address.Email;
+                addr.AddressLine1 = cmd.Request.Address.AddressLine1;
+                addr.AddressLine2 = cmd.Request.Address.AddressLine2;
+                addr.City = cmd.Request.Address.City;
+                addr.State = cmd.Request.Address.State;
+                addr.StateCode = cmd.Request.Address.StateCode; // Max 2 chars
+                addr.PinCode = cmd.Request.Address.PinCode;
+                addr.Country = cmd.Request.Address.Country;
+                addr.Email = cmd.Request.Address.Email;
+            }
+            else
+            {
+                profile.Addresses.Add(new Address
+                {
+                    AddressLine1 = cmd.Request.Address.AddressLine1,
+                    AddressLine2 = cmd.Request.Address.AddressLine2,
+                    City = cmd.Request.Address.City,
+                    State = cmd.Request.Address.State,
+                    StateCode = cmd.Request.Address.StateCode,
+                    PinCode = cmd.Request.Address.PinCode,
+                    Country = cmd.Request.Address.Country,
+                    Email = cmd.Request.Address.Email
+                });
             }
 
             // 3. Bank Information Update
-            if (profile.BankInformation != null)
+            var bank = profile.BankDetails.FirstOrDefault();
+            if (bank != null)
             {
-                profile.BankInformation.BankName = cmd.Request.BankInfo.BankName;
-                profile.BankInformation.BranchName = cmd.Request.BankInfo.BranchName;
-                profile.BankInformation.AccountNumber = cmd.Request.BankInfo.AccountNumber;
-                profile.BankInformation.IfscCode = cmd.Request.BankInfo.IfscCode;
-                profile.BankInformation.AccountType = cmd.Request.BankInfo.AccountType;
-                profile.BankInformation.Email = cmd.Request.BankInfo.Email;
+                bank.BankName = cmd.Request.BankInfo.BankName;
+                bank.BranchName = cmd.Request.BankInfo.BranchName;
+                bank.AccountNumber = cmd.Request.BankInfo.AccountNumber;
+                bank.IfscCode = cmd.Request.BankInfo.IfscCode;
+                bank.AccountType = cmd.Request.BankInfo.AccountType;
+                bank.Email = cmd.Request.BankInfo.Email;
+            }
+            else
+            {
+                profile.BankDetails.Add(new BankDetail
+                {
+                    BankName = cmd.Request.BankInfo.BankName,
+                    BranchName = cmd.Request.BankInfo.BranchName,
+                    AccountNumber = cmd.Request.BankInfo.AccountNumber,
+                    IfscCode = cmd.Request.BankInfo.IfscCode,
+                    AccountType = cmd.Request.BankInfo.AccountType,
+                    Email = cmd.Request.BankInfo.Email
+                });
             }
 
             // 4. Authorized Signatories Update

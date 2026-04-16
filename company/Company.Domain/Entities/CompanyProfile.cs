@@ -45,12 +45,9 @@ namespace Company.Domain.Entities
         public string? SaleOrderCreationMessage { get; set; }
         public string? SaleOrderConfirmationMessage { get; set; }
 
-        // Foreign Keys
-        public int AddressId { get; set; }
-        public virtual Address? CompanyAddress { get; set; } = null!;
-
-        public int BankDetailId { get; set; }
-        public virtual BankDetail? BankInformation { get; set; } = null!;
+        // Navigation Properties
+        public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
+        public virtual ICollection<BankDetail> BankDetails { get; set; } = new List<BankDetail>();
 
         // Authorized Signatories
         public virtual ICollection<AuthorizedSignatory> AuthorizedSignatories { get; set; } = new List<AuthorizedSignatory>();

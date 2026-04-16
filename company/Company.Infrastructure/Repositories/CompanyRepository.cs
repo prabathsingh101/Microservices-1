@@ -40,8 +40,8 @@ namespace Company.Infrastructure.Repositories
             var companyId = _currentUserService.CompanyId;
             
             return await _context.CompanyProfiles
-                .Include(c => c.CompanyAddress)
-                .Include(c => c.BankInformation)
+                .Include(c => c.Addresses)
+                .Include(c => c.BankDetails)
                 .Include(c => c.AuthorizedSignatories)
                 .FirstOrDefaultAsync(c => c.Id == companyId);
         }
@@ -50,8 +50,8 @@ namespace Company.Infrastructure.Repositories
         public async Task<CompanyProfile?> GetByIdAsync(Guid id)
         {
             return await _context.CompanyProfiles
-                .Include(c => c.CompanyAddress)
-                .Include(c => c.BankInformation)
+                .Include(c => c.Addresses)
+                .Include(c => c.BankDetails)
                 .Include(c => c.AuthorizedSignatories) // Signatories load karein
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
@@ -74,8 +74,8 @@ namespace Company.Infrastructure.Repositories
         public async Task<GridResponse<CompanyProfile>> GetPagedAsync(GridRequest request)
         {
             var query = _context.CompanyProfiles
-                .Include(c => c.CompanyAddress)
-                .Include(c => c.BankInformation)
+                .Include(c => c.Addresses)
+                .Include(c => c.BankDetails)
                 .AsQueryable();
 
             // Search Filter

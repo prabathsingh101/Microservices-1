@@ -70,7 +70,7 @@ namespace Company.Application.Company.Commands.Create.Handler
                 existing.Tagline = cmd.Request.Tagline;
                 existing.RegistrationNumber = cmd.Request.RegistrationNumber;
                 existing.Gstin = cmd.Request.Gstin;
-                existing.LogoUrl = logoPath;
+                if (!string.IsNullOrEmpty(logoPath)) existing.LogoUrl = logoPath;
                 existing.PrimaryEmail = cmd.Request.PrimaryEmail;
                 existing.Email = cmd.Request.Email;
                 existing.SmtpEmail = cmd.Request.SmtpEmail;
@@ -99,27 +99,55 @@ namespace Company.Application.Company.Commands.Create.Handler
                 existing.IsActive = true; 
 
                 // Sync Address
-                if (existing.CompanyAddress != null)
+                var addr = existing.Addresses.FirstOrDefault();
+                if (addr != null)
                 {
-                    existing.CompanyAddress.AddressLine1 = cmd.Request.Address.AddressLine1;
-                    existing.CompanyAddress.AddressLine2 = cmd.Request.Address.AddressLine2;
-                    existing.CompanyAddress.City = cmd.Request.Address.City;
-                    existing.CompanyAddress.State = cmd.Request.Address.State;
-                    existing.CompanyAddress.StateCode = cmd.Request.Address.StateCode;
-                    existing.CompanyAddress.PinCode = cmd.Request.Address.PinCode;
-                    existing.CompanyAddress.Country = cmd.Request.Address.Country ?? "India";
-                    existing.CompanyAddress.Email = cmd.Request.Address.Email;
+                    addr.AddressLine1 = cmd.Request.Address.AddressLine1;
+                    addr.AddressLine2 = cmd.Request.Address.AddressLine2;
+                    addr.City = cmd.Request.Address.City;
+                    addr.State = cmd.Request.Address.State;
+                    addr.StateCode = cmd.Request.Address.StateCode;
+                    addr.PinCode = cmd.Request.Address.PinCode;
+                    addr.Country = cmd.Request.Address.Country ?? "India";
+                    addr.Email = cmd.Request.Address.Email;
+                }
+                else
+                {
+                    existing.Addresses.Add(new Address
+                    {
+                        AddressLine1 = cmd.Request.Address.AddressLine1,
+                        AddressLine2 = cmd.Request.Address.AddressLine2,
+                        City = cmd.Request.Address.City,
+                        State = cmd.Request.Address.State,
+                        StateCode = cmd.Request.Address.StateCode,
+                        PinCode = cmd.Request.Address.PinCode,
+                        Country = cmd.Request.Address.Country ?? "India",
+                        Email = cmd.Request.Address.Email
+                    });
                 }
 
                 // Sync Bank
-                if (existing.BankInformation != null)
+                var bank = existing.BankDetails.FirstOrDefault();
+                if (bank != null)
                 {
-                    existing.BankInformation.BankName = cmd.Request.BankInfo.BankName;
-                    existing.BankInformation.BranchName = cmd.Request.BankInfo.BranchName;
-                    existing.BankInformation.AccountNumber = cmd.Request.BankInfo.AccountNumber;
-                    existing.BankInformation.IfscCode = cmd.Request.BankInfo.IfscCode;
-                    existing.BankInformation.AccountType = cmd.Request.BankInfo.AccountType ?? "Current";
-                    existing.BankInformation.Email = cmd.Request.BankInfo.Email;
+                    bank.BankName = cmd.Request.BankInfo.BankName;
+                    bank.BranchName = cmd.Request.BankInfo.BranchName;
+                    bank.AccountNumber = cmd.Request.BankInfo.AccountNumber;
+                    bank.IfscCode = cmd.Request.BankInfo.IfscCode;
+                    bank.AccountType = cmd.Request.BankInfo.AccountType ?? "Current";
+                    bank.Email = cmd.Request.BankInfo.Email;
+                }
+                else
+                {
+                    existing.BankDetails.Add(new BankDetail
+                    {
+                        BankName = cmd.Request.BankInfo.BankName,
+                        BranchName = cmd.Request.BankInfo.BranchName,
+                        AccountNumber = cmd.Request.BankInfo.AccountNumber,
+                        IfscCode = cmd.Request.BankInfo.IfscCode,
+                        AccountType = cmd.Request.BankInfo.AccountType ?? "Current",
+                        Email = cmd.Request.BankInfo.Email
+                    });
                 }
 
                 await _repo.UpsertCompanyProfileAsync(existing);
@@ -162,26 +190,31 @@ namespace Company.Application.Company.Commands.Create.Handler
                 SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage,
                 SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage,
 
-                CompanyAddress = new Address
+                Addresses = new List<Address>
                 {
-                    AddressLine1 = cmd.Request.Address.AddressLine1,
-                    AddressLine2 = cmd.Request.Address.AddressLine2,
-                    City = cmd.Request.Address.City,
-                    State = cmd.Request.Address.State,
-                    StateCode = cmd.Request.Address.StateCode, // Max 2
-                    PinCode = cmd.Request.Address.PinCode,
-                    Country = cmd.Request.Address.Country ?? "India",
-                    Email = cmd.Request.Address.Email
+                    new Address
+                    {
+                        AddressLine1 = cmd.Request.Address.AddressLine1,
+                        AddressLine2 = cmd.Request.Address.AddressLine2,
+                        City = cmd.Request.Address.City,
+                        State = cmd.Request.Address.State,
+                        StateCode = cmd.Request.Address.StateCode, // Max 2
+                        PinCode = cmd.Request.Address.PinCode,
+                        Country = cmd.Request.Address.Country ?? "India",
+                        Email = cmd.Request.Address.Email
+                    }
                 },
-
-                BankInformation = new BankDetail
+                BankDetails = new List<BankDetail>
                 {
-                    BankName = cmd.Request.BankInfo.BankName,
-                    BranchName = cmd.Request.BankInfo.BranchName,
-                    AccountNumber = cmd.Request.BankInfo.AccountNumber,
-                    IfscCode = cmd.Request.BankInfo.IfscCode,
-                    AccountType = cmd.Request.BankInfo.AccountType ?? "Current",
-                    Email = cmd.Request.BankInfo.Email
+                    new BankDetail
+                    {
+                        BankName = cmd.Request.BankInfo.BankName,
+                        BranchName = cmd.Request.BankInfo.BranchName,
+                        AccountNumber = cmd.Request.BankInfo.AccountNumber,
+                        IfscCode = cmd.Request.BankInfo.IfscCode,
+                        AccountType = cmd.Request.BankInfo.AccountType ?? "Current",
+                        Email = cmd.Request.BankInfo.Email
+                    }
                 },
 
                 AuthorizedSignatories = new List<AuthorizedSignatory>()

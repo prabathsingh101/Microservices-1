@@ -7,6 +7,7 @@ namespace Company.Domain.Entities
     public class BankDetail
     {
         public int Id { get; set; }
+        public Guid? CompanyProfileId { get; set; }
         public string? BankName { get; set; }
         public string? BranchName { get; set; }
         public string? AccountNumber { get; set; }
