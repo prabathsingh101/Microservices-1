@@ -42,14 +42,14 @@ public class RegisterUserHandler
 
         var user = new User(request.UserName, request.Email);
 
-        // ✅ Step 1: Set CompanyId FIRST (so roles can inherit it)
-        if (_currentUserService.CompanyId.HasValue)
-        {
-            user.SetCompanyId(_currentUserService.CompanyId.Value);
-        }
-        else if (request.CompanyId.HasValue)
+        // ✅ Step 1: Set CompanyId FIRST (Priority to request, Fallback to context)
+        if (request.CompanyId.HasValue && request.CompanyId.Value != Guid.Empty)
         {
             user.SetCompanyId(request.CompanyId.Value);
+        }
+        else if (_currentUserService.CompanyId.HasValue)
+        {
+            user.SetCompanyId(_currentUserService.CompanyId.Value);
         }
 
         // ✅ Step 2: Hash Password

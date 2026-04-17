@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Identity.Application.Interfaces;
 using Identity.Domain.Users;
 
@@ -14,13 +15,13 @@ public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
     private readonly IMediator _mediator;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly Identity.Infrastructure.Persistence.IdentityDbContext _context;
 
-    public UsersController(IUserRepository userRepository, IMediator mediator, IUnitOfWork unitOfWork)
+    public UsersController(IUserRepository userRepository, IMediator mediator, Identity.Infrastructure.Persistence.IdentityDbContext context)
     {
         _userRepository = userRepository;
         _mediator = mediator;
-        _unitOfWork = unitOfWork;
+        _context = context;
     }
 
     [HttpGet]
@@ -40,6 +41,8 @@ public class UsersController : ControllerBase
             users = await _userRepository.GetAllUsersAsync();
         }
 
+        var allSubscriptions = await _context.Subscriptions.AsNoTracking().ToListAsync();
+
         // Project results to prevent circular references and hide sensitive data
         var result = users.Select(u => new
         {
@@ -48,10 +51,39 @@ public class UsersController : ControllerBase
             u.Email,
             u.IsActive,
             u.CompanyId,
-            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList()
+            CompanyName = u.CompanyId.HasValue 
+                          ? allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown" 
+                          : "System",
+            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
+            RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList()
         });
 
         return Ok(result);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        var companyName = "System";
+        if (user.CompanyId.HasValue)
+        {
+            var sub = await _context.Subscriptions.AsNoTracking().FirstOrDefaultAsync(s => s.CompanyId == user.CompanyId.Value);
+            companyName = sub?.CompanyName ?? "Unknown";
+        }
+
+        return Ok(new
+        {
+            user.Id,
+            user.UserName,
+            user.Email,
+            user.IsActive,
+            user.CompanyId,
+            CompanyName = companyName,
+            RoleIds = user.UserRoles.Select(ur => ur.RoleId).ToList()
+        });
     }
 
     [HttpPatch("{id}/status")]
