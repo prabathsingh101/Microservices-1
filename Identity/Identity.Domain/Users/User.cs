@@ -3,13 +3,13 @@ using Identity.Domain.Users;
 
 namespace Identity.Domain;
 
-public class User
+public class User : Identity.Domain.Common.IMultiTenant
 {
     private readonly List<UserRole> _userRoles = new();
     private readonly List<RefreshToken> _refreshTokens = new();
 
     public Guid Id { get; private set; } = Guid.NewGuid();
-    public Guid? CompanyId { get; private set; } // Link to their business organization
+    public Guid? CompanyId { get; set; } // Link to their business organization
     public string UserName { get; private set; } = default!;
     public string Email { get; private set; } = default!;
     public string PasswordHash { get; private set; } = default!;
@@ -69,29 +69,24 @@ public class User
 
     public void UpdateRoles(List<Guid> roleIds)
     {
-        // 1. Identify roles to be removed
+        // 1. Remove roles no longer assigned
         var rolesToRemove = _userRoles.Where(r => !roleIds.Contains(r.RoleId)).ToList();
         foreach (var role in rolesToRemove)
         {
             _userRoles.Remove(role);
         }
 
-        // 2. Sync CompanyId for staying roles and add new roles
+        // 2. Add new roles and sync CompanyId
         foreach (var roleId in roleIds)
         {
             var existing = _userRoles.FirstOrDefault(r => r.RoleId == roleId);
             if (existing == null)
             {
-                // Assign new role with current user's CompanyId
                 _userRoles.Add(new UserRole(Id, roleId, this.CompanyId));
             }
             else
             {
-                // Double check CompanyId sync
-                if (existing.CompanyId != this.CompanyId)
-                {
-                    existing.CompanyId = this.CompanyId;
-                }
+                existing.CompanyId = this.CompanyId;
             }
         }
     }

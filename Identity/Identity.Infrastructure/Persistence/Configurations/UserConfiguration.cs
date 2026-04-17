@@ -1,4 +1,4 @@
-﻿using Identity.Domain;
+using Identity.Domain;
 using Identity.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -34,7 +34,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasMany(x => x.UserRoles)
             .WithOne(ur => ur.User)
             .HasForeignKey(ur => ur.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .Metadata.PrincipalToDependent.SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // 🔗 User → RefreshTokens (1:N)
         builder.HasMany(x => x.RefreshTokens)

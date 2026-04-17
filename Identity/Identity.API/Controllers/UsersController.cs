@@ -52,8 +52,8 @@ public class UsersController : ControllerBase
             u.IsActive,
             u.CompanyId,
             CompanyName = u.CompanyId.HasValue 
-                          ? allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown" 
-                          : "System",
+                          ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown") 
+                          : "System Admin",
             Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
             RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList()
         });

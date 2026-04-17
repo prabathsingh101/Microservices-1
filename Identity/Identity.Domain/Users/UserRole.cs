@@ -2,7 +2,7 @@ using Identity.Domain.Roles;
 
 namespace Identity.Domain.Users;
 
-public class UserRole
+public class UserRole : Identity.Domain.Common.IMultiTenant
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
 

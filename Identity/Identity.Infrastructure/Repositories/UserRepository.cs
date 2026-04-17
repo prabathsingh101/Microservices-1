@@ -48,7 +48,6 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(Guid id)
     {
         return await _context.Users
-            .IgnoreQueryFilters()
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
             .Include(u => u.RefreshTokens)
@@ -107,15 +106,36 @@ public class UserRepository : IUserRepository
             .ToListAsync();
     }
 
+    public async Task ClearRolesAsync(Guid userId)
+    {
+        var roles = await _context.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
+        if (roles.Any())
+        {
+            _context.UserRoles.RemoveRange(roles);
+            await _context.SaveChangesAsync();
+        }
+    }
+
     public async Task UpdateAsync(User user)
     {
-        // If the entity is not being tracked, attach it and follow standard update logic.
-        if (_context.Entry(user).State == EntityState.Detached)
+        try 
         {
-            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
         }
-        
-        await _context.SaveChangesAsync();
+        catch (DbUpdateConcurrencyException)
+        {
+            // If the entity is detached or modified elsewhere, we try to handle it.
+            var entry = _context.Entry(user);
+            if (entry.State == EntityState.Detached)
+            {
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+            }
+            else 
+            {
+                throw;
+            }
+        }
     }
     public async Task DeleteAsync(Guid id)
     {
