@@ -62,24 +62,6 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
         }
 
         await _userRepository.UpdateAsync(user);
-        
-        // Save changes via UnitOfWork if pattern dictates, usually Repo.UpdateAsync does not save.
-        // But some repos do save. Based on RegisterUserHandler, it calls _uow.SaveChangesAsync().
-        // Wait, check RegisterUserHandler line 58: await _uow.SaveChangesAsync(cancellationToken);
-        
-        // Assuming _userRepository.UpdateAsync just tracks changes.
-        // We probably need to call SaveChangesAsync on UoW.
-        // But let's check RegisterUserHandler again.
-        // It calls _users.AddAsync(user) then _uow.SaveChangesAsync().
-        
-        // So for Update:
-        // _users.UpdateAsync(user) - if needed to attach/modify state
-        // then _uow.SaveChangesAsync()
-        
-        // However, standard EF Core tracking might handle it if retrieved from context.
-        // But usually explicit Update call in repo is good pattern.
-        
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<Guid>.Success(user.Id);
     }

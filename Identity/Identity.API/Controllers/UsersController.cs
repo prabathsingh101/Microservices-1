@@ -14,11 +14,13 @@ public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
     private readonly IMediator _mediator;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public UsersController(IUserRepository userRepository, IMediator mediator)
+    public UsersController(IUserRepository userRepository, IMediator mediator, IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _mediator = mediator;
+        _unitOfWork = unitOfWork;
     }
 
     [HttpGet]

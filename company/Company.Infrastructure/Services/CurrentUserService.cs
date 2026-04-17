@@ -18,18 +18,20 @@ namespace Company.Infrastructure.Services
         {
             get
             {
-                var companyIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
-                
-                // Fallback to Header for Service-to-Service communication
-                if (string.IsNullOrEmpty(companyIdClaim))
+                // 1. Fallback to Header for Service-to-Service communication (Highest Priority)
+                var companyIdHeader = _httpContextAccessor.HttpContext?.Request.Headers["X-Company-Id"].ToString();
+                if (!string.IsNullOrEmpty(companyIdHeader) && Guid.TryParse(companyIdHeader, out var hId))
                 {
-                    companyIdClaim = _httpContextAccessor.HttpContext?.Request.Headers["X-Company-Id"];
+                    return hId;
                 }
 
+                // 2. Check Token Claim
+                var companyIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
                 if (Guid.TryParse(companyIdClaim, out var companyId))
                 {
                     return companyId;
                 }
+
                 return null;
             }
         }

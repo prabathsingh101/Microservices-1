@@ -106,14 +106,15 @@ public class OnboardingService : IOnboardingService
             // Note: We send minimal data, the user can update details later in the app
             var createCompanyRequest = new 
             {
-                Name = companyName,
-                Tagline = "Welcome to " + companyName,
-                RegistrationNumber = "PENDING",
-                Gstin = "PENDING",
-                PrimaryPhone = "0000000000",
-                Address = new { AddressLine1 = "Update your address", City = "Update City", State = "State", StateCode = "00", PinCode = "000000", Country = "India" },
-                BankInfo = new { BankName = "Update Bank", BranchName = "Update Branch", AccountNumber = "0000", IfscCode = "IFSC000", AccountType = "Current" },
-                AuthorizedSignatories = new List<object>()
+                companyId = companyId,
+                name = companyName,
+                tagline = "Welcome to " + companyName,
+                registrationNumber = "PENDING",
+                gstin = "PENDING",
+                primaryPhone = "0000000000",
+                address = new { addressLine1 = "Update your address", city = "Update City", state = "State", stateCode = "00", pinCode = "000000", country = "India" },
+                bankInfo = new { bankName = "Update Bank", branchName = "Update Branch", accountNumber = "0000", ifscCode = "IFSC000", accountType = "Current" },
+                authorizedSignatories = new List<object>()
             };
 
             // We need to pass the CompanyId in a way that the Company service uses it.

@@ -109,7 +109,12 @@ public class UserRepository : IUserRepository
 
     public async Task UpdateAsync(User user)
     {
-        _context.Users.Update(user);
+        // If the entity is not being tracked, attach it and follow standard update logic.
+        if (_context.Entry(user).State == EntityState.Detached)
+        {
+            _context.Users.Update(user);
+        }
+        
         await _context.SaveChangesAsync();
     }
     public async Task DeleteAsync(Guid id)
