@@ -112,4 +112,17 @@ public class UserRepository : IUserRepository
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
     }
+    public async Task DeleteAsync(Guid id)
+    {
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user != null)
+        {
+            _context.UserRoles.RemoveRange(user.UserRoles);
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+        }
+    }
 }

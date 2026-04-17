@@ -35,7 +35,7 @@ public class User
         PasswordHash = hash;
     }
 
-    public void SetCompanyId(Guid companyId)
+    public void SetCompanyId(Guid? companyId)
     {
         CompanyId = companyId;
     }
@@ -69,12 +69,29 @@ public class User
 
     public void UpdateRoles(List<Guid> roleIds)
     {
-        _userRoles.RemoveAll(r => !roleIds.Contains(r.RoleId));
+        // 1. Identify roles to be removed
+        var rolesToRemove = _userRoles.Where(r => !roleIds.Contains(r.RoleId)).ToList();
+        foreach (var role in rolesToRemove)
+        {
+            _userRoles.Remove(role);
+        }
+
+        // 2. Sync CompanyId for staying roles and add new roles
         foreach (var roleId in roleIds)
         {
-            if (!_userRoles.Any(r => r.RoleId == roleId))
+            var existing = _userRoles.FirstOrDefault(r => r.RoleId == roleId);
+            if (existing == null)
             {
+                // Assign new role with current user's CompanyId
                 _userRoles.Add(new UserRole(Id, roleId, this.CompanyId));
+            }
+            else
+            {
+                // Double check CompanyId sync
+                if (existing.CompanyId != this.CompanyId)
+                {
+                    existing.CompanyId = this.CompanyId;
+                }
             }
         }
     }

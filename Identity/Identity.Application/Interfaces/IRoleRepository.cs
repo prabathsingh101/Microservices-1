@@ -10,4 +10,5 @@ public interface IRoleRepository
     Task<List<Role>> GetByCompanyAsync(Guid companyId);
     Task AddAsync(Role role);
     Task UpdateAsync(Role role);
+    Task DeleteAsync(Guid id);
 }

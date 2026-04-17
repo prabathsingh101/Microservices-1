@@ -18,4 +18,5 @@ public interface IUserRepository
     Task<List<User>> GetAllUsersAsync();
     Task<List<User>> GetByCompanyAsync(Guid companyId);
     Task UpdateAsync(User user);
+    Task DeleteAsync(Guid id);
 }

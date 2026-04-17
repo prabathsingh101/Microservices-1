@@ -47,4 +47,13 @@ public class RoleRepository : IRoleRepository
         _context.Roles.Update(role);
         await Task.CompletedTask;
     }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        var role = await _context.Roles.FindAsync(id);
+        if (role != null)
+        {
+            _context.Roles.Remove(role);
+        }
+    }
 }

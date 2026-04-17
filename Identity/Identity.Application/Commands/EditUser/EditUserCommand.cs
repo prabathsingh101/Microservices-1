@@ -9,5 +9,6 @@ public record EditUserCommand(
     string Email,
     string? Password,
     bool IsActive,
-    List<Guid> RoleIds
+    List<Guid> RoleIds,
+    Guid? CompanyId = null
 ) : IRequest<Result<Guid>>;

@@ -27,17 +27,48 @@ public class RolesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetRoles()
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        var subscriptions = await _context.Subscriptions.ToDictionaryAsync(s => s.CompanyId, s => s.CompanyName);
+
+        var allRoles = await _roleRepository.GetAllAsync();
+        var result = allRoles.Select(r => new {
+            r.Id,
+            r.RoleName,
+            r.CompanyId,
+            CompanyName = r.CompanyId.HasValue && subscriptions.ContainsKey(r.CompanyId.Value) 
+                          ? subscriptions[r.CompanyId.Value] 
+                          : (r.CompanyId == null ? "System" : "Unknown")
+        });
+
+        return Ok(result);
+    }
+
+    [HttpGet("company/{companyId}")]
+    public async Task<IActionResult> GetRolesByCompanyId(string companyId)
+    {
+        var subscriptions = await _context.Subscriptions.ToDictionaryAsync(s => s.CompanyId, s => s.CompanyName);
+
+        if (string.IsNullOrEmpty(companyId) || companyId.Equals("null", StringComparison.OrdinalIgnoreCase))
         {
-            var roles = await _roleRepository.GetByCompanyAsync(companyId);
-            return Ok(roles);
+            // 🛡️ Master Tenant: Only Global Roles
+            var roles = await _context.Roles.Where(r => r.CompanyId == null).ToListAsync();
+            var res = roles.Select(r => new { r.Id, r.RoleName, r.CompanyId, CompanyName = "System" });
+            return Ok(res);
         }
 
-        // Fallback for Super Admin or users without company attribution
-        var allRoles = await _roleRepository.GetAllAsync();
-        return Ok(allRoles);
+        if (Guid.TryParse(companyId, out var cid))
+        {
+            // 🏗️ Specific Tenant
+            var roles = await _context.Roles.Where(r => r.CompanyId == cid).ToListAsync();
+            var res = roles.Select(r => new { 
+                r.Id, 
+                r.RoleName, 
+                r.CompanyId, 
+                CompanyName = subscriptions.ContainsKey(cid) ? subscriptions[cid] : "Unknown" 
+            });
+            return Ok(res);
+        }
+
+        return BadRequest("Invalid CompanyId format");
     }
 
     [HttpGet("{roleId}/permissions")]
@@ -134,5 +165,61 @@ public class RolesController : ControllerBase
     {
         await printRepo.UpdateRolePrintSettingsAsync(roleId, settings);
         return Ok();
+    }
+
+    // --- Role Management CRUD ---
+
+    public record RoleRequest(string RoleName, Guid? CompanyId = null);
+
+    [HttpPost]
+    public async Task<IActionResult> CreateRole([FromBody] RoleRequest request)
+    {
+        Guid? targetCompanyId = request.CompanyId;
+
+        if (targetCompanyId == null)
+        {
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                targetCompanyId = companyId;
+            }
+        }
+
+        var role = new Role(request.RoleName, targetCompanyId);
+        await _roleRepository.AddAsync(role);
+        await _context.SaveChangesAsync();
+
+        return Ok(role);
+    }
+
+    [HttpPut("{roleId}")]
+    public async Task<IActionResult> UpdateRoleName(Guid roleId, [FromBody] RoleRequest request)
+    {
+        var role = await _roleRepository.GetByIdAsync(roleId);
+        if (role == null) return NotFound();
+
+        role.RoleName = request.RoleName;
+        await _roleRepository.UpdateAsync(role);
+        await _context.SaveChangesAsync();
+
+        return Ok(role);
+    }
+
+    [HttpDelete("{roleId}")]
+    public async Task<IActionResult> DeleteRole(Guid roleId)
+    {
+        var role = await _roleRepository.GetByIdAsync(roleId);
+        if (role == null) return NotFound();
+
+        // Optional: Check if it's a system role
+        if (role.CompanyId == null)
+        {
+            return BadRequest("System roles cannot be deleted");
+        }
+
+        await _roleRepository.DeleteAsync(roleId);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { Message = "Role deleted successfully" });
     }
 }

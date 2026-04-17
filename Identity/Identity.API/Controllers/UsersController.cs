@@ -99,4 +99,13 @@ public class UsersController : ControllerBase
 
         return Ok(new { Exists = exists, Message = message });
     }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        await _userRepository.DeleteAsync(id);
+        return Ok(new { Message = "User deleted successfully" });
+    }
 }

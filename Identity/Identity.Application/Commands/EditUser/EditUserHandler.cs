@@ -42,6 +42,12 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
         // Update details
         user.UpdateDetails(request.UserName, request.Email, request.IsActive);
 
+        // Update CompanyId if provided
+        if (request.CompanyId != user.CompanyId)
+        {
+             user.SetCompanyId(request.CompanyId);
+        }
+
         // Update Roles
         if (request.RoleIds != null)
         {

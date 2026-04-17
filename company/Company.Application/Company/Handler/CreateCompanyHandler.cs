@@ -252,31 +252,6 @@ namespace Company.Application.Company.Commands.Create.Handler
 
             var resultId = await _repo.InsertCompanyAsync(company);
 
-            // 🚀 CROSS-SERVICE SYNC: Tell Identity Service to create Subscription & Bootstrap Roles
-            try
-            {
-                var identityUrl = _configuration["ServiceUrls:IdentityApi"];
-                if (string.IsNullOrEmpty(identityUrl)) identityUrl = "http://identity.api:8080"; // Default for Docker
-
-                var client = _httpClientFactory.CreateClient();
-                var onboardDto = new
-                {
-                    CompanyId = resultId,
-                    CompanyName = company.Name,
-                    PlanType = "Trial",
-                    DurationDays = 30,
-                    UserId = _currentUserService.UserId
-                };
-
-                // Internal Call to Identity API
-                await client.PostAsJsonAsync($"{identityUrl.TrimEnd('/')}/api/admin/subscriptions/onboard", onboardDto);
-            }
-            catch (Exception ex)
-            {
-                // Using Console for quick logs in dev, should use ILogger in prod
-                Console.WriteLine($"[CRITICAL] Onboarding Sync Failed for Company {resultId}: {ex.Message}");
-            }
-
             return resultId;
         }
     }
