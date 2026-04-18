@@ -7,5 +7,6 @@ public record UpdateRackCommand(
     Guid WarehouseId,
     string Name,
     string? Description,
-    bool IsActive
+    bool IsActive,
+    Guid CompanyId
 ) : IRequest<Unit>;

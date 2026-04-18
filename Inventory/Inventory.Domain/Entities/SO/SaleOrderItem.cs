@@ -8,6 +8,7 @@ namespace Inventory.Domain.Entities.SO
     {
         [Key]
         public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid CompanyId { get; set; }
 
         [Required]
         public Guid SaleOrderId { get; set; } // SaleOrder link [cite: 6]

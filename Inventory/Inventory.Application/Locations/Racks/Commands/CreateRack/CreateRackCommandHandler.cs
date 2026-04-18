@@ -21,7 +21,8 @@ public sealed class CreateRackCommandHandler : IRequestHandler<CreateRackCommand
             request.WarehouseId,
             request.Name,
             request.Description,
-            request.IsActive
+            request.IsActive,
+            request.CompanyId
         );
 
         await _repository.AddAsync(rack);

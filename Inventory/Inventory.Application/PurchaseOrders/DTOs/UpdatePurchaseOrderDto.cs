@@ -7,6 +7,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public string? SupplierName { get; set; }
         public string? PoNumber { get; set; }
         public Guid PriceListId { get; set; }
+        public Guid CompanyId { get; set; }
 
         public PriceListUpdateDto? PriceList { get; set; }
 

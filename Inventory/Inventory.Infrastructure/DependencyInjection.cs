@@ -7,6 +7,7 @@ using Inventory.Infrastructure.Clients;
 using Inventory.Infrastructure.Persistence;
 using Inventory.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,7 +28,8 @@ namespace Inventory.Infrastructure
                             maxRetryCount: 10,
                             maxRetryDelay: TimeSpan.FromSeconds(30),
                             errorNumbersToAdd: null);
-                    }));
+                    })
+                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
             services.AddScoped<ICategoryRepository, CategoryRepository>();
 

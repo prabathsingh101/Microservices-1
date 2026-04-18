@@ -38,6 +38,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create(CreateProductCommand command)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command = command with { CompanyId = companyId };
+            }
+
             var id = await _mediator.Send(command);
             return Ok(
            ApiResponse<Guid>.Ok(
@@ -55,6 +62,13 @@ namespace Inventory.API.Controllers
             if (id != command.Id)
                 return BadRequest(
                     ApiResponse<string>.Fail("Id mismatch"));
+
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command = command with { CompanyId = companyId };
+            }
 
             var result = await _mediator.Send(command);
 
@@ -337,7 +351,14 @@ namespace Inventory.API.Controllers
         {
             if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
 
-            var result = await _productRepository.UploadProductsAsync(file);
+            // 🚀 SMART LOGIC: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (!Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                return BadRequest("Invalid or missing CompanyId in your session.");
+            }
+
+            var result = await _productRepository.UploadProductsAsync(file, companyId);
 
             return Ok(new
             {
@@ -355,7 +376,14 @@ namespace Inventory.API.Controllers
                 return Ok(new { exists = false });
             }
 
-            var exists = await _productRepository.ExistsByNameAsync(name, excludeId);
+            // 🚀 SMART LOGIC: Scope check by CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (!Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                return BadRequest("Invalid session: CompanyId not found");
+            }
+
+            var exists = await _productRepository.ExistsByNameAsync(name, companyId, excludeId);
 
             return Ok(new
             {

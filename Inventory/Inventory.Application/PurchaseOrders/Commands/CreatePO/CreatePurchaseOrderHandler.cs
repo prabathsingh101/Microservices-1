@@ -75,7 +75,8 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                         TaxAmount = i.TaxAmount,
                         Total = i.Total,
                         MfgDate = i.ManufacturingDate,
-                        ExpDate = i.ExpiryDate
+                        ExpDate = i.ExpiryDate,
+                        CompanyId = dto.CompanyId
                     }).ToList()
                 };
 

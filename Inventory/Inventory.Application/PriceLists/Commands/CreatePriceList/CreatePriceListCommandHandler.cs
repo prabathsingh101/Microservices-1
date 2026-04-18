@@ -80,7 +80,8 @@ public sealed class CreatePriceListCommandHandler
             request.validTo,
             request.remarks,
             request.isActive,
-            request.createdBy
+            request.createdBy,
+            request.companyId
         );
 
         foreach (var itemDto in request.priceListItems)
@@ -92,7 +93,8 @@ public sealed class CreatePriceListCommandHandler
                 itemDto.unit,
                 itemDto.discountPercent,
                 itemDto.minQty,
-                itemDto.maxQty
+                itemDto.maxQty,
+                request.companyId
             );
             priceList.PriceListItems.Add(item);
         }

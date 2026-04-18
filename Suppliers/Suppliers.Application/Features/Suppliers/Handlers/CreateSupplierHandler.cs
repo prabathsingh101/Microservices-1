@@ -27,6 +27,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.email,
                 request.SupplierData.createdBy,
                 request.SupplierData.isActive,
+                request.SupplierData.companyId,
                 request.SupplierData.defaultpricelistId
             );
 

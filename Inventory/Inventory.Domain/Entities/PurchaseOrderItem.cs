@@ -4,6 +4,7 @@ using Inventory.Domain.Entities;
 public class PurchaseOrderItem : BaseAuditableEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CompanyId { get; set; }
     public Guid PurchaseOrderId { get; set; }
     public Guid ProductId { get; set; }
     public Product? Product { get; set; } 

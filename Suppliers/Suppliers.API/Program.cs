@@ -6,6 +6,7 @@ using Suppliers.Application.Common.Interfaces;
 using Suppliers.Infrastructure.Repositories;
 using Microsoft.IdentityModel.Tokens;
 using Suppliers.API.Middlewares;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Scalar.AspNetCore;
 using System.Security.Claims;
 using Serilog;
@@ -34,7 +35,8 @@ builder.Services.AddDbContext<SupplierDbContext>(options =>
                 maxRetryCount: 10,
                 maxRetryDelay: TimeSpan.FromSeconds(30),
                 errorNumbersToAdd: null);
-        }));
+        })
+    .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
 // MediatR register karna (Application Layer ke handlers ko dhundne ke liye)
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(CreateSupplierHandler).Assembly));

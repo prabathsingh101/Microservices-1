@@ -5,6 +5,7 @@ using System.Net.NetworkInformation;
 public class PurchaseOrder : Inventory.Domain.Common.BaseAuditableEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid CompanyId { get; set; }
     public string PoNumber { get; set; } = string.Empty; // PO/26-27/0001
     public Guid SupplierId { get; set; }
     public string? SupplierName { get; set; }

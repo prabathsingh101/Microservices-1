@@ -28,7 +28,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.address,
                 request.SupplierData.email,
                 request.SupplierData.isActive,
-                request.SupplierData.defaultpricelistId
+                request.SupplierData.defaultpricelistId,
+                request.SupplierData.companyId
             );
 
             await _repository.UpdateAsync(supplier);

@@ -30,7 +30,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 Credit = isDebitNote ? 0 : dto.Amount,
                 Balance = currentBalance,
                 TransactionDate = dto.TransactionDate,
-                Description = dto.Description ?? (isDebitNote ? "Purchase Return: " : "Purchase via GRN: ") + dto.ReferenceId
+                Description = dto.Description ?? (isDebitNote ? "Purchase Return: " : "Purchase via GRN: ") + dto.ReferenceId,
+                CompanyId = dto.CompanyId
             };
 
             await _repository.AddLedgerEntryAsync(supplierLedger);

@@ -25,6 +25,13 @@ public sealed class RacksController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create(CreateRackCommand command)
     {
+        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            command = command with { CompanyId = companyId };
+        }
+
         var id = await _mediator.Send(command);
         return Ok(ApiResponse<Guid>.Ok(id, "Rack created successfully"));
     }
@@ -35,6 +42,13 @@ public sealed class RacksController : ControllerBase
     {
         if (id != command.Id)
             return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
+
+        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            command = command with { CompanyId = companyId };
+        }
 
         await _mediator.Send(command);
         return Ok(ApiResponse<Guid>.Ok(id, "Rack updated successfully"));

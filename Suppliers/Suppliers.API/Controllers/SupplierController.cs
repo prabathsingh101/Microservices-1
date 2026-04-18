@@ -32,6 +32,13 @@ namespace Suppliers.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create([FromBody] CreateSupplierDto dto)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                dto = dto with { companyId = companyId };
+            }
+
             var command = new CreateSupplierCommand(dto);
             var id = await _mediator.Send(command);
             return Ok(id);
@@ -50,6 +57,13 @@ namespace Suppliers.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Update(Guid id, [FromBody] CreateSupplierDto dto)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                dto = dto with { companyId = companyId };
+            }
+
             var result = await _mediator.Send(new UpdateSupplierCommand(id, dto));
             return result ? Ok(result) : NotFound();
         }

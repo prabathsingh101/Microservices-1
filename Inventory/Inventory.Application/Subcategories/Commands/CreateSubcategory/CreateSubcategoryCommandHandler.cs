@@ -27,7 +27,8 @@ public sealed class CreateSubcategoryCommandHandler
             request.subcategoryname,
             request.defaultgst,
             request.description,
-            request.isactive
+            request.isactive,
+            request.CompanyId
         );
 
         await _repository.AddAsync(subcategory);

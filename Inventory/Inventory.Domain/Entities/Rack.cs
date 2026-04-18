@@ -5,6 +5,7 @@ namespace Inventory.Domain.Entities;
 public class Rack : BaseAuditableEntity
 {
     public Guid Id { get; private set; }
+    public Guid CompanyId { get; private set; }
     public Guid WarehouseId { get; private set; }
     public virtual Warehouse Warehouse { get; private set; } = null!;
     public string Name { get; private set; } = null!;
@@ -13,20 +14,22 @@ public class Rack : BaseAuditableEntity
 
     private Rack() { }
 
-    public Rack(Guid warehouseId, string name, string? description, bool isActive)
+    public Rack(Guid warehouseId, string name, string? description, bool isActive, Guid companyId)
     {
         Id = Guid.NewGuid();
         WarehouseId = warehouseId;
         Name = name;
         Description = description;
         IsActive = isActive;
+        CompanyId = companyId;
     }
 
-    public void Update(Guid warehouseId, string name, string? description, bool isActive)
+    public void Update(Guid warehouseId, string name, string? description, bool isActive, Guid companyId)
     {
         WarehouseId = warehouseId;
         Name = name;
         Description = description;
         IsActive = isActive;
+        CompanyId = companyId;
     }
 }

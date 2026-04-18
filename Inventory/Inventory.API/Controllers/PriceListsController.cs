@@ -33,6 +33,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create([FromBody] CreatePriceListCommand command)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command = command with { companyId = companyId };
+            }
+
             var resultId = await _mediator.Send(command);
             // Success object bhejien taaki frontend 'res.message' padh sake
             return Ok(new { success = true, message = "Price List saved successfully", id = resultId });
@@ -43,6 +50,13 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> Update(Guid id, UpdatePriceListCommand command)
         {
             if (id != command.id) return BadRequest("ID Mismatch");
+
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command = command with { companyId = companyId };
+            }
 
             var result = await _mediator.Send(command);
             return result ? Ok(new { message = "Updated successfully" }) : NotFound();

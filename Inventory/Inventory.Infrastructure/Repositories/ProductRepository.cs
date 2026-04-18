@@ -235,7 +235,7 @@ public sealed class ProductRepository : IProductRepository
             .Take(pageSize)
             .ToListAsync();
     }
-    public async Task<(int successCount, List<string> errors)> UploadProductsAsync(IFormFile file)
+    public async Task<(int successCount, List<string> errors)> UploadProductsAsync(IFormFile file, Guid companyId)
     {
         var errors = new List<string>();
         int successCount = 0;
@@ -278,13 +278,13 @@ public sealed class ProductRepository : IProductRepository
                 var dataRows = rows.Skip(1);
 
                 // 2. Pre-fetch dependencies for faster lookup
-                var categories = await _db.Categories.AsNoTracking().ToDictionaryAsync(c => c.CategoryName.ToLower().Trim(), c => c.Id);
-                var subcats = await _db.Subcategories.AsNoTracking().Select(s => new { s.Id, s.SubcategoryName, s.CategoryId }).ToListAsync();
-                var warehouses = await _db.Warehouses.AsNoTracking().ToDictionaryAsync(w => w.Name.ToLower().Trim(), w => w.Id);
-                var racks = await _db.Racks.AsNoTracking().Select(r => new { r.Id, r.Name, r.WarehouseId }).ToListAsync();
+                var categories = await _db.Categories.Where(x => x.CompanyId == companyId).AsNoTracking().ToDictionaryAsync(c => c.CategoryName.ToLower().Trim(), c => c.Id);
+                var subcats = await _db.Subcategories.Where(x => x.CompanyId == companyId).AsNoTracking().Select(s => new { s.Id, s.SubcategoryName, s.CategoryId }).ToListAsync();
+                var warehouses = await _db.Warehouses.Where(x => x.CompanyId == companyId).AsNoTracking().ToDictionaryAsync(w => w.Name.ToLower().Trim(), w => w.Id);
+                var racks = await _db.Racks.Where(x => x.CompanyId == companyId).AsNoTracking().Select(r => new { r.Id, r.Name, r.WarehouseId }).ToListAsync();
                 
                 // 3. Pre-fetch existing products for Upsert logic
-                var dbProducts = await _db.Products.ToListAsync();
+                var dbProducts = await _db.Products.Where(x => x.CompanyId == companyId).ToListAsync();
                 var dbProductsByName = dbProducts.ToDictionary(p => p.Name.ToLower().Trim(), p => p);
                 
                 // For SKU lookup
@@ -434,7 +434,9 @@ public sealed class ProductRepository : IProductRepository
                                 damagedStock: damagedStock,
                                 defaultWarehouseId: warehouseId,
                                 defaultRackId: rackId,
-                                isExpiryRequired: reqExpiry
+                                isExpiryRequired: reqExpiry,
+                                modifiedon: DateTime.UtcNow,
+                                companyId: companyId
                             );
                             updateCount++;
                         }
@@ -462,7 +464,9 @@ public sealed class ProductRepository : IProductRepository
                                 damagedStock,
                                 warehouseId,
                                 rackId,
-                                reqExpiry
+                                reqExpiry,
+                                null, // ImageUrl
+                                companyId
                             );
                             newProducts.Add(product);
                         }
@@ -488,10 +492,10 @@ public sealed class ProductRepository : IProductRepository
         return (successCount, errors);
     }
 
-    public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null)
+    public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
         var query = _db.Products.AsNoTracking()
-            .Where(p => p.Name.ToLower().Trim() == name.ToLower().Trim());
+            .Where(p => p.CompanyId == companyId && p.Name.ToLower().Trim() == name.ToLower().Trim());
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

@@ -39,7 +39,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderDto dto)
         {
-           
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                dto = dto with { CompanyId = companyId };
+            }
+
             var result = await _mediator.Send(new CreatePurchaseOrderCommand(dto));
 
             if (result)
@@ -112,6 +118,13 @@ namespace Inventory.API.Controllers
             if (id != dto.Id)
             {
                 return BadRequest(new { message = "ID mismatch between URL and body." });
+            }
+
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                dto.CompanyId = companyId;
             }
 
             // 2. Command Create karna

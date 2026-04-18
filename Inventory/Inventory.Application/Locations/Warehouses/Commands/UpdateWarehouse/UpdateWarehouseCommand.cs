@@ -7,5 +7,6 @@ public record UpdateWarehouseCommand(
     string Name,
     string? City,
     string? Description,
-    bool IsActive
+    bool IsActive,
+    Guid CompanyId
 ) : IRequest<Unit>;

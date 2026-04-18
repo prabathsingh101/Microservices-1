@@ -1,8 +1,9 @@
+using Inventory.Domain.Common;
 using Inventory.Domain.Entities;
 
 namespace Inventory.Domain.PriceLists;
 
-public class PriceListItem
+public class PriceListItem : BaseAuditableEntity
 {
     public Guid Id { get;  set; }
     public Guid PriceListId { get;  set; }
@@ -19,7 +20,7 @@ public class PriceListItem
     public PriceListItem() { }
 
     public PriceListItem(Guid priceListId, Guid productId, decimal rate, string unit,
-                         decimal discountPercent, int minQty, int maxQty)
+                         decimal discountPercent, int minQty, int maxQty, Guid companyId)
     {
         Id = Guid.NewGuid();
         PriceListId = priceListId;
@@ -29,5 +30,6 @@ public class PriceListItem
         DiscountPercent = discountPercent;
         MinQty = minQty;
         MaxQty = maxQty;
+        CompanyId = companyId;
     }
 }

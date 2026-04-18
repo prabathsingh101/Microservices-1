@@ -25,6 +25,13 @@ public class SaleOrderController : ControllerBase
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
     public async Task<IActionResult> Save([FromBody] CreateSaleOrderDto dto)
     {
+        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            dto.CompanyId = companyId;
+        }
+
         // 1. Mediator ab pura object return karega (Id aur SONumber)
         var result = await _mediator.Send(new CreateSaleOrderCommand(dto));
 

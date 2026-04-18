@@ -26,6 +26,7 @@ namespace Suppliers.Domain.Entities
             string? email,
             string? createdBy,
             bool isActive,
+            Guid companyId,
             Guid? defaultPriceListId = null
             )
         {
@@ -36,6 +37,7 @@ namespace Suppliers.Domain.Entities
             Email = email;
             CreatedBy = createdBy;
             IsActive = isActive;
+            CompanyId = companyId;
             DefaultPriceListId = defaultPriceListId;
             CreatedOn = DateTime.Now;
         }
@@ -48,7 +50,7 @@ namespace Suppliers.Domain.Entities
             ModifiedOn = DateTime.UtcNow;
         }
 
-        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId)
+        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId, Guid companyId)
         {
             Name = name;
             Phone = phone;
@@ -56,6 +58,7 @@ namespace Suppliers.Domain.Entities
             Address = address;
             Email = email;
             IsActive = isActive;
+            CompanyId = companyId;
             
             if (defaultPriceListId.HasValue && defaultPriceListId == Guid.Empty)
                  throw new ArgumentException("Invalid Price List ID");

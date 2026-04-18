@@ -5,6 +5,7 @@ namespace Suppliers.Application.DTOs;
 public class SupplierPaymentDto
 {
     public Guid SupplierId { get; set; }
+    public Guid CompanyId { get; set; }
     public decimal Amount { get; set; }
     public DateTime PaymentDate { get; set; }
     public string PaymentMode { get; set; } = "Cash";

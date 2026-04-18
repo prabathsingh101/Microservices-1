@@ -5,6 +5,7 @@ namespace Inventory.Domain.Entities;
 public class Warehouse : BaseAuditableEntity
 {
     public Guid Id { get; private set; }
+    public Guid CompanyId { get; private set; }
     public string Name { get; private set; } = null!;
     public string? City { get; private set; }
     public string? Description { get; private set; }
@@ -13,20 +14,22 @@ public class Warehouse : BaseAuditableEntity
 
     private Warehouse() { }
 
-    public Warehouse(string name, string? city, string? description, bool isActive)
+    public Warehouse(string name, string? city, string? description, bool isActive, Guid companyId)
     {
         Id = Guid.NewGuid();
         Name = name;
         City = city;
         Description = description;
         IsActive = isActive;
+        CompanyId = companyId;
     }
 
-    public void Update(string name, string? city, string? description, bool isActive)
+    public void Update(string name, string? city, string? description, bool isActive, Guid companyId)
     {
         Name = name;
         City = city;
         Description = description;
         IsActive = isActive;
+        CompanyId = companyId;
     }
 }

@@ -106,7 +106,8 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                     DiscountPercent = itemDto.discountPercent,
                     MinQty = itemDto.minQty,
                     MaxQty = itemDto.maxQty,
-                    Unit = itemDto.unit
+                    Unit = itemDto.unit,
+                    CompanyId = request.companyId
                 });
             }
         }

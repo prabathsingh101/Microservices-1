@@ -6,5 +6,6 @@ public record CreateRackCommand(
     Guid WarehouseId,
     string Name,
     string? Description,
-    bool IsActive
+    bool IsActive,
+    Guid CompanyId
 ) : IRequest<Guid>;

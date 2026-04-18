@@ -86,7 +86,7 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
             .AnyAsync(x => categoryIds.Contains(x.CategoryId));
     }
 
-    public async Task<(int successCount, List<string> errors)> UploadSubcategoriesAsync(Microsoft.AspNetCore.Http.IFormFile file)
+    public async Task<(int successCount, List<string> errors)> UploadSubcategoriesAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId)
     {
         var errors = new List<string>();
         int successCount = 0;
@@ -126,12 +126,15 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
 
                 // 2. Pre-fetch ALL Categories for lookup (Case-insensitive) by Name
                 var categories = await _context.Categories
+                    .Where(x => x.CompanyId == companyId)
                     .AsNoTracking()
                     .ToDictionaryAsync(c => c.CategoryName.ToLower().Trim(), c => c.Id);
 
                 // 3. Pre-fetch existing Subcategories for Upsert logic (Update if exists, Insert if new)
                 // We don't use AsNoTracking() so we can update existing entities
-                var dbSubcategories = await _context.Subcategories.ToListAsync();
+                var dbSubcategories = await _context.Subcategories
+                    .Where(x => x.CompanyId == companyId)
+                    .ToListAsync();
                 var dbSubcatsByCode = dbSubcategories.ToDictionary(s => s.SubcategoryCode.ToLower().Trim(), s => s);
                 
                 // Track by name (active only)
@@ -241,7 +244,8 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                                 categoryid: categoryId,
                                 defaultgst: defaultGst,
                                 description: description,
-                                isActive: true
+                                isActive: true,
+                                companyId: companyId
                             );
                             updateCount++;
                         }
@@ -254,7 +258,8 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                                 name,
                                 defaultGst,
                                 description,
-                                true // Active by default
+                                true, // Active by default
+                                companyId
                             );
                             newSubcategories.Add(subcategory);
                         }
@@ -282,10 +287,10 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
         return (successCount, errors);
     }
 
-    public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null)
+    public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
         var query = _context.Subcategories.AsNoTracking()
-            .Where(x => x.SubcategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive);
+            .Where(x => x.CompanyId == companyId && x.SubcategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive);
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

@@ -95,7 +95,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 MfgDate = i.ManufacturingDate,
                 ExpDate = i.ExpiryDate,
                 WarehouseId = i.WarehouseId,
-                RackId = i.RackId
+                RackId = i.RackId,
+                CompanyId = dto.CompanyId
             }).ToList()
         };
 
@@ -127,7 +128,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                                 item.WarehouseId,
                                 item.RackId,
                                 item.MfgDate,
-                                item.ExpDate
+                                item.ExpDate,
+                                existingWithItems.CompanyId
                             );
                             await _context.InventoryTransactions.AddAsync(reversalTx);
                         }
@@ -177,7 +179,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         item.WarehouseId,
                         item.RackId,
                         item.MfgDate,
-                        item.ExpDate
+                        item.ExpDate,
+                        saleOrder.CompanyId
                     );
                     await _context.InventoryTransactions.AddAsync(saleTx);
                 }

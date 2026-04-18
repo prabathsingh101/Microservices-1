@@ -32,6 +32,13 @@ namespace Suppliers.API.Controllers
         [HttpPost("payment-entry")]
         public async Task<IActionResult> RecordPayment([FromBody] SupplierPaymentDto paymentDto)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                paymentDto.CompanyId = companyId;
+            }
+
             var command = new RecordSupplierPaymentCommand(paymentDto);
             var id = await _mediator.Send(command);
             return Ok(new { Id = id });
@@ -40,6 +47,13 @@ namespace Suppliers.API.Controllers
         [HttpPost("purchase-entry")]
         public async Task<IActionResult> RecordPurchase([FromBody] SupplierPurchaseDto purchase)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                purchase.CompanyId = companyId;
+            }
+
             var command = new RecordSupplierPurchaseCommand(purchase);
             var result = await _mediator.Send(command);
             return Ok(result);

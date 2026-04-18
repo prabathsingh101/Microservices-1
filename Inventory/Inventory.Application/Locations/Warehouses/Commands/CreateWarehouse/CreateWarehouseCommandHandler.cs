@@ -21,7 +21,8 @@ public sealed class CreateWarehouseCommandHandler : IRequestHandler<CreateWareho
             request.Name,
             request.City,
             request.Description,
-            request.IsActive
+            request.IsActive,
+            request.CompanyId
         );
 
         await _repository.AddAsync(warehouse);

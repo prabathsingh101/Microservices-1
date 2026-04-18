@@ -13,5 +13,6 @@ public record UpdatePriceListCommand : IRequest<bool>
     public DateTime? validTo { get; init; }
     public bool isActive { get; init; }
     public string remarks { get; init; }
+    public Guid companyId { get; init; }
     public List<PriceListItemUpdateDto> priceListItems { get; init; }
 }

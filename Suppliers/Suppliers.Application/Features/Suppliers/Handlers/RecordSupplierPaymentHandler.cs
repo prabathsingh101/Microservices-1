@@ -34,7 +34,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 PaymentMode = paymentDto.PaymentMode ?? "Other",
                 ReferenceNumber = paymentDto.ReferenceNumber,
                 Remarks = paymentDto.Remarks,
-                CreatedBy = paymentDto.CreatedBy
+                CreatedBy = paymentDto.CreatedBy,
+                CompanyId = paymentDto.CompanyId
             };
 
             await _repository.AddPaymentAsync(supplierPayment);
@@ -51,7 +52,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 Credit = 0,
                 Balance = currentBalance,
                 TransactionDate = paymentDto.PaymentDate,
-                Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}"
+                Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}",
+                CompanyId = paymentDto.CompanyId
             };
 
             await _repository.AddLedgerEntryAsync(supplierLedger);

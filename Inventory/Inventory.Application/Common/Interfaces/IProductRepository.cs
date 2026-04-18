@@ -31,6 +31,6 @@ public interface IProductRepository
 
     Task<List<StockMovementDto>> GetRecentMovementsPagedAsync(int pageNumber, int pageSize);
 
-    Task<(int successCount, List<string> errors)> UploadProductsAsync(Microsoft.AspNetCore.Http.IFormFile file);
-    Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null);
+    Task<(int successCount, List<string> errors)> UploadProductsAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId);
+    Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null);
 }

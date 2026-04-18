@@ -64,6 +64,13 @@ public sealed class InventoryDbContext : DbContext,
             builder.Property(x => x.TotalTax).HasPrecision(18, 2);
             builder.Property(x => x.TotalQuantity).HasPrecision(18, 2);
             builder.Property(x => x.GrandTotal).HasPrecision(18, 2);
+            builder.Property(x => x.IgstAmount).HasPrecision(18, 2);
+            builder.Property(x => x.CgstAmount).HasPrecision(18, 2);
+            builder.Property(x => x.SgstAmount).HasPrecision(18, 2);
+            builder.Property(x => x.TcsAmount).HasPrecision(18, 2);
+            builder.Property(x => x.TdsAmount).HasPrecision(18, 2);
+            builder.Property(x => x.TcsPercent).HasPrecision(18, 2);
+            builder.Property(x => x.TdsPercent).HasPrecision(18, 2);
 
             // Mapping Private Field for DDD
             builder.Metadata.FindNavigation(nameof(PurchaseOrder.Items))
@@ -116,6 +123,17 @@ public sealed class InventoryDbContext : DbContext,
             builder.Property(x => x.GstPercent).HasPrecision(18, 2);
             builder.Property(x => x.DiscountPercent).HasPrecision(18, 2);
             builder.Property(x => x.TaxAmount).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<Product>(builder =>
+        {
+            builder.Property(x => x.BasePurchasePrice).HasPrecision(18, 2);
+            builder.Property(x => x.MRP).HasPrecision(18, 2);
+            builder.Property(x => x.Discount).HasPrecision(18, 2);
+            builder.Property(x => x.SaleRate).HasPrecision(18, 2);
+            builder.Property(x => x.DefaultGst).HasPrecision(18, 2);
+            builder.Property(x => x.CurrentStock).HasPrecision(18, 2);
+            builder.Property(x => x.DamagedStock).HasPrecision(18, 2);
         });
 
         // SaleReturn Configurations
@@ -218,6 +236,11 @@ public sealed class InventoryDbContext : DbContext,
             entity.Property(e => e.GstPercent).HasPrecision(18, 2);
             entity.Property(e => e.TaxAmount).HasPrecision(18, 2);
             entity.Property(e => e.Total).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<InventoryTransaction>(builder =>
+        {
+            builder.Property(x => x.Quantity).HasPrecision(18, 2);
         });
 
         // --- 🔒 GLOBAL MULTI-TENANT FILTER ---

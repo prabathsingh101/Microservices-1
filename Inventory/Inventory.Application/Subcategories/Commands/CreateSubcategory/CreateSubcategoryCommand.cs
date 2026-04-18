@@ -8,5 +8,6 @@ public sealed record CreateSubcategoryCommand(
     string subcategoryname,
     decimal defaultgst,
     string? description,
-    bool isactive
+    bool isactive,
+    Guid CompanyId
 ) : IRequest<Guid>;

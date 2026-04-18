@@ -100,9 +100,9 @@ namespace Suppliers.Infrastructure.Persistence
                     {
                         auditableEntity.CreatedOn = DateTime.UtcNow;
                         auditableEntity.CreatedBy = _currentUserService.UserId ?? "System";
-                        if (auditableEntity.CompanyId == null || auditableEntity.CompanyId == Guid.Empty)
+                        if (auditableEntity.CompanyId == Guid.Empty)
                         {
-                            auditableEntity.CompanyId = _currentUserService.CompanyId;
+                            auditableEntity.CompanyId = _currentUserService.CompanyId ?? Guid.Empty;
                         }
                     }
                     else

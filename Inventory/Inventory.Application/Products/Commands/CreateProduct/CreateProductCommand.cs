@@ -23,5 +23,6 @@ public sealed record CreateProductCommand(
     Guid? defaultwarehouseid,
     Guid? defaultrackid,
     bool isExpiryRequired,
-    string? imageUrl
+    string? imageUrl,
+    Guid CompanyId
 ) : IRequest<Guid>;

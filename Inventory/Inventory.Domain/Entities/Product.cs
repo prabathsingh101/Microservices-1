@@ -3,6 +3,7 @@ namespace Inventory.Domain.Entities;
 public class Product : Inventory.Domain.Common.BaseAuditableEntity
 {
     public Guid Id { get; private set; }
+    public Guid CompanyId { get; private set; }
     public Guid CategoryId { get; private set; }
     public Category Category { get; private set; }
     public Guid SubcategoryId { get; private set; }
@@ -63,7 +64,8 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         Guid? defaultWarehouseId = null,
         Guid? defaultRackId = null,
         bool isExpiryRequired = false,
-        string? imageUrl = null
+        string? imageUrl = null,
+        Guid companyId = default
         )
     {
         Id = Guid.NewGuid();
@@ -89,6 +91,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;
+        CompanyId = companyId;
         ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? "/assets/images/placeholder-product.png" : imageUrl;
     }
 
@@ -116,8 +119,8 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         Guid? defaultRackId = null,
         bool isExpiryRequired = false,
         string? imageUrl = null,
-        DateTime? modifiedon = null
-        
+        DateTime? modifiedon = null,
+        Guid companyId = default
         )
     {
         CategoryId = categoryid;
@@ -150,6 +153,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         {
              ImageUrl = "/assets/images/placeholder-product.png";
         }
+        CompanyId = companyId;
         ModifiedOn = modifiedon ?? DateTime.UtcNow;       
     }
 }

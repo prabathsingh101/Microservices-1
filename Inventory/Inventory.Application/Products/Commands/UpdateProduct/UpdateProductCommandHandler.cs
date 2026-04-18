@@ -50,7 +50,8 @@ internal sealed class UpdateProductCommandHandler
             defaultWarehouseId: request.defaultwarehouseid,
             defaultRackId: request.defaultrackid,
             isExpiryRequired: request.isExpiryRequired,
-            imageUrl: request.imageUrl
+            imageUrl: request.imageUrl,
+            companyId: request.CompanyId
         );
 
         await _context.SaveChangesAsync(cancellationToken);

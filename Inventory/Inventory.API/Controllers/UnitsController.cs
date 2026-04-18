@@ -20,6 +20,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> CreateBulk([FromBody] CreateBulkUnitsCommand command)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command = command with { CompanyId = companyId };
+            }
+
             var result = await _mediator.Send(command);
             return result ? Ok() : BadRequest("Could not save units");
         }
@@ -60,7 +67,14 @@ namespace Inventory.API.Controllers
 
             if (units.Count == 0) return BadRequest("No valid data found in Excel");
 
-            var command = new CreateBulkUnitsCommand(units);
+            // 🚀 SMART LOGIC: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (!Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                return BadRequest("Invalid or missing CompanyId in your session.");
+            }
+
+            var command = new CreateBulkUnitsCommand(units, companyId);
             var result = await _mediator.Send(command);
 
             return result ? Ok(new { message = "Units imported successfully" }) : BadRequest("Could not import units");
@@ -71,6 +85,14 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitCommand command)
         {
             if (id != command.Id) return BadRequest("ID mismatch");
+
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command = command with { CompanyId = companyId };
+            }
+
             var result = await _mediator.Send(command);
             return result ? Ok() : BadRequest("Could not update unit");
         }
