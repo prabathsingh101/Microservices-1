@@ -1,8 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Company.Application.Common.Interfaces;
 using Company.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
-using System.Net.Http.Json;
 
 namespace Company.Application.Company.Commands.Create.Handler
 {
@@ -59,8 +66,8 @@ namespace Company.Application.Company.Commands.Create.Handler
             }
 
             // 🚀 ID/IDEMPOTENCY LOGIC:
-            // Priority: 1. ID from Request (CompanyId), 2. ID from Token, 3. New Guid
-            var targetId = cmd.Request.CompanyId ?? _currentUserService.CompanyId ?? Guid.NewGuid();
+            // Priority: 1. ID from Request (CompanyId), 2. New Guid
+            var targetId = cmd.Request.CompanyId ?? Guid.NewGuid();
 
             // 🔍 DUPLICATE NAME CHECK:
             var byName = await _repo.GetByNameAsync(cmd.Request.Name);
@@ -274,6 +281,34 @@ namespace Company.Application.Company.Commands.Create.Handler
             }
 
             var resultId = await _repo.InsertCompanyAsync(company);
+
+            // 🚀 AUTOMATIC SUBSCRIPTION BRIDGE:
+            // When a company is created manually from side menu, we trigger Identity to create a default subscription
+            // so it appears in the management list and the company becomes "Active".
+            
+            // Fetch configured Identity URL from appsettings.json
+            var identityUrl = _configuration["ServiceUrls:IdentityApi"];
+            
+            if (string.IsNullOrEmpty(identityUrl)) 
+            {
+                throw new Exception("[Configuration Error]: 'ServiceUrls:IdentityApi' is missing in appsettings.json. Cannot sync subscription.");
+            }
+            
+            var client = _httpClientFactory.CreateClient();
+            var onboardReq = new
+            {
+                CompanyId = resultId,
+                CompanyName = company.Name,
+                PlanType = "Trial",
+                DurationDays = 14
+            };
+
+            var response = await client.PostAsJsonAsync($"{identityUrl}/api/admin/subscriptions/onboard", onboardReq);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                throw new Exception($"[Subscription Sync Failed]: Identity service returned {response.StatusCode}. Details: {errorMsg}");
+            }
 
             return resultId;
         }

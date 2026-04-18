@@ -66,27 +66,23 @@ namespace Identity.API.Controllers
         [HttpPost("confirm-payment")]
         public async Task<IActionResult> ConfirmPayment([FromBody] Identity.Application.DTOs.PaymentConfirmationDto dto)
         {
-            // In a real production app, use Razorpay SDK here to verify signalure:
-            // Utils.verifyPaymentSignature(attributes, secret)
-            
             var subscription = await _context.Subscriptions
                 .FirstOrDefaultAsync(s => s.CompanyId == dto.CompanyId);
 
             if (subscription == null)
             {
-                // Create new subscription if somehow missing
                 subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, dto.CompanyName, "Premium", dto.DurationDays);
                 _context.Subscriptions.Add(subscription);
             }
 
             subscription.UpgradeToPremium("Premium", dto.DurationDays, dto.PaymentId);
-            
             await _context.SaveChangesAsync();
 
             return Ok(new { Success = true, Message = "Subscription activated!" });
         }
 
         [HttpPost("onboard")]
+        [AllowAnonymous] // Allow internal microservice calls
         public async Task<IActionResult> Onboard([FromBody] Identity.Application.DTOs.OnboardCustomerDto dto)
         {
             var subscription = await _context.Subscriptions.FirstOrDefaultAsync(s => s.CompanyId == dto.CompanyId);

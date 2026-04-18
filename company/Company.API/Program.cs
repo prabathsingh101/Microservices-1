@@ -65,6 +65,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpClient(); // Required for cross-service communication
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
