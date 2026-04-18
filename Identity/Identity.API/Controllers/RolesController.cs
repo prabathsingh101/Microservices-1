@@ -93,9 +93,13 @@ public class RolesController : ControllerBase
 
         Guid targetRoleId = roleId;
 
-        // 🧠 LOGIC: If user is System Admin (no CompanyId in token), they can edit anything directly.
-        // If user is a Tenant Admin, they can only edit their own or CLONE a system role.
-        if (loggedInCompanyId.HasValue)
+        // 🚀 SUPER ADMIN BYPASS: Allow global admins to edit any role across companies
+        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+        bool isSuperAdmin = roles.Any(r => r.Contains("Admin", StringComparison.OrdinalIgnoreCase));
+
+        // 🧠 LOGIC: If user is System Admin or Super Admin, they can edit anything directly.
+        // If user is a Tenant Admin (with CompanyId and NOT a SuperAdmin), they can only edit their own or CLONE a system role.
+        if (loggedInCompanyId.HasValue && !isSuperAdmin)
         {
             if (role.CompanyId == null)
             {

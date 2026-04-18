@@ -28,16 +28,26 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+        
+        // Permanent Fix: If user is any type of Admin, show ALL users across all companies
+        bool isSuperAdmin = roles.Any(r => r.Contains("Admin", StringComparison.OrdinalIgnoreCase));
+
         IEnumerable<User> users;
 
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        if (isSuperAdmin)
+        {
+            // Super Admin: See everything
+            users = await _userRepository.GetAllUsersAsync();
+        }
+        else if (Guid.TryParse(companyIdClaim, out var companyId))
         {
             // Tenant Admin: Filter by their own company
             users = await _userRepository.GetByCompanyAsync(companyId);
         }
         else
         {
-            // Super Admin: See everything
+            // Fallback for anyone else
             users = await _userRepository.GetAllUsersAsync();
         }
 
