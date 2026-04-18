@@ -57,13 +57,25 @@ public class RolesController : ControllerBase
 
         if (Guid.TryParse(companyId, out var cid))
         {
-            // 🏗️ Specific Tenant
-            var roles = await _context.Roles.Where(r => r.CompanyId == cid).ToListAsync();
+            // 🏗️ Specific Tenant: Get company roles AND public system roles
+            // But HIDE sensitive roles like "Default Admin" or "SuperAdmin"
+            var allRoles = await _context.Roles
+                .Where(r => r.CompanyId == cid || r.CompanyId == null)
+                .ToListAsync();
+
+            var roles = allRoles.Where(r => 
+                r.CompanyId == cid || 
+                (r.CompanyId == null && 
+                 !r.RoleName.Equals("Default Admin", StringComparison.OrdinalIgnoreCase) && 
+                 !r.RoleName.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) &&
+                 !r.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase)) // Only keep User, Manager etc from system if needed
+            ).ToList();
+
             var res = roles.Select(r => new { 
                 r.Id, 
                 r.RoleName, 
                 r.CompanyId, 
-                CompanyName = subscriptions.ContainsKey(cid) ? subscriptions[cid] : "Unknown" 
+                CompanyName = r.CompanyId == null ? "System" : (subscriptions.ContainsKey(cid) ? subscriptions[cid] : "Unknown")
             });
             return Ok(res);
         }
