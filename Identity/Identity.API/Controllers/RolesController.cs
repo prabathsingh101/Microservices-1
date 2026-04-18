@@ -81,71 +81,82 @@ public class RolesController : ControllerBase
     [HttpPut("{roleId}/permissions")]
     public async Task<IActionResult> UpdatePermissions(Guid roleId, [FromBody] IEnumerable<RolePermission> permissions)
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        if (!Guid.TryParse(companyIdClaim, out var companyId))
-        {
-            return BadRequest("CompanyId not found in token");
-        }
-
         var role = await _roleRepository.GetByIdAsync(roleId);
         if (role == null) return NotFound();
 
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        Guid? loggedInCompanyId = null;
+        if (Guid.TryParse(companyIdClaim, out var cid))
+        {
+            loggedInCompanyId = cid;
+        }
+
         Guid targetRoleId = roleId;
 
-        // If it's a System Role (CompanyId is null), we must CLONE it for this company
-        if (role.CompanyId == null)
+        // 🧠 LOGIC: If user is System Admin (no CompanyId in token), they can edit anything directly.
+        // If user is a Tenant Admin, they can only edit their own or CLONE a system role.
+        if (loggedInCompanyId.HasValue)
         {
-            // Check if a customized role already exists for this company with this name
-            var existingCustom = await _context.Roles
-                                .FirstOrDefaultAsync(r => r.RoleName == role.RoleName && r.CompanyId == companyId);
-
-            if (existingCustom == null)
+            if (role.CompanyId == null)
             {
-                // Start Transaction for complex update
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
+                // 🏗️ CLONING: Tenant Admin trying to customize a System Role for their company
+                var existingCustom = await _context.Roles
+                                    .FirstOrDefaultAsync(r => r.RoleName == role.RoleName && r.CompanyId == loggedInCompanyId);
+
+                if (existingCustom == null)
                 {
-                    // 1. Create new Custom Role
-                    var newRole = new Role(role.RoleName, companyId);
-                    await _context.Roles.AddAsync(newRole);
-                    await _context.SaveChangesAsync();
-                    targetRoleId = newRole.Id;
-
-                    // 2. Map Permissions (Frontend usually sends the modified ones)
-                    // We link them to the NEW role
-                    foreach (var p in permissions)
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
                     {
-                        var np = new RolePermission(targetRoleId, p.MenuId, p.CanView, p.CanAdd, p.CanEdit, p.CanDelete, p.AdditionalActions);
-                        await _context.RolePermissions.AddAsync(np);
+                        var newRole = new Role(role.RoleName, loggedInCompanyId.Value);
+                        await _context.Roles.AddAsync(newRole);
+                        await _context.SaveChangesAsync();
+                        targetRoleId = newRole.Id;
+
+                        foreach (var p in permissions)
+                        {
+                            var np = new RolePermission(targetRoleId, p.MenuId, p.CanView, p.CanAdd, p.CanEdit, p.CanDelete, p.AdditionalActions, loggedInCompanyId.Value);
+                            await _context.RolePermissions.AddAsync(np);
+                        }
+
+                        var usersToUpdate = await _context.UserRoles
+                            .Include(ur => ur.User)
+                            .Where(ur => ur.RoleId == roleId && ur.User.CompanyId == loggedInCompanyId)
+                            .ToListAsync();
+
+                        foreach (var ur in usersToUpdate)
+                        {
+                             _context.UserRoles.Remove(ur);
+                             await _context.UserRoles.AddAsync(new Domain.Users.UserRole(ur.UserId, targetRoleId, loggedInCompanyId.Value));
+                        }
+
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        return Ok(new { Message = "Role customized for company", NewRoleId = targetRoleId });
                     }
-
-                    // 3. IMPORTANT: Update existing users of this company from Global Role to Custom Role
-                    var usersToUpdate = await _context.UserRoles
-                        .Include(ur => ur.User)
-                        .Where(ur => ur.RoleId == roleId && ur.User.CompanyId == companyId)
-                        .ToListAsync();
-
-                    foreach (var ur in usersToUpdate)
+                    catch (Exception)
                     {
-                        // We need to re-assign the role. Since Id is Guid PK, we might need a better way if mapped differently
-                        // But essentially we change the RoleId
-                         _context.UserRoles.Remove(ur);
-                         await _context.UserRoles.AddAsync(new Domain.Users.UserRole(ur.UserId, targetRoleId));
+                        await transaction.RollbackAsync();
+                        return StatusCode(500, "Failed to customize role");
                     }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return Ok(new { Message = "Role customized for company and users reassigned", NewRoleId = targetRoleId });
                 }
-                catch (Exception)
+                else
                 {
-                    await transaction.RollbackAsync();
-                    return StatusCode(500, "Failed to customize role");
+                    targetRoleId = existingCustom.Id;
                 }
             }
-            else
+            else if (role.CompanyId != loggedInCompanyId)
             {
-                targetRoleId = existingCustom.Id;
+                // 🛡️ SECURITY: Tenant Admin trying to edit ANOTHER company's role
+                return Forbid();
+            }
+        }
+        else
+        {
+            // 🚀 SUPER ADMIN: Just ensure the RolePermission entries have the Role's CompanyId (if any)
+            foreach (var p in permissions)
+            {
+                p.CompanyId = role.CompanyId;
             }
         }
 

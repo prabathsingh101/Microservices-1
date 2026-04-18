@@ -9,6 +9,7 @@ namespace Identity.Application.DTOs
         public DateTime ExpiresAt { get; init; }
         public List<string> Roles { get; init; } = new();
         public string? CompanyName { get; set; }
+        public string? CompanyTagline { get; set; }
         public Guid? CompanyId { get; set; }
         public string SubscriptionStatus { get; set; } = "Active";
         public bool IsSubscriptionExpired { get; set; } = false;

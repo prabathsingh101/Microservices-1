@@ -73,6 +73,7 @@ public class LoginUserQueryHandler
         // 3. Company Subscription Check
         Console.WriteLine("[DEBUG-HANDLER] Checking subscription...");
         string? companyName = null;
+        string? companyTagline = null;
         bool isExpired = false;
         string subStatus = "Active";
 
@@ -82,6 +83,7 @@ public class LoginUserQueryHandler
             if (subscription != null)
             {
                 companyName = subscription.CompanyName;
+                companyTagline = subscription.CompanyTagline ?? subscription.CompanyName; // Dynamic from DB
                 if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
                 {
                     isExpired = true;
@@ -92,12 +94,25 @@ public class LoginUserQueryHandler
                     subStatus = subscription.PlanType;
                 }
             }
-            else 
+        }
+        else
+        {
+            // 🚀 FULLY DYNAMIC: For Super Admin, fetch the first available subscription (System Record)
+            var allSubs = await _subscriptions.GetAllAsync();
+            var systemSub = allSubs.OrderBy(s => s.CreatedAt).FirstOrDefault();
+            
+            if (systemSub != null)
             {
-                subStatus = "No Subscription";
+                companyName = systemSub.CompanyName;
+                companyTagline = systemSub.CompanyTagline ?? systemSub.CompanyName; 
+            }
+            else
+            {
+                companyName = "Electric Inventory";
+                companyTagline = "Inventory Management System";
             }
         }
-        Console.WriteLine($"[DEBUG-HANDLER] Subscription check done. Status: {subStatus}");
+        Console.WriteLine($"[DEBUG-HANDLER] Subscription check done. Company: {companyName}, Tagline: {companyTagline}, Status: {subStatus}");
 
         // 4. Fetch Permissions for all User Roles
         Console.WriteLine("[DEBUG-HANDLER] Fetching aggregated permissions...");
@@ -120,6 +135,7 @@ public class LoginUserQueryHandler
         var auth = _jwt.Generate(user, rolesStrings, companyName);
 
         // 7. Additional mapping
+        auth.CompanyTagline = companyTagline;
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();

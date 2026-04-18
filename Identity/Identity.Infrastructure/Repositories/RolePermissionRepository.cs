@@ -23,6 +23,10 @@ public class RolePermissionRepository : IRolePermissionRepository
 
     public async Task UpdateRolePermissionsAsync(Guid roleId, IEnumerable<RolePermission> permissions)
     {
+        // 0. Get Role's CompanyId first to ensure correct tenant association
+        var role = await _context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roleId);
+        var companyId = role?.CompanyId;
+
         var existingPermissions = await _context.RolePermissions
             .Where(rp => rp.RoleId == roleId)
             .ToListAsync();
@@ -35,12 +39,14 @@ public class RolePermissionRepository : IRolePermissionRepository
             {
                 // Update existing record
                 existing.UpdatePermissions(incoming.CanView, incoming.CanAdd, incoming.CanEdit, incoming.CanDelete, incoming.AdditionalActions);
+                existing.CompanyId = companyId; // Force sync CompanyId
                 _context.RolePermissions.Update(existing);
             }
             else
             {
                 // Add new record
                 incoming.RoleId = roleId;
+                incoming.CompanyId = companyId; // Set CompanyId from Role
                 await _context.RolePermissions.AddAsync(incoming);
             }
         }
