@@ -25,7 +25,8 @@ public sealed class CreateCategoryCommandHandler
             request.CategoryCode,
             request.DefaultGst,
             request.Description,
-            request.IsActive
+            request.IsActive,
+            request.CompanyId
         );
 
         await _repository.AddAsync(category);

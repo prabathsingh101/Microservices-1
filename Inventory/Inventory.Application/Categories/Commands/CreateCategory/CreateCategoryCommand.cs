@@ -7,5 +7,6 @@ public sealed record CreateCategoryCommand(
     string? CategoryCode,
     decimal DefaultGst,
     string? Description,
-    bool IsActive
+    bool IsActive,
+    Guid CompanyId
 ) : IRequest<Guid>;

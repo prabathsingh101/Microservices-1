@@ -81,7 +81,7 @@ public sealed class CategoryRepository : ICategoryRepository
         return _db.Categories.AsQueryable();
     }
 
-    public async Task<(int successCount, List<string> errors)> UploadCategoriesAsync(IFormFile file)
+    public async Task<(int successCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId)
     {
         var errors = new List<string>();
         int successCount = 0;
@@ -105,30 +105,37 @@ public sealed class CategoryRepository : ICategoryRepository
                 var expectedHeaders = new List<string> { "CategoryCode", "CategoryName", "DefaultGst", "Description" };
                 var actualHeaders = new List<string>();
 
-                for (int i = 1; i <= 4; i++)
+                for (int i = 1; i <= expectedHeaders.Count; i++)
                 {
-                     actualHeaders.Add(headerRow.Cell(i).GetValue<string>().Trim());
+                    var val = headerRow.Cell(i).GetValue<string>().Trim();
+                    if (!string.IsNullOrEmpty(val)) actualHeaders.Add(val);
                 }
 
-                if (!expectedHeaders.SequenceEqual(actualHeaders))
+                bool headersMatch = expectedHeaders.All(eh => 
+                    actualHeaders.Any(ah => string.Equals(ah, eh, StringComparison.OrdinalIgnoreCase)));
+
+                if (!headersMatch)
                 {
                     errors.Add($"Invalid Template: Headers do not match. Expected: {string.Join(", ", expectedHeaders)}");
-                     return (0, errors);
+                    return (0, errors);
                 }
 
                 var dataRows = rows.Skip(1);
 
-                // 2. Pre-fetch Categories for Upsert logic (Update if exists, Insert if new)
-                // We don't use AsNoTracking() so we can update existing entities
-                var dbCategories = await _db.Categories.ToListAsync();
-                var dbCatsByCode = dbCategories.ToDictionary(c => c.CategoryCode.ToLower().Trim(), c => c);
+                // 2. Pre-fetch Categories FOR THIS COMPANY ONLY
+                var dbCategories = await _db.Categories
+                    .Where(x => x.CompanyId == companyId)
+                    .ToListAsync();
+
+                var dbCatsByCode = dbCategories.ToDictionary(c => c.CategoryCode?.ToLower().Trim() ?? "", c => c);
                 
                 // Track by name as well (only for active ones to match existing logic)
                 var dbCatsByName = new Dictionary<string, Category>();
                 foreach(var c in dbCategories.Where(x => x.IsActive))
                 {
-                    var nameKey = c.CategoryName.ToLower().Trim();
-                    if (!dbCatsByName.ContainsKey(nameKey)) dbCatsByName.Add(nameKey, c);
+                    var nameKey = c.CategoryName?.ToLower().Trim() ?? "";
+                    if (!string.IsNullOrEmpty(nameKey) && !dbCatsByName.ContainsKey(nameKey)) 
+                        dbCatsByName.Add(nameKey, c);
                 }
 
                 var newCategories = new List<Category>();
@@ -175,8 +182,8 @@ public sealed class CategoryRepository : ICategoryRepository
                         }
                         if (fileNames.Contains(name.ToLower()))
                         {
-                             errors.Add($"Row {rowNum}: Duplicate Name '{name}' in file.");
-                             continue;
+                            errors.Add($"Row {rowNum}: Duplicate Name '{name}' in file.");
+                            continue;
                         }
 
                         fileCodes.Add(code.ToLower());
@@ -215,7 +222,8 @@ public sealed class CategoryRepository : ICategoryRepository
                                 code: code,
                                 defaultGst: defaultGst,
                                 description: description,
-                                isActive: true, // Upsert enforces active
+                                isActive: true, 
+                                companyId: companyId, // Explicitly pass CompanyId
                                 parentCategoryId: null
                             );
                             updateCount++;
@@ -229,6 +237,7 @@ public sealed class CategoryRepository : ICategoryRepository
                                 defaultGst,
                                 description,
                                 true, // IsActive
+                                companyId, // Mandatory CompanyId
                                 null // ParentCategoryId
                             );
                             newCategories.Add(category);
@@ -256,10 +265,10 @@ public sealed class CategoryRepository : ICategoryRepository
         return (successCount, errors);
     }
 
-    public async Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null)
+    public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
         var query = _db.Categories.AsNoTracking()
-            .Where(x => x.CategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive);
+            .Where(x => x.CompanyId == companyId && x.CategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive);
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

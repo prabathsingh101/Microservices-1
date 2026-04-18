@@ -3,6 +3,7 @@ namespace Inventory.Domain.Entities;
 public class Category : Inventory.Domain.Common.BaseAuditableEntity
 {
     public Guid Id { get; private set; }
+    public Guid CompanyId { get; private set; }
     public string? CategoryCode { get; set; } = null!;
     public string? CategoryName { get; set; } = null!;
     public decimal DefaultGst { get;  set; }
@@ -23,6 +24,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         decimal defaultGst,
         string? description,
         bool isActive,
+        Guid companyId,
         Guid? parentCategoryId = null)
     {
         Id = Guid.NewGuid();
@@ -31,6 +33,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         DefaultGst = defaultGst;
         Description = description;
         IsActive = isActive;
+        CompanyId = companyId;
         ParentCategoryId = parentCategoryId;
     }
 
@@ -40,6 +43,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         decimal defaultGst,
         string? description,
         bool isActive,
+        Guid companyId,
         Guid? parentCategoryId = null) 
     {
         CategoryName = name;
@@ -47,6 +51,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         DefaultGst = defaultGst;
         Description = description;
         IsActive = isActive;
+        CompanyId = companyId;
         ParentCategoryId = parentCategoryId;
     }
 
