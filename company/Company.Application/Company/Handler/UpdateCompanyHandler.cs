@@ -85,32 +85,47 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage;
             profile.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
 
-            // 2. Address Update
-            var addr = profile.Addresses.FirstOrDefault();
-            if (addr != null)
+            // 2. Branch Update (Multi-location sync)
+            foreach (var addrDto in cmd.Request.Addresses)
             {
-                addr.AddressLine1 = cmd.Request.Address.AddressLine1;
-                addr.AddressLine2 = cmd.Request.Address.AddressLine2;
-                addr.City = cmd.Request.Address.City;
-                addr.State = cmd.Request.Address.State;
-                addr.StateCode = cmd.Request.Address.StateCode; // Max 2 chars
-                addr.PinCode = cmd.Request.Address.PinCode;
-                addr.Country = cmd.Request.Address.Country;
-                addr.Email = cmd.Request.Address.Email;
-            }
-            else
-            {
-                profile.Addresses.Add(new Address
+                int.TryParse(addrDto.Id?.ToString(), out var addrId);
+                var existingAddr = profile.Addresses.FirstOrDefault(a => a.Id == addrId && addrId != 0);
+
+                if (existingAddr != null)
                 {
-                    AddressLine1 = cmd.Request.Address.AddressLine1,
-                    AddressLine2 = cmd.Request.Address.AddressLine2,
-                    City = cmd.Request.Address.City,
-                    State = cmd.Request.Address.State,
-                    StateCode = cmd.Request.Address.StateCode,
-                    PinCode = cmd.Request.Address.PinCode,
-                    Country = cmd.Request.Address.Country,
-                    Email = cmd.Request.Address.Email
-                });
+                    existingAddr.BranchName = addrDto.BranchName;
+                    existingAddr.AddressLine1 = addrDto.AddressLine1;
+                    existingAddr.AddressLine2 = addrDto.AddressLine2;
+                    existingAddr.City = addrDto.City;
+                    existingAddr.State = addrDto.State;
+                    existingAddr.StateCode = addrDto.StateCode;
+                    existingAddr.PinCode = addrDto.PinCode;
+                    existingAddr.Country = addrDto.Country ?? "India";
+                    existingAddr.Email = addrDto.Email;
+                    existingAddr.Phone = addrDto.Phone;
+                    existingAddr.ContactPerson = addrDto.ContactPerson;
+                    existingAddr.Gstin = addrDto.Gstin;
+                    existingAddr.IsHeadOffice = addrDto.IsHeadOffice;
+                }
+                else
+                {
+                    profile.Addresses.Add(new Address
+                    {
+                        BranchName = addrDto.BranchName,
+                        AddressLine1 = addrDto.AddressLine1,
+                        AddressLine2 = addrDto.AddressLine2,
+                        City = addrDto.City,
+                        State = addrDto.State,
+                        StateCode = addrDto.StateCode,
+                        PinCode = addrDto.PinCode,
+                        Country = addrDto.Country ?? "India",
+                        Email = addrDto.Email,
+                        Phone = addrDto.Phone,
+                        ContactPerson = addrDto.ContactPerson,
+                        Gstin = addrDto.Gstin,
+                        IsHeadOffice = addrDto.IsHeadOffice
+                    });
+                }
             }
 
             // 3. Bank Information Update

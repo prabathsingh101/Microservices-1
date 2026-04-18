@@ -56,6 +56,12 @@ namespace Company.Infrastructure.Repositories
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
+        public async Task<CompanyProfile?> GetByNameAsync(string name)
+        {
+            return await _context.CompanyProfiles
+                .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower());
+        }
+
 
         // --- DELETE ---
         public async Task<bool> DeleteCompanyProfileAsync(Guid id)

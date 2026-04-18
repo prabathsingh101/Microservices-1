@@ -61,6 +61,14 @@ namespace Company.Application.Company.Commands.Create.Handler
             // 🚀 ID/IDEMPOTENCY LOGIC:
             // Priority: 1. ID from Request (CompanyId), 2. ID from Token, 3. New Guid
             var targetId = cmd.Request.CompanyId ?? _currentUserService.CompanyId ?? Guid.NewGuid();
+
+            // 🔍 DUPLICATE NAME CHECK:
+            var byName = await _repo.GetByNameAsync(cmd.Request.Name);
+            if (byName != null && byName.Id != targetId)
+            {
+                throw new Exception($"Company with name '{cmd.Request.Name}' already exists.");
+            }
+
             var existing = await _repo.GetByIdAsync(targetId);
 
             if (existing != null)
@@ -98,32 +106,45 @@ namespace Company.Application.Company.Commands.Create.Handler
                 existing.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
                 existing.IsActive = true; 
 
-                // Sync Address
-                var addr = existing.Addresses.FirstOrDefault();
-                if (addr != null)
+                // Sync Branches (Addresses)
+                foreach (var addrDto in cmd.Request.Addresses)
                 {
-                    addr.AddressLine1 = cmd.Request.Address.AddressLine1;
-                    addr.AddressLine2 = cmd.Request.Address.AddressLine2;
-                    addr.City = cmd.Request.Address.City;
-                    addr.State = cmd.Request.Address.State;
-                    addr.StateCode = cmd.Request.Address.StateCode;
-                    addr.PinCode = cmd.Request.Address.PinCode;
-                    addr.Country = cmd.Request.Address.Country ?? "India";
-                    addr.Email = cmd.Request.Address.Email;
-                }
-                else
-                {
-                    existing.Addresses.Add(new Address
+                    var existingAddr = existing.Addresses.FirstOrDefault(a => a.Id.ToString() == addrDto.Id?.ToString());
+                    if (existingAddr != null)
                     {
-                        AddressLine1 = cmd.Request.Address.AddressLine1,
-                        AddressLine2 = cmd.Request.Address.AddressLine2,
-                        City = cmd.Request.Address.City,
-                        State = cmd.Request.Address.State,
-                        StateCode = cmd.Request.Address.StateCode,
-                        PinCode = cmd.Request.Address.PinCode,
-                        Country = cmd.Request.Address.Country ?? "India",
-                        Email = cmd.Request.Address.Email
-                    });
+                        existingAddr.BranchName = addrDto.BranchName;
+                        existingAddr.AddressLine1 = addrDto.AddressLine1;
+                        existingAddr.AddressLine2 = addrDto.AddressLine2;
+                        existingAddr.City = addrDto.City;
+                        existingAddr.State = addrDto.State;
+                        existingAddr.StateCode = addrDto.StateCode;
+                        existingAddr.PinCode = addrDto.PinCode;
+                        existingAddr.Country = addrDto.Country ?? "India";
+                        existingAddr.Email = addrDto.Email;
+                        existingAddr.Phone = addrDto.Phone;
+                        existingAddr.ContactPerson = addrDto.ContactPerson;
+                        existingAddr.Gstin = addrDto.Gstin;
+                        existingAddr.IsHeadOffice = addrDto.IsHeadOffice;
+                    }
+                    else
+                    {
+                        existing.Addresses.Add(new Address
+                        {
+                            BranchName = addrDto.BranchName,
+                            AddressLine1 = addrDto.AddressLine1,
+                            AddressLine2 = addrDto.AddressLine2,
+                            City = addrDto.City,
+                            State = addrDto.State,
+                            StateCode = addrDto.StateCode,
+                            PinCode = addrDto.PinCode,
+                            Country = addrDto.Country ?? "India",
+                            Email = addrDto.Email,
+                            Phone = addrDto.Phone,
+                            ContactPerson = addrDto.ContactPerson,
+                            Gstin = addrDto.Gstin,
+                            IsHeadOffice = addrDto.IsHeadOffice
+                        });
+                    }
                 }
 
                 // Sync Bank
@@ -190,20 +211,22 @@ namespace Company.Application.Company.Commands.Create.Handler
                 SaleOrderCreationMessage = cmd.Request.SaleOrderCreationMessage,
                 SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage,
 
-                Addresses = new List<Address>
+                Addresses = cmd.Request.Addresses.Select(addrDto => new Address
                 {
-                    new Address
-                    {
-                        AddressLine1 = cmd.Request.Address.AddressLine1,
-                        AddressLine2 = cmd.Request.Address.AddressLine2,
-                        City = cmd.Request.Address.City,
-                        State = cmd.Request.Address.State,
-                        StateCode = cmd.Request.Address.StateCode, // Max 2
-                        PinCode = cmd.Request.Address.PinCode,
-                        Country = cmd.Request.Address.Country ?? "India",
-                        Email = cmd.Request.Address.Email
-                    }
-                },
+                    BranchName = addrDto.BranchName,
+                    AddressLine1 = addrDto.AddressLine1,
+                    AddressLine2 = addrDto.AddressLine2,
+                    City = addrDto.City,
+                    State = addrDto.State,
+                    StateCode = addrDto.StateCode,
+                    PinCode = addrDto.PinCode,
+                    Country = addrDto.Country ?? "India",
+                    Email = addrDto.Email,
+                    Phone = addrDto.Phone,
+                    ContactPerson = addrDto.ContactPerson,
+                    Gstin = addrDto.Gstin,
+                    IsHeadOffice = addrDto.IsHeadOffice
+                }).ToList(),
                 BankDetails = new List<BankDetail>
                 {
                     new BankDetail

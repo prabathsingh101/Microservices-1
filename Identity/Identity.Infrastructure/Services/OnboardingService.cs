@@ -106,14 +106,14 @@ public class OnboardingService : IOnboardingService
             // Note: We send minimal data, the user can update details later in the app
             var createCompanyRequest = new 
             {
-                companyId = companyId,
+                companyId = companyId.ToString(),
                 name = companyName,
                 tagline = "Welcome to " + companyName,
                 registrationNumber = "PENDING",
                 gstin = "PENDING",
                 primaryPhone = "0000000000",
-                address = new { addressLine1 = "Update your address", city = "Update City", state = "State", stateCode = "00", pinCode = "000000", country = "India" },
-                bankInfo = new { bankName = "Update Bank", branchName = "Update Branch", accountNumber = "0000", ifscCode = "IFSC000", accountType = "Current" },
+                addresses = new[] { new { branchName = "Head Office", addressLine1 = "Update your address", city = "Update City", state = "State", stateCode = "00", pinCode = "000000", country = "India", isHeadOffice = true } },
+                bankInfo = new { id = 0, bankName = "Update Bank", branchName = "Update Branch", accountNumber = "0000", ifscCode = "IFSC000", accountType = "Current" },
                 authorizedSignatories = new List<object>()
             };
 

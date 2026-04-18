@@ -34,7 +34,7 @@ namespace Company.Application.DTOs
         string? PurchaseOrderStatusUpdateMessage,
         string? SaleOrderCreationMessage,
         string? SaleOrderConfirmationMessage,
-        AddressDto Address, // Aapke request ke hisaab se name match
+        List<AddressDto> Addresses, 
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories
     );
@@ -42,6 +42,7 @@ namespace Company.Application.DTOs
     // Shared Records
     public record AddressDto(
         object? Id = null, 
+        string BranchName = "Head Office",
         string AddressLine1 = "", 
         string AddressLine2 = "", 
         string City = "", 
@@ -49,7 +50,11 @@ namespace Company.Application.DTOs
         string StateCode = "", 
         string PinCode = "", 
         string Country = "India",
-        string? Email = null
+        string? Email = null,
+        string? Phone = null,
+        string? ContactPerson = null,
+        string? Gstin = null,
+        bool IsHeadOffice = false
     );
 
     public record BankDetailDto(
@@ -104,7 +109,7 @@ namespace Company.Application.DTOs
         string? PurchaseOrderStatusUpdateMessage,
         string? SaleOrderCreationMessage,
         string? SaleOrderConfirmationMessage,
-        AddressDto Address,
+        List<AddressDto> Addresses,
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories
     );

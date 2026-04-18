@@ -53,18 +53,23 @@ namespace Company.Application.Company.Queries
                 data.PurchaseOrderStatusUpdateMessage,
                 data.SaleOrderCreationMessage,
                 data.SaleOrderConfirmationMessage,
-                // Nested Address Record
-                new AddressDto(
-                    data.Addresses.FirstOrDefault()?.Id,
-                    data.Addresses.FirstOrDefault()?.AddressLine1 ?? "",
-                    data.Addresses.FirstOrDefault()?.AddressLine2 ?? "",
-                    data.Addresses.FirstOrDefault()?.City ?? "",
-                    data.Addresses.FirstOrDefault()?.State ?? "",
-                    data.Addresses.FirstOrDefault()?.StateCode ?? "",
-                    data.Addresses.FirstOrDefault()?.PinCode ?? "",
-                    data.Addresses.FirstOrDefault()?.Country ?? "India",
-                    data.Addresses.FirstOrDefault()?.Email
-                ),
+                // Nested Addresses List
+                data.Addresses.Select(addr => new AddressDto(
+                    addr.Id,
+                    addr.BranchName ?? "Head Office",
+                    addr.AddressLine1 ?? "",
+                    addr.AddressLine2 ?? "",
+                    addr.City ?? "",
+                    addr.State ?? "",
+                    addr.StateCode ?? "",
+                    addr.PinCode ?? "",
+                    addr.Country ?? "India",
+                    addr.Email,
+                    addr.Phone,
+                    addr.ContactPerson,
+                    addr.Gstin,
+                    addr.IsHeadOffice
+                )).ToList(),
                 // Nested BankDetail Record
                 new BankDetailDto(
                     data.BankDetails.FirstOrDefault()?.Id,
