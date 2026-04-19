@@ -8,10 +8,12 @@ namespace Inventory.Infrastructure.Repositories;
 public class WarehouseRepository : IWarehouseRepository
 {
     private readonly InventoryDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public WarehouseRepository(InventoryDbContext context)
+    public WarehouseRepository(InventoryDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task AddAsync(Warehouse warehouse)
@@ -33,11 +35,17 @@ public class WarehouseRepository : IWarehouseRepository
 
     public async Task<List<Warehouse>> GetAllAsync()
     {
-        return await _context.Warehouses.AsNoTracking().ToListAsync();
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return await _context.Warehouses
+            .Where(x => x.CompanyId == companyId)
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     public async Task<Warehouse?> GetByIdAsync(Guid id)
     {
-        return await _context.Warehouses.FindAsync(id);
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return await _context.Warehouses
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 }

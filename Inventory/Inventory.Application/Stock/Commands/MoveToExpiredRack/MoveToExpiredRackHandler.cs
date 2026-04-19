@@ -12,20 +12,23 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
     public class MoveToExpiredRackHandler : IRequestHandler<MoveToExpiredRackCommand, bool>
     {
         private readonly IInventoryDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        public MoveToExpiredRackHandler(IInventoryDbContext context)
+        public MoveToExpiredRackHandler(IInventoryDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         public async Task<bool> Handle(MoveToExpiredRackCommand request, CancellationToken ct)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             // 1. Find the Expired Rack (Rack E1 / Expired Products / Damaged / Rejected)
             var targetRack = await _context.Racks
-                .FirstOrDefaultAsync(r => r.Name.ToLower().Contains("e1") || 
+                .FirstOrDefaultAsync(r => r.CompanyId == companyId && (r.Name.ToLower().Contains("e1") || 
                                           (r.Description != null && (r.Description.ToLower().Contains("expired") || 
                                                                      r.Description.ToLower().Contains("damaged") || 
-                                                                     r.Description.ToLower().Contains("rejected"))), ct);
+                                                                     r.Description.ToLower().Contains("rejected")))), ct);
 
             if (targetRack == null)
                 throw new Exception("Destination 'Expired Rack' not found in system. Please create a rack with description 'Expired Products'.");
@@ -35,7 +38,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
             var allBatches = await _context.GRNDetails
                 .Where(g => g.ProductId == request.ProductId &&
                             g.WarehouseId == request.SourceWarehouseId &&
-                            g.RackId == request.SourceRackId)
+                            g.RackId == request.SourceRackId &&
+                            g.CompanyId == companyId)
                 .ToListAsync(ct);
 
             // Filter by Date and exclude empty batches, then sort to pick most viable first
@@ -77,7 +81,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                                             g.WarehouseId == targetRack.WarehouseId &&
                                             g.RackId == targetRack.Id &&
                                             g.ExpDate == b.ExpDate &&
-                                            g.UnitRate == b.UnitRate, ct);
+                                            g.UnitRate == b.UnitRate &&
+                                            g.CompanyId == companyId, ct);
 
                 if (existingExpiredBatch != null)
                 {
@@ -125,7 +130,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 request.SourceWarehouseId,
                 request.SourceRackId,
                 request.ExpiryDate,
-                request.ExpiryDate
+                request.ExpiryDate,
+                companyId
             );
             await _context.InventoryTransactions.AddAsync(outTx, ct);
 
@@ -138,7 +144,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 targetRack.WarehouseId,
                 targetRack.Id,
                 request.ExpiryDate,
-                request.ExpiryDate
+                request.ExpiryDate,
+                companyId
             );
             await _context.InventoryTransactions.AddAsync(inTx, ct);
 

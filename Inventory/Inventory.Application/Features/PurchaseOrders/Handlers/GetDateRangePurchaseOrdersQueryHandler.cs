@@ -85,6 +85,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 {
                     Id = x.Id,
                     PoNumber = x.PoNumber,
+                    SupplierId = x.SupplierId,
                     SupplierName = x.SupplierName,
                     PoDate = x.PoDate,
                     TotalTax = x.TotalTax,
@@ -104,7 +105,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     TotalOrdered = items.Sum(i => i.Qty),
                     TotalReceived = items.Sum(i => i.ReceivedQty),
                     TotalAccepted = items.Sum(i => i.AcceptedQty),
-                    TotalRejected = items.Sum(i => i.RejectedQty)
+                    TotalRejected = items.Sum(i => i.RejectedQty),
+                    TotalReturned = items.Sum(i => i.ReturnQty)
                 };
             }).ToList();
 

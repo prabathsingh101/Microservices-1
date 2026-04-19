@@ -10,14 +10,16 @@ namespace Inventory.Infrastructure.Repositories
 {
     public class SaleReturnRepository : Inventory.Application.Common.Interfaces.ISaleReturnRepository
     {
+        private readonly ICurrentUserService _currentUserService;
         private readonly InventoryDbContext _context;
         private readonly ICustomerClient _customerClient;
 
-        public SaleReturnRepository(InventoryDbContext context, ICustomerClient customerClient
+        public SaleReturnRepository(InventoryDbContext context, ICustomerClient customerClient, ICurrentUserService currentUserService
             )
         {
             _context = context;
             _customerClient = customerClient;
+            _currentUserService = currentUserService;
         }
 
         public async Task<SaleReturnPagedResponse> GetSaleReturnsAsync(
@@ -31,9 +33,11 @@ namespace Inventory.Infrastructure.Repositories
          string sortOrder,
          bool isQuick = false)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             // 1. Initial Query with NoTracking for high performance
             var query = _context.SaleReturnHeaders
                 .AsNoTracking()
+                .Where(x => x.CompanyId == companyId && x.IsQuick == isQuick)
                 .Include(x => x.SaleOrder) // Join once for SO Ref
                 .AsQueryable();
 
@@ -46,9 +50,6 @@ namespace Inventory.Infrastructure.Repositories
                 var endOfToDate = toDate.Value.Date.AddDays(1).AddTicks(-1);
                 query = query.Where(x => x.ReturnDate <= endOfToDate);
             }
-
-            // 3. Strict Quick vs Standard Filtering
-            query = query.Where(x => x.IsQuick == isQuick);
 
             // 3. Optimized Status Widget Filter
             if (!string.IsNullOrEmpty(status))
@@ -154,7 +155,8 @@ namespace Inventory.Infrastructure.Repositories
 
                     foreach (var item in header.ReturnItems)
                     {
-                        var product = await _context.Products.FindAsync(item.ProductId);
+                        var companyId = header.CompanyId;
+                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId);
                         if (product != null)
                         {
                             // Sales Return = Increase Current Stock
@@ -215,11 +217,13 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<decimal> GetRemainingReturnableQtyAsync(Guid saleOrderId, Guid productId, DateTime? mfgDate = null, DateTime? expDate = null)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             // 1. Get total quantity sold for THIS specifically batch-matched line item
             var totalSold = await _context.SaleOrderItems
                 .AsNoTracking()
                 .Where(soi => soi.SaleOrderId == saleOrderId &&
                               soi.ProductId == productId &&
+                              soi.CompanyId == companyId &&
                               (!mfgDate.HasValue || soi.MfgDate == mfgDate) &&
                               (!expDate.HasValue || soi.ExpDate == expDate))
                 .SumAsync(soi => (decimal?)soi.Qty) ?? 0;
@@ -230,6 +234,7 @@ namespace Inventory.Infrastructure.Repositories
                 .AsNoTracking()
                 .Where(sri => sri.SaleReturnHeader.SaleOrderId == saleOrderId &&
                               sri.ProductId == productId &&
+                              sri.CompanyId == companyId &&
                               (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED") &&
                               (!mfgDate.HasValue || sri.MfgDate == mfgDate) &&
                               (!expDate.HasValue || sri.ExpDate == expDate))
@@ -241,10 +246,11 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<List<SaleReturnExportDto>> GetExportDataAsync(DateTime? fromDate, DateTime? toDate)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             return await _context.SaleReturnHeaders
                 .AsNoTracking()
                 .Include(h => h.SaleOrder) // Join for SONumber
-                .Where(h => (!fromDate.HasValue || h.ReturnDate >= fromDate) &&
+                .Where(h => h.CompanyId == companyId && (!fromDate.HasValue || h.ReturnDate >= fromDate) &&
                             (!toDate.HasValue || h.ReturnDate <= toDate))
                 .Select(h => new SaleReturnExportDto
                 {
@@ -263,7 +269,8 @@ namespace Inventory.Infrastructure.Repositories
         {
             var today = DateTime.Today;
             var tomorrow = today.AddDays(1);
-            var queryBase = _context.SaleReturnHeaders.Where(x => x.IsQuick == isQuick);
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var queryBase = _context.SaleReturnHeaders.Where(x => x.IsQuick == isQuick && x.CompanyId == companyId);
 
             // 1. Aaj kitne returns aaye (Range check is safer than .Date)
             var totalToday = await queryBase
@@ -282,7 +289,7 @@ namespace Inventory.Infrastructure.Repositories
 
             // 4. Stock re-filled pcs (Items table se sum)
             var totalPcs = await _context.SaleReturnItems
-                .Where(x => x.SaleReturnHeader.IsQuick == isQuick)
+                .Where(x => x.CompanyId == companyId && x.SaleReturnHeader.IsQuick == isQuick)
                 .SumAsync(x => (decimal?)x.ReturnQty) ?? 0;
 
             return new SaleReturnSummaryDto
@@ -297,9 +304,10 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<List<PendingSRDto>> GetPendingSaleReturnsAsync()
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var returns = await _context.SaleReturnHeaders
                 .AsNoTracking()
-                .Where(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == "") && x.IsQuick == false)
+                .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == "") && x.IsQuick == false)
                 .OrderByDescending(x => x.ReturnDate)
                 .Select(x => new PendingSRDto
                 {
@@ -319,7 +327,7 @@ namespace Inventory.Infrastructure.Repositories
             
             var detailedReturns = await _context.SaleReturnHeaders
                 .AsNoTracking()
-                .Where(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
+                .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
                 .OrderByDescending(x => x.ReturnDate)
                 .Select(x => new { x.Id, x.CustomerId })
                 .ToListAsync();
@@ -365,10 +373,11 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<SaleReturnHeader?> GetSaleReturnByIdAsync(Guid id)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             return await _context.SaleReturnHeaders
                 .Include(x => x.ReturnItems)
                 .ThenInclude(i => i.Product)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
         }
     }
 }

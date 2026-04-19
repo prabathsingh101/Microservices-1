@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Inventory.Application.Common.Interfaces;
 using DocumentFormat.OpenXml.InkML;
 using Inventory.Domain.Entities;
 using Inventory.Infrastructure.Persistence;
@@ -10,10 +11,12 @@ namespace Inventory.Infrastructure.Repositories;
 public sealed class CategoryRepository : ICategoryRepository
 {
     private readonly InventoryDbContext _db;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CategoryRepository(InventoryDbContext db)
+    public CategoryRepository(InventoryDbContext db, ICurrentUserService currentUserService)
     {
         _db = db;
+        _currentUserService = currentUserService;
     }
 
     public async Task AddAsync(Category category)
@@ -36,21 +39,25 @@ public sealed class CategoryRepository : ICategoryRepository
 
     public async Task<Category?> GetByIdAsync(Guid id)
     {
-        return await _db.Categories.FirstOrDefaultAsync(x => x.Id == id);
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
     public async Task<List<Category>> GetAllAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Categories
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .ToListAsync();
     }
     
 
     public async Task<List<Category>> GetByIdsAsync(List<Guid> ids)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Categories
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
             .ToListAsync();
     }
 
@@ -62,14 +69,16 @@ public sealed class CategoryRepository : ICategoryRepository
     // ✅ DEPENDENCY CHECK (NO NAVIGATION PROPERTY)
     public async Task<bool> HasSubcategoriesAsync(Guid categoryId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Subcategories
-            .AnyAsync(x => x.CategoryId == categoryId);
+            .AnyAsync(x => x.CategoryId == categoryId && x.CompanyId == companyId);
     }
 
     public async Task<bool> HasSubcategoriesAsync(List<Guid> categoryIds)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Subcategories
-            .AnyAsync(x => categoryIds.Contains(x.CategoryId));
+            .AnyAsync(x => categoryIds.Contains(x.CategoryId) && x.CompanyId == companyId);
     }
 
     public void Delete(Category category)
@@ -78,7 +87,8 @@ public sealed class CategoryRepository : ICategoryRepository
     }
     public IQueryable<Category> Query()
     {
-        return _db.Categories.AsQueryable();
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return _db.Categories.Where(x => x.CompanyId == companyId).AsQueryable();
     }
 
     public async Task<(int successCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId)

@@ -13,15 +13,18 @@ namespace Inventory.Application.GatePasses.Queries.GetGatePassesPaged
     public class GetGatePassesHandler : IRequestHandler<GetGatePassesQuery, PagedResponse<GatePassDto>>
     {
         private readonly IInventoryDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        public GetGatePassesHandler(IInventoryDbContext context)
+        public GetGatePassesHandler(IInventoryDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         public async Task<PagedResponse<GatePassDto>> Handle(GetGatePassesQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.GatePasses.AsNoTracking().AsQueryable();
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var query = _context.GatePasses.AsNoTracking().Where(x => x.CompanyId == companyId).AsQueryable();
 
             // 1. GLOBAL SEARCH
             if (!string.IsNullOrEmpty(request.Filter))

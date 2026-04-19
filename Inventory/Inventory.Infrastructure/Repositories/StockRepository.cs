@@ -10,12 +10,15 @@ namespace Inventory.Infrastructure.Repositories
 {
     public class StockRepository : IStockRepository
     {
+        private readonly ICurrentUserService _currentUserService;
         private readonly InventoryDbContext _context;
 
-        public StockRepository(InventoryDbContext context)
+        public StockRepository(InventoryDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
-        }        
+            _currentUserService = currentUserService;
+        }
+    
 
         public Task<StockRefillDetailsDto> GetRefillDetailsAsync(Guid productId)
         {
@@ -317,8 +320,9 @@ namespace Inventory.Infrastructure.Repositories
         Guid? rackId = null,
         bool showPurged = false)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             // STEP 1: Base Query - GRNDetails se start karenge traceability ke liye
-            var baseQuery = _context.GRNDetails.AsNoTracking().AsQueryable();
+            var baseQuery = _context.GRNDetails.AsNoTracking().Where(x => x.CompanyId == companyId).AsQueryable();
 
             if (startDate.HasValue)
                 baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate.Date >= startDate.Value.Date);
@@ -432,7 +436,8 @@ namespace Inventory.Infrastructure.Repositories
             {
                 // 1. Gross Sold fetch karein (Confirmed/Completed)
                 var grossSold = await _context.SaleOrderItems
-                    .Where(si => si.ProductId == item.ProductId && 
+                    .Where(si => si.CompanyId == companyId &&
+                                si.ProductId == item.ProductId && 
                                 si.WarehouseId == item.WarehouseId && 
                                 si.RackId == item.RackId &&
                                 (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
@@ -443,6 +448,7 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(sri => sri.ProductId == item.ProductId && 
                                  sri.WarehouseId == item.WarehouseId && 
                                  sri.RackId == item.RackId &&
+                                 sri.CompanyId == companyId &&
                                  (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
@@ -556,12 +562,12 @@ namespace Inventory.Infrastructure.Repositories
 
                 // 🎯 Calculate Batch-wise "Sold" strictly (Net of Sales and Returns)
                 var grossSales = await _context.SaleOrderItems
-                    .Where(si => si.ProductId == item.ProductId && si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .Where(si => si.CompanyId == companyId && si.ProductId == item.ProductId && si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
                     .Select(si => new { si.Qty, si.MfgDate, si.ExpDate })
                     .ToListAsync();
 
                 var batchReturns = await _context.SaleReturnItems
-                    .Where(sri => sri.ProductId == item.ProductId && sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
+                    .Where(sri => sri.CompanyId == companyId && sri.ProductId == item.ProductId && sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .Select(sri => new { Qty = sri.ReturnQty, sri.MfgDate, sri.ExpDate })
                     .ToListAsync();
 
@@ -654,8 +660,9 @@ namespace Inventory.Infrastructure.Repositories
             Guid? warehouseId = null,
             Guid? rackId = null)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             // Similar to current stock but focused on Rejected Items (Disposed)
-            var baseQuery = _context.GRNDetails.AsNoTracking().AsQueryable();
+            var baseQuery = _context.GRNDetails.AsNoTracking().Where(x => x.CompanyId == companyId).AsQueryable();
 
             if (startDate.HasValue)
                 baseQuery = baseQuery.Where(x => x.GRNHeader.ReceivedDate >= startDate.Value);
@@ -737,8 +744,9 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<byte[]> GenerateStockExcel(List<Guid> productIds)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var stockData = await _context.GRNDetails
-                .Where(x => productIds.Contains(x.ProductId))
+                .Where(x => productIds.Contains(x.ProductId) && x.CompanyId == companyId)
                 .Include(x => x.Product)
                 .GroupBy(x => new {
                     x.ProductId,
@@ -845,8 +853,10 @@ namespace Inventory.Infrastructure.Repositories
             DateTime? mfgDate,
             DateTime? expDate)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var query = _context.InventoryTransactions.AsNoTracking()
-                .Where(t => t.ProductId == productId &&
+                .Where(t => t.CompanyId == companyId &&
+                            t.ProductId == productId &&
                             t.WarehouseId == warehouseId &&
                             t.RackId == rackId);
 

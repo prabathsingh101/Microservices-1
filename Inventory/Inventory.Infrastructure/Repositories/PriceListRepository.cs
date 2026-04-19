@@ -7,10 +7,12 @@ using Microsoft.EntityFrameworkCore;
 internal sealed class PriceListRepository : IPriceListRepository
 {
     private readonly InventoryDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public PriceListRepository(InventoryDbContext context)
+    public PriceListRepository(InventoryDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task AddAsync(PriceList priceList)
@@ -34,21 +36,25 @@ internal sealed class PriceListRepository : IPriceListRepository
 
     public async Task<PriceList?> GetByIdAsync(Guid id)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceLists.AsNoTracking()
             .Include(x => x.PriceListItems)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
     public async Task<List<PriceList>> GetAllAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceLists
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .Include(x => x.PriceListItems)
             .ToListAsync();
     }
     public IQueryable<PriceList> Query()
     {
-        return _context.PriceLists.AsQueryable();
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return _context.PriceLists.Where(x => x.CompanyId == companyId).AsQueryable();
     }
     public void DeleteRange(List<PriceList> PriceLists)
     {
@@ -57,16 +63,18 @@ internal sealed class PriceListRepository : IPriceListRepository
 
     public async Task<List<PriceList>> GetByIdsAsync(List<Guid> ids)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceLists
             .AsNoTracking()
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public async Task<bool> HasPriceListAsync(List<Guid> pricelistIds)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceLists.AsNoTracking()
-           .AnyAsync(x => pricelistIds.Contains(x.Id));
+           .AnyAsync(x => pricelistIds.Contains(x.Id) && x.CompanyId == companyId);
     }
 
     public async Task AddAsync(PriceList priceList, CancellationToken ct)
@@ -81,10 +89,11 @@ internal sealed class PriceListRepository : IPriceListRepository
 
     public async Task<PriceList?> GetByIdWithItemsAsync(Guid id, CancellationToken cancellationToken)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceLists.AsNoTracking()
             .Include(p => p.PriceListItems)
                 .ThenInclude(i => i.Product) // Ye line zaroori hai
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId, cancellationToken);
     }
     public async Task UpdatePriceListAsync(PriceList entity, CancellationToken cancellationToken)
     {
@@ -95,9 +104,10 @@ internal sealed class PriceListRepository : IPriceListRepository
 
     public async Task<List<PriceListItemDto>> GetPriceListItemsAsync(Guid priceListId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceListItems
             .AsNoTracking()
-            .Where(x => x.PriceListId == priceListId)
+            .Where(x => x.PriceListId == priceListId && x.CompanyId == companyId)
             .Select(x => new PriceListItemDto
             {
                 ProductId = x.ProductId,

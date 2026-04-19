@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Inventory.Application.Categories.Queries.GetCategories
 {
-    public sealed record GetCategoriesQuery
+    public sealed record GetCategoriesQuery(Guid? CompanyId = null)
      : IRequest<List<CategoryDto>>;
 
 }

@@ -92,6 +92,13 @@ namespace Inventory.API.Controllers
 
             try
             {
+                // 🚀 SMART INJECTION: Get CompanyId from Claims to ensure security
+                var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                if (Guid.TryParse(companyIdClaim, out var companyId))
+                {
+                    returnDto.CompanyId = companyId;
+                }
+
                 // DTO ko Entity mein map karein [cite: 2026-02-04]
                 var returnEntity = new Inventory.Domain.Entities.PurchaseReturn
                 {

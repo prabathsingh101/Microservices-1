@@ -31,6 +31,9 @@ namespace Inventory.API.Controllers
         {
             try 
             {
+                // 🔥 SMART INJECTION: Inject CompanyId from Secure Claims
+                command.CompanyId = User.GetCompanyId();
+
                 var result = await _mediator.Send(command);
                 return Ok(ApiResponse<GatePassDto>.Ok(
                     result,

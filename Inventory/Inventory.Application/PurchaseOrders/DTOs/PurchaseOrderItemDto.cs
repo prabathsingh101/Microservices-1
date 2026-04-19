@@ -26,12 +26,12 @@ public class PurchaseOrderItemDto
     // Manual Mapping from Entity to DTO
     public static PurchaseOrderItemDto FromEntity(dynamic entity)
     {
-        return new PurchaseOrderItemDto
+        var dto = new PurchaseOrderItemDto
         {
             Id = entity.Id,
             PurchaseOrderId = entity.PurchaseOrderId,
             ProductId = entity.ProductId,
-            ProductName = entity.Product.Name?? "NA",
+            ProductName = entity.Product?.Name ?? "NA",
             Qty = entity.Qty,
             Unit = entity.Unit,
             Rate = entity.Rate,
@@ -44,5 +44,7 @@ public class PurchaseOrderItemDto
             ExpiryDate = entity.ExpDate,
             IsExpiryRequired = entity.Product != null ? entity.Product.IsExpiryRequired : false
         };
+
+        return dto;
     }
 }

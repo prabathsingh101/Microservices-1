@@ -12,26 +12,30 @@ namespace Inventory.Application.Stock.Commands.RejectStock
     public class RejectStockHandler : IRequestHandler<RejectStockCommand, bool>
     {
         private readonly IInventoryDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        public RejectStockHandler(IInventoryDbContext context)
+        public RejectStockHandler(IInventoryDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         public async Task<bool> Handle(RejectStockCommand request, CancellationToken ct)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             // 1. Find the product
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId, ct);
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && p.CompanyId == companyId, ct);
             if (product == null) throw new Exception($"Product with ID {request.ProductId} not found.");
 
             // 2. Query GRN Details
             var query = _context.GRNDetails
                 .Where(g => g.ProductId == request.ProductId &&
                             g.WarehouseId == request.WarehouseId &&
-                            g.RackId == request.RackId);
+                            g.RackId == request.RackId &&
+                            g.CompanyId == companyId);
 
             // Fetch rack info to check if it's an expired/unusable rack
-            var rack = await _context.Racks.FirstOrDefaultAsync(r => r.Id == request.RackId, ct);
+            var rack = await _context.Racks.FirstOrDefaultAsync(r => r.Id == request.RackId && r.CompanyId == companyId, ct);
             bool isExpiredRack = rack != null && (
                 rack.Name.ToLower().Contains("e1") || 
                 (rack.Description != null && (
@@ -109,7 +113,8 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                     request.WarehouseId,
                     request.RackId,
                     null,
-                    request.ExpiryDate
+                    request.ExpiryDate,
+                    companyId
                 );
                 await _context.InventoryTransactions.AddAsync(adjTx, ct);
             }
@@ -124,7 +129,8 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                     request.WarehouseId,
                     request.RackId,
                     null,
-                    request.ExpiryDate
+                    request.ExpiryDate,
+                    companyId
                 );
                 await _context.InventoryTransactions.AddAsync(purgeTx, ct);
             }

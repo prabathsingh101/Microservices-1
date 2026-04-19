@@ -5,19 +5,22 @@ using System.Globalization;
 
 public class DashboardRepository : IDashboardRepository
 {
+    private readonly ICurrentUserService _currentUserService;
     private readonly InventoryDbContext _context;
 
-    public DashboardRepository(InventoryDbContext context)
+    public DashboardRepository(InventoryDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         // AsNoTracking read-only operations ke liye fast hai
-        var purchaseOrders = _context.PurchaseOrders.AsNoTracking();
-        var products = _context.Products.AsNoTracking();
-        var saleOrders = _context.SaleOrders.AsNoTracking();
+        var purchaseOrders = _context.PurchaseOrders.AsNoTracking().Where(x => x.CompanyId == companyId);
+        var products = _context.Products.AsNoTracking().Where(x => x.CompanyId == companyId);
+        var saleOrders = _context.SaleOrders.AsNoTracking().Where(x => x.CompanyId == companyId);
 
         return new DashboardSummaryDto
         {
@@ -44,12 +47,13 @@ public class DashboardRepository : IDashboardRepository
 
     public async Task<DashboardChartDto> GetDashboardChartsAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var currentYear = DateTime.Now.Year;
 
         // 1. Sales Trends: SODate ke basis par month-wise group karke GrandTotal sum karna
         var salesTrends = await _context.SaleOrders
             .AsNoTracking()
-            .Where(x => x.SODate.Year == currentYear)
+            .Where(x => x.SODate.Year == currentYear && x.CompanyId == companyId)
             .GroupBy(x => x.SODate.Month)
             .Select(g => new { Month = g.Key, Total = g.Sum(x => x.GrandTotal) })
             .ToListAsync();
@@ -57,7 +61,7 @@ public class DashboardRepository : IDashboardRepository
         // 2. Purchase Trends: PoDate ke basis par month-wise group karke GrandTotal sum karna
         var purchaseTrends = await _context.PurchaseOrders
             .AsNoTracking()
-            .Where(x => x.PoDate.Year == currentYear)
+            .Where(x => x.PoDate.Year == currentYear && x.CompanyId == companyId)
             .GroupBy(x => x.PoDate.Month)
             .Select(g => new { Month = g.Key, Total = g.Sum(x => x.GrandTotal) })
             .ToListAsync();
@@ -79,18 +83,19 @@ public class DashboardRepository : IDashboardRepository
         // Finished Goods: Jahan ProductType 1 hai (Maan lijiye 1 = Finished) aur active hai
         chart.FinishedGoods = (int)await _context.Products
             .AsNoTracking()
-            .Where(x => x.IsActive && x.ProductType == "1")
+            .Where(x => x.IsActive && x.ProductType == "1" && x.CompanyId == companyId)
             .SumAsync(x => x.CurrentStock);
 
         // Raw Material: Jahan ProductType 2 hai (Maan lijiye 2 = Raw Material)
         chart.RawMaterials = (int)await _context.Products
             .AsNoTracking()
-            .Where(x => x.IsActive && x.ProductType == "2")
+            .Where(x => x.IsActive && x.ProductType == "2" && x.CompanyId == companyId)
             .SumAsync(x => x.CurrentStock);
 
         // Damaged Items: Naye DamagedStock column ka total sum
         chart.DamagedItems = (int)await _context.Products
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .SumAsync(x => x.DamagedStock);
 
         return chart;
@@ -98,9 +103,11 @@ public class DashboardRepository : IDashboardRepository
 
     public async Task<List<RecentActivityDto>> GetRecentActivitiesAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         // 1. Sales Transactions (Using SaleOrders + SaleOrderItems)
         var sales = await _context.SaleOrderItems
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .OrderByDescending(x => x.SaleOrder.SODate)
             .Take(5)
             .Select(x => new RecentActivityDto
@@ -115,6 +122,7 @@ public class DashboardRepository : IDashboardRepository
         // 2. Purchase Transactions (Using PurchaseOrders + PurchaseOrderItems + Products)
         var purchases = await _context.PurchaseOrderItems
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .OrderByDescending(x => x.PurchaseOrder.PoDate) // Ab ye navigation property kaam karegi
             .Take(5)
             .Select(x => new RecentActivityDto

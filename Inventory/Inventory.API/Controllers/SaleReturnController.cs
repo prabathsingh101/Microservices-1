@@ -61,6 +61,13 @@ namespace Inventory.API.Controllers;
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create([FromBody] CreateSaleReturnDto dto)
     {
+        // 🚀 SMART INJECTION: Get CompanyId from Claims to ensure security
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            dto.CompanyId = companyId;
+        }
+
         var result = await _mediator.Send(new CreateSaleReturnCommand(dto));
         return result ? Ok(new { message = "Return Saved & Stock Updated" }) : BadRequest();
     }

@@ -28,6 +28,7 @@ public class PurchaseOrderDto
     public decimal TotalReceived { get; set; }
     public decimal TotalAccepted { get; set; }
     public decimal TotalRejected { get; set; }
+    public decimal TotalReturned { get; set; }
 
     public string? Remarks { get; set; }
 
@@ -69,12 +70,41 @@ public class PurchaseOrderDto
             IsDispatched = entity.IsDispatched
         };
 
-        // Agar child items exist karte hain toh unhe map karein
+        // Mapping item list
         if (entity.Items != null)
         {
             foreach (var item in entity.Items)
             {
                 dto.Items.Add(PurchaseOrderItemDto.FromEntity(item));
+            }
+        }
+
+        // Aggregate Totals calculation
+        if (dto.Items != null && dto.Items.Any())
+        {
+            dto.TotalOrdered = dto.Items.Sum(x => x.Qty);
+        }
+
+        if (entity.GrnHeaders != null)
+        {
+            var allGrnDetails = ((IEnumerable<dynamic>)entity.GrnHeaders)
+                .SelectMany(h => (IEnumerable<dynamic>)h.GRNItems ?? Enumerable.Empty<dynamic>())
+                .ToList();
+
+            dto.TotalReceived = allGrnDetails.Sum(x => (decimal)x.ReceivedQty);
+            dto.TotalAccepted = allGrnDetails.Sum(x => (decimal)x.AcceptedQty);
+            dto.TotalRejected = allGrnDetails.Sum(x => (decimal)x.RejectedQty);
+
+            // Per-item Distribution
+            foreach (var item in dto.Items)
+            {
+                var itemGrns = allGrnDetails.Where(gd => gd.ProductId == item.ProductId).ToList();
+                if (itemGrns.Any())
+                {
+                    item.ReceivedQty = itemGrns.Sum(x => (decimal)x.ReceivedQty);
+                    item.AcceptedQty = itemGrns.Sum(x => (decimal)x.AcceptedQty);
+                    item.RejectedQty = itemGrns.Sum(x => (decimal)x.RejectedQty);
+                }
             }
         }
 

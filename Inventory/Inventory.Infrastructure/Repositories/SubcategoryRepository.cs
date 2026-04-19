@@ -7,10 +7,12 @@ using System.IO;
 internal sealed class SubcategoryRepository : ISubcategoryRepository
 {
     private readonly InventoryDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public SubcategoryRepository(InventoryDbContext context)
+    public SubcategoryRepository(InventoryDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task AddAsync(Subcategory subcategory)
@@ -32,28 +34,33 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
 
     public async Task<Subcategory?> GetByIdAsync(Guid id)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Subcategories
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
     public async Task<List<Subcategory>> GetAllAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Subcategories
-            .Include(s=>s.Category)
+            .Include(s => s.Category)
+            .Where(x => x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public async Task<List<Subcategory>> GetByCategoryIdAsync(Guid categoryId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Subcategories
             .Include(s => s.Category)
-            .Where(s => s.CategoryId == categoryId)
+            .Where(s => s.CategoryId == categoryId && s.CompanyId == companyId)
             .ToListAsync();
     }
 
     public IQueryable<Subcategory> Query()
     {
-        return _context.Subcategories.AsQueryable();
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return _context.Subcategories.Where(x => x.CompanyId == companyId).AsQueryable();
     }
 
     public void Delete(Subcategory subcategory)
@@ -68,22 +75,26 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
 
     public async Task<List<Subcategory>> GetByIdsAsync(List<Guid> ids)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Subcategories
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
             .ToListAsync();
-    }  
+    }
+
 
     // ✅ DEPENDENCY CHECK (NO NAVIGATION PROPERTY)
     public async Task<bool> HasSubcategoriesAsync(Guid categoryId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Subcategories
-            .AnyAsync(x => x.CategoryId == categoryId);
+            .AnyAsync(x => x.CategoryId == categoryId && x.CompanyId == companyId);
     }
 
     public async Task<bool> HasSubcategoriesAsync(List<Guid> categoryIds)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Subcategories
-            .AnyAsync(x => categoryIds.Contains(x.CategoryId));
+            .AnyAsync(x => categoryIds.Contains(x.CategoryId) && x.CompanyId == companyId);
     }
 
     public async Task<(int successCount, List<string> errors)> UploadSubcategoriesAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId)

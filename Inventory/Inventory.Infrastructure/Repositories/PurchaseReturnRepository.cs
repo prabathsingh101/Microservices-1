@@ -17,28 +17,32 @@ namespace Inventory.Infrastructure.Repositories;
 
 public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.IPurchaseReturnRepository
 {
+    private readonly ICurrentUserService _currentUserService;
     private readonly InventoryDbContext _context;
     private readonly ISupplierClient _supplierClient;
     private readonly ICompanyClient _companyClient;
 
     public PurchaseReturnRepository(InventoryDbContext context, 
         ISupplierClient supplierClient,
-        ICompanyClient companyClient)
+        ICompanyClient companyClient,
+        ICurrentUserService currentUserService)
     {
         _context = context;
         _supplierClient = supplierClient;
         _companyClient = companyClient;
+        _currentUserService = currentUserService;
     }
 
     // 1. UI Form ke liye Rejected Items fetch karein
     public async Task<List<RejectedItemDto>> GetRejectedItemsBySupplierAsync(Guid supplierId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var query = from gd in _context.GRNDetails
-                        .Include(x => x.Product)
-                        .Include(x => x.Warehouse)
-                        .Include(x => x.Rack)
+                         .Include(x => x.Product)
+                         .Include(x => x.Warehouse)
+                         .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
-                    where gh.SupplierId == supplierId && gd.RejectedQty > 0
+                    where gh.SupplierId == supplierId && gd.RejectedQty > 0 && gh.CompanyId == companyId
                     select new RejectedItemDto
                     {
                         ProductId = gd.ProductId,
@@ -62,7 +66,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     {
         try
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var allSupplierIds = await (from gh in _context.GRNHeaders
+                                        where gh.CompanyId == companyId
                                         select gh.SupplierId)
                                        .Distinct()
                                        .ToListAsync();
@@ -84,6 +90,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<List<ReceivedStockDto>> GetReceivedStockBySupplierAsync(Guid supplierId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
         var company = await _companyClient.GetCompanyProfileAsync();
         int windowValue = company?.PurchaseReturnWindowValue ?? 72;
@@ -106,7 +113,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         .Include(x => x.Warehouse)
                         .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
-                    where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0
+                    where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0 && gh.CompanyId == companyId
                     select new { gd, gh }).ToListAsync();
 
         var result = rawList.Select(x => new ReceivedStockDto
@@ -150,17 +157,20 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
                 foreach (var item in returnData.Items)
                 {
+                    var companyId = returnData.CompanyId;
                     var grnDetail = await _context.GRNDetails
                         .Include(gd => gd.GRNHeader)
                         .FirstOrDefaultAsync(gd => gd.ProductId == item.ProductId
-                                             && gd.GRNHeader.GRNNumber == item.GrnRef);
+                                             && gd.GRNHeader.GRNNumber == item.GrnRef
+                                             && gd.CompanyId == companyId);
 
                     if (grnDetail == null) throw new Exception($"GRN not found for {item.GrnRef}");
                     if (item.ReturnQty <= 0) continue;
 
                     var poItem = await _context.PurchaseOrderItems
                         .FirstOrDefaultAsync(poi => poi.ProductId == item.ProductId 
-                                             && poi.PurchaseOrderId == grnDetail.GRNHeader.PurchaseOrderId);
+                                             && poi.PurchaseOrderId == grnDetail.GRNHeader.PurchaseOrderId
+                                             && poi.CompanyId == companyId);
 
                     if (poItem != null)
                     {
@@ -270,9 +280,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         string? sortOrder = "desc",
         bool isQuick = false)
     {
-        var query = _context.PurchaseReturns.AsNoTracking().AsQueryable();
-
-        query = query.Where(x => x.IsQuick == isQuick);
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var query = _context.PurchaseReturns.AsNoTracking()
+            .Where(x => x.CompanyId == companyId && x.IsQuick == isQuick)
+            .AsQueryable();
 
         if (fromDate.HasValue)
             query = query.Where(x => x.ReturnDate >= fromDate.Value);
@@ -345,7 +356,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         
         var grnDetailsList = await _context.PurchaseReturnItems
             .AsNoTracking()
-            .Where(ri => pagedIds.Contains(ri.PurchaseReturnId))
+            .Where(ri => pagedIds.Contains(ri.PurchaseReturnId) && ri.CompanyId == companyId)
             .Select(ri => new { ri.PurchaseReturnId, ri.GrnRef })
             .Distinct()
             .ToListAsync();
@@ -398,16 +409,17 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<PurchaseReturnDetailDto?> GetPurchaseReturnByIdAsync(Guid id)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var purchaseReturn = await _context.PurchaseReturns
             .AsNoTracking()
             .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
 
         if (purchaseReturn == null) return null;
 
         var itemDtos = await (from pri in _context.PurchaseReturnItems.AsNoTracking()
                               join p in _context.Products.AsNoTracking() on pri.ProductId equals p.Id
-                              where pri.PurchaseReturnId == id
+                              where pri.PurchaseReturnId == id && pri.CompanyId == companyId && p.CompanyId == companyId
                               select new PurchaseReturnItemDto
                               {
                                   ProductId = pri.ProductId,
@@ -419,8 +431,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                   DiscountPercent = pri.DiscountPercent,
                                   TaxAmount = pri.TaxAmount,
                                   TotalAmount = pri.TotalAmount,
-                                  MfgDate = pri.MfgDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.MfgDate).FirstOrDefault(),
-                                  ExpDate = pri.ExpDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef).Select(x => x.ExpDate).FirstOrDefault(),
+                                  MfgDate = pri.MfgDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef && g.CompanyId == companyId).Select(x => x.MfgDate).FirstOrDefault(),
+                                  ExpDate = pri.ExpDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef && g.CompanyId == companyId).Select(x => x.ExpDate).FirstOrDefault(),
                                   IsExpiryRequired = p.IsExpiryRequired
                               }).ToListAsync();
 
@@ -447,9 +459,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<byte[]> ExportPurchaseReturnsToExcelAsync(DateTime? fromDate, DateTime? toDate)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var data = await _context.PurchaseReturns
             .AsNoTracking()
-            .Where(x => (!fromDate.HasValue || x.ReturnDate >= fromDate) &&
+            .Where(x => x.CompanyId == companyId &&
+                        (!fromDate.HasValue || x.ReturnDate >= fromDate) &&
                         (!toDate.HasValue || x.ReturnDate <= toDate))
             .OrderByDescending(x => x.ReturnDate)
             .ToListAsync();
@@ -497,9 +511,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<List<PendingPRDto>> GetPendingPurchaseReturnsAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var returns = await _context.PurchaseReturns
             .AsNoTracking()
-            .Where(x => x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
+            .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
             .OrderByDescending(x => x.ReturnDate)
             .Select(x => new PendingPRDto
             {
@@ -556,7 +571,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     {
         var today = DateTime.Today;
         var tomorrow = today.AddDays(1);
-        var queryBase = _context.PurchaseReturns.Where(x => x.IsQuick == isQuick);
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var queryBase = _context.PurchaseReturns.Where(x => x.CompanyId == companyId && x.IsQuick == isQuick);
 
         // 1. Aaj kitne returns aaye (Range check is safer than .Date)
         var totalToday = await queryBase.CountAsync(x => x.ReturnDate >= today && x.ReturnDate < tomorrow);
@@ -571,7 +587,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         
         // 4. Stock reduced pcs (Items table se sum)
         var totalPcs = await _context.PurchaseReturnItems
-            .Where(x => x.PurchaseReturn.IsQuick == isQuick)
+            .Where(x => x.CompanyId == companyId && x.PurchaseReturn.IsQuick == isQuick)
             .SumAsync(x => (decimal?)x.ReturnQty) ?? 0;
 
         return new PurchaseReturnSummaryDto

@@ -12,10 +12,12 @@ namespace Inventory.Infrastructure.Repositories;
 public sealed class ProductRepository : IProductRepository
 {
     private readonly InventoryDbContext _db;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ProductRepository(InventoryDbContext db)
+    public ProductRepository(InventoryDbContext db, ICurrentUserService currentUserService)
     {
         _db = db;
+        _currentUserService = currentUserService;
     }
 
     public async Task AddAsync(Product product)
@@ -38,36 +40,42 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<Product?> GetByIdAsync(Guid id)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
     public async Task<List<Product>> GetAllAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public async Task<List<Product>> GetByCategoryIdAsync(Guid categoryId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
             .AsNoTracking()
-            .Where(x => x.CategoryId == categoryId)
+            .Where(x => x.CategoryId == categoryId && x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public async Task<List<Product>> GetBySubcategoryIdAsync(Guid subcategoryId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
             .AsNoTracking()
-            .Where(x => x.SubcategoryId == subcategoryId)
+            .Where(x => x.SubcategoryId == subcategoryId && x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public IQueryable<Product> Query()
     {
-        return _db.Products.AsQueryable();
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        return _db.Products.Where(x => x.CompanyId == companyId).AsQueryable();
     }
     public void DeleteRange(List<Product> products)
     {
@@ -76,8 +84,9 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<List<Product>> GetByIdsAsync(List<Guid> ids)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
             .ToListAsync();
     }
 
@@ -89,9 +98,10 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<List<Product>> SearchActiveProductsAsync(string term)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
-         .AsNoTracking() // Read-only query optimization
-         .Where(p => p.IsActive && p.Name.Contains(term)) // Sirf Name par search lagayein
+         .AsNoTracking()
+         .Where(p => p.CompanyId == companyId && p.IsActive && p.Name.Contains(term))
          .Take(20)
          .ToListAsync();
     }
@@ -101,8 +111,9 @@ public sealed class ProductRepository : IProductRepository
         decimal finalRate = 0;
         decimal finalDiscount = 0;
 
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var priceQuery = _db.PriceListItems.AsNoTracking()
-            .Where(pli => pli.ProductId == productId);
+            .Where(pli => pli.ProductId == productId && pli.CompanyId == companyId);
 
         if (priceListId.HasValue && priceListId != Guid.Empty)
         {
@@ -161,9 +172,10 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<LowStockProductDto>> GetLowStockProductsAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _db.Products
             .AsNoTracking()
-            .Where(p => p.IsActive && p.CurrentStock <= p.MinStock) // Dashboard wala logic
+            .Where(p => p.CompanyId == companyId && p.IsActive && p.CurrentStock <= p.MinStock) // Dashboard wala logic
             .Select(p => new LowStockProductDto
             {
                 Id = p.Id,
@@ -181,11 +193,12 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<List<ExcelExportDto>> GetLowStockExportDataAsync()
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var products = await _db.Products
             .Include(p => p.Category)
             .Include(p => p.DefaultWarehouse)
             .Include(p => p.DefaultRack)
-            .Where(p => p.CurrentStock <= p.MinStock)
+            .Where(p => p.CompanyId == companyId && p.CurrentStock <= p.MinStock)
             .Select(p => new ExcelExportDto
             {
                 ProductName = p.Name,
@@ -204,14 +217,16 @@ public sealed class ProductRepository : IProductRepository
     }
     public async Task<List<StockMovementDto>> GetRecentMovementsPagedAsync(int pageNumber, int pageSize)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         // 1. Purchase Orders se movements nikalna
         var purchases = _db.PurchaseOrders
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .Select(po => new StockMovementDto
             {
-                Product = "PO: " + po.PoNumber, // Ya item name join karke
+                Product = "PO: " + po.PoNumber, 
                 Type = "Purchase",
-                Qty = po.GrandTotal, // Simplified for example
+                Qty = po.GrandTotal, 
                 Date = po.CreatedOn,
                 Status = po.Status
             });
@@ -219,6 +234,7 @@ public sealed class ProductRepository : IProductRepository
         // 2. Sale Orders se movements nikalna
         var sales = _db.SaleOrders
             .AsNoTracking()
+            .Where(x => x.CompanyId == companyId)
             .Select(so => new StockMovementDto
             {
                 Product = "SO: " + so.Id,

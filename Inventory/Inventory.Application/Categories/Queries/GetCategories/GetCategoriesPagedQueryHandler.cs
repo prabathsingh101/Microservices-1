@@ -57,7 +57,7 @@ internal sealed class GetCategoriesPagedQueryHandler
                         query.Where(x => EF.Functions.Like(x.CategoryCode, likeValue)),                   
 
                     "description" =>
-                        query.Where(x => x.Description.ToString().Contains(value)),
+                        query.Where(x => x.Description != null && x.Description.Contains(value)),
 
                     "isActive" =>
                         query.Where(x => x.IsActive == (value == "true" || value == "yes")),
@@ -110,12 +110,11 @@ internal sealed class GetCategoriesPagedQueryHandler
             .Select(x => new CategoryDto
             {
                 id = x.Id,
-                categoryName = x.CategoryName,               
-                categoryCode = x.CategoryCode,
+                categoryName = x.CategoryName ?? string.Empty,               
+                categoryCode = x.CategoryCode ?? string.Empty,
                 defaultGst = x.DefaultGst,
                 isActive = x.IsActive,
-                description = x.Description,
-          
+                description = x.Description ?? string.Empty,
             })
             .ToListAsync(cancellationToken);
 
