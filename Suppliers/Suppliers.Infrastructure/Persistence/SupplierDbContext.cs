@@ -76,42 +76,38 @@ namespace Suppliers.Infrastructure.Persistence
 
         private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, IMultiTenant
         {
-            modelBuilder.Entity<TEntity>().HasQueryFilter(e => e.CompanyId == _currentUserService!.CompanyId);
+            modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+                e.CompanyId == null || 
+                e.CompanyId == Guid.Empty || 
+                (_currentUserService != null && e.CompanyId == _currentUserService.CompanyId));
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            ApplyAuditAndTenantInfo();
-            return base.SaveChangesAsync(cancellationToken);
-        }
-
-        private void ApplyAuditAndTenantInfo()
-        {
-            if (_currentUserService == null) return;
-
-            var entries = ChangeTracker.Entries()
-                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
-
-            foreach (var entry in entries)
+            foreach (var entry in ChangeTracker.Entries<BaseAuditableEntity>())
             {
-                if (entry.Entity is BaseAuditableEntity auditableEntity)
+                switch (entry.State)
                 {
-                    if (entry.State == EntityState.Added)
-                    {
-                        auditableEntity.CreatedOn = DateTime.UtcNow;
-                        auditableEntity.CreatedBy = _currentUserService.UserId ?? "System";
-                        if (auditableEntity.CompanyId == Guid.Empty)
+                    case EntityState.Added:
+                        entry.Entity.CreatedOn = DateTime.Now;
+                        entry.Entity.CreatedBy = _currentUserService?.UserId;
+                        if (entry.Entity.CompanyId == null || entry.Entity.CompanyId == Guid.Empty)
                         {
-                            auditableEntity.CompanyId = _currentUserService.CompanyId ?? Guid.Empty;
+                            entry.Entity.CompanyId = _currentUserService?.CompanyId;
                         }
-                    }
-                    else
-                    {
-                        auditableEntity.ModifiedOn = DateTime.UtcNow;
-                        auditableEntity.ModifiedBy = _currentUserService.UserId ?? "System";
-                    }
+                        break;
+                    case EntityState.Modified:
+                        entry.Entity.ModifiedOn = DateTime.Now;
+                        entry.Entity.ModifiedBy = _currentUserService?.UserId;
+                        // Always claim legacy data when modified
+                        if (entry.Entity.CompanyId == null || entry.Entity.CompanyId == Guid.Empty)
+                        {
+                            entry.Entity.CompanyId = _currentUserService?.CompanyId;
+                        }
+                        break;
                 }
             }
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }

@@ -17,49 +17,66 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
         {
             var paymentDto = request.PaymentData;
 
-            if (!string.IsNullOrWhiteSpace(paymentDto.ReferenceNumber))
+            try 
             {
-                var isUnique = await _repository.IsReferenceUniqueAsync(paymentDto.ReferenceNumber);
-                if (!isUnique)
+                // Smart Idempotency: Only skip if this PAYMENT specifically exists in the database
+                if (!string.IsNullOrWhiteSpace(paymentDto.ReferenceNumber))
                 {
-                    throw new InvalidOperationException($"Duplicate Reference: Cheque/Ref No. {paymentDto.ReferenceNumber} already exists in the system.");
+                    var alreadyExists = await _repository.ReferenceExistsAsync(paymentDto.ReferenceNumber);
+                    if (alreadyExists)
+                    {
+                         Console.WriteLine($"[RecordSupplierPaymentHandler] INFO: Payment {paymentDto.ReferenceNumber} already exists. Skipping duplicate save.");
+                         return Guid.Empty; 
+                    }
                 }
+
+                var lastLedger = await _repository.GetLastLedgerEntryAsync(paymentDto.SupplierId);
+                decimal currentBalance = (lastLedger?.Balance ?? 0) - paymentDto.Amount;
+
+                var supplierPayment = new SupplierPayment
+                {
+                    SupplierId = paymentDto.SupplierId,
+                    Amount = paymentDto.Amount,
+                    PaymentDate = paymentDto.PaymentDate,
+                    PaymentMode = paymentDto.PaymentMode ?? "Other",
+                    ReferenceNumber = paymentDto.ReferenceNumber,
+                    Remarks = paymentDto.Remarks,
+                    CreatedBy = paymentDto.CreatedBy,
+                    CompanyId = paymentDto.CompanyId
+                };
+
+                await _repository.AddPaymentAsync(supplierPayment);
+
+                var supplierLedger = new SupplierLedger
+                {
+                    SupplierId = paymentDto.SupplierId,
+                    TransactionType = "Payment",
+                    ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : "PAY-" + Guid.NewGuid().ToString().Substring(0, 8),
+                    Debit = paymentDto.Amount,
+                    Credit = 0,
+                    Balance = currentBalance,
+                    TransactionDate = paymentDto.PaymentDate,
+                    Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}",
+                    CompanyId = paymentDto.CompanyId
+                };
+
+                await _repository.AddLedgerEntryAsync(supplierLedger);
+                await _repository.SaveChangesAsync();
+
+                return supplierPayment.Id;
             }
-
-            var supplierPayment = new SupplierPayment
+            catch (Exception ex)
             {
-                SupplierId = paymentDto.SupplierId,
-                Amount = paymentDto.Amount,
-                PaymentDate = paymentDto.PaymentDate,
-                PaymentMode = paymentDto.PaymentMode ?? "Other",
-                ReferenceNumber = paymentDto.ReferenceNumber,
-                Remarks = paymentDto.Remarks,
-                CreatedBy = paymentDto.CreatedBy,
-                CompanyId = paymentDto.CompanyId
-            };
-
-            await _repository.AddPaymentAsync(supplierPayment);
-
-            var lastLedger = await _repository.GetLastLedgerEntryAsync(paymentDto.SupplierId);
-            decimal currentBalance = (lastLedger?.Balance ?? 0) - paymentDto.Amount;
-
-            var supplierLedger = new SupplierLedger
-            {
-                SupplierId = paymentDto.SupplierId,
-                TransactionType = "Payment",
-                ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : "PAY-" + Guid.NewGuid().ToString().Substring(0, 8),
-                Debit = paymentDto.Amount,
-                Credit = 0,
-                Balance = currentBalance,
-                TransactionDate = paymentDto.PaymentDate,
-                Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}",
-                CompanyId = paymentDto.CompanyId
-            };
-
-            await _repository.AddLedgerEntryAsync(supplierLedger);
-            await _repository.SaveChangesAsync();
-
-            return supplierPayment.Id;
+                Console.WriteLine("**************************************************");
+                Console.WriteLine($"FATAL ERROR in RecordSupplierPaymentHandler: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                Console.WriteLine("**************************************************");
+                throw;
+            }
         }
     }
 }

@@ -68,7 +68,22 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
 
         if (!string.IsNullOrEmpty(grnNumber))
         {
-            // Background Task for notifications
+            // 💰 1. Record Purchase in Supplier Ledger (CRITICAL - MUST BE SYNC)
+            try
+            {
+                var supplierClient = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ISupplierClient>();
+                string description = $"GRN: {grnNumber} for PO: {(dto.POHeaderId != Guid.Empty ? dto.POHeaderId : "Quick")}";
+                await supplierClient.RecordPurchaseAsync(dto.SupplierId, dto.TotalAmount, grnNumber, description, dto.CreatedBy);
+                Console.WriteLine($"[CreateGRNHandler] Purchase recorded for {grnNumber}");
+            }
+            catch (Exception ex)
+            {
+                // We log but don't fail the GRN if only the financial link fails, 
+                // but usually it's better to log it clearly.
+                Console.WriteLine($"[CreateGRNHandler] WARNING: Financial record failed: {ex.Message}");
+            }
+
+            // 📢 2. Background Task for non-critical notifications (Email/WhatsApp)
             _ = Task.Run(async () =>
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -82,18 +97,18 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
                 {
                     var company = await companyClient.GetCompanyProfileAsync();
                     var supplier = await supplierClient.GetSupplierByIdAsync(dto.SupplierId);
-                    var po = await poRepo.GetByIdAsync(dto.POHeaderId);
-                    string poNumber = po?.PoNumber ?? "N/A";
-
+                    
                     if (company != null && supplier != null)
                     {
-                        // 1. Email
+                        var poNumber = (dto.POHeaderId != Guid.Empty) ? (await poRepo.GetByIdAsync(dto.POHeaderId))?.PoNumber : "Quick";
+
+                        // ✉️ Email
                         if (!string.IsNullOrEmpty(supplier.Email))
                         {
-                            await emailService.SendGrnEmailAsync(company, supplier.Email, grnNumber, poNumber, dto.TotalAmount);
+                            await emailService.SendGrnEmailAsync(company, supplier.Email, grnNumber, poNumber ?? "N/A", dto.TotalAmount);
                         }
 
-                        // 2. WhatsApp
+                        // 📱 WhatsApp
                         if (!string.IsNullOrEmpty(supplier.Phone))
                         {
                             string msg = $"Goods Received: {grnNumber}\nRef PO: {poNumber}\nSource: {company.Name}\nStatus: Received & Accepted.\nThank you!";

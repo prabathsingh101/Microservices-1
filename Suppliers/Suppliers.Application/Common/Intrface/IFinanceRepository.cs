@@ -21,6 +21,6 @@ namespace Suppliers.Application.Common.Interfaces
         Task<decimal> GetTotalPendingDuesAsync();
         Task<Dictionary<Guid, decimal>> GetSupplierBalancesAsync(List<Guid> supplierIds);
         Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months);
-        Task<bool> IsReferenceUniqueAsync(string referenceNumber);
+        Task<bool> ReferenceExistsAsync(string referenceNumber);
     }
 }

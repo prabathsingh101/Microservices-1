@@ -26,7 +26,7 @@ namespace Suppliers.Domain.Entities
             string? email,
             string? createdBy,
             bool isActive,
-            Guid companyId,
+            Guid? companyId,
             Guid? defaultPriceListId = null
             )
         {
@@ -50,7 +50,7 @@ namespace Suppliers.Domain.Entities
             ModifiedOn = DateTime.UtcNow;
         }
 
-        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId, Guid companyId)
+        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId, Guid? companyId)
         {
             Name = name;
             Phone = phone;

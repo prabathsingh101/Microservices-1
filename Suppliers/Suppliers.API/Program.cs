@@ -28,7 +28,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<SupplierDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("SupplierDb"),
+        builder.Configuration.GetConnectionString("SuppliersDb"),
         sqlServerOptionsAction: sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(

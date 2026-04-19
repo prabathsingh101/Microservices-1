@@ -70,7 +70,7 @@ services:
       dockerfile: Suppliers/Suppliers.API/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__SupplierDb=Server=host.docker.internal,1433;Database=SupplierDb;user id=sa;password=Anand@raj12345;TrustServerCertificate=True
+      - ConnectionStrings__SuppliersDb=Server=host.docker.internal,1433;Database=SuppliersDb;user id=sa;password=Anand@raj12345;TrustServerCertificate=True
       - ConnectionStrings__LogsDb=Server=host.docker.internal,1433;Database=ErrorLogsDb;user id=sa;password=Anand@raj12345;TrustServerCertificate=True
     depends_on:
       - sqlserver

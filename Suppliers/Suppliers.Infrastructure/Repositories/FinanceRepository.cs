@@ -108,26 +108,34 @@ namespace Suppliers.Infrastructure.Repositories
 
         public async Task<List<PendingDueDto>> GetPendingDuesAsync()
         {
-            var suppliersWithBalances = await _context.SupplierLedgers
-                .GroupBy(l => l.SupplierId)
-                .Select(g => new { 
-                    SupplierId = g.Key, 
-                    LastEntry = g.OrderByDescending(x => x.CreatedOn).FirstOrDefault() 
-                })
-                .Where(x => x.LastEntry != null && x.LastEntry.Balance > 0)
+            // Fetch all ledger entries with balance > 0 to calculate pending dues
+            // We'll process the grouping and latest entry in-memory to avoid LINQ translation issues
+            var allLedgerEntries = await _context.SupplierLedgers
+                .OrderByDescending(l => l.TransactionDate)
+                .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
 
-            var supplierIds = suppliersWithBalances.Select(d => d.SupplierId).ToList();
+            if (!allLedgerEntries.Any()) return new List<PendingDueDto>();
+
+            var latestEntries = allLedgerEntries
+                .GroupBy(l => l.SupplierId)
+                .Select(g => g.First())
+                .Where(x => x.Balance > 0)
+                .ToList();
+
+            if (!latestEntries.Any()) return new List<PendingDueDto>();
+
+            var supplierIds = latestEntries.Select(d => d.SupplierId).ToList();
             var suppliers = await _context.Suppliers.Where(s => supplierIds.Contains(s.Id)).ToListAsync();
 
-            return suppliersWithBalances.Select(d => new PendingDueDto
+            return latestEntries.Select(d => new PendingDueDto
             {
                 SupplierId = d.SupplierId,
-                PendingAmount = d.LastEntry!.Balance,
+                PendingAmount = d.Balance,
                 SupplierName = suppliers.FirstOrDefault(s => s.Id == d.SupplierId)?.Name ?? "Unknown",
-                Status = (d.LastEntry.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
-                DueDate = d.LastEntry.TransactionDate.AddDays(15),
-                LastReferenceId = d.LastEntry.ReferenceId
+                Status = (d.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
+                DueDate = d.TransactionDate.AddDays(15),
+                LastReferenceId = d.ReferenceId
             }).ToList();
         }
 
@@ -228,10 +236,17 @@ namespace Suppliers.Infrastructure.Repositories
 
         public async Task<decimal> GetTotalPendingDuesAsync()
         {
-            var supplierBalances = await _context.SupplierLedgers
-                .GroupBy(l => l.SupplierId)
-                .Select(g => g.OrderByDescending(x => x.CreatedOn).Select(x => x.Balance).FirstOrDefault())
+            var allLedgerEntries = await _context.SupplierLedgers
+                .OrderByDescending(l => l.TransactionDate)
+                .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
+
+            if (!allLedgerEntries.Any()) return 0;
+
+            var supplierBalances = allLedgerEntries
+                .GroupBy(l => l.SupplierId)
+                .Select(g => g.First().Balance)
+                .ToList();
 
             return supplierBalances.Where(b => b > 0).Sum();
         }
@@ -240,15 +255,18 @@ namespace Suppliers.Infrastructure.Repositories
         {
             if (supplierIds == null || !supplierIds.Any()) return new Dictionary<Guid, decimal>();
 
-            return await _context.SupplierLedgers
+            var allEntries = await _context.SupplierLedgers
                 .Where(l => supplierIds.Contains(l.SupplierId))
+                .OrderByDescending(l => l.TransactionDate)
+                .ThenByDescending(l => l.CreatedOn)
+                .ToListAsync();
+
+            return allEntries
                 .GroupBy(l => l.SupplierId)
-                .Select(g => new
-                {
-                    SupplierId = g.Key,
-                    Balance = g.OrderByDescending(x => x.CreatedOn).Select(x => x.Balance).FirstOrDefault()
-                })
-                .ToDictionaryAsync(x => x.SupplierId, x => x.Balance);
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First().Balance
+                );
         }
 
         public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months)
@@ -271,14 +289,12 @@ namespace Suppliers.Infrastructure.Repositories
                 .ToList();
         }
 
-        public async Task<bool> IsReferenceUniqueAsync(string referenceNumber)
+        public async Task<bool> ReferenceExistsAsync(string referenceNumber)
         {
-            if (string.IsNullOrWhiteSpace(referenceNumber)) return true;
+            if (string.IsNullOrWhiteSpace(referenceNumber)) return false;
 
-            bool existsInPayments = await _context.SupplierPayments.AnyAsync(r => r.ReferenceNumber == referenceNumber);
-            if (existsInPayments) return false;
-
-            return await _context.SupplierLedgers.AnyAsync(l => l.ReferenceId == referenceNumber);
+            // Check if this reference is already used as a PAYMENT specifically
+            return await _context.SupplierPayments.AnyAsync(r => r.ReferenceNumber == referenceNumber);
         }
     }
 }

@@ -215,7 +215,8 @@ namespace Inventory.Infrastructure.Repositories
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    // --- Notifications & Ledger ---
+                    // Ledger trigger removed from Repository to avoid double entry.
+                    // It is now handled centrally in the CreateGRNHandler.
                     try {
                         await _notificationRepository.AddNotificationAsync(
                             "Goods Received",
@@ -223,16 +224,8 @@ namespace Inventory.Infrastructure.Repositories
                             "Inventory",
                             "/app/inventory/grn-list"
                         );
-
-                        await _supplierClient.RecordPurchaseAsync(
-                            header.SupplierId,
-                            header.TotalAmount,
-                            header.GRNNumber,
-                            $"Goods Received via GRN: {header.GRNNumber}",
-                            header.CreatedBy
-                        );
                     } catch (Exception ex) { 
-                        Console.WriteLine($"[GRNRepository] Background task error: {ex.Message}");
+                        Console.WriteLine($"[GRNRepository] Notification error: {ex.Message}");
                     }
 
                     return header.GRNNumber;

@@ -32,16 +32,26 @@ namespace Suppliers.API.Controllers
         [HttpPost("payment-entry")]
         public async Task<IActionResult> RecordPayment([FromBody] SupplierPaymentDto paymentDto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            try 
             {
-                paymentDto.CompanyId = companyId;
-            }
+                // 🚀 SMART INJECTION: Get CompanyId from Claims
+                var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                if (Guid.TryParse(companyIdClaim, out var companyId))
+                {
+                    paymentDto.CompanyId = companyId;
+                }
 
-            var command = new RecordSupplierPaymentCommand(paymentDto);
-            var id = await _mediator.Send(command);
-            return Ok(new { Id = id });
+                var command = new RecordSupplierPaymentCommand(paymentDto);
+                var id = await _mediator.Send(command);
+                return Ok(new { Id = id });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FinanceController] ERROR in payment-entry: {ex.Message}");
+                if (ex.InnerException != null) Console.WriteLine($"[Inner] {ex.InnerException.Message}");
+                Console.WriteLine(ex.StackTrace);
+                throw; // Rethrow to let Middleware handle the response
+            }
         }
 
         [HttpPost("purchase-entry")]
