@@ -371,6 +371,8 @@ namespace Inventory.Infrastructure.Repositories
                     TotalReceived = group.Sum(x => x.ReceivedQty),
                     TotalRejected = group.Sum(x => (x.Rack != null && (
                         x.Rack.Name.ToLower().Contains("e1") || 
+                        x.Rack.Name.ToLower().StartsWith("e -") || 
+                        x.Rack.Name.ToLower().StartsWith("e-") ||
                         (x.Rack.Description != null && (
                             x.Rack.Description.ToLower().Contains("expired") || 
                             x.Rack.Description.ToLower().Contains("damaged") || 
@@ -380,6 +382,8 @@ namespace Inventory.Infrastructure.Repositories
                     )) ? 0 : x.RejectedQty),
                     TotalExpired = group.Sum(x => (x.Rack != null && (
                         x.Rack.Name.ToLower().Contains("e1") || 
+                        x.Rack.Name.ToLower().StartsWith("e -") || 
+                        x.Rack.Name.ToLower().StartsWith("e-") ||
                         (x.Rack.Description != null && (
                             x.Rack.Description.ToLower().Contains("expired") || 
                             x.Rack.Description.ToLower().Contains("damaged") || 
@@ -411,7 +415,7 @@ namespace Inventory.Infrastructure.Repositories
                 groupedQuery = groupedQuery.Where(x => 
                     x.TotalReceived > 0 || 
                     x.TotalRejected > 0 || 
-                    (x.RackName.Contains("E1") || (x.RackName != null && x.RackName.Contains("Expired")))
+                    (x.RackName.ToLower().Contains("e1") || x.RackName.ToLower().StartsWith("e -") || x.RackName.ToLower().StartsWith("e-") || (x.RackName != null && x.RackName.ToLower().Contains("expired")))
                 );
             }
 
@@ -504,6 +508,8 @@ namespace Inventory.Infrastructure.Repositories
                         ReceivedQty = allG.ReceivedQty,
                         ExpiredQty = (allG.Rack != null && (
                             allG.Rack.Name.ToLower().Contains("e1") || 
+                            allG.Rack.Name.ToLower().StartsWith("e -") || 
+                            allG.Rack.Name.ToLower().StartsWith("e-") ||
                             (allG.Rack.Description != null && (
                                 allG.Rack.Description.ToLower().Contains("expired") || 
                                 allG.Rack.Description.ToLower().Contains("damaged") || 
@@ -513,6 +519,8 @@ namespace Inventory.Infrastructure.Repositories
                         )) ? allG.RejectedQty : 0,
                         RejectedQty = (allG.Rack != null && (
                             allG.Rack.Name.ToLower().Contains("e1") || 
+                            allG.Rack.Name.ToLower().StartsWith("e -") || 
+                            allG.Rack.Name.ToLower().StartsWith("e-") ||
                             (allG.Rack.Description != null && (
                                 allG.Rack.Description.ToLower().Contains("expired") || 
                                 allG.Rack.Description.ToLower().Contains("damaged") || 
@@ -729,8 +737,8 @@ namespace Inventory.Infrastructure.Repositories
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
-                        ExpiredQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? allG.RejectedQty : 0,
-                        RejectedQty = (allG.Rack != null && (allG.Rack.Name.Contains("E1") || (allG.Rack.Description != null && allG.Rack.Description.Contains("Expired")))) ? 0 : allG.RejectedQty,
+                        ExpiredQty = (allG.Rack != null && (allG.Rack.Name.ToLower().Contains("e1") || allG.Rack.Name.ToLower().StartsWith("e -") || allG.Rack.Name.ToLower().StartsWith("e-") || (allG.Rack.Description != null && allG.Rack.Description.ToLower().Contains("expired")))) ? allG.RejectedQty : 0,
+                        RejectedQty = (allG.Rack != null && (allG.Rack.Name.ToLower().Contains("e1") || allG.Rack.Name.ToLower().StartsWith("e -") || allG.Rack.Name.ToLower().StartsWith("e-") || (allG.Rack.Description != null && allG.Rack.Description.ToLower().Contains("expired")))) ? 0 : allG.RejectedQty,
                         WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
                         RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,
