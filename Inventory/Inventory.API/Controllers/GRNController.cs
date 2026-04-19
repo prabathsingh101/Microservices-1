@@ -24,7 +24,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Save([FromBody] CreateGRNCommand command)
         {
-           
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                command.Data.CompanyId = companyId;
+            }
+
             string newGrnNumber = await _mediator.Send(command);
 
             if (!string.IsNullOrEmpty(newGrnNumber))
@@ -82,6 +88,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> CreateBulkGrn([FromBody] BulkGrnRequestDto request)
         {
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                request.CompanyId = companyId;
+            }
+
             if (request.PurchaseOrderIds == null || !request.PurchaseOrderIds.Any())
                 return BadRequest("No Purchase Orders selected.");
 

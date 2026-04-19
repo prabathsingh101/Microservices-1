@@ -95,7 +95,7 @@ namespace Inventory.API.Controllers
                 // DTO ko Entity mein map karein [cite: 2026-02-04]
                 var returnEntity = new Inventory.Domain.Entities.PurchaseReturn
                 {
-                    CompanyId = returnDto.CompanyId,
+                    CompanyId = returnDto.CompanyId ?? Guid.Empty,
                     SupplierId = returnDto.SupplierId,
                     ReturnDate = returnDto.ReturnDate,
                     Remarks = returnDto.Remarks,
@@ -117,7 +117,7 @@ namespace Inventory.API.Controllers
 
                     returnEntity.Items.Add(new Inventory.Domain.Entities.PurchaseReturnItem
                     {
-                        CompanyId = returnDto.CompanyId,
+                        CompanyId = returnDto.CompanyId ?? Guid.Empty,
                         ProductId = item.ProductId,
                         GrnRef = item.GrnRef,
                         ReturnQty = item.ReturnQty,

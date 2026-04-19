@@ -59,6 +59,13 @@ public class ExpenseEntriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create(ExpenseEntry entry)
     {
+        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            entry.CompanyId = companyId;
+        }
+
         _context.ExpenseEntries.Add(entry);
         await _context.SaveChangesAsync();
         return Ok(entry);
@@ -81,6 +88,13 @@ public class ExpenseEntriesController : ControllerBase
         existing.Remarks = entry.Remarks;
         existing.AttachmentPath = entry.AttachmentPath;
         existing.ModifiedOn = DateTime.Now;
+
+        // 🚀 SMART INJECTION: Ensure CompanyId is safe on update
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            existing.CompanyId = companyId;
+        }
 
         await _context.SaveChangesAsync();
         return Ok(existing);

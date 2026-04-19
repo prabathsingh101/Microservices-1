@@ -52,6 +52,13 @@ public class ExpenseCategoriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create(ExpenseCategory category)
     {
+        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            category.CompanyId = companyId;
+        }
+
         _context.ExpenseCategories.Add(category);
         await _context.SaveChangesAsync();
         return Ok(category);
@@ -70,6 +77,13 @@ public class ExpenseCategoriesController : ControllerBase
         existing.Description = category.Description;
         existing.IsActive = category.IsActive;
         existing.ModifiedOn = DateTime.Now;
+
+        // 🚀 SMART INJECTION: Ensure CompanyId is safe on update
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            existing.CompanyId = companyId;
+        }
 
         await _context.SaveChangesAsync();
         return Ok(existing);

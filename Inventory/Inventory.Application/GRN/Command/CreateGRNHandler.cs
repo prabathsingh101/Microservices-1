@@ -30,7 +30,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
 
         var header = new GRNHeader
         {
-            CompanyId = dto.CompanyId,
+            CompanyId = dto.CompanyId ?? Guid.Empty,
             GRNNumber = "AUTO-GEN",
             PurchaseOrderId = dto.POHeaderId,
             SupplierId = dto.SupplierId,
@@ -45,7 +45,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
 
         var details = dto.Items.Select(i => new GRNDetail
         {
-            CompanyId = dto.CompanyId,
+            CompanyId = dto.CompanyId ?? Guid.Empty,
             ProductId = i.ProductId,
             OrderedQty = i.OrderedQty,
             PendingQty = i.PendingQty,

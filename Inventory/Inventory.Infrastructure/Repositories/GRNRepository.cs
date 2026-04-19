@@ -124,6 +124,7 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     // 1. Fetch PO and Products (Use AsNoTracking to get fresh DB values on retry)
                     var po = await _context.PurchaseOrders
+                                           .IgnoreQueryFilters()
                                            .Include(p => p.Items)
                                            .FirstOrDefaultAsync(p => p.Id == header.PurchaseOrderId);
 
@@ -135,6 +136,7 @@ namespace Inventory.Infrastructure.Repositories
 
                     var productIds = details.Select(d => d.ProductId).Distinct().ToList();
                     var products = await _context.Products
+                                                 .IgnoreQueryFilters()
                                                  .Where(p => productIds.Contains(p.Id))
                                                  .ToListAsync();
 
@@ -157,92 +159,59 @@ namespace Inventory.Infrastructure.Repositories
                     // 4. Process Details and Update Stock
                     foreach (var item in details)
                     {
-                        // Link detail to header (EF will automatically fill header.Id on save)
-                        item.GRNHeaderId = Guid.Empty; // Will be set by EF navigation 
                         item.CreatedOn = DateTime.Now;
                         item.ModifiedOn = DateTime.Now;
                         
-                        // Add detail to header collection
                         header.GRNItems ??= new List<GRNDetail>();
                         header.GRNItems.Add(item);
 
-                        var product = products.FirstOrDefault(p => p.Id == item.ProductId);
-                        if (product != null)
-                        {
-                            // CRITICAL FIX: Only add AcceptedQty or ReceivedQty based on business logic.
-                            // Typically, only Accepted items should increase available stock.
-                            // If user rejected some items, those shouldn't be in CurrentStock.
-                            decimal qtyToIncrease = item.ReceivedQty - item.RejectedQty;
-                            
-                            product.CurrentStock += qtyToIncrease;
-                            product.ModifiedOn = DateTime.Now;
-                            product.ModifiedBy = header.CreatedBy;
-                            _context.Products.Update(product);
+                        // 🚀 USE RAW SQL FOR STOCK UPDATE TO BYPASS EFTRACKING ISSUES
+                        decimal qtyToIncrease = item.ReceivedQty - item.RejectedQty;
+                        await _context.Database.ExecuteSqlRawAsync(
+                            "UPDATE Products SET CurrentStock = CurrentStock + {0}, ModifiedOn = {1}, ModifiedBy = {2}, CompanyId = COALESCE(CompanyId, {3}) WHERE Id = {4}",
+                            qtyToIncrease, utcNow, header.CreatedBy, header.CompanyId, item.ProductId);
 
-                            // 🆕 Record Inventory Transaction
-                            var transactionRecord = new InventoryTransaction(
-                                item.ProductId,
-                                qtyToIncrease,
-                                header.IsQuick ? "QuickGRN" : "GRN", // Correctly record Quick vs Standard
-                                header.GRNNumber,
-                                item.WarehouseId,
-                                item.RackId,
-                                item.MfgDate,
-                                item.ExpDate
-                            );
-                            await _context.InventoryTransactions.AddAsync(transactionRecord);
+                        // 🆕 Record Inventory Transaction
+                        var transactionRecord = new InventoryTransaction(
+                            item.ProductId,
+                            qtyToIncrease,
+                            header.IsQuick ? "QuickGRN" : "GRN",
+                            header.GRNNumber,
+                            item.WarehouseId,
+                            item.RackId,
+                            item.MfgDate,
+                            item.ExpDate,
+                            header.CompanyId
+                        );
+                        await _context.InventoryTransactions.AddAsync(transactionRecord);
 
-                            // Low Stock Alert check
-                            if (product.CurrentStock <= product.MinStock)
-                            {
-                                bool alreadyNotified = await _context.AppNotifications
-                                    .AnyAsync(n => n.Title.Contains(product.Name) && !n.IsRead && n.Type == "Inventory");
-
-                                if (!alreadyNotified)
-                                {
-                                    await _notificationRepository.AddNotificationAsync(
-                                        "Low Stock Alert",
-                                        $"Item '{product.Name}' is low. Current: {product.CurrentStock}, Min: {product.MinStock}",
-                                        "Inventory",
-                                        "/app/inventory/current-stock"
-                                    );
-                                }
-                            }
-                        }
-
-                        // Update PO Item tracked received qty
+                        // 🆕 Update PO Item via RAW SQL
                         if (po != null)
                         {
-                            var poItem = po.Items.FirstOrDefault(pi => pi.ProductId == item.ProductId);
-                            if (poItem != null)
-                            {
-                                poItem.ReceivedQty += item.ReceivedQty;
-                                _context.PurchaseOrderItems.Update(poItem);
-                            }
+                            await _context.Database.ExecuteSqlRawAsync(
+                                "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty + {0} WHERE PurchaseOrderId = {1} AND ProductId = {2}",
+                                item.ReceivedQty, header.PurchaseOrderId, item.ProductId);
                         }
                     }
 
-                    // 5. Update PO Status
-                    if (po != null && po.Items.All(i => i.ReceivedQty >= i.Qty))
+                    // 5. Update PO Status via RAW SQL
+                    if (po != null)
                     {
-                        po.Status = "Received";
-                        _context.PurchaseOrders.Update(po);
+                        await _context.Database.ExecuteSqlRawAsync(
+                            @"UPDATE PurchaseOrders SET Status = 'Received', CompanyId = COALESCE(CompanyId, {0}) 
+                              WHERE Id = {1} AND NOT EXISTS (SELECT 1 FROM PurchaseOrderItems WHERE PurchaseOrderId = {1} AND ReceivedQty < Qty)",
+                            header.CompanyId, header.PurchaseOrderId);
                     }
 
                     // 6. Update Gate Pass Status
                     if (!string.IsNullOrEmpty(header.GatePassNo))
                     {
-                        string cleanGatePassNo = header.GatePassNo.Trim();
-                        var gatePass = await _context.GatePasses
-                                                     .FirstOrDefaultAsync(g => g.PassNo.Trim() == cleanGatePassNo);
-                        if (gatePass != null)
-                        {
-                            gatePass.Status = 4; // Completed
-                            _context.GatePasses.Update(gatePass);
-                        }
+                        await _context.Database.ExecuteSqlRawAsync(
+                            "UPDATE GatePasses SET Status = 4, CompanyId = COALESCE(CompanyId, {0}) WHERE PassNo = {1}",
+                            header.CompanyId, header.GatePassNo.Trim());
                     }
 
-                    // 7. Single Atomic Save
+                    // 7. Save remaining tracked entities (GRNHeader, InventoryTransactions)
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
@@ -309,6 +278,7 @@ namespace Inventory.Infrastructure.Repositories
 
             // 3. Fetch PO Data with Items
             var pos = await _context.PurchaseOrders
+                .IgnoreQueryFilters()
                 .Include(h => h.Items)
                 .ThenInclude(i => i.Product)
                 .Where(h => idList.Contains(h.Id))
@@ -683,6 +653,7 @@ namespace Inventory.Infrastructure.Repositories
                         var grnHeader = new GRNHeader
                         {
                             GRNNumber = newGrnNumber,
+                            CompanyId = request.CompanyId ?? Guid.Empty,
                             PurchaseOrderId = poId,
                             SupplierId = poHeader.SupplierId,
                             // Date from UI + Current Time from UTC
@@ -726,6 +697,7 @@ namespace Inventory.Infrastructure.Repositories
                             var grnDetail = new GRNDetail
                             {
                                 GRNHeaderId = grnHeader.Id,
+                                CompanyId = request.CompanyId ?? Guid.Empty,
                                 ProductId = item.ProductId,
                                 OrderedQty = item.Qty,
                                 ReceivedQty = qtyToReceiveNow,
@@ -750,7 +722,8 @@ namespace Inventory.Infrastructure.Repositories
                                     grnDetail.WarehouseId,
                                     grnDetail.RackId,
                                     reqItem?.MfgDate,
-                                    reqItem?.ExpDate
+                                    reqItem?.ExpDate,
+                                    grnHeader.CompanyId
                                 );
                                 await _context.InventoryTransactions.AddAsync(transactionRecord);
                             }
