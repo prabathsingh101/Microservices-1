@@ -505,12 +505,12 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         decimal totalPaidAmount = 0;
                         
-                        // Prioritize GRN-specific payment matches
-                        if (paidAmounts != null && paidAmounts.ContainsKey(item.GRNNo))
+                        // 🔥 HIGH PRIORITY: Exact GRN Number Match
+                        if (paidAmounts != null && paidAmounts.ContainsKey(item.GRNNo) && paidAmounts[item.GRNNo] > 0)
                         {
                             totalPaidAmount = paidAmounts[item.GRNNo];
                         }
-                        // Fallback to PO-specific match only if GRN match is zero
+                        // 🟢 LOW PRIORITY: Fallback to PO if no GRN-specific payment found
                         else if (paidAmounts != null && !string.IsNullOrEmpty(item.RefPO) && 
                                  paidAmounts.ContainsKey(item.RefPO))
                         {
@@ -522,12 +522,9 @@ namespace Inventory.Infrastructure.Repositories
                             ? supplierBalances[item.SupplierId] 
                             : 999999; // Default to high positive to avoid accidental Paid unlock
 
-                        // Logic:
-                        // 1. If explicit payments cover the amount -> Paid
-                        // 2. If Supplier Balance <= 0 -> Everything is Paid (we owe nothing)
-                        // 3. Else Partial or Unpaid
-
-                        if (totalPaidAmount >= item.TotalAmount || currentSupplierBalance <= 0)
+                        // Logic (SOLID): Trust the specific paid amount matched to this GRN number.
+                        // We use a small epsilon (0.01) to handle potential rounding issues.
+                        if (totalPaidAmount >= (item.TotalAmount - 0.01m))
                         {
                             item.PaymentStatus = "Paid";
                         }

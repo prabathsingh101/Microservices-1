@@ -152,6 +152,7 @@ namespace Suppliers.Infrastructure.Repositories
 
             var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
 
+            // Fetch all payments for this supplier (relevant to the search terms)
             var relevantPayments = await _context.SupplierLedgers
                 .Where(l => l.TransactionType == "Payment" && l.Description != null)
                 .Select(l => new { l.Description, l.ReferenceId, l.Debit })
@@ -159,10 +160,17 @@ namespace Suppliers.Infrastructure.Repositories
 
             foreach (var grn in grnNumbers)
             {
+                string cleanGrn = grn.Trim();
                 decimal totalPaid = relevantPayments
                     .Where(p => 
-                        (p.Description != null && p.Description.Contains(grn, StringComparison.OrdinalIgnoreCase)) ||
-                        (p.ReferenceId != null && p.ReferenceId.Contains(grn, StringComparison.OrdinalIgnoreCase))
+                        // Exact match in description with colon/space boundary or full match
+                        (p.Description != null && (p.Description.Equals(cleanGrn, StringComparison.OrdinalIgnoreCase) || 
+                                                 p.Description.Contains($": {cleanGrn} ", StringComparison.OrdinalIgnoreCase) || 
+                                                 p.Description.EndsWith($": {cleanGrn}", StringComparison.OrdinalIgnoreCase))) ||
+                        // Exact match or prefix match in ReferenceId (for auto-gen suffixes)
+                        (p.ReferenceId != null && (p.ReferenceId.Trim().Equals(cleanGrn, StringComparison.OrdinalIgnoreCase) || 
+                                                 p.ReferenceId.Trim().StartsWith($"{cleanGrn}-") || 
+                                                 p.ReferenceId.Trim().StartsWith($"{cleanGrn}_")))
                     )
                     .Sum(p => p.Debit);
 
