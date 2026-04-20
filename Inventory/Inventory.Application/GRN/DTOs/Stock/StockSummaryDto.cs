@@ -19,6 +19,8 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public decimal TotalExpired { get; set; }
         public decimal TotalSold { get; set; }
         public bool IsAlreadyPurged { get; set; }
+        public DateTime? ReceivedDate { get; set; }
+        public DateTime? PurgedDate { get; set; }
 
         public Guid? WarehouseId { get; set; }
         public string? WarehouseName { get; set; }

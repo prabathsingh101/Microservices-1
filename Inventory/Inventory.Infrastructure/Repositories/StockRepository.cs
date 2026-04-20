@@ -465,28 +465,19 @@ namespace Inventory.Infrastructure.Repositories
                 item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold;
 
                 // 6. BUSINESS RULE: Main row mein sabse pehle expire hone wali batch dikhao
-                //    In normal racks, check usable stock (Received - Rejected > 0). 
-                //    In Expired racks, check gross received so we still see the date.
+                //    AUR stock mein aane ki tarikh (ReceivedDate) fetch karein
                 var earliestBatch = await _context.GRNDetails
-                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId && g.ExpDate != null)
-                    .OrderBy(g => g.ExpDate)
-                    .Select(g => new { g.MfgDate, g.ExpDate })
+                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
+                    .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
+                    .ThenBy(g => g.GRNHeader.ReceivedDate)
+                    .Select(g => new { g.MfgDate, g.ExpDate, ReceivedDate = g.GRNHeader.ReceivedDate })
                     .FirstOrDefaultAsync();
 
                 if (earliestBatch != null)
                 {
                     item.ManufacturingDate = earliestBatch.MfgDate;
                     item.ExpiryDate = earliestBatch.ExpDate;
-                }
-                else
-                {
-                    var latestBatch = await _context.GRNDetails
-                        .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
-                        .OrderByDescending(g => g.Id)
-                        .Select(g => new { g.MfgDate, g.ExpDate })
-                        .FirstOrDefaultAsync();
-                    item.ManufacturingDate = latestBatch?.MfgDate;
-                    item.ExpiryDate = latestBatch?.ExpDate;
+                    item.ReceivedDate = earliestBatch.ReceivedDate.AddHours(5).AddMinutes(30); // IST conversion
                 }
 
                 // 7. Audit Trail History & Batch-wise Stock Calculation
@@ -644,9 +635,24 @@ namespace Inventory.Infrastructure.Repositories
                 item.History = allBatches.Take(15).ToList(); // Return top 15 batches with real AvailableQty
                 
                 // 🎯 If the location has no physical stock left but was once purged (Expired Rack case)
-                if (item.AvailableStock == 0 && item.History.Any(h => h.IsAlreadyPurged))
+                if (item.AvailableStock == 0 && (item.History.Any(h => h.IsAlreadyPurged) || item.WarehouseName.ToLower().Contains("expired") || item.RackName.ToLower().Contains("expired")))
                 {
                     item.IsAlreadyPurged = true;
+
+                    // Fetch Purged Date
+                    var lastPurge = await _context.InventoryTransactions
+                        .Where(it => it.ProductId == item.ProductId && 
+                                     it.WarehouseId == item.WarehouseId && 
+                                     it.RackId == item.RackId && 
+                                     it.TransactionType.Contains("Purge"))
+                        .OrderByDescending(it => it.CreatedOn)
+                        .Select(it => it.CreatedOn)
+                        .FirstOrDefaultAsync();
+                    
+                    if (lastPurge.HasValue)
+                    {
+                        item.PurgedDate = lastPurge.Value.AddHours(5).AddMinutes(30);
+                    }
                 }
             }
 

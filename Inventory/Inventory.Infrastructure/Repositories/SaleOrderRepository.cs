@@ -17,21 +17,16 @@ public class SaleOrderRepository : ISaleOrderRepository
 {
     private readonly ICurrentUserService _currentUserService;
     private readonly InventoryDbContext _context;
-    private IDbContextTransaction? _transaction; 
-    private readonly HttpClient _httpClient;
+    private IDbContextTransaction? _transaction;
     private readonly ICustomerClient _customerClient;
     private readonly ICompanyClient _companyClient;
-   
-    public SaleOrderRepository(InventoryDbContext context, IHttpClientFactory httpClientFactory, ICustomerClient customerClient, ICompanyClient companyClient, ICurrentUserService currentUserService)
+
+    public SaleOrderRepository(InventoryDbContext context, ICustomerClient customerClient, ICompanyClient companyClient, ICurrentUserService currentUserService)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _customerClient = customerClient;
         _companyClient = companyClient;
         _currentUserService = currentUserService;
-       
-        if (httpClientFactory == null) throw new ArgumentNullException(nameof(httpClientFactory));
-
-        _httpClient = httpClientFactory.CreateClient("CustomerService");
     }
 
     // BeginTransactionAsync logic fix
@@ -101,7 +96,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         }
     }
 
-    public async Task<string> GetLastSONumberAsync() 
+    public async Task<string> GetLastSONumberAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.SaleOrders
@@ -210,9 +205,9 @@ public class SaleOrderRepository : ISaleOrderRepository
 
             // Fetch matching customer IDs from External Service
             var matchingCustomerIds = new List<Guid>();
-            try 
+            try
             {
-               matchingCustomerIds = await _customerClient.SearchCustomerIdsByNameAsync(searchTerm);
+                matchingCustomerIds = await _customerClient.SearchCustomerIdsByNameAsync(searchTerm);
             }
             catch { /* Ignore microservice failure for search */ }
 
@@ -228,7 +223,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         var totalCount = await query.CountAsync();
         var totalSalesAmount = await query.Where(o => o.Status == "Confirmed").SumAsync(o => (decimal?)o.GrandTotal) ?? 0;
         var pendingDispatchCount = await query.Where(o => o.Status == "Confirmed" && (o.GatePassNo == null || o.GatePassNo == "")).CountAsync();
-        
+
         var today = DateTime.Today;
         var monthStart = new DateTime(today.Year, today.Month, 1);
         var tomorrow = today.AddDays(1);
@@ -237,7 +232,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         var monthCount = await query.Where(o => o.SODate >= monthStart).CountAsync();
 
         // Note: Unpaid count is hard to calculate globally without Finance Service data 
-        var unpaidOrdersCount = 0; 
+        var unpaidOrdersCount = 0;
 
         // 4. Enhanced Sorting Logic
         bool isDesc = sortOrder?.ToLower() == "desc" || string.IsNullOrEmpty(sortOrder);
@@ -311,12 +306,14 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         // 6. External Service Mapping (Batched)
         var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
-        var customerDictionary = await GetCustomerNamesFromService(customerIds);
+        var customerDictionary = await _customerClient.GetCustomerNamesAsync(customerIds);
 
         foreach (var order in orders)
         {
             if (customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId, out var name))
                 order.CustomerName = name;
+            else if (order.CustomerId == Guid.Empty)
+                order.CustomerName = "Cash Customer";
             else
                 order.CustomerName = "Unknown Customer";
         }
@@ -395,7 +392,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         // 1. Database se Order aur uske Items fetch karein
         var order = await _context.SaleOrders
-      
+
             .Include(o => o.Items)
             .Where(o => o.Id == id && o.CompanyId == companyId)
             .Select(o => new SaleOrderDetailDto
@@ -405,7 +402,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SoDate = o.SODate,
                 CustomerId = o.CustomerId,
                 Status = o.Status,
-                SubTotal = o.SubTotal,  
+                SubTotal = o.SubTotal,
                 TotalTax = o.TotalTax,
                 GrandTotal = o.GrandTotal,
                 TaxType = o.TaxType,
@@ -447,13 +444,8 @@ public class SaleOrderRepository : ISaleOrderRepository
         // 2. Customer Name fetch karein Microservice se
         try
         {
-            // Single customer name fetch call
-            var response = await _httpClient.GetAsync($"api/customers/{order.CustomerId}/name");
-            if (response.IsSuccessStatusCode)
-            {
-                var name = await response.Content.ReadAsStringAsync();
-                order.CustomerName = name?.Trim('"');
-            }
+            var customer = await _customerClient.GetCustomerByIdAsync(order.CustomerId);
+            order.CustomerName = customer?.CustomerName ?? (order.CustomerId == Guid.Empty ? "Cash Customer" : "Unknown Customer");
         }
         catch
         {
@@ -480,21 +472,21 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var now = DateTime.Now;
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        
+
         // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
         var company = await _companyClient.GetCompanyProfileAsync();
         int windowValue = company?.SaleReturnWindowValue ?? 72;
         string windowUnit = company?.SaleReturnWindowUnit ?? "Hours";
 
         // 2. Calculate dynamic limit date
-        double totalHours = windowUnit switch 
+        double totalHours = windowUnit switch
         {
             "Hours" => windowValue,
             "Days" => windowValue * 24,
             "Months" => windowValue * 30 * 24,
             _ => windowValue
         };
-        
+
         var limitDate = now.AddHours(-totalHours);
 
         return await _context.SaleOrderItems
@@ -524,26 +516,26 @@ public class SaleOrderRepository : ISaleOrderRepository
                     .Where(sr => sr.ProductId == x.ProductId &&
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
                                  (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
-                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) && 
+                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
                                  (x.ExpDate == null || sr.ExpDate == x.ExpDate))
                     .Sum(sr => (decimal?)sr.ReturnQty) ?? 0),
-                
+
                 // Fetch GRN and PO references based on Product/Warehouse/Rack/Batch metadata
                 GrnNumber = _context.GRNDetails
-                    .Where(g => g.ProductId == x.ProductId && 
-                                g.WarehouseId == x.WarehouseId && 
-                                g.RackId == x.RackId && 
-                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) && 
+                    .Where(g => g.ProductId == x.ProductId &&
+                                g.WarehouseId == x.WarehouseId &&
+                                g.RackId == x.RackId &&
+                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
                                 (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
                     .OrderByDescending(g => g.Id)
                     .Select(g => g.GRNHeader.GRNNumber)
                     .FirstOrDefault(),
-                
+
                 RefNo = _context.GRNDetails
-                    .Where(g => g.ProductId == x.ProductId && 
-                                g.WarehouseId == x.WarehouseId && 
-                                g.RackId == x.RackId && 
-                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) && 
+                    .Where(g => g.ProductId == x.ProductId &&
+                                g.WarehouseId == x.WarehouseId &&
+                                g.RackId == x.RackId &&
+                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
                                 (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
                     .OrderByDescending(g => g.Id)
                     .Select(g => g.GRNHeader.PurchaseOrder.PoNumber)
@@ -577,39 +569,19 @@ public class SaleOrderRepository : ISaleOrderRepository
         if (orders == null || !orders.Any()) return new List<PendingSODto>();
 
         var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
-        var customerDictionary = await GetCustomerNamesFromService(customerIds);
+        var customerDictionary = await _customerClient.GetCustomerNamesAsync(customerIds);
 
         foreach (var order in orders)
         {
             if (customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId, out var name))
                 order.CustomerName = name;
+            else if (order.CustomerId == Guid.Empty)
+                order.CustomerName = "Cash Customer";
             else
                 order.CustomerName = "Unknown Customer";
         }
 
         return orders;
     }
-
-    // Helper method jo actual Microservice call handle karega
-    private async Task<Dictionary<Guid, string>> GetCustomerNamesFromService(List<Guid> customerIds)
-    {
-        try
-        {
-            // Note: URL wahi hona chahiye jo Customers.API ke controller mein defined hai
-            var response = await _httpClient.PostAsJsonAsync("api/customers/get-names", customerIds);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var data = await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>();
-                return data ?? new Dictionary<Guid, string>();
-            }
-        }
-        catch (Exception ex)
-        {
-            // Agar Microservice band hai toh crash na ho
-            Console.WriteLine($"Microservice call failed: {ex.Message}");
-        }
-
-        return new Dictionary<Guid, string>();
-    }
 }
+
