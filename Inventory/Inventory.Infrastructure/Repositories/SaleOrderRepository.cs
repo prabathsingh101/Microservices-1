@@ -247,8 +247,8 @@ public class SaleOrderRepository : ISaleOrderRepository
             "sodate" => "SODate",
             "status" => "Status",
             "grandtotal" => "GrandTotal",
-            "createdat" => "CreatedAt",
-            _ => "CreatedAt" // Default order by CreatedAt desc
+            "createdon" => "CreatedOn",
+            _ => "CreatedOn" // Default order by CreatedOn desc
         };
 
         if (isDesc)

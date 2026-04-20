@@ -12,10 +12,12 @@ namespace Customers.Application.Features.Finance.Handlers
     public class RecordCustomerReceiptHandler : IRequestHandler<RecordCustomerReceiptCommand, Guid>
     {
         private readonly IFinanceRepository _repository;
+        private readonly ICurrentUserService _currentUserService;
 
-        public RecordCustomerReceiptHandler(IFinanceRepository repository)
+        public RecordCustomerReceiptHandler(IFinanceRepository repository, ICurrentUserService currentUserService)
         {
             _repository = repository;
+            _currentUserService = currentUserService;
         }
 
         public async Task<Guid> Handle(RecordCustomerReceiptCommand request, CancellationToken cancellationToken)
@@ -24,10 +26,10 @@ namespace Customers.Application.Features.Finance.Handlers
 
             if (!string.IsNullOrWhiteSpace(receiptDto.ReferenceNumber))
             {
-                var isUnique = await _repository.IsReferenceUniqueAsync(receiptDto.ReferenceNumber);
+                var (isUnique, existingSource) = await _repository.IsReferenceUniqueWithSourceAsync(receiptDto.ReferenceNumber);
                 if (!isUnique)
                 {
-                    throw new InvalidOperationException($"Duplicate Reference: Cheque/Ref No. {receiptDto.ReferenceNumber} already exists in the system.");
+                    throw new InvalidOperationException($"Reference '{receiptDto.ReferenceNumber}' already exists in {existingSource}. Please refresh or use a different reference.");
                 }
             }
 
@@ -39,7 +41,8 @@ namespace Customers.Application.Features.Finance.Handlers
                 ReceiptMode = receiptDto.ReceiptMode ?? "Other",
                 ReferenceNumber = receiptDto.ReferenceNumber,
                 Remarks = receiptDto.Remarks,
-                CreatedBy = receiptDto.CreatedBy
+                CreatedBy = receiptDto.CreatedBy,
+                CompanyId = _currentUserService.CompanyId
             };
 
             await _repository.AddReceiptAsync(customerReceipt);
@@ -59,7 +62,8 @@ namespace Customers.Application.Features.Finance.Handlers
                 Balance = currentBalance,
                 TransactionDate = receiptDto.ReceiptDate,
                 Description = "Receipt Received: " + receiptDto.ReceiptMode,
-                CreatedBy = receiptDto.CreatedBy
+                CreatedBy = receiptDto.CreatedBy,
+                CompanyId = _currentUserService.CompanyId
             };
 
             await _repository.AddLedgerEntryAsync(ledgerEntry);

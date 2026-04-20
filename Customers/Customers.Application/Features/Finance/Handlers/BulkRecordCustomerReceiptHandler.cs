@@ -13,10 +13,12 @@ namespace Customers.Application.Features.Finance.Handlers
     public class BulkRecordCustomerReceiptHandler : IRequestHandler<BulkRecordCustomerReceiptCommand, bool>
     {
         private readonly IFinanceRepository _repository;
+        private readonly ICurrentUserService _currentUserService;
 
-        public BulkRecordCustomerReceiptHandler(IFinanceRepository repository)
+        public BulkRecordCustomerReceiptHandler(IFinanceRepository repository, ICurrentUserService currentUserService)
         {
             _repository = repository;
+            _currentUserService = currentUserService;
         }
 
         public async Task<bool> Handle(BulkRecordCustomerReceiptCommand request, CancellationToken cancellationToken)
@@ -43,7 +45,8 @@ namespace Customers.Application.Features.Finance.Handlers
                         ReceiptMode = receiptDto.ReceiptMode ?? "Other",
                         ReferenceNumber = receiptDto.ReferenceNumber,
                         Remarks = receiptDto.Remarks,
-                        CreatedBy = receiptDto.CreatedBy ?? "System"
+                        CreatedBy = receiptDto.CreatedBy ?? "System",
+                        CompanyId = _currentUserService.CompanyId
                     };
 
                     await _repository.AddReceiptAsync(customerReceipt);
@@ -62,7 +65,8 @@ namespace Customers.Application.Features.Finance.Handlers
                         Balance = currentBalance,
                         TransactionDate = receiptDto.ReceiptDate,
                         Description = "Receipt Received: " + receiptDto.ReceiptMode,
-                        CreatedBy = receiptDto.CreatedBy ?? "System"
+                        CreatedBy = receiptDto.CreatedBy ?? "System",
+                        CompanyId = _currentUserService.CompanyId
                     };
 
                     await _repository.AddLedgerEntryAsync(ledgerEntry);

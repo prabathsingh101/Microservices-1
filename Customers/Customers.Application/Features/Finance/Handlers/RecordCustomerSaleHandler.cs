@@ -12,10 +12,12 @@ namespace Customers.Application.Features.Finance.Handlers
     public class RecordCustomerSaleHandler : IRequestHandler<RecordCustomerSaleCommand, Guid>
     {
         private readonly IFinanceRepository _financeRepository;
+        private readonly ICurrentUserService _currentUserService;
 
-        public RecordCustomerSaleHandler(IFinanceRepository financeRepository)
+        public RecordCustomerSaleHandler(IFinanceRepository financeRepository, ICurrentUserService currentUserService)
         {
             _financeRepository = financeRepository;
+            _currentUserService = currentUserService;
         }
 
         public async Task<Guid> Handle(RecordCustomerSaleCommand request, CancellationToken cancellationToken)
@@ -36,7 +38,8 @@ namespace Customers.Application.Features.Finance.Handlers
                 Debit = sale.Amount,
                 Credit = 0,
                 Balance = newBalance,
-                CreatedBy = sale.CreatedBy
+                CreatedBy = sale.CreatedBy,
+                CompanyId = _currentUserService.CompanyId
             };
 
             await _financeRepository.AddLedgerEntryAsync(entry);

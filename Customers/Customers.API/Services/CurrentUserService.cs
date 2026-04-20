@@ -18,11 +18,17 @@ namespace Customers.API.Services
         {
             get
             {
-                // 1. JWT Claim
-                var claimValue = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
+                var claims = _httpContextAccessor.HttpContext?.User?.Claims;
+                if (claims == null) return null;
+
+                // 1. Try different claim names (Case-insensitive) [cite: 2026-04-19]
+                var claimValue = claims.FirstOrDefault(c => 
+                    c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
+                    c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
+
                 if (Guid.TryParse(claimValue, out var claimGuid)) return claimGuid;
 
-                // 2. Fallback: Request Header (Important for Super Admin)
+                // 2. Fallback: Request Header (Important for Super Admin or Service-to-Service)
                 var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Company-Id"].ToString();
                 if (Guid.TryParse(headerValue, out var headerGuid)) return headerGuid;
 

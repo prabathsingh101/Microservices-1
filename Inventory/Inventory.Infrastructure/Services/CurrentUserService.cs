@@ -17,14 +17,20 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            // 1. Try to get from JWT Claim
-            var companyIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var claims = _httpContextAccessor.HttpContext?.User?.Claims;
+            if (claims == null) return null;
+
+            // 1. Try different claim names (Case-insensitive)
+            var claimValue = claims.FirstOrDefault(c => 
+                c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
+                c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
+
+            if (Guid.TryParse(claimValue, out var companyId))
             {
                 return companyId;
             }
 
-            // 2. Fallback: Try to get from 'X-Company-Id' Header (useful for Super Admin switching companies)
+            // 2. Fallback: Try to get from 'X-Company-Id' Header
             var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Company-Id"].ToString();
             if (Guid.TryParse(headerValue, out var headerId))
             {

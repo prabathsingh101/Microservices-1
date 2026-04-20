@@ -13,10 +13,14 @@ namespace Customers.Infrastructure.Repositories
     public class FinanceRepository : IFinanceRepository
     {
         private readonly CustomerDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly Guid _companyId;
 
-        public FinanceRepository(CustomerDbContext context)
+        public FinanceRepository(CustomerDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
+            _companyId = _currentUserService.CompanyId ?? Guid.Empty;
         }
 
         public async Task AddReceiptAsync(CustomerReceipt receipt)
@@ -27,7 +31,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid customerId)
         {
             return await _context.CustomerLedgers
-                .Where(l => l.CustomerId == customerId)
+                .Where(l => l.CustomerId == customerId && l.CompanyId == _companyId)
                 .OrderByDescending(l => l.CreatedOn)
                 .FirstOrDefaultAsync();
         }
@@ -44,8 +48,8 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<CustomerLedgerPagedResultDto> GetLedgerAsync(CustomerLedgerRequestDto request)
         {
-            var customer = await _context.Customers.FindAsync(request.CustomerId);
-            var query = _context.CustomerLedgers.Where(l => l.CustomerId == request.CustomerId);
+            var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.CompanyId == _companyId);
+            var query = _context.CustomerLedgers.Where(l => l.CustomerId == request.CustomerId && l.CompanyId == _companyId);
 
             if (request.StartDate.HasValue)
                 query = query.Where(l => l.TransactionDate >= request.StartDate.Value);
@@ -87,7 +91,7 @@ namespace Customers.Infrastructure.Repositories
 
             var totalCount = await query.CountAsync();
             var currentBalance = await _context.CustomerLedgers
-                .Where(l => l.CustomerId == request.CustomerId)
+                .Where(l => l.CustomerId == request.CustomerId && l.CompanyId == _companyId)
                 .OrderByDescending(l => l.CreatedOn)
                 .Select(l => l.Balance)
                 .FirstOrDefaultAsync();
@@ -119,25 +123,24 @@ namespace Customers.Infrastructure.Repositories
             };
 
             var latestEntries = _context.CustomerLedgers
-                .GroupBy(l => l.CustomerId)
-                .Select(g => new { 
-                    CustomerId = g.Key, 
-                    LastEntry = g.OrderByDescending(x => x.CreatedOn).FirstOrDefault() 
-                })
-                .Where(x => x.LastEntry != null && x.LastEntry.Balance > 0);
+                .Where(l => l.CompanyId == _companyId)
+                .Where(l => l.CreatedOn == _context.CustomerLedgers
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == _companyId)
+                    .Max(inner => inner.CreatedOn))
+                .Where(l => l.Balance > 0);
 
-            var query = from x in latestEntries
-                        join c in _context.Customers on x.CustomerId equals c.Id
+            var query = from l in latestEntries
+                        join c in _context.Customers on l.CustomerId equals c.Id
                         where !internalAccountNames.Contains(c.CustomerName!)
                         select new OutstandingDto
                         {
-                            CustomerId = x.CustomerId,
+                            CustomerId = l.CustomerId,
                             CustomerName = c.CustomerName,
-                            PendingAmount = x.LastEntry!.Balance,
-                            TotalAmount = x.LastEntry.Balance, 
-                            Status = (x.LastEntry.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
-                            DueDate = x.LastEntry.TransactionDate.AddDays(15), 
-                            LastReferenceId = x.LastEntry.ReferenceId
+                            PendingAmount = l.Balance,
+                            TotalAmount = l.Balance, 
+                            Status = (l.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
+                            DueDate = l.TransactionDate.AddDays(15), 
+                            LastReferenceId = l.ReferenceId
                         };
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -192,7 +195,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<decimal> GetTotalReceiptsAsync(DateRangeDto dateRange)
         {
             return await _context.CustomerReceipts
-                .Where(r => r.ReceiptDate >= dateRange.StartDate && r.ReceiptDate <= dateRange.EndDate)
+                .Where(r => r.ReceiptDate >= dateRange.StartDate && r.ReceiptDate <= dateRange.EndDate && r.CompanyId == _companyId)
                 .SumAsync(r => r.Amount);
         }
 
@@ -204,10 +207,13 @@ namespace Customers.Infrastructure.Repositories
             };
             
             var customerBalances = await _context.CustomerLedgers
+                .Where(l => l.CompanyId == _companyId)
+                .Where(l => l.CreatedOn == _context.CustomerLedgers
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == _companyId)
+                    .Max(inner => inner.CreatedOn))
                 .Join(_context.Customers, l => l.CustomerId, c => c.Id, (l, c) => new { l, c })
-                .Where(x => !internalAccountNames.Contains(x.c.CustomerName!))
-                .GroupBy(x => x.l.CustomerId)
-                .Select(g => g.OrderByDescending(x => x.l.CreatedOn).Select(x => x.l.Balance).FirstOrDefault())
+                .Where(x => !internalAccountNames.Contains(x.c.CustomerName!) && x.c.CompanyId == _companyId)
+                .Select(x => x.l.Balance)
                 .ToListAsync();
 
             return customerBalances.Where(b => b > 0).Sum();
@@ -216,28 +222,27 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<OutstandingDto>> GetPendingDuesAsync()
         {
             var latestEntries = await _context.CustomerLedgers
-                .GroupBy(l => l.CustomerId)
-                .Select(g => new { 
-                    CustomerId = g.Key, 
-                    LastEntry = g.OrderByDescending(x => x.CreatedOn).FirstOrDefault() 
-                })
-                .Where(x => x.LastEntry != null && x.LastEntry.Balance > 0)
+                .Where(l => l.CompanyId == _companyId)
+                .Where(l => l.CreatedOn == _context.CustomerLedgers
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == _companyId)
+                    .Max(inner => inner.CreatedOn))
+                .Where(l => l.Balance > 0)
                 .ToListAsync();
 
             var customerIds = latestEntries.Select(d => d.CustomerId).ToList();
             var customers = await _context.Customers.Where(c => customerIds.Contains(c.Id)).ToListAsync();
 
-            return latestEntries.Select(d => {
-                var c = customers.FirstOrDefault(c => c.Id == d.CustomerId);
+            return latestEntries.Select(l => {
+                var c = customers.FirstOrDefault(c => c.Id == l.CustomerId);
                 return new OutstandingDto
                 {
-                    CustomerId = d.CustomerId,
+                    CustomerId = l.CustomerId,
                     CustomerName = c?.CustomerName,
                     Phone = c?.Phone,
-                    PendingAmount = d.LastEntry!.Balance,
-                    TotalAmount = d.LastEntry.Balance,
-                    Status = (d.LastEntry.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
-                    DueDate = d.LastEntry.TransactionDate.AddDays(15)
+                    PendingAmount = l.Balance,
+                    TotalAmount = l.Balance,
+                    Status = (l.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
+                    DueDate = l.TransactionDate.AddDays(15)
                 };
             }).ToList();
         }
@@ -248,7 +253,7 @@ namespace Customers.Infrastructure.Repositories
             startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
             var receipts = await _context.CustomerReceipts
-                .Where(r => r.ReceiptDate >= startDate)
+                .Where(r => r.ReceiptDate >= startDate && r.CompanyId == _companyId)
                 .ToListAsync();
 
             return receipts
@@ -264,17 +269,26 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<bool> IsReferenceUniqueAsync(string referenceNumber)
         {
-            if (string.IsNullOrWhiteSpace(referenceNumber)) return true;
-            
-            bool existsInReceipts = await _context.CustomerReceipts.AnyAsync(r => r.ReferenceNumber == referenceNumber);
-            if (existsInReceipts) return false;
+            var (isUnique, _) = await IsReferenceUniqueWithSourceAsync(referenceNumber);
+            return isUnique;
+        }
 
-            return await _context.CustomerLedgers.AnyAsync(l => l.ReferenceId == referenceNumber);
+        public async Task<(bool IsUnique, string Source)> IsReferenceUniqueWithSourceAsync(string referenceNumber)
+        {
+            if (string.IsNullOrWhiteSpace(referenceNumber)) return (true, string.Empty);
+            
+            bool existsInReceipts = await _context.CustomerReceipts.AnyAsync(r => r.ReferenceNumber == referenceNumber && r.CompanyId == _companyId);
+            if (existsInReceipts) return (false, "Receipts");
+
+            bool existsInLedger = await _context.CustomerLedgers.AnyAsync(l => l.ReferenceId == referenceNumber && l.CompanyId == _companyId);
+            if (existsInLedger) return (false, "Customer Ledgers");
+
+            return (true, string.Empty);
         }
 
         public async Task<PaginatedListDto<ReceiptReportDto>> GetReceiptsReportAsync(ReceiptReportRequestDto request)
         {
-            var query = _context.CustomerReceipts.AsQueryable();
+            var query = _context.CustomerReceipts.Where(r => r.CompanyId == _companyId).AsQueryable();
 
             query = query.Where(r => r.ReceiptDate >= request.StartDate && r.ReceiptDate <= request.EndDate);
 
