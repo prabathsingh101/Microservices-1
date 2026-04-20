@@ -19,7 +19,7 @@ public sealed record UpdateProductCommand(
     bool trackinventory,
     bool isactive,
     string? description,
-    string ModifiedBy,
+    string? ModifiedBy,
     decimal saleRate,
     string productType,
     decimal damagedStock,
