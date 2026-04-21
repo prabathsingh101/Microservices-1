@@ -29,26 +29,31 @@ public class UsersController : ControllerBase
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
-        
-        // Permanent Fix: If user is any type of Admin, show ALL users across all companies
-        bool isSuperAdmin = roles.Any(r => r.Contains("Admin", StringComparison.OrdinalIgnoreCase));
+
+        // 🚀 GLOBAL ADMIN BYPASS: Root Admin see EVERYTHING
+        bool isGlobalRoot = roles.Contains("Default Admin");
 
         IEnumerable<User> users;
 
-        if (isSuperAdmin)
+        if (isGlobalRoot)
         {
-            // Super Admin: See everything
+            // Root Admin: See all users from all companies
             users = await _userRepository.GetAllUsersAsync();
         }
         else if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            // Tenant Admin: Filter by their own company
+            // Tenant Admin: Strictly filter by their own company
             users = await _userRepository.GetByCompanyAsync(companyId);
         }
-        else
+        else if (roles.Any(r => r.Contains("Admin", StringComparison.OrdinalIgnoreCase)))
         {
-            // Fallback for anyone else
+            // System-wide admin without a specific company claim
             users = await _userRepository.GetAllUsersAsync();
+        }
+        else 
+        {
+             // Fallback for anyone else
+             return Ok(Enumerable.Empty<object>());
         }
 
         var allSubscriptions = await _context.Subscriptions.AsNoTracking().ToListAsync();

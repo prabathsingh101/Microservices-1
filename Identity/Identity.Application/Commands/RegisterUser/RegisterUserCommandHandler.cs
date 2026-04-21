@@ -42,14 +42,23 @@ public class RegisterUserHandler
 
         var user = new User(request.UserName, request.Email);
 
-        // ✅ Step 1: Set CompanyId FIRST (Priority to request, Fallback to context)
-        if (request.CompanyId.HasValue && request.CompanyId.Value != Guid.Empty)
+        // ✅ Step 1: Set CompanyId FIRST (Security: Tenant admins cannot override company)
+        var contextCompanyId = _currentUserService.CompanyId;
+        if (contextCompanyId.HasValue && contextCompanyId.Value != Guid.Empty)
         {
-            user.SetCompanyId(request.CompanyId.Value);
+            // If logged in as tenant admin, force context's company ID
+            user.SetCompanyId(contextCompanyId.Value);
+
+            // Optional: Log a warning or throw if request tried to spoof a different company
+            if (request.CompanyId.HasValue && request.CompanyId.Value != contextCompanyId.Value)
+            {
+                throw new UnauthorizedAccessException("Not authorized to create users for another company.");
+            }
         }
-        else if (_currentUserService.CompanyId.HasValue)
+        else if (request.CompanyId.HasValue && request.CompanyId.Value != Guid.Empty)
         {
-            user.SetCompanyId(_currentUserService.CompanyId.Value);
+            // Only global admins (no CompanyId in token) can specify a custom companyId
+            user.SetCompanyId(request.CompanyId.Value);
         }
 
         // ✅ Step 2: Hash Password

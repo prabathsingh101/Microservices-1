@@ -47,37 +47,41 @@ public class RolesController : ControllerBase
     {
         var subscriptions = await _context.Subscriptions.ToDictionaryAsync(s => s.CompanyId, s => s.CompanyName);
 
+        // 🎯 Case 1: Master/System Context (No CompanyId)
         if (string.IsNullOrEmpty(companyId) || companyId.Equals("null", StringComparison.OrdinalIgnoreCase))
         {
-            // 🛡️ Master Tenant: Only Global Roles
-            var roles = await _context.Roles.Where(r => r.CompanyId == null).ToListAsync();
-            var res = roles.Select(r => new { r.Id, r.RoleName, r.CompanyId, CompanyName = "System" });
+            var systemRoles = await _context.Roles
+                .Where(r => r.CompanyId == null)
+                .AsNoTracking()
+                .ToListAsync();
+            
+            var res = systemRoles.Select(r => new { r.Id, r.RoleName, r.CompanyId, CompanyName = "System" });
             return Ok(res);
         }
 
+        // 🎯 Case 2: Tenant Context (Specific CompanyId)
         if (Guid.TryParse(companyId, out var cid))
         {
-            // 🏗️ Specific Tenant: Get company roles AND public system roles
-            // But HIDE sensitive roles like "Default Admin" or "SuperAdmin"
-            var allRoles = await _context.Roles
-                .Where(r => r.CompanyId == cid || r.CompanyId == null)
+            // 🚀 ROBUST CHECK: Is the logged-in user a Global Root Admin?
+            var userRoles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+            bool isGlobalRoot = userRoles.Contains("Default Admin");
+
+            // 🏗️ Fetch roles
+            // If Global Admin, they see (Selected Company Roles + System Roles)
+            // If Tenant Admin, they see (Only their Company Roles)
+            var roles = await _context.Roles
+                .Where(r => r.CompanyId == cid || (isGlobalRoot && r.CompanyId == null))
+                .AsNoTracking()
                 .ToListAsync();
 
-            var roles = allRoles.Where(r => 
-                r.CompanyId == cid || 
-                (r.CompanyId == null && 
-                 !r.RoleName.Equals("Default Admin", StringComparison.OrdinalIgnoreCase) && 
-                 !r.RoleName.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) &&
-                 !r.RoleName.Equals("Admin", StringComparison.OrdinalIgnoreCase)) // Only keep User, Manager etc from system if needed
-            ).ToList();
-
-            var res = roles.Select(r => new { 
+            var result = roles.Select(r => new { 
                 r.Id, 
                 r.RoleName, 
                 r.CompanyId, 
                 CompanyName = r.CompanyId == null ? "System" : (subscriptions.ContainsKey(cid) ? subscriptions[cid] : "Unknown")
-            });
-            return Ok(res);
+            }).ToList();
+
+            return Ok(result);
         }
 
         return BadRequest("Invalid CompanyId format");
