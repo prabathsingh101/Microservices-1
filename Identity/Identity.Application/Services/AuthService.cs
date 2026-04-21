@@ -9,24 +9,32 @@ namespace Identity.Application.Services
     public class AuthService : IAuthService
     {
         private readonly IUserRepository _users;
+        private readonly ISubscriptionRepository _subscriptions;
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly IJwtService _jwtService;
 
         public AuthService(
             IUserRepository users,
+            ISubscriptionRepository subscriptions,
             IPasswordHasher<User> passwordHasher,
             IJwtService jwtService)
         {
             _users = users;
+            _subscriptions = subscriptions;
             _passwordHasher = passwordHasher;
             _jwtService = jwtService;
         }
 
         public async Task<AuthResponse> LoginAsync(LoginDto dto)
         {
-            Console.WriteLine($"[DEBUG] Login attempt for: {dto.Email}");
-            
-            var user = await _users.GetWithRolesByEmailAsync(dto.Email);
+            Guid? targetCompanyId = null;
+            if (!string.IsNullOrEmpty(dto.CompanyCode))
+            {
+                var sub = await _subscriptions.GetByCodeAsync(dto.CompanyCode);
+                if (sub != null) targetCompanyId = sub.CompanyId;
+            }
+
+            var user = await _users.GetWithRolesByEmailAsync(dto.Email, targetCompanyId);
             
             if (user == null) {
                 Console.WriteLine($"[DEBUG] USER NOT FOUND: {dto.Email}");

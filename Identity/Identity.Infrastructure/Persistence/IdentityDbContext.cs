@@ -31,8 +31,11 @@ public class IdentityDbContext : DbContext
         modelBuilder.Entity<Subscription>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.CompanyCode).HasMaxLength(50).IsRequired();
             entity.Property(e => e.PlanType).HasMaxLength(20).IsRequired();
             entity.Property(e => e.PaymentTxnId).HasMaxLength(100);
+
+            entity.HasIndex(e => e.CompanyCode).IsUnique();
         });
 
         modelBuilder.Entity<Menu>()

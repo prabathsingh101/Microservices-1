@@ -15,18 +15,18 @@ public class UserRepository : IUserRepository
         _context = context;
     }
 
-    public async Task<bool> ExistsByEmailAsync(string email)
+    public async Task<bool> ExistsByEmailAsync(string email, Guid? companyId)
     {
         return await _context.Users
             .IgnoreQueryFilters()
-            .AnyAsync(u => u.Email == email);
+            .AnyAsync(u => u.Email == email && u.CompanyId == companyId);
     }
 
-    public async Task<bool> ExistsByUserNameAsync(string userName)
+    public async Task<bool> ExistsByUserNameAsync(string userName, Guid? companyId)
     {
         return await _context.Users
             .IgnoreQueryFilters()
-            .AnyAsync(u => u.UserName == userName);
+            .AnyAsync(u => u.UserName == userName && u.CompanyId == companyId);
     }
 
     public async Task AddAsync(User user)
@@ -34,14 +34,14 @@ public class UserRepository : IUserRepository
         await _context.Users.AddAsync(user);
     }
 
-    public async Task<User?> GetByEmailAsync(string email)
+    public async Task<User?> GetByEmailAsync(string email, Guid? companyId)
     {
         // Login ke waqt bhi roles lagte hain, isliye include yahan bhi hona chahiye
         return await _context.Users
             .IgnoreQueryFilters()
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.Email == email && u.CompanyId == companyId);
     }
 
     // ✅ FIXED: Is method mein roles aur tokens dono include kar diye hain
@@ -54,7 +54,7 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id);
     }
 
-    public async Task<User?> GetWithRolesByEmailAsync(string email)
+    public async Task<User?> GetWithRolesByEmailAsync(string email, Guid? companyId)
     {
         // 🚀 UPDATED: Including RolePermissions and Menus for faster login logic
         return await _context.Users
@@ -66,7 +66,7 @@ public class UserRepository : IUserRepository
                         .ThenInclude(rp => rp.Menu)
             .Include(u => u.RefreshTokens)
             .AsSplitQuery() // Isse query fast ho jayegi aur timeout nahi aayega
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.Email == email && u.CompanyId == companyId);
     }
 
     // ✅ Already Correct: Ye method sahi tha, roles load kar raha tha

@@ -127,23 +127,30 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("check-duplicate")]
-    public async Task<IActionResult> CheckDuplicate([FromQuery] string? userName, [FromQuery] string? email)
+    public async Task<IActionResult> CheckDuplicate([FromQuery] string? userName, [FromQuery] string? email, [FromQuery] Guid? companyId)
     {
         if (string.IsNullOrEmpty(userName) && string.IsNullOrEmpty(email))
             return BadRequest("Username or Email must be provided");
 
+        // Use provided companyId or fallback to claim
+        if (!companyId.HasValue)
+        {
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            companyId = Guid.TryParse(companyIdClaim, out var cid) ? cid : null;
+        }
+
         bool exists = false;
         string message = "";
 
-        if (!string.IsNullOrEmpty(userName) && await _userRepository.ExistsByUserNameAsync(userName))
+        if (!string.IsNullOrEmpty(userName) && await _userRepository.ExistsByUserNameAsync(userName, companyId))
         {
             exists = true;
-            message = "Username already exists.";
+            message = "Username already exists in this company.";
         }
-        else if (!string.IsNullOrEmpty(email) && await _userRepository.ExistsByEmailAsync(email))
+        else if (!string.IsNullOrEmpty(email) && await _userRepository.ExistsByEmailAsync(email, companyId))
         {
             exists = true;
-            message = "Email already exists.";
+            message = "Email already exists in this company.";
         }
 
         return Ok(new { Exists = exists, Message = message });

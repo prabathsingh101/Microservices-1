@@ -50,6 +50,14 @@ public class CompanyDbContext : DbContext
             .HasMaxLength(15)
             .IsRequired();
 
+        modelBuilder.Entity<CompanyProfile>()
+            .Property(c => c.CompanyCode)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<CompanyProfile>()
+            .HasIndex(c => c.CompanyCode)
+            .IsUnique();
+
         modelBuilder.Entity<Address>()
             .Property(a => a.StateCode)
             .HasMaxLength(2); // e.g., "07"

@@ -43,10 +43,22 @@ public class LoginUserQueryHandler
     {
         Console.WriteLine($"[DEBUG-HANDLER] Login attempt for: {request.Dto.Email}");
 
-        // 1. Fetch user with roles
-        var user = await _users.GetWithRolesByEmailAsync(request.Dto.Email);
+        // 1. Resolve Company Context if CompanyCode provided
+        Guid? targetCompanyId = null;
+        if (!string.IsNullOrEmpty(request.Dto.CompanyCode))
+        {
+            var targetSub = await _subscriptions.GetByCodeAsync(request.Dto.CompanyCode);
+            if (targetSub == null) {
+                Console.WriteLine($"[DEBUG-HANDLER] INVALID COMPANY CODE: {request.Dto.CompanyCode}");
+                return Result<AuthResponse>.Failure("Invalid company code");
+            }
+            targetCompanyId = targetSub.CompanyId;
+        }
+
+        // 2. Fetch user with roles in that specific company context
+        var user = await _users.GetWithRolesByEmailAsync(request.Dto.Email, targetCompanyId);
         if (user == null) {
-            Console.WriteLine($"[DEBUG-HANDLER] USER NOT FOUND: {request.Dto.Email}");
+            Console.WriteLine($"[DEBUG-HANDLER] USER NOT FOUND: {request.Dto.Email} in CompanyContext: {targetCompanyId}");
             return Result<AuthResponse>.Failure("Invalid credentials");
         }
 

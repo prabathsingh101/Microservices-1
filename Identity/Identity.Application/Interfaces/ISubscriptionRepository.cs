@@ -8,6 +8,7 @@ namespace Identity.Application.Interfaces
     public interface ISubscriptionRepository
     {
         Task<Subscription?> GetByCompanyIdAsync(Guid companyId);
+        Task<Subscription?> GetByCodeAsync(string companyCode);
         Task<List<Subscription>> GetAllAsync();
         Task AddAsync(Subscription subscription);
         Task UpdateAsync(Subscription subscription);

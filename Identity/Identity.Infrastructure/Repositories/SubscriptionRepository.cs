@@ -23,6 +23,13 @@ namespace Identity.Infrastructure.Repositories
                 .FirstOrDefaultAsync(s => s.CompanyId == companyId);
         }
 
+        public async Task<Subscription?> GetByCodeAsync(string companyCode)
+        {
+            var code = companyCode.ToLower().Trim();
+            return await _context.Subscriptions
+                .FirstOrDefaultAsync(s => s.CompanyCode == code);
+        }
+
         public async Task<List<Subscription>> GetAllAsync()
         {
             return await _context.Subscriptions.ToListAsync();

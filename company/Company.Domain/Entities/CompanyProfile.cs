@@ -8,6 +8,7 @@ namespace Company.Domain.Entities
     public class CompanyProfile
     {
         public Guid Id { get; set; }
+        public string? CompanyCode { get; set; }
         public string? Name { get; set; }
         public string? Tagline { get; set; }
         public string? RegistrationNumber { get; set; }

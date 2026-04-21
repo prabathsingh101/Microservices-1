@@ -32,12 +32,12 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
         if (user == null)
             return Result<Guid>.Failure("User not found");
 
-        // Check for duplicates
-        if (user.UserName != request.UserName && await _userRepository.ExistsByUserNameAsync(request.UserName))
-            return Result<Guid>.Failure("Username already exists");
+        // Check for duplicates within the same company
+        if (user.UserName != request.UserName && await _userRepository.ExistsByUserNameAsync(request.UserName, user.CompanyId))
+            return Result<Guid>.Failure("Username already exists in this company context");
 
-        if (user.Email != request.Email && await _userRepository.ExistsByEmailAsync(request.Email))
-            return Result<Guid>.Failure("Email already exists");
+        if (user.Email != request.Email && await _userRepository.ExistsByEmailAsync(request.Email, user.CompanyId))
+            return Result<Guid>.Failure("Email already exists in this company context");
 
         // Update details
         user.UpdateDetails(request.UserName, request.Email, request.IsActive);

@@ -55,6 +55,7 @@ namespace Company.Application.Company.Commands.Update.Handler
             }
 
             // 1. Main Profile Fields Update
+            profile.CompanyCode = cmd.Request.CompanyCode;
             profile.Name = cmd.Request.Name;
             profile.Tagline = cmd.Request.Tagline;
             profile.RegistrationNumber = cmd.Request.RegistrationNumber;

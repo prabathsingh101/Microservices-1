@@ -6,6 +6,7 @@ namespace Identity.Domain.Entities
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
         public Guid CompanyId { get; private set; } // Link to the company/tenant
+        public string? CompanyCode { get; private set; } // Unique slug for login (e.g. 'chandan', 'sonu')
         public string? CompanyName { get; private set; } // Cached name for display
         public string? CompanyTagline { get; private set; } // Cached tagline for display
         public string PlanType { get; private set; } = "Trial"; // Trial, Monthly, Yearly
@@ -17,9 +18,10 @@ namespace Identity.Domain.Entities
 
         private Subscription() { }
 
-        public Subscription(Guid companyId, string companyName, string planType, int durationDays, string? companyTagline = null)
+        public Subscription(Guid companyId, string companyCode, string companyName, string planType, int durationDays, string? companyTagline = null)
         {
             CompanyId = companyId;
+            CompanyCode = companyCode.ToLower().Trim();
             CompanyName = companyName;
             CompanyTagline = companyTagline;
             PlanType = planType;

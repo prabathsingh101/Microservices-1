@@ -22,6 +22,7 @@ namespace Company.Application.Company.Queries
             // Mapping logic using your final Record DTOs
             return new CompanyProfileDto(
                 data.Id,
+                data.CompanyCode,
                 data.Name,
                 data.Tagline,
                 data.RegistrationNumber,

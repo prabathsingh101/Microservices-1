@@ -71,7 +71,11 @@ namespace Identity.API.Controllers
 
             if (subscription == null)
             {
-                subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, dto.CompanyName, "Premium", dto.DurationDays);
+                var code = string.IsNullOrEmpty(dto.CompanyCode) 
+                    ? dto.CompanyName.Replace(" ", "").ToUpper().Substring(0, Math.Min(6, dto.CompanyName.Length)) + new Random().Next(100, 999)
+                    : dto.CompanyCode;
+
+                subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, code, dto.CompanyName, "Premium", dto.DurationDays);
                 _context.Subscriptions.Add(subscription);
             }
 
@@ -88,7 +92,11 @@ namespace Identity.API.Controllers
             var subscription = await _context.Subscriptions.FirstOrDefaultAsync(s => s.CompanyId == dto.CompanyId);
             if (subscription == null)
             {
-                subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, dto.CompanyName, dto.PlanType, dto.DurationDays);
+                var code = string.IsNullOrEmpty(dto.CompanyCode) 
+                    ? dto.CompanyName.Replace(" ", "").ToUpper().Substring(0, Math.Min(6, dto.CompanyName.Length)) + new Random().Next(100, 999)
+                    : dto.CompanyCode;
+
+                subscription = new Identity.Domain.Entities.Subscription(dto.CompanyId, code, dto.CompanyName, dto.PlanType, dto.DurationDays);
                 _context.Subscriptions.Add(subscription);
             }
             else

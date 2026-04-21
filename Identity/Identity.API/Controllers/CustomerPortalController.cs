@@ -53,8 +53,13 @@ namespace Identity.API.Controllers
                 }
 
                 // 3. Create Subscription Record
+                var code = string.IsNullOrEmpty(request.CompanyCode) 
+                    ? request.CompanyName.Replace(" ", "").ToUpper().Substring(0, Math.Min(6, request.CompanyName.Length)) + new Random().Next(100, 999)
+                    : request.CompanyCode;
+
                 var subscription = new Identity.Domain.Entities.Subscription(
                     companyId, 
+                    code,
                     request.CompanyName, 
                     "Trial", 
                     15); // Default 15 days trial
@@ -98,6 +103,7 @@ namespace Identity.API.Controllers
     public class SetupCompanyRequest
     {
         public string CompanyName { get; set; } = default!;
+        public string? CompanyCode { get; set; }
         public string? Email { get; set; }
         public Guid? CompanyId { get; set; }
     }

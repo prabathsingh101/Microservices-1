@@ -37,29 +37,40 @@ public class RegisterUserHandler
         RegisterUserCommand request,
         CancellationToken cancellationToken)
     {
-        if (await _users.ExistsByEmailAsync(request.Email))
-            throw new InvalidOperationException("Email already exists");
+        // ✅ Step 1: Resolve Target Company ID
+        Guid? targetCompanyId = null;
 
-        var user = new User(request.UserName, request.Email);
-
-        // ✅ Step 1: Set CompanyId FIRST (Security: Tenant admins cannot override company)
-        var contextCompanyId = _currentUserService.CompanyId;
-        if (contextCompanyId.HasValue && contextCompanyId.Value != Guid.Empty)
+        // Priority 1: Explicitly provided CompanyId in the request (e.g., Super Admin creating for another company)
+        if (request.CompanyId.HasValue && request.CompanyId.Value != Guid.Empty)
         {
-            // If logged in as tenant admin, force context's company ID
-            user.SetCompanyId(contextCompanyId.Value);
+            targetCompanyId = request.CompanyId.Value;
+        }
+        // Priority 2: Current Logged-in User's Context (Scope to tenant by default)
+        else if (_currentUserService.CompanyId.HasValue && _currentUserService.CompanyId.Value != Guid.Empty)
+        {
+            targetCompanyId = _currentUserService.CompanyId.Value;
+        }
 
-            // Optional: Log a warning or throw if request tried to spoof a different company
-            if (request.CompanyId.HasValue && request.CompanyId.Value != contextCompanyId.Value)
+        // 🚀 SAFETY: If Role is provided, double check the CompanyId from the Role 
+        // to ensure cross-tenant user creation doesn't happen accidentally
+        if (request.RoleIds != null && request.RoleIds.Any() && !targetCompanyId.HasValue)
+        {
+            var firstRole = await _roles.GetByIdAsync(request.RoleIds.First());
+            if (firstRole != null && firstRole.CompanyId.HasValue)
             {
-                throw new UnauthorizedAccessException("Not authorized to create users for another company.");
+                targetCompanyId = firstRole.CompanyId;
             }
         }
-        else if (request.CompanyId.HasValue && request.CompanyId.Value != Guid.Empty)
-        {
-            // Only global admins (no CompanyId in token) can specify a custom companyId
-            user.SetCompanyId(request.CompanyId.Value);
-        }
+
+        // ✅ Step 2: Tenant-aware Duplicate Check
+        if (await _users.ExistsByEmailAsync(request.Email, targetCompanyId))
+            throw new InvalidOperationException("Email already exists in this company context");
+
+        if (await _users.ExistsByUserNameAsync(request.UserName, targetCompanyId))
+            throw new InvalidOperationException("Username already exists in this company context");
+
+        var user = new User(request.UserName, request.Email);
+        if (targetCompanyId.HasValue) user.SetCompanyId(targetCompanyId.Value);
 
         // ✅ Step 2: Hash Password
         var hash = _passwordHasher.HashPassword(user, request.Password);

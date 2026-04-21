@@ -3,6 +3,7 @@ namespace Company.Application.DTOs
     // Response ke liye use hoga (Read Operations)
     public record CompanyProfileDto(
         Guid Id,
+        string? CompanyCode,
         string Name,
         string? Tagline,
         string RegistrationNumber,
@@ -79,6 +80,7 @@ namespace Company.Application.DTOs
     // Request ke liye use hoga (Create/Update)
     public record UpsertCompanyRequest(
         Guid? CompanyId,
+        string? CompanyCode,
         string Name,
         string? Tagline,
         string RegistrationNumber,

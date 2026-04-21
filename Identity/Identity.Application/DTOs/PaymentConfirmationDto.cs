@@ -11,5 +11,6 @@ namespace Identity.Application.DTOs
         public string Signature { get; set; } = string.Empty;
         public string PlanId { get; set; } = string.Empty;
         public int DurationDays { get; set; }
+        public string? CompanyCode { get; set; }
     }
 }

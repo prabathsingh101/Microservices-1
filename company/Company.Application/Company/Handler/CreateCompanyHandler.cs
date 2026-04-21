@@ -81,6 +81,7 @@ namespace Company.Application.Company.Commands.Create.Handler
             if (existing != null)
             {
                 // If exists, perform an UPDATE instead of skip
+                existing.CompanyCode = cmd.Request.CompanyCode;
                 existing.Name = cmd.Request.Name;
                 existing.Tagline = cmd.Request.Tagline;
                 existing.RegistrationNumber = cmd.Request.RegistrationNumber;
@@ -186,6 +187,7 @@ namespace Company.Application.Company.Commands.Create.Handler
             var company = new CompanyProfile
             {
                 Id = targetId,
+                CompanyCode = cmd.Request.CompanyCode,
                 Name = cmd.Request.Name,
                 Tagline = cmd.Request.Tagline,
                 RegistrationNumber = cmd.Request.RegistrationNumber,
@@ -299,6 +301,7 @@ namespace Company.Application.Company.Commands.Create.Handler
             {
                 CompanyId = resultId,
                 CompanyName = company.Name,
+                CompanyCode = company.CompanyCode,
                 PlanType = "Trial",
                 DurationDays = 14
             };

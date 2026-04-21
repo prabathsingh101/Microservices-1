@@ -19,6 +19,7 @@ namespace Company.Application.Company.Queries
 
             var itemsDto = pagedData.Items.Select(data => new CompanyProfileDto(
                 data.Id,
+                data.CompanyCode,
                 data.Name,
                 data.Tagline,
                 data.RegistrationNumber,
