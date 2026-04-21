@@ -17,12 +17,37 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            var companyIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
-            if (Guid.TryParse(companyIdClaim, out var companyId))
-            {
-                return companyId;
-            }
-            return null;
+            var user = _httpContextAccessor.HttpContext?.User;
+            var claim = user?.Claims.FirstOrDefault(c => c.Type == "CompanyId");
+            return Guid.TryParse(claim?.Value, out var id) ? id : null;
+        }
+    }
+
+    public Guid? UserId
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var claim = user?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            return Guid.TryParse(claim?.Value, out var id) ? id : null;
+        }
+    }
+
+    public bool IsSuperAdmin
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return false;
+
+            // 🚀 STRICT PLATFORM ADMIN CHECK
+            var email = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
+            var companyName = user.Claims.FirstOrDefault(c => c.Type == "CompanyName")?.Value;
+
+            bool isPlatformEmail = email != null && email.Equals("Default_Admin@gmail.com", StringComparison.OrdinalIgnoreCase);
+            bool isPlatformCompany = companyName != null && companyName.Equals("Admin Dashboard", StringComparison.OrdinalIgnoreCase);
+
+            return isPlatformEmail || isPlatformCompany;
         }
     }
 }

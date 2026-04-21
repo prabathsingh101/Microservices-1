@@ -86,7 +86,7 @@ namespace Company.Infrastructure.Repositories
                 .AsQueryable();
 
             // 🚀 TENANT ISOLATION: If not Super Admin, only show own company
-            if (companyId != null && companyId != Guid.Empty)
+            if (!_currentUserService.IsSuperAdmin && companyId != null && companyId != Guid.Empty)
             {
                 query = query.Where(c => c.Id == companyId);
             }

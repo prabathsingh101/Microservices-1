@@ -6,5 +6,6 @@ namespace Company.Application.Common.Interfaces
     {
         Guid? CompanyId { get; }
         Guid? UserId { get; }
+        bool IsSuperAdmin { get; }
     }
 }

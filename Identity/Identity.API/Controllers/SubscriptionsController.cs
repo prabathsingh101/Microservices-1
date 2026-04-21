@@ -13,17 +13,31 @@ namespace Identity.API.Controllers
     {
         private readonly IdentityDbContext _context;
         private readonly IOnboardingService _onboardingService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public SubscriptionsController(IdentityDbContext context, IOnboardingService onboardingService)
+        public SubscriptionsController(
+            IdentityDbContext context, 
+            IOnboardingService onboardingService,
+            ICurrentUserService currentUserService)
         {
             _context = context;
             _onboardingService = onboardingService;
+            _currentUserService = currentUserService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var subscriptions = await _context.Subscriptions
+            var companyId = _currentUserService.CompanyId;
+            var query = _context.Subscriptions.AsQueryable();
+
+            // 🚀 TENANT ISOLATION: If not Super Admin, only show own subscription
+            if (!_currentUserService.IsSuperAdmin && companyId != null && companyId != Guid.Empty)
+            {
+                query = query.Where(s => s.CompanyId == companyId);
+            }
+
+            var subscriptions = await query
                 .Select(s => new 
                 {
                     s.Id,
