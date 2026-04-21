@@ -76,6 +76,93 @@ public class UsersController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("paged")]
+    public async Task<IActionResult> GetPaged([FromBody] Identity.Application.Common.Models.GridRequest request)
+    {
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+        bool isGlobalRoot = roles.Contains("Default Admin");
+
+        var query = _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .AsNoTracking();
+
+        // 1. Tenant Filtering
+        if (!isGlobalRoot && Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            query = query.Where(u => u.CompanyId == companyId);
+        }
+
+        // 2. Search
+        if (!string.IsNullOrEmpty(request.SearchTerm))
+        {
+            var term = request.SearchTerm.ToLower();
+            
+            // Join with Subscriptions to allow searching by CompanyName
+            var companyIdsWithMatch = await _context.Subscriptions
+                .Where(s => s.CompanyName.ToLower().Contains(term))
+                .Select(s => s.CompanyId)
+                .ToListAsync();
+
+            query = query.Where(u => 
+                u.UserName.ToLower().Contains(term) || 
+                u.Email.ToLower().Contains(term) ||
+                (u.CompanyId.HasValue && companyIdsWithMatch.Contains(u.CompanyId.Value)));
+        }
+
+        // Count for stats
+        var totalCount = await query.CountAsync();
+        var activeCount = await query.CountAsync(u => u.IsActive);
+        var inactiveCount = totalCount - activeCount;
+
+        // 3. Sorting
+        if (!string.IsNullOrEmpty(request.SortColumn))
+        {
+            bool desc = request.SortOrder?.ToLower() == "desc";
+            query = request.SortColumn.ToLower() switch
+            {
+                "username" => desc ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
+                "email" => desc ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
+                _ => query.OrderBy(u => u.UserName)
+            };
+        }
+        else
+        {
+            query = query.OrderBy(u => u.UserName);
+        }
+
+        // 4. Pagination
+        var users = await query
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        var allSubscriptions = await _context.Subscriptions.AsNoTracking().ToListAsync();
+
+        var resultItems = users.Select(u => new
+        {
+            u.Id,
+            u.UserName,
+            u.Email,
+            u.IsActive,
+            u.CompanyId,
+            CompanyName = u.CompanyId.HasValue
+                          ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown")
+                          : "System Admin",
+            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
+            RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList()
+        });
+
+        return Ok(new Identity.Application.Common.Models.GridResponse<object>
+        {
+            Items = resultItems.Cast<object>().ToList(),
+            TotalCount = totalCount,
+            ActiveCount = activeCount,
+            InactiveCount = inactiveCount
+        });
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
