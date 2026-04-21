@@ -79,10 +79,17 @@ namespace Company.Infrastructure.Repositories
 
         public async Task<GridResponse<CompanyProfile>> GetPagedAsync(GridRequest request)
         {
+            var companyId = _currentUserService.CompanyId;
             var query = _context.CompanyProfiles
                 .Include(c => c.Addresses)
                 .Include(c => c.BankDetails)
                 .AsQueryable();
+
+            // 🚀 TENANT ISOLATION: If not Super Admin, only show own company
+            if (companyId != null && companyId != Guid.Empty)
+            {
+                query = query.Where(c => c.Id == companyId);
+            }
 
             // Search Filter
             if (!string.IsNullOrEmpty(request.Search))
