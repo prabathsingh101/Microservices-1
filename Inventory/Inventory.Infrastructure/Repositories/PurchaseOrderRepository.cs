@@ -401,13 +401,14 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     }
     public async Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(Guid poId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var poItems = await _context.PurchaseOrderItems.AsNoTracking()
-            .Where(poi => poi.PurchaseOrderId == poId)
+            .Where(poi => poi.PurchaseOrderId == poId && poi.CompanyId == companyId)
             .Include(poi => poi.Product)
             .ToListAsync();
 
         var receivedQuantities = await _context.GRNDetails.AsNoTracking()
-            .Where(gi => gi.GRNHeader.PurchaseOrderId == poId)
+            .Where(gi => gi.GRNHeader.PurchaseOrderId == poId && gi.CompanyId == companyId)
             .GroupBy(gi => gi.ProductId)
             .Select(g => new { ProductId = g.Key, Total = g.Sum(x => (decimal?)x.ReceivedQty) ?? 0 })
             .ToListAsync();
@@ -428,8 +429,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
     public async Task<POHeaderDetailsDto?> GetPOHeaderAsync(Guid lastPurchaseOrderId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PurchaseOrders.AsNoTracking()
-        .Where(x => x.Id == lastPurchaseOrderId)
+        .Where(x => x.Id == lastPurchaseOrderId && x.CompanyId == companyId)
         
         .Select(x => new POHeaderDetailsDto
         {
@@ -447,8 +449,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
     public async Task<ProductPriceDto?> GetPriceListRateAsync( Guid productId, Guid priceListId)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.PriceListItems.AsNoTracking()
-            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId)
+            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId)
             .Select(pi => new ProductPriceDto
             {
                 ProductId = pi.ProductId,

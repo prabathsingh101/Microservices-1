@@ -491,7 +491,7 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         return await _context.SaleOrderItems
             .AsNoTracking()
-            .Where(x => x.SaleOrderId == saleOrderId)
+            .Where(x => x.SaleOrderId == saleOrderId && x.CompanyId == companyId)
             .Select(x => new SaleOrderItemGridDto
             {
                 ProductId = x.ProductId,
@@ -505,7 +505,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 WarehouseName = x.Warehouse != null ? x.Warehouse.Name : null,
                 RackId = x.RackId,
                 RackName = x.Rack != null ? x.Rack.Name : null,
-                CurrentStock = _context.Products.Where(p => p.Id == x.ProductId).Select(p => p.CurrentStock).FirstOrDefault(),
+                CurrentStock = _context.Products.Where(p => p.Id == x.ProductId && p.CompanyId == companyId).Select(p => p.CurrentStock).FirstOrDefault(),
 
                 // Dynamic Policy Calculation
                 IsReturnable = x.SaleOrder.SODate >= limitDate,
@@ -515,6 +515,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SoldQty = x.Qty - (_context.SaleReturnItems
                     .Where(sr => sr.ProductId == x.ProductId &&
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
+                                 sr.CompanyId == companyId &&
                                  (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
                                  (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
                                  (x.ExpDate == null || sr.ExpDate == x.ExpDate))
@@ -525,6 +526,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                     .Where(g => g.ProductId == x.ProductId &&
                                 g.WarehouseId == x.WarehouseId &&
                                 g.RackId == x.RackId &&
+                                g.CompanyId == companyId &&
                                 (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
                                 (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
                     .OrderByDescending(g => g.Id)
@@ -535,6 +537,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                     .Where(g => g.ProductId == x.ProductId &&
                                 g.WarehouseId == x.WarehouseId &&
                                 g.RackId == x.RackId &&
+                                g.CompanyId == companyId &&
                                 (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
                                 (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
                     .OrderByDescending(g => g.Id)

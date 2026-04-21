@@ -348,8 +348,9 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<bool> BulkInwardAsync(List<Guid> ids)
         {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var records = await _context.SaleReturnHeaders
-                .Where(x => ids.Contains(x.Id))
+                .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
                 .ToListAsync();
 
             if (!records.Any()) return false;

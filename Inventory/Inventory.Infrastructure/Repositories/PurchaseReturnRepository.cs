@@ -217,7 +217,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
                     if (deductionFromCurrentStock > 0)
                     {
-                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId);
+                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == returnData.CompanyId);
                         if (product != null)
                         {
                             product.CurrentStock -= deductionFromCurrentStock;
@@ -544,8 +544,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
     public async Task<bool> BulkOutwardAsync(List<Guid> ids)
     {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var records = await _context.PurchaseReturns
-            .Where(x => ids.Contains(x.Id))
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
             .ToListAsync();
 
         if (!records.Any()) return false;

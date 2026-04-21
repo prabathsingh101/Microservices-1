@@ -169,7 +169,7 @@ namespace Inventory.Infrastructure.Repositories
                         // 🚀 USE RAW SQL FOR STOCK UPDATE TO BYPASS EFTRACKING ISSUES
                         decimal qtyToIncrease = item.ReceivedQty - item.RejectedQty;
                         await _context.Database.ExecuteSqlRawAsync(
-                            "UPDATE Products SET CurrentStock = CurrentStock + {0}, ModifiedOn = {1}, ModifiedBy = {2}, CompanyId = COALESCE(CompanyId, {3}) WHERE Id = {4}",
+                            "UPDATE Products SET CurrentStock = CurrentStock + {0}, ModifiedOn = {1}, ModifiedBy = {2}, CompanyId = COALESCE(CompanyId, {3}) WHERE Id = {4} AND CompanyId = {3}",
                             qtyToIncrease, utcNow, header.CreatedBy, header.CompanyId, item.ProductId);
 
                         // 🆕 Record Inventory Transaction
@@ -190,8 +190,8 @@ namespace Inventory.Infrastructure.Repositories
                         if (po != null)
                         {
                             await _context.Database.ExecuteSqlRawAsync(
-                                "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty + {0} WHERE PurchaseOrderId = {1} AND ProductId = {2}",
-                                item.ReceivedQty, header.PurchaseOrderId, item.ProductId);
+                                "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty + {0} WHERE PurchaseOrderId = {1} AND ProductId = {2} AND CompanyId = {3}",
+                                item.ReceivedQty, header.PurchaseOrderId, item.ProductId, header.CompanyId);
                         }
                     }
 
@@ -200,7 +200,7 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         await _context.Database.ExecuteSqlRawAsync(
                             @"UPDATE PurchaseOrders SET Status = 'Received', CompanyId = COALESCE(CompanyId, {0}) 
-                              WHERE Id = {1} AND NOT EXISTS (SELECT 1 FROM PurchaseOrderItems WHERE PurchaseOrderId = {1} AND ReceivedQty < Qty)",
+                              WHERE Id = {1} AND CompanyId = {0} AND NOT EXISTS (SELECT 1 FROM PurchaseOrderItems WHERE PurchaseOrderId = {1} AND ReceivedQty < Qty AND CompanyId = {0})",
                             header.CompanyId, header.PurchaseOrderId);
                     }
 
@@ -208,7 +208,7 @@ namespace Inventory.Infrastructure.Repositories
                     if (!string.IsNullOrEmpty(header.GatePassNo))
                     {
                         await _context.Database.ExecuteSqlRawAsync(
-                            "UPDATE GatePasses SET Status = 4, CompanyId = COALESCE(CompanyId, {0}) WHERE PassNo = {1}",
+                            "UPDATE GatePasses SET Status = 4, CompanyId = COALESCE(CompanyId, {0}) WHERE PassNo = {1} AND CompanyId = {0}",
                             header.CompanyId, header.GatePassNo.Trim());
                     }
 
@@ -347,7 +347,7 @@ namespace Inventory.Infrastructure.Repositories
                     foreach (var d in po.Items)
                     {
                         var netInWarehouse = await _context.GRNDetails
-                            .Where(gd => gd.ProductId == d.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id)
+                            .Where(gd => gd.ProductId == d.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id && gd.CompanyId == companyId)
                             .SumAsync(gd => gd.ReceivedQty - gd.RejectedQty);
 
                         var pending = d.Qty - netInWarehouse;
