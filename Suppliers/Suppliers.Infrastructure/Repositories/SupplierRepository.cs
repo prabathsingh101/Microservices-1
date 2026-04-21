@@ -13,26 +13,31 @@ namespace Suppliers.Infrastructure.Repositories
     public class SupplierRepository : ISupplierRepository
     {
         private readonly SupplierDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        public SupplierRepository(SupplierDbContext context)
+        public SupplierRepository(SupplierDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
-        public IQueryable<Supplier> Query() => _context.Suppliers.AsNoTracking();
+        private Guid _companyId => _currentUserService.CompanyId ?? Guid.Empty;
+
+        public IQueryable<Supplier> Query() => _context.Suppliers.AsNoTracking().Where(x => x.CompanyId == _companyId);
 
         public async Task<IEnumerable<Supplier>> GetAllAsync() =>
-            await _context.Suppliers.AsNoTracking().ToListAsync();
+            await _context.Suppliers.AsNoTracking().Where(x => x.CompanyId == _companyId).ToListAsync();
 
         public async Task<Supplier?> GetByIdAsync(Guid id)
         {
             return await _context.Suppliers
                 .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Id == id);
+                .FirstOrDefaultAsync(s => s.Id == id && s.CompanyId == _companyId);
         }
 
         public async Task AddAsync(Supplier supplier)
         {
+            supplier.CompanyId = _companyId;
             await _context.Suppliers.AddAsync(supplier);
             await _context.SaveChangesAsync();
         }
@@ -44,7 +49,7 @@ namespace Suppliers.Infrastructure.Repositories
         }
         public async Task<bool> ExistsAsync(Guid id)
         {
-            return await _context.Suppliers.AnyAsync(s => s.Id == id);
+            return await _context.Suppliers.AnyAsync(s => s.Id == id && s.CompanyId == _companyId);
         }
         public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 
@@ -54,7 +59,7 @@ namespace Suppliers.Infrastructure.Repositories
 
             var suppliers = await _context.Suppliers
                 .AsNoTracking()
-                .Where(s => ids.Contains(s.Id))
+                .Where(s => ids.Contains(s.Id) && s.CompanyId == _companyId)
                 .OrderBy(s => s.Name)
                 .Select(s => new SupplierSelectDto
                 {
@@ -74,7 +79,7 @@ namespace Suppliers.Infrastructure.Repositories
 
             return await _context.Suppliers
                 .AsNoTracking()
-                .Where(s_ent => s_ent.Name.ToLower().Contains(s))
+                .Where(s_ent => s_ent.Name.ToLower().Contains(s) && s_ent.CompanyId == _companyId)
                 .Select(s_ent => s_ent.Id)
                 .ToListAsync();
         }

@@ -14,6 +14,7 @@ namespace Inventory.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class PurchaseOrdersController : ControllerBase
     {
         private readonly IMediator _mediator;

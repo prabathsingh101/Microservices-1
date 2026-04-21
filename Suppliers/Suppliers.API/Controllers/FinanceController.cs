@@ -13,6 +13,7 @@ namespace Suppliers.API.Controllers
 {
     [Route("api/finance")]
     [ApiController]
+    [Authorize]
     public class FinanceController : ControllerBase
     {
         private readonly IMediator _mediator;

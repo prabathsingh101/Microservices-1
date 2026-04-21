@@ -2,12 +2,14 @@ using Customers.Application.DTOs;
 using Customers.Application.Features.Finance.Commands;
 using Customers.Application.Features.Finance.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Customers.API.Controllers
 {
     [Route("api/finance")]
     [ApiController]
+    [Authorize]
     public class FinanceController : ControllerBase
     {
         private readonly IMediator _mediator;

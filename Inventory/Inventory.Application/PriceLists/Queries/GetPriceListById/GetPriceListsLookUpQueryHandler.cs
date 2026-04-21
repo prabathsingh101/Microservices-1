@@ -22,18 +22,24 @@ public sealed class GetPriceListsLookUpQueryHandler
     {
         // 1. FAST EXECUTION: .AsNoTracking() use kiya hai
         // 2. STRICT DROPDOWN FILTER: Sirf Active aur Purchase type hi dropdown mein aayega
-        return await _context.PriceLists
+        var query = _context.PriceLists
             .AsNoTracking()
-            .Where(pl => pl.IsActive == true && pl.PriceType == "PURCHASE") // Grid par iska koi asar nahi hoga
+            .Where(pl => pl.IsActive == true && pl.PriceType == "PURCHASE");
+
+        if (request.CompanyId.HasValue)
+        {
+            query = query.Where(pl => pl.CompanyId == request.CompanyId.Value);
+        }
+
+        return await query
             .OrderByDescending(pl => pl.CreatedOn)
             .Select(pl => new PriceListDto
             {
                 id = pl.Id,
                 name = pl.Name,
                 code = pl.Code,
-                isActive = pl.IsActive, //
+                isActive = pl.IsActive, 
                 priceType = pl.PriceType
-                // Dropdown ke liye jo zaroori fields hain wahi rakhein
             })
             .ToListAsync(cancellationToken);
     }

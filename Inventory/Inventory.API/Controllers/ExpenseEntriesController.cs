@@ -22,9 +22,15 @@ public class ExpenseEntriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetList([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
     {
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
             .AsQueryable();
+
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            query = query.Where(x => x.CompanyId == companyId);
+        }
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -47,9 +53,17 @@ public class ExpenseEntriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await _context.ExpenseEntries
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var query = _context.ExpenseEntries
             .Include(x => x.Category)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .AsQueryable();
+
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            query = query.Where(x => x.CompanyId == companyId);
+        }
+
+        var result = await query.FirstOrDefaultAsync(x => x.Id == id);
         
         if (result == null) return NotFound();
         return Ok(result);
@@ -116,9 +130,15 @@ public class ExpenseEntriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetChartData([FromBody] DashboardFilter filters)
     {
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
             .AsQueryable();
+
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            query = query.Where(x => x.CompanyId == companyId);
+        }
 
         if (filters.StartDate.HasValue)
             query = query.Where(x => x.ExpenseDate >= filters.StartDate.Value);
@@ -142,14 +162,26 @@ public class ExpenseEntriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetMonthlyTotals([FromQuery] int months = 6)
     {
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        Guid? companyId = Guid.TryParse(companyIdClaim, out var cid) ? cid : null;
+
         var startDate = DateTime.Today.AddMonths(-(months - 1));
         startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
-        var expenseData = await _context.ExpenseEntries
+        var expenseQuery = _context.ExpenseEntries.AsQueryable();
+        var purchaseQuery = _context.PurchaseOrders.AsQueryable();
+
+        if (companyId.HasValue)
+        {
+            expenseQuery = expenseQuery.Where(x => x.CompanyId == companyId.Value);
+            purchaseQuery = purchaseQuery.Where(x => x.CompanyId == companyId.Value);
+        }
+
+        var expenseData = await expenseQuery
             .Where(x => x.ExpenseDate >= startDate)
             .ToListAsync();
 
-        var purchaseData = await _context.PurchaseOrders
+        var purchaseData = await purchaseQuery
             .Where(x => x.PoDate >= startDate)
             .Select(x => new { x.PoDate, x.GrandTotal })
             .ToListAsync();

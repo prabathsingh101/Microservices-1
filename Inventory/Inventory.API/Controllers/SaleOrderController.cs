@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SaleOrderController : ControllerBase
 {
     private readonly IMediator _mediator;

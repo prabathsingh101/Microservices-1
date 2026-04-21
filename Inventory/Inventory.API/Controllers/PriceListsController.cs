@@ -98,7 +98,15 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> dropdown()
         {
-            var result = await _mediator.Send(new GetPriceListsLookUpQuery());
+            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            Guid? companyId = null;
+            if (Guid.TryParse(companyIdClaim, out var cid))
+            {
+                companyId = cid;
+            }
+
+            var result = await _mediator.Send(new GetPriceListsLookUpQuery(companyId));
             return Ok(result);
         }
 

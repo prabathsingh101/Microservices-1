@@ -10,25 +10,30 @@ using System.Threading.Tasks;
 
 namespace Suppliers.Infrastructure.Repositories
 {
-    public class FinanceRepository(SupplierDbContext context) : IFinanceRepository
+    public class FinanceRepository(SupplierDbContext context, ICurrentUserService currentUserService) : IFinanceRepository
     {
         private readonly SupplierDbContext _context = context;
+        private readonly ICurrentUserService _currentUserService = currentUserService;
+
+        private Guid _companyId => _currentUserService.CompanyId ?? Guid.Empty;
 
         public async Task AddPaymentAsync(SupplierPayment payment)
         {
+            payment.CompanyId = _companyId;
             await _context.SupplierPayments.AddAsync(payment);
         }
 
         public async Task<SupplierLedger?> GetLastLedgerEntryAsync(Guid supplierId)
         {
             return await _context.SupplierLedgers
-                .Where(l => l.SupplierId == supplierId)
+                .Where(l => l.SupplierId == supplierId && l.CompanyId == _companyId)
                 .OrderByDescending(l => l.CreatedOn)
                 .FirstOrDefaultAsync();
         }
 
         public async Task AddLedgerEntryAsync(SupplierLedger ledgerEntry)
         {
+            ledgerEntry.CompanyId = _companyId;
             await _context.SupplierLedgers.AddAsync(ledgerEntry);
         }
 
@@ -39,8 +44,8 @@ namespace Suppliers.Infrastructure.Repositories
 
         public async Task<SupplierLedgerPagedResultDto> GetLedgerAsync(SupplierLedgerRequestDto request)
         {
-            var supplier = await _context.Suppliers.FindAsync(request.SupplierId);
-            var query = _context.SupplierLedgers.Where(l => l.SupplierId == request.SupplierId);
+            var supplier = await _context.Suppliers.FirstOrDefaultAsync(x => x.Id == request.SupplierId && x.CompanyId == _companyId);
+            var query = _context.SupplierLedgers.Where(l => l.SupplierId == request.SupplierId && l.CompanyId == _companyId);
 
             if (request.StartDate.HasValue)
                 query = query.Where(l => l.TransactionDate >= request.StartDate.Value);
@@ -82,7 +87,7 @@ namespace Suppliers.Infrastructure.Repositories
 
             var totalCount = await query.CountAsync();
             var currentBalance = await _context.SupplierLedgers
-                .Where(l => l.SupplierId == request.SupplierId)
+                .Where(l => l.SupplierId == request.SupplierId && l.CompanyId == _companyId)
                 .OrderByDescending(l => l.CreatedOn)
                 .Select(l => l.Balance)
                 .FirstOrDefaultAsync();
@@ -111,6 +116,7 @@ namespace Suppliers.Infrastructure.Repositories
             // Fetch all ledger entries with balance > 0 to calculate pending dues
             // We'll process the grouping and latest entry in-memory to avoid LINQ translation issues
             var allLedgerEntries = await _context.SupplierLedgers
+                .Where(l => l.CompanyId == _companyId)
                 .OrderByDescending(l => l.TransactionDate)
                 .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
@@ -126,7 +132,7 @@ namespace Suppliers.Infrastructure.Repositories
             if (!latestEntries.Any()) return new List<PendingDueDto>();
 
             var supplierIds = latestEntries.Select(d => d.SupplierId).ToList();
-            var suppliers = await _context.Suppliers.Where(s => supplierIds.Contains(s.Id)).ToListAsync();
+            var suppliers = await _context.Suppliers.Where(s => supplierIds.Contains(s.Id) && s.CompanyId == _companyId).ToListAsync();
 
             return latestEntries.Select(d => new PendingDueDto
             {
@@ -142,7 +148,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<decimal> GetTotalPaymentsAsync(DateRangeDto dateRange)
         {
             return await _context.SupplierPayments
-                .Where(p => p.PaymentDate >= dateRange.StartDate && p.PaymentDate <= dateRange.EndDate)
+                .Where(p => p.PaymentDate >= dateRange.StartDate && p.PaymentDate <= dateRange.EndDate && p.CompanyId == _companyId)
                 .SumAsync(p => p.Amount);
         }
 
@@ -154,7 +160,7 @@ namespace Suppliers.Infrastructure.Repositories
 
             // Fetch all payments for this supplier (relevant to the search terms)
             var relevantPayments = await _context.SupplierLedgers
-                .Where(l => l.TransactionType == "Payment" && l.Description != null)
+                .Where(l => l.TransactionType == "Payment" && l.Description != null && l.CompanyId == _companyId)
                 .Select(l => new { l.Description, l.ReferenceId, l.Debit })
                 .ToListAsync();
 
@@ -184,6 +190,7 @@ namespace Suppliers.Infrastructure.Repositories
         {
             var query = from p in _context.SupplierPayments
                         join s in _context.Suppliers on p.SupplierId equals s.Id
+                        where p.CompanyId == _companyId && s.CompanyId == _companyId
                         select new { p, s };
 
             query = query.Where(x => x.p.PaymentDate >= request.StartDate && x.p.PaymentDate <= request.EndDate);
@@ -245,6 +252,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<decimal> GetTotalPendingDuesAsync()
         {
             var allLedgerEntries = await _context.SupplierLedgers
+                .Where(l => l.CompanyId == _companyId)
                 .OrderByDescending(l => l.TransactionDate)
                 .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
@@ -264,7 +272,7 @@ namespace Suppliers.Infrastructure.Repositories
             if (supplierIds == null || !supplierIds.Any()) return new Dictionary<Guid, decimal>();
 
             var allEntries = await _context.SupplierLedgers
-                .Where(l => supplierIds.Contains(l.SupplierId))
+                .Where(l => supplierIds.Contains(l.SupplierId) && l.CompanyId == _companyId)
                 .OrderByDescending(l => l.TransactionDate)
                 .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
@@ -283,7 +291,7 @@ namespace Suppliers.Infrastructure.Repositories
             startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
             var payments = await _context.SupplierPayments
-                .Where(p => p.PaymentDate >= startDate)
+                .Where(p => p.PaymentDate >= startDate && p.CompanyId == _companyId)
                 .ToListAsync();
 
             return payments
@@ -302,7 +310,7 @@ namespace Suppliers.Infrastructure.Repositories
             if (string.IsNullOrWhiteSpace(referenceNumber)) return false;
 
             // Check if this reference is already used as a PAYMENT specifically
-            return await _context.SupplierPayments.AnyAsync(r => r.ReferenceNumber == referenceNumber);
+            return await _context.SupplierPayments.AnyAsync(r => r.ReferenceNumber == referenceNumber && r.CompanyId == _companyId);
         }
     }
 }

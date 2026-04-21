@@ -21,8 +21,16 @@ public class ExpenseCategoriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetAll()
     {
-        var result = await _context.ExpenseCategories
-            .Where(x => x.IsActive)
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var query = _context.ExpenseCategories
+            .Where(x => x.IsActive);
+
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            query = query.Where(x => x.CompanyId == companyId);
+        }
+
+        var result = await query
             .OrderBy(x => x.Name)
             .ToListAsync();
         return Ok(result);
@@ -32,8 +40,16 @@ public class ExpenseCategoriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> GetAllPost()
     {
-        var result = await _context.ExpenseCategories
-            .Where(x => x.IsActive)
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var query = _context.ExpenseCategories
+            .Where(x => x.IsActive);
+
+        if (Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            query = query.Where(x => x.CompanyId == companyId);
+        }
+
+        var result = await query
             .OrderBy(x => x.Name)
             .ToListAsync();
         return Ok(result);
