@@ -17,6 +17,7 @@ public class RolePermissionRepository : IRolePermissionRepository
     public async Task<IEnumerable<RolePermission>> GetPermissionsByRoleIdAsync(Guid roleId)
     {
         return await _context.RolePermissions
+            .IgnoreQueryFilters()
             .Where(rp => rp.RoleId == roleId)
             .ToListAsync();
     }
@@ -65,6 +66,7 @@ public class RolePermissionRepository : IRolePermissionRepository
     public async Task<IEnumerable<Application.DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds)
     {
         return await _context.RolePermissions
+            .IgnoreQueryFilters()
             .Include(rp => rp.Menu)
             .Where(rp => roleIds.Contains(rp.RoleId))
             .GroupBy(rp => rp.MenuId)

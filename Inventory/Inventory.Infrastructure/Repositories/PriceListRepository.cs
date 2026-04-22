@@ -113,7 +113,9 @@ internal sealed class PriceListRepository : IPriceListRepository
                 ProductId = x.ProductId,
                 ProductName = x.Product.Name,
                 Rate = x.Rate, // Price list ka current rate
-                Unit = x.Product.Unit
+                Unit = x.Unit,
+                DiscountPercent = x.DiscountPercent,
+                GstPercent = x.Product.DefaultGst
             })
             .ToListAsync();
     }

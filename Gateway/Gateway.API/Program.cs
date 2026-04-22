@@ -41,7 +41,7 @@ builder.Services.AddResiliencePipeline("default", pipeline =>
         BreakDuration = TimeSpan.FromSeconds(30)
     });
 
-    pipeline.AddTimeout(TimeSpan.FromSeconds(15));
+    pipeline.AddTimeout(TimeSpan.FromSeconds(60));
 });
 
 builder.Services.AddReverseProxy()

@@ -458,7 +458,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 Rate = pi.Rate, // From dbo.PriceListItems
                 Unit = pi.Unit, // From dbo.PriceListItems
                                 // From dbo.Products.DefaultGst
-                GstPercent = pi.Product.DefaultGst??0
+                GstPercent = pi.Product.DefaultGst ?? 0,
+                DiscountPercent = pi.DiscountPercent // Fixed: Mapping discount from price list
             })
             .FirstOrDefaultAsync();
     }

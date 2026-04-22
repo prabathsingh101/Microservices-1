@@ -8,6 +8,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Inventory.API.Common;
+using Inventory.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Domain.Entities;
 
 namespace Inventory.API.Controllers;
 
@@ -17,11 +20,13 @@ public sealed class WarehousesController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IWarehouseRepository _warehouseRepository;
+    private readonly InventoryDbContext _context;
 
-    public WarehousesController(IMediator mediator, IWarehouseRepository warehouseRepository)
+    public WarehousesController(IMediator mediator, IWarehouseRepository warehouseRepository, InventoryDbContext context)
     {
         _mediator = mediator;
         _warehouseRepository = warehouseRepository;
+        _context = context;
     }
 
     [HttpPost]
@@ -100,7 +105,7 @@ public sealed class WarehousesController : ControllerBase
         using (var workbook = new ClosedXML.Excel.XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Warehouses");
-            var headers = new string[] { "Name", "Location", "Description" };
+            var headers = new string[] { "Name", "Location", "Description", "IsActive" };
 
             for (int i = 0; i < headers.Length; i++)
             {
@@ -131,6 +136,7 @@ public sealed class WarehousesController : ControllerBase
                 worksheet.Cell(i + 2, 1).Value = warehouseData[i].Name;
                 worksheet.Cell(i + 2, 2).Value = warehouseData[i].Location;
                 worksheet.Cell(i + 2, 3).Value = warehouseData[i].Description;
+                worksheet.Cell(i + 2, 4).Value = "TRUE";
             }
 
             worksheet.Columns().AdjustToContents();
@@ -142,5 +148,64 @@ public sealed class WarehousesController : ControllerBase
                 return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Warehouse_Template.xlsx");
             }
         }
+    }
+    [HttpGet("debug-info")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    public async Task<IActionResult> DebugInfo()
+    {
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        Guid.TryParse(companyIdClaim, out var companyId);
+
+        var count = await _context.Warehouses.CountAsync(x => x.CompanyId == companyId);
+        var allCount = await _context.Warehouses.CountAsync();
+
+        return Ok(new
+        {
+            CurrentCompanyId = companyId,
+            WarehousesForThisCompany = count,
+            TotalWarehousesInDb = allCount,
+            Claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList()
+        });
+    }
+
+    [HttpGet("seed-sample")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    public async Task<IActionResult> SeedSample()
+    {
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (!Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            return BadRequest(new { success = false, message = "CompanyId not found in claims." });
+        }
+
+        var existingWarehouses = await _context.Warehouses.Where(x => x.CompanyId == companyId).ToListAsync();
+        if (existingWarehouses.Any()) 
+        {
+            // 🔥 If they exist, let's make sure they are active
+            foreach (var w in existingWarehouses)
+            {
+                w.Update(w.Name, w.City, w.Description, true, w.CompanyId);
+            }
+            
+            var existingRacks = await _context.Racks.Where(x => x.CompanyId == companyId).ToListAsync();
+            foreach (var r in existingRacks)
+            {
+                r.Update(r.WarehouseId, r.Name, r.Description, true, r.CompanyId);
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, message = "Existing Warehouses and Racks have been activated." });
+        }
+
+        var mainWarehouse = new Warehouse("Main Warehouse", "New Delhi", "Primary distribution center", true, companyId);
+        await _context.Warehouses.AddAsync(mainWarehouse);
+        
+        var rackA = new Rack(mainWarehouse.Id, "Rack A1", "Ground Floor", true, companyId);
+        var rackB = new Rack(mainWarehouse.Id, "Rack B2", "First Floor", true, companyId);
+        await _context.Racks.AddRangeAsync(rackA, rackB);
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true, message = "Sample Warehouse and Racks seeded successfully." });
     }
 }

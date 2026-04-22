@@ -20,5 +20,7 @@ namespace Inventory.Application.PriceLists.DTOs
 
         // Optional: Agar aapko GST percent bhi price list se hi uthana hai
         public decimal? GstPercent { get; set; }
+
+        public decimal DiscountPercent { get; set; }
     }
 }

@@ -18,8 +18,14 @@ public class CurrentUserService : ICurrentUserService
         get
         {
             var user = _httpContextAccessor.HttpContext?.User;
-            var claim = user?.Claims.FirstOrDefault(c => c.Type == "CompanyId");
-            return Guid.TryParse(claim?.Value, out var id) ? id : null;
+            var claims = user?.Claims;
+            if (claims == null) return null;
+
+            var claimValue = claims.FirstOrDefault(c => 
+                c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
+                c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
+
+            return Guid.TryParse(claimValue, out var id) ? id : null;
         }
     }
 

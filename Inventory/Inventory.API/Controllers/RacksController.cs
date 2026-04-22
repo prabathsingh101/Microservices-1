@@ -8,6 +8,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Inventory.API.Common;
+using Inventory.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Domain.Entities;
 
 namespace Inventory.API.Controllers;
 
@@ -17,11 +20,15 @@ public sealed class RacksController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IRackRepository _rackRepository;
+    private readonly InventoryDbContext _context;
+    private readonly IWarehouseRepository _warehouseRepository;
 
-    public RacksController(IMediator mediator, IRackRepository rackRepository)
+    public RacksController(IMediator mediator, IRackRepository rackRepository, InventoryDbContext context, IWarehouseRepository warehouseRepository)
     {
         _mediator = mediator;
         _rackRepository = rackRepository;
+        _context = context;
+        _warehouseRepository = warehouseRepository;
     }
 
     [HttpPost]

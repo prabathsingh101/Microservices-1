@@ -18,8 +18,12 @@ namespace Suppliers.API.Services
         {
             get
             {
-                // 1. JWT Claim
-                var claimValue = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
+                // 1. JWT Claim (Robust check)
+                var claims = _httpContextAccessor.HttpContext?.User?.Claims;
+                var claimValue = claims?.FirstOrDefault(c => 
+                    c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
+                    c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
+
                 if (Guid.TryParse(claimValue, out var claimGuid)) return claimGuid;
 
                 // 2. Fallback: Request Header (Important for Super Admin)

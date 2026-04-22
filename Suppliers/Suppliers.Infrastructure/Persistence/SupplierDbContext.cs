@@ -77,9 +77,7 @@ namespace Suppliers.Infrastructure.Persistence
         private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, IMultiTenant
         {
             modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-                e.CompanyId == null || 
-                e.CompanyId == Guid.Empty || 
-                (_currentUserService != null && e.CompanyId == _currentUserService.CompanyId));
+                _currentUserService != null && e.CompanyId == _currentUserService.CompanyId);
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

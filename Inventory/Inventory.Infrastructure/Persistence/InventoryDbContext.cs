@@ -257,11 +257,9 @@ public sealed class InventoryDbContext : DbContext,
 
     private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, Inventory.Domain.Common.IMultiTenant
     {
-        // Temporarily disabled for debugging concurrency issue
-        // modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-        //    e.CompanyId == _currentUserService.CompanyId || 
-        //    e.CompanyId == Guid.Empty || 
-        //    EF.Property<Guid?>(e, "CompanyId") == null);
+        modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+            e.CompanyId == _currentUserService.CompanyId || 
+            (_currentUserService.CompanyId == null && e.CompanyId == Guid.Empty));
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

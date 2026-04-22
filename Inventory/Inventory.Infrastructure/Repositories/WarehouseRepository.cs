@@ -81,8 +81,12 @@ public class WarehouseRepository : IWarehouseRepository
                         var name = row.Cell(1).Value.ToString()?.Trim();
                         var city = row.Cell(2).Value.ToString()?.Trim();
                         var description = row.Cell(3).Value.ToString()?.Trim();
-                        var activeStatus = row.Cell(4).Value.ToString()?.Trim().ToUpper() ?? "TRUE";
-                        bool isActive = activeStatus == "TRUE" || activeStatus == "1" || activeStatus == "ACTIVE";
+                        
+                        var activeValue = row.Cell(4).Value.ToString()?.Trim();
+                        bool isActive = string.IsNullOrEmpty(activeValue) || 
+                                        activeValue.Equals("TRUE", StringComparison.OrdinalIgnoreCase) || 
+                                        activeValue.Equals("1") || 
+                                        activeValue.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase);
 
                         if (string.IsNullOrWhiteSpace(name)) continue;
 
