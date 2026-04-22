@@ -112,8 +112,8 @@ public sealed class WarehousesController : ControllerBase
             // Sample Data (Grocery & Electric Mix)
             var warehouseData = new List<(string Name, string Location, string Description)>
             {
-                ("Main Hub", "New Delhi, Okhla", "Primary distribution center for all units"),
-                ("Electric Branch - North", "Rohini Sector 7", "Main hub for electrical wiring and heavy equipment"),
+                ("Main Warehouse", "New Delhi, Okhla", "Primary distribution center for all units"),
+                ("Cable & Wire Warehouse", "Rohini Sector 7", "Main hub for electrical wiring and heavy equipment"),
                 ("Grocery Central", "Azadpur Mandi", "Bulk storage for grains, pulses, and dry grocery"),
                 ("Downtown Outlet", "Connaught Place", "Fast-moving retail items and display stock"),
                 ("Kirana Backup Store", "Chandni Chowk", "Small pack supplies and traditional grocery items"),

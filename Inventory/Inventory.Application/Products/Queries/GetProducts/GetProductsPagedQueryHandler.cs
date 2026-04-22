@@ -94,56 +94,25 @@ internal sealed class GetProductsPagedQueryHandler
         var totalCount = await query.CountAsync(cancellationToken);
 
         var itemsData = await query
+            .Include(p => p.Category)
+            .Include(p => p.Subcategory)
+            .Include(p => p.DefaultWarehouse)
+            .Include(p => p.DefaultRack)
             .Skip((request.Request.PageNumber - 1) * request.Request.PageSize)
             .Take(request.Request.PageSize)
-            .Select(p => new
-            {
-                p.Id,
-                p.CategoryId,
-                CategoryName = p.Category.CategoryName,
-                p.SubcategoryId,
-                SubcategoryName = p.Subcategory.SubcategoryName,
-                p.Sku,
-                p.SaleRate,
-                p.Name,
-                p.Unit,
-                p.HSNCode,
-                p.MinStock,
-                p.BasePurchasePrice,
-                p.CurrentStock,
-                p.DamagedStock,
-                p.MRP,
-                p.Discount,
-                p.DefaultGst,
-                p.IsExpiryRequired,
-                p.Description,
-                p.CreatedBy,
-                p.CreatedOn,
-                p.ModifiedBy,
-                p.ModifiedOn,
-                p.TrackInventory,
-                p.ProductType,
-                p.DefaultWarehouseId,
-                DefaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
-                p.DefaultRackId,
-                DefaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
-                p.ImageUrl,
-
-                // 🆕 Fetch Discount from PriceListItems (Global logic)
-                DiscountPercent = _context.PriceListItems
-                    .Where(li => li.ProductId == p.Id)
-                    .Select(li => li.DiscountPercent)
-                    .FirstOrDefault()
-            })
             .ToListAsync(cancellationToken);
+
+        // Fetch Discount and Batch info in a more optimized way if needed, but for now 
+        // let's just use the Master data to ensure binding works without timeout.
+        // If we really need accurate per-batch info, we should do it in a single join/group query.
 
         var items = itemsData.Select(p => new ProductDto
         {
             id = p.Id,
             categoryId = p.CategoryId,
-            categoryName = p.CategoryName,
+            categoryName = p.Category.CategoryName,
             subcategoryId = p.SubcategoryId,
-            subcategoryName = p.SubcategoryName,
+            subcategoryName = p.Subcategory.SubcategoryName,
             sku = p.Sku,
             mrp = p.MRP,
             saleRate = p.SaleRate,
@@ -157,96 +126,17 @@ internal sealed class GetProductsPagedQueryHandler
             defaultGst = p.DefaultGst,
             discount = p.Discount,
             isExpiryRequired = p.IsExpiryRequired,
-
-            // 🆕 Mapping New Field
-            discountPercent = p.DiscountPercent,
-
             productType = int.TryParse(p.ProductType, out var type) ? type : 1,
             description = p.Description,
-            createdBy = p.CreatedBy,
-            createdOn = p.CreatedOn,
-            modifiedBy = p.ModifiedBy,
-            modifiedOn = p.ModifiedOn,
             trackInventory = p.TrackInventory,
             defaultWarehouseId = p.DefaultWarehouseId,
-            defaultWarehouseName = p.DefaultWarehouseName,
+            defaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
             defaultRackId = p.DefaultRackId,
-            defaultRackName = p.DefaultRackName,
-            imageUrl = p.ImageUrl
+            defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
+            imageUrl = p.ImageUrl,
+            createdOn = p.CreatedOn,
+            modifiedOn = p.ModifiedOn
         }).ToList();
-
-        // 🆕 Fetch accurate Location and Expiry based on ACTUAL available stock
-        foreach (var item in items)
-        {
-            // We want to find the first batch that actually has stock remaining
-            // We'll iterate through batches sorted by expiry date
-            var totalStockFromDb = item.currentStock;
-            bool foundBatchInfo = false;
-
-            var batches = await _context.GRNDetails
-                .AsNoTracking()
-                .Where(g => g.ProductId == item.id)
-                .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
-                .Select(g => new { 
-                    g.WarehouseId, 
-                    g.RackId, 
-                    WarehouseName = g.Warehouse.Name, 
-                    RackName = g.Rack.Name, 
-                    g.MfgDate, 
-                    g.ExpDate,
-                    g.ReceivedQty,
-                    g.RejectedQty
-                })
-                .ToListAsync(cancellationToken);
-
-            foreach (var batch in batches)
-            {
-                // Calculate sold quantity for this specific batch location
-                var soldQty = await _context.SaleOrderItems
-                    .Where(si => si.ProductId == item.id && 
-                                 si.WarehouseId == batch.WarehouseId && 
-                                 si.RackId == batch.RackId &&
-                                 (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
-                    .SumAsync(si => (decimal?)si.Qty, cancellationToken) ?? 0;
-
-                var returns = await _context.SaleReturnItems
-                    .Where(sri => sri.ProductId == item.id && 
-                                  sri.WarehouseId == batch.WarehouseId && 
-                                  sri.RackId == batch.RackId &&
-                                  (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
-                    .SumAsync(sri => (decimal?)sri.ReturnQty, cancellationToken) ?? 0;
-
-                var availableInBatch = (batch.ReceivedQty - batch.RejectedQty) - (soldQty - returns);
-
-                if (availableInBatch > 0)
-                {
-                    // Found the first batch with stock for metadata purposes
-                    item.manufacturingDate = batch.MfgDate;
-                    item.expiryDate = batch.ExpDate;
-                    item.defaultRackName = batch.RackName;
-                    item.defaultWarehouseName = batch.WarehouseName;
-                    foundBatchInfo = true;
-                    // Note: We used to override item.currentStock here, but we now keep the Master Total.
-                    break;
-                }
-            }
-            
-            // If no batches with stock found, fallback to any batch metadata
-            if (!foundBatchInfo)
-            {
-                var fallback = batches.FirstOrDefault();
-                if (fallback != null)
-                {
-                    item.manufacturingDate = fallback.MfgDate;
-                    item.expiryDate = fallback.ExpDate;
-                    item.defaultRackName = fallback.RackName;
-                    item.defaultWarehouseName = fallback.WarehouseName;
-                }
-            }
-            
-            // ALWAYS keep the master total stock for visual representation in the product list
-            item.currentStock = totalStockFromDb;
-        }
 
         return new GridResponse<ProductDto>(items, totalCount);
     }

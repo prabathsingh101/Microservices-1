@@ -18,11 +18,31 @@ namespace Inventory.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly Inventory.Application.Common.Interfaces.IProductRepository _productRepository;
+        private readonly Inventory.Application.Common.Interfaces.ICurrentUserService _currentUserService;
 
-        public ProductsController(IMediator mediator, Inventory.Application.Common.Interfaces.IProductRepository productRepository)
+        [HttpGet("debug-company")]
+        public IActionResult GetDebugCompany()
+        {
+            var companyId = _currentUserService.CompanyId;
+            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+            return Ok(new { companyId, claims });
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetAll()
+        {
+            var result = await _mediator.Send(new GetProductsQuery());
+            return Ok(result);
+        }
+
+        public ProductsController(IMediator mediator, 
+            Inventory.Application.Common.Interfaces.IProductRepository productRepository,
+            Inventory.Application.Common.Interfaces.ICurrentUserService currentUserService)
         {
             _mediator = mediator;
             _productRepository = productRepository;
+            _currentUserService = currentUserService;
         }
 
         [HttpPost]
@@ -141,28 +161,26 @@ namespace Inventory.API.Controllers
 
                 var samples = new List<string[]>
                 {
-                    new string[] { "Smart Electrical", "Smart Plug", "Oakter Smart Plug 16A", "SMART001", "Oakter", "PIECE", "450", "990", "10", "891", "18", "8537", "20", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "WiFi enabled smart plug" },
-                    new string[] { "Smart Electrical", "Smart Bulb", "Wipro Smart RGB 9W", "SMART002", "Wipro", "PIECE", "320", "699", "5", "664", "12", "8539", "50", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "App controlled color lighting" },
-                    new string[] { "Lighting", "LED Bulb", "Syska LED Bulb 9W", "ELEC101", "Syska", "PIECE", "65", "150", "10", "135", "12", "8539", "100", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Cool day light 9W LED" },
-                    new string[] { "Lighting", "Tube Light", "Philips LED Tube 20W", "ELEC102", "Philips", "PIECE", "180", "450", "15", "380", "12", "8539", "50", "0", "finished", "TRUE", "FALSE", "TRUE", "North Warehouse", "Bulb & Tube Section", "Energy efficient tube" },
-                    new string[] { "Wires & Cables", "Copper Wire", "Finolex 1.5sqmm 90m", "ELEC201", "Finolex", "ROLL", "850", "1450", "10", "1305", "18", "8544", "20", "0", "finished", "TRUE", "FALSE", "TRUE", "North Warehouse", "Wire Spool Rack", "Fire retardant wire" },
-                    new string[] { "Switches & Sockets", "Modular Switch", "Anchor Roma 6A", "ELEC301", "Anchor", "PIECE", "18", "45", "5", "42", "18", "8536", "500", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Modular 1-way switch" },
-                    new string[] { "Fans", "Ceiling Fan", "Havells Nicola 1200mm", "ELEC501", "Havells", "PIECE", "2100", "3800", "15", "3230", "18", "8414", "25", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Fast high speed fan" },
-                    new string[] { "Power Backup", "Inverter", "Luminous Zelio 1100", "POW001", "Luminous", "PIECE", "5200", "8500", "10", "7650", "18", "8504", "10", "0", "finished", "TRUE", "FALSE", "TRUE", "North Warehouse", "Rack A-01", "Pure sine wave inverter" },
-                    new string[] { "Beverages", "Soft Drink", "Coca Cola 2L", "GROC001", "Coke", "BOTTLE", "75", "100", "5", "95", "18", "2202", "24", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Carbonated soft drink" },
-                    new string[] { "Beverages", "Fruit Juice", "Real Orange 1L", "GROC002", "Real", "PACK", "90", "120", "10", "108", "12", "2009", "36", "0", "finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Kirana Row 1", "Fresh fruit juice" },
-                    new string[] { "Snacks & Branded Foods", "Potato Chips", "Lays Magic Masala 50g", "GROC010", "Lays", "PACK", "16", "20", "0", "20", "12", "2106", "100", "0", "finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Kirana Row 1", "Spicy wafers" },
-                    new string[] { "Pulses & Dals", "Moong Dal", "Tata Sampann Moong 1kg", "GROC020", "Tata", "KG", "145", "180", "5", "171", "5", "0713", "50", "0", "finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Grains B-10", "Yellow moong split" },
-                    new string[] { "Cooking Oils & Ghee", "Mustard Oil", "Fortune Kachi Ghani 1L", "GROC050", "Fortune", "BOTTLE", "135", "180", "10", "162", "12", "1514", "48", "0", "finished", "TRUE", "TRUE", "TRUE", "Kirana Wholesale Hub", "Oil Container Row", "Pure oil" },
-                    new string[] { "Kirana General", "Table Salt", "Tata Salt 1kg", "GROC060", "Tata", "PACK", "20", "28", "0", "28", "5", "2501", "200", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Iodized salt" },
-                    new string[] { "Cleaning Supplies", "Detergent", "Surf Excel 1kg", "CLEAN01", "HUL", "PACK", "110", "180", "5", "171", "18", "3402", "60", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Wash detergent" },
-                    new string[] { "Dairy Products", "Paneer", "Amul Fresh Paneer 200g", "DAIRY01", "Amul", "PACK", "75", "90", "2", "88.2", "5", "0406", "20", "0", "finished", "TRUE", "TRUE", "TRUE", "South Storage Wing", "Cold Rack 01", "Fresh cottage cheese" },
-                    new string[] { "Biscuits & Cookies", "Gluco Biscuits", "Parle-G 800g", "BISC01", "Parle", "PACK", "65", "85", "5", "80.75", "18", "1905", "120", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Original glucose biscuit" },
-                    new string[] { "Spices & Masalas", "Turmeric Powder", "Catch Haldi 200g", "SPICE01", "Catch", "PACK", "45", "65", "10", "58.5", "5", "0910", "80", "0", "finished", "TRUE", "FALSE", "TRUE", "Kirana Wholesale Hub", "Traditional Herbs A", "Pure turmeric" },
-                    new string[] { "Atta & Flours", "Wheat Atta", "Aashirvaad Atta 10kg", "ATTA01", "ITC", "BAG", "420", "550", "5", "522.5", "5", "1101", "30", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Grains B-10", "MP Lokwan wheat" },
-                    new string[] { "Rice & Rice Products", "Basmati Rice", "India Gate Basmati 5kg", "RICE01", "India Gate", "BAG", "550", "950", "20", "760", "5", "1006", "15", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Grains B-10", "Premium aged rice" },
-                    new string[] { "Appliances", "Electric Kettle", "Pigeon Amaze 1.5L", "APP001", "Pigeon", "PIECE", "450", "1200", "50", "600", "18", "8516", "25", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Stainless steel kettle" },
-                    new string[] { "Appliances", "Iron", "Bajaj Majesty DX6", "APP002", "Bajaj", "PIECE", "550", "950", "15", "807.5", "18", "8516", "40", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Dry iron light weight" }
+                    new string[] { "Smart Electrical", "Fans", "Crompton Smart Fan 1200mm", "SMART101", "Crompton", "Pcs", "2800", "4500", "15", "3825", "18", "8414", "10", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack A3", "Remote & App controlled fan" },
+                    new string[] { "Smart Electrical", "Lights", "Syska Smart LED Panel 15W", "SMART102", "Syska", "Pcs", "450", "1200", "20", "960", "12", "8539", "30", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R7", "Voice controlled LED panel" },
+                    new string[] { "Smart Electrical", "Switches", "Wipro Smart Touch Switch", "SMART103", "Wipro", "Pcs", "850", "1800", "10", "1620", "18", "8536", "40", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R10", "4-node modular smart switch" },
+                    new string[] { "Smart Electrical", "Wires", "Finolex Smart Safety Wire 1.5mm", "SMART104", "Finolex", "Roll", "1200", "1850", "5", "1757.5", "18", "8544", "20", "0", "Finished", "TRUE", "FALSE", "TRUE", "Cable & Wire Warehouse", "Rack C2", "Special grade FR wire" },
+                    new string[] { "Smart Electrical", "Appliances", "Preethi Smart Mixer Grinder", "SMART105", "Preethi", "Pcs", "3200", "6500", "15", "5525", "18", "8509", "12", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R2", "App linked mixer" },
+                    new string[] { "Smart Electrical", "Protection", "Guard Smart Stabilizer", "SMART106", "V-Guard", "Pcs", "1800", "3200", "10", "2880", "18", "8504", "15", "0", "Finished", "TRUE", "FALSE", "TRUE", "South Storage Wing", "Cold Rack 01", "Digital LCD voltage protector" },
+                    new string[] { "Smart Electrical", "Cables", "Lapp Smart Data Cable Cat6", "SMART107", "Lapp", "Roll", "2500", "4200", "12", "3696", "18", "8544", "25", "0", "Finished", "TRUE", "FALSE", "TRUE", "Cable & Wire Warehouse", "Rack C2", "High speed shielded data cable" },
+                    new string[] { "Smart Electrical", "Tools", "Stanley Smart Precision Set", "SMART108", "Stanley", "Set", "1500", "2800", "15", "2380", "12", "8205", "10", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack A3", "Digital torque measuring tools" },
+                    new string[] { "Smart Electrical", "Batteries", "Exide Smart Tubular IT850", "SMART109", "Exide", "Pcs", "12500", "18500", "10", "16650", "28", "8507", "8", "0", "Finished", "TRUE", "FALSE", "TRUE", "Cable & Wire Warehouse", "Rack C1", "Smart status led battery" },
+                    new string[] { "Smart Electrical", "Fittings", "Precision Smart Conduit 25mm", "SMART110", "Precision", "Bundle", "850", "1450", "10", "1305", "18", "3917", "50", "0", "Finished", "TRUE", "FALSE", "TRUE", "Cable & Wire Warehouse", "Rack C1", "FR grade smart conduit" },
+                    new string[] { "Lighting", "LED Bulb", "Syska LED Bulb 9W", "ELEC101", "Syska", "Pcs", "65", "150", "10", "135", "12", "8539", "100", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R7", "Cool day light 9W LED" },
+                    new string[] { "Lighting", "Tube Light", "Philips LED Tube 20W", "ELEC102", "Philips", "Pcs", "180", "450", "15", "380", "12", "8539", "50", "0", "Finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R7", "Energy efficient tube" },
+                    new string[] { "Beverages", "Soft Drink", "Coca Cola 2L", "GROC001", "Coke", "Btl", "75", "100", "5", "95", "18", "2202", "24", "0", "Finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Carbonated soft drink" },
+                    new string[] { "Beverages", "Fruit Juice", "Real Orange 1L", "GROC002", "Real", "Pkt", "90", "120", "10", "108", "12", "2009", "36", "0", "Finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Kirana Row 1", "Fresh fruit juice" },
+                    new string[] { "Snacks & Branded Foods", "Potato Chips", "Lays Magic Masala 50g", "GROC010", "Lays", "Pkt", "16", "20", "0", "20", "12", "2106", "100", "0", "Finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Kirana Row 1", "Spicy wafers" },
+                    new string[] { "Pulses & Dals", "Moong Dal", "Tata Sampann Moong 1kg", "GROC020", "Tata", "Kg", "145", "180", "5", "171", "5", "0713", "50", "0", "Finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Grains B-10", "Yellow moong split" },
+                    new string[] { "Cooking Oils & Ghee", "Mustard Oil", "Fortune Kachi Ghani 1L", "GROC050", "Fortune", "Btl", "135", "180", "10", "162", "12", "1514", "48", "0", "Finished", "TRUE", "TRUE", "TRUE", "Kirana Wholesale Hub", "Traditional Herbs A", "Pure oil" },
+                    new string[] { "Kirana General", "Table Salt", "Tata Salt 1kg", "GROC060", "Tata", "Pkt", "20", "28", "0", "28", "5", "2501", "200", "0", "Finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Iodized salt" },
+                    new string[] { "Cleaning Supplies", "Detergent", "Surf Excel 1kg", "CLEAN01", "HUL", "Pkt", "110", "180", "5", "171", "18", "3402", "60", "0", "Finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Wash detergent" },
+                    new string[] { "Dairy Products", "Fresh Paneer", "Amul Fresh Paneer 200g", "DAIRY01", "Amul", "Pkt", "75", "90", "2", "88.2", "5", "0406", "20", "0", "Finished", "TRUE", "TRUE", "TRUE", "South Storage Wing", "Cold Rack 01", "Fresh cottage cheese" }
                 };
 
                 for (int r = 0; r < samples.Count; r++)

@@ -112,17 +112,18 @@ public sealed class RacksController : ControllerBase
             // Sample Data (Varied Rack Types)
             var rackData = new List<(string Warehouse, string Name, string Description)>
             {
-                ("Main Hub", "Rack A-01", "Primary storage for electronic components"),
+                ("Main Warehouse", "Rack A3", "Primary storage for electronic components"),
+                ("Main Warehouse", "Rack R7", "Secondary stock area"),
+                ("Main Warehouse", "Rack R10", "High shelf storage"),
+                ("Main Warehouse", "Rack R2", "Small parts section"),
+                ("Cable & Wire Warehouse", "Rack C1", "Heavy cable spool rack"),
+                ("Cable & Wire Warehouse", "Rack C2", "Electrical wire spool section"),
                 ("Grocery Central", "Kirana Row 1", "Dedicated row for spices and oils"),
-                ("Electric Branch - North", "Wire Spool Rack", "Wall-mounted rack for electrical wire spools"),
                 ("Grocery Central", "Grains B-10", "Heavy-duty rack for 50kg grain sacks"),
-                ("Electric Branch - North", "Circuit Breaker Bin", "Small compartment rack for MCBs and switches"),
                 ("Kirana Wholesale Hub", "Traditional Herbs A", "Shelving for medicinal herbs and traditional packs"),
-                ("Industial Vault", "Heavy Motor Stand", "Floor reinforced rack for heavy industrial motors"),
+                ("Industrial Vault", "Heavy Motor Stand", "Floor reinforced rack for heavy industrial motors"),
                 ("South Storage Wing", "Cold Rack 01", "Insulated rack for temperature-sensitive grocery items"),
-                ("Main Hub", "Expired Rack", "Designated area for storing expired or damaged items awaiting disposal"),
-                ("Electric Branch - North", "Bulb & Tube Section", "Protective rack for fragile lighting equipment"),
-                ("Kirana Backup Store", "Oil Container Row", "Bottom level rack for heavy oil containers"),
+                ("Main Warehouse", "Expired Rack", "Designated area for storing expired or damaged items"),
                 ("Downtown Outlet", "Front Display Rack", "Retail shelf for fast-moving items")
             };
 
