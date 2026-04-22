@@ -89,8 +89,8 @@ public sealed class RacksController : ControllerBase
 
         return Ok(new
         {
-            Message = $"{result.successCount} Racks processed successfully.",
-            Errors = result.errors
+            message = $"{result.successCount} Racks processed successfully.",
+            errors = result.errors
         });
     }
     [HttpGet("download-template")]
@@ -109,10 +109,29 @@ public sealed class RacksController : ControllerBase
                 worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
             }
 
-            // Sample Data
-            worksheet.Cell(2, 1).Value = "Main Warehouse";
-            worksheet.Cell(2, 2).Value = "Rack A1";
-            worksheet.Cell(2, 3).Value = "Storage rack for small items";
+            // Sample Data (Varied Rack Types)
+            var rackData = new List<(string Warehouse, string Name, string Description)>
+            {
+                ("Main Hub", "Rack A-01", "Primary storage for electronic components"),
+                ("Grocery Central", "Kirana Row 1", "Dedicated row for spices and oils"),
+                ("Electric Branch - North", "Wire Spool Rack", "Wall-mounted rack for electrical wire spools"),
+                ("Grocery Central", "Grains B-10", "Heavy-duty rack for 50kg grain sacks"),
+                ("Electric Branch - North", "Circuit Breaker Bin", "Small compartment rack for MCBs and switches"),
+                ("Kirana Wholesale Hub", "Traditional Herbs A", "Shelving for medicinal herbs and traditional packs"),
+                ("Industial Vault", "Heavy Motor Stand", "Floor reinforced rack for heavy industrial motors"),
+                ("South Storage Wing", "Cold Rack 01", "Insulated rack for temperature-sensitive grocery items"),
+                ("Main Hub", "Expired Rack", "Designated area for storing expired or damaged items awaiting disposal"),
+                ("Electric Branch - North", "Bulb & Tube Section", "Protective rack for fragile lighting equipment"),
+                ("Kirana Backup Store", "Oil Container Row", "Bottom level rack for heavy oil containers"),
+                ("Downtown Outlet", "Front Display Rack", "Retail shelf for fast-moving items")
+            };
+
+            for (int i = 0; i < rackData.Count; i++)
+            {
+                worksheet.Cell(i + 2, 1).Value = rackData[i].Warehouse;
+                worksheet.Cell(i + 2, 2).Value = rackData[i].Name;
+                worksheet.Cell(i + 2, 3).Value = rackData[i].Description;
+            }
 
             worksheet.Columns().AdjustToContents();
 

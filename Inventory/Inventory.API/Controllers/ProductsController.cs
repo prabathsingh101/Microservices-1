@@ -1,17 +1,13 @@
-using ClosedXML.Excel;
-using DinkToPdf;
-using DinkToPdf.Contracts;
 using Inventory.API.Common;
-using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Common.Models;
+using Inventory.Application.Products.Commands.CreateProduct;
 using Inventory.Application.Products.Commands.DeleteProduct;
 using Inventory.Application.Products.Commands.UpdateProduct;
-using Inventory.Application.Products.DTOs;
 using Inventory.Application.Products.Queries.GetProductById;
 using Inventory.Application.Products.Queries.GetProducts;
-using Inventory.Application.Products.Queries.GetProductTransactions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Inventory.API.Controllers
@@ -21,24 +17,18 @@ namespace Inventory.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly Inventory.Application.Common.Interfaces.IProductRepository _productRepository;
 
-        private readonly IProductRepository _productRepository;
-        private readonly IConverter _converter;
-
-        public ProductsController(IMediator mediator, 
-            IProductRepository productRepository,
-            IConverter converter)
+        public ProductsController(IMediator mediator, Inventory.Application.Common.Interfaces.IProductRepository productRepository)
         {
             _mediator = mediator;
             _productRepository = productRepository;
-            _converter = converter;
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create(CreateProductCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
@@ -46,24 +36,16 @@ namespace Inventory.API.Controllers
             }
 
             var id = await _mediator.Send(command);
-            return Ok(
-           ApiResponse<Guid>.Ok(
-               id,
-               "Product is created successfully"
-           ));
+            return Ok(ApiResponse<Guid>.Ok(id, "Product created successfully"));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> Update(
-        Guid id,
-        UpdateProductCommand command)
+        public async Task<IActionResult> Update(Guid id, UpdateProductCommand command)
         {
             if (id != command.Id)
-                return BadRequest(
-                    ApiResponse<string>.Fail("Id mismatch"));
+                return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
 
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
@@ -71,31 +53,25 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _mediator.Send(command);
-
-            return Ok(
-                ApiResponse<Guid>.Ok(
-                    result,
-                    "Product updated successfully"
-                )
-            );
+            return Ok(ApiResponse<Guid>.Ok(result, "Product updated successfully"));
         }
-
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var result = await _mediator.Send(
-                new DeleteProductCommand(id));
-
-            return Ok(
-                ApiResponse<Guid>.Ok(
-                    result,
-                    "Product deleted successfully"
-                )
-            );
+            await _mediator.Send(new DeleteProductCommand(id));
+            return Ok(new { success = true, message = "Product deleted successfully" });
         }
 
+        [HttpPost("bulk-delete")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> BulkDelete([FromBody] List<Guid> ids)
+        {
+            // SMART FIX: Using correct singular command name
+            await _mediator.Send(new BulkDeleteProductCommand(ids));
+            return Ok(new { success = true, message = "Products deleted successfully" });
+        }
 
         [HttpGet("{id:guid}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
@@ -105,244 +81,12 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
-        [HttpGet]
+        [HttpPost("paged")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
         {
-            var result = await _mediator.Send(new GetProductsQuery());
+            var result = await _mediator.Send(new GetProductsPagedQuery(request));
             return Ok(result);
-        }
-
-        [HttpGet("paged")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetPaged(
-            [FromQuery] GridRequest request)
-        {
-            var result = await _mediator.Send(
-                new GetProductsPagedQuery(request)
-            );
-
-            return Ok(result);
-        }
-
-        [HttpPost("bulk-delete")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> BulkDelete([FromBody] List<Guid> ids)
-        {
-            await _mediator.Send(new BulkDeleteProductCommand(ids));
-
-            return Ok(new
-            {
-                success = true,
-                message = "Product list deleted successfully"
-            });
-        }
-
-        [HttpGet("search")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> Search([FromQuery] string term)
-        {
-            // Mediator query ko Handler tak pahuchayega
-            var result = await _mediator.Send(new GetProductSearchQuery(term));
-            return Ok(result);
-        }
-
-        [HttpGet("{id}/transactions")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetTransactions(Guid id)
-        {
-            var result = await _mediator.Send(new GetProductTransactionsQuery(id));
-            return Ok(result);
-        }
-
-        [HttpGet("rate")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetRate([FromQuery] Guid productId, [FromQuery] Guid priceListId)
-        {
-
-            var query = new GetProductRateQuery(productId, priceListId);
-            var result = await _mediator.Send(query);
-            return Ok(result);
-        }
-
-        [HttpGet("low-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<ActionResult<IEnumerable<LowStockProductDto>>> GetLowStock()
-        {
-            var products = await _productRepository.GetLowStockProductsAsync();
-
-            if (products == null || !products.Any())
-            {
-                return Ok(new List<LowStockProductDto>()); // Empty list agar sab khairiyat hai
-            }
-
-            return Ok(products);
-        }
-
-
-        /// <summary>
-        /// Export to excel
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("export-low-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> ExportLowStock()
-        {
-            var data = await _productRepository.GetLowStockExportDataAsync();
-
-            using (var workbook = new XLWorkbook())
-            {
-                var worksheet = workbook.Worksheets.Add("Low Stock Report");
-
-                // Headers setup
-                worksheet.Cell(1, 1).Value = "Product Name";
-                worksheet.Cell(1, 2).Value = "SKU";
-                worksheet.Cell(1, 3).Value = "Category";
-                worksheet.Cell(1, 4).Value = "Min Stock";
-                worksheet.Cell(1, 5).Value = "Current Stock";
-                worksheet.Cell(1, 6).Value = "Discount";
-                worksheet.Cell(1, 7).Value = "Unit";
-                worksheet.Cell(1, 8).Value = "Warehouse";
-                worksheet.Cell(1, 9).Value = "Rack";
-                worksheet.Cell(1, 10).Value = "Expiry";
-
-                // Styling: Bold headers and background color
-                var headerRow = worksheet.Row(1);
-                headerRow.Style.Font.Bold = true;
-                headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
-
-                // Data insertion
-                for (int i = 0; i < data.Count; i++)
-                {
-                    var row = i + 2;
-                    worksheet.Cell(row, 1).Value = data[i].ProductName;
-                    worksheet.Cell(row, 2).Value = data[i].SKU;
-                    worksheet.Cell(row, 3).Value = data[i].Category;
-                    worksheet.Cell(row, 4).Value = data[i].MinStock;
-                    worksheet.Cell(row, 5).Value = data[i].CurrentStock;
-                    worksheet.Cell(row, 6).Value = data[i].Discount;
-                    worksheet.Cell(row, 7).Value = data[i].Unit;
-                    worksheet.Cell(row, 8).Value = data[i].Warehouse;
-                    worksheet.Cell(row, 9).Value = data[i].Rack;
-                    worksheet.Cell(row, 10).Value = data[i].IsExpiryRequired ? "Yes" : "No";
-
-                    // Low stock indication (Optional highlighting)
-                    worksheet.Cell(row, 5).Style.Font.FontColor = XLColor.Red;
-                }
-
-                worksheet.Columns().AdjustToContents(); // Auto-fit columns
-
-                using (var stream = new MemoryStream())
-                {
-                    workbook.SaveAs(stream);
-                    var content = stream.ToArray();
-
-                    // Return as File
-                    return File(
-                        content,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        $"LowStockReport_{DateTime.Now:yyyyMMdd}.xlsx");
-                }
-            }
-        }
-
-
-        /// <summary>
-        /// export to pdf
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("export-low-stock-pdf")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> ExportLowStockPdf()
-        {
-            // 1. Excel wala hi Repository method call karein
-            var data = await _productRepository.GetLowStockExportDataAsync();
-
-            // 2. HTML Template design karein
-            var htmlContent = $@"
-        <html>
-            <head>
-                <style>
-                    body {{ font-family: 'Segoe UI', Arial; padding: 20px; }}
-                    .header {{ text-align: center; color: #2c3e50; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
-                    table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                    th {{ background-color: #3498db; color: white; padding: 12px; text-align: left; }}
-                    td {{ border: 1px solid #ddd; padding: 10px; }}
-                    tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                    .low-stock-alert {{ color: #e74c3c; font-weight: bold; }}
-                    .footer {{ margin-top: 30px; font-size: 10px; text-align: right; color: #7f8c8d; }}
-                </style>
-            </head>
-            <body>
-                <div class='header'>
-                    <h1>Electric Inventory System</h1>
-                    <h3>Low Stock Report</h3>
-                    <p>Generated Date: {DateTime.Now:dd MMM yyyy HH:mm}</p>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Product Name</th>
-                            <th>SKU</th>
-                            <th>Category</th>
-                            <th>Discount</th>
-                            <th>Current Stock</th>
-                            <th>Min Stock</th>
-                            <th>Unit</th>
-                        </tr>
-                    </thead>
-                    <tbody>";
-
-            foreach (var item in data)
-            {
-                htmlContent += $@"
-                <tr>
-                    <td>{item.ProductName}</td>
-                    <td>{item.SKU}</td>
-                    <td>{item.Category}</td>
-                    <td>{item.Discount}</td>
-                    <td class='low-stock-alert'>{item.CurrentStock}</td>
-                    <td>{item.MinStock}</td>
-                    <td>{item.Unit}</td>
-                </tr>";
-            }
-
-            htmlContent += $@"
-                    </tbody>
-                </table>
-                <div class='footer'>
-                    This is a computer generated inventory report.
-                </div>
-            </body>
-        </html>";
-
-            // 3. DinkToPdf Settings
-            var globalSettings = new GlobalSettings
-            {
-                ColorMode = ColorMode.Color,
-                Orientation = Orientation.Portrait,
-                PaperSize = PaperKind.A4,
-                Margins = new MarginSettings { Top = 10, Bottom = 10, Left = 10, Right = 10 }
-            };
-
-            var objectSettings = new ObjectSettings
-            {
-                PagesCount = true,
-                HtmlContent = htmlContent,
-                WebSettings = { DefaultEncoding = "utf-8" },
-                HeaderSettings = { FontName = "Arial", FontSize = 9, Right = "Page [page] of [toPage]", Line = true },
-                FooterSettings = { FontName = "Arial", FontSize = 9, Center = "Inventory Management System", Line = true }
-            };
-
-            var pdf = new HtmlToPdfDocument()
-            {
-                GlobalSettings = globalSettings,
-                Objects = { objectSettings }
-            };
-
-            // 4. Conversion aur File return
-            var file = _converter.Convert(pdf);
-            return File(file, "application/pdf", $"LowStockReport_{DateTime.Now:yyyyMMdd}.pdf");
         }
 
         [HttpPost("upload-excel")]
@@ -351,7 +95,6 @@ namespace Inventory.API.Controllers
         {
             if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
 
-            // 🚀 SMART LOGIC: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (!Guid.TryParse(companyIdClaim, out var companyId))
             {
@@ -359,37 +102,20 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _productRepository.UploadProductsAsync(file, companyId);
-
-            return Ok(new
-            {
-                Message = $"{result.successCount} Products uploaded successfully.",
-                Errors = result.errors
-            });
+            return Ok(new { message = $"{result.successCount} Products uploaded successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> CheckDuplicate([FromQuery] string name, [FromQuery] Guid? excludeId = null)
         {
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return Ok(new { exists = false });
-            }
+            if (string.IsNullOrWhiteSpace(name)) return Ok(new { exists = false });
 
-            // 🚀 SMART LOGIC: Scope check by CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (!Guid.TryParse(companyIdClaim, out var companyId))
-            {
-                return BadRequest("Invalid session: CompanyId not found");
-            }
+            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest("Invalid session: CompanyId not found");
 
             var exists = await _productRepository.ExistsByNameAsync(name, companyId, excludeId);
-
-            return Ok(new
-            {
-                exists = exists,
-                message = exists ? $"The product name '{name}' is already used by another active product." : string.Empty
-            });
+            return Ok(new { exists = exists, message = exists ? $"The product name '{name}' is already used by another active product." : string.Empty });
         }
 
         [HttpGet("download-template")]
@@ -413,12 +139,30 @@ namespace Inventory.API.Controllers
                     worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
                 }
 
-                // Original Sample Data from Angular Files
                 var samples = new List<string[]>
                 {
-                    new string[] { "Smart Electrical", "Fans", "Ceiling Fan", "ELEC001", "Havells", "PIECE", "1800", "2500", "10", "2200", "18", "8414", "10", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack A3", "High speed decorative fan" },
-                    new string[] { "Smart Electrical", "Lights", "LED Bulb 9W", "ELEC002", "Philips", "PIECE", "60", "120", "15", "100", "12", "8539", "50", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R7", "Cool day light LED" },
-                    new string[] { "Smart Electrical", "Wires", "Copper Wire 2.5mm", "ELEC004", "Polycab", "ROLL", "900", "1300", "10", "1150", "18", "8544", "20", "0", "finished", "TRUE", "FALSE", "TRUE", "Cable & Wire Warehouse", "Rack C2", "FR PVC insulated wire" }
+                    new string[] { "Smart Electrical", "Smart Plug", "Oakter Smart Plug 16A", "SMART001", "Oakter", "PIECE", "450", "990", "10", "891", "18", "8537", "20", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "WiFi enabled smart plug" },
+                    new string[] { "Smart Electrical", "Smart Bulb", "Wipro Smart RGB 9W", "SMART002", "Wipro", "PIECE", "320", "699", "5", "664", "12", "8539", "50", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "App controlled color lighting" },
+                    new string[] { "Lighting", "LED Bulb", "Syska LED Bulb 9W", "ELEC101", "Syska", "PIECE", "65", "150", "10", "135", "12", "8539", "100", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Cool day light 9W LED" },
+                    new string[] { "Lighting", "Tube Light", "Philips LED Tube 20W", "ELEC102", "Philips", "PIECE", "180", "450", "15", "380", "12", "8539", "50", "0", "finished", "TRUE", "FALSE", "TRUE", "North Warehouse", "Bulb & Tube Section", "Energy efficient tube" },
+                    new string[] { "Wires & Cables", "Copper Wire", "Finolex 1.5sqmm 90m", "ELEC201", "Finolex", "ROLL", "850", "1450", "10", "1305", "18", "8544", "20", "0", "finished", "TRUE", "FALSE", "TRUE", "North Warehouse", "Wire Spool Rack", "Fire retardant wire" },
+                    new string[] { "Switches & Sockets", "Modular Switch", "Anchor Roma 6A", "ELEC301", "Anchor", "PIECE", "18", "45", "5", "42", "18", "8536", "500", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Modular 1-way switch" },
+                    new string[] { "Fans", "Ceiling Fan", "Havells Nicola 1200mm", "ELEC501", "Havells", "PIECE", "2100", "3800", "15", "3230", "18", "8414", "25", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Fast high speed fan" },
+                    new string[] { "Power Backup", "Inverter", "Luminous Zelio 1100", "POW001", "Luminous", "PIECE", "5200", "8500", "10", "7650", "18", "8504", "10", "0", "finished", "TRUE", "FALSE", "TRUE", "North Warehouse", "Rack A-01", "Pure sine wave inverter" },
+                    new string[] { "Beverages", "Soft Drink", "Coca Cola 2L", "GROC001", "Coke", "BOTTLE", "75", "100", "5", "95", "18", "2202", "24", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Carbonated soft drink" },
+                    new string[] { "Beverages", "Fruit Juice", "Real Orange 1L", "GROC002", "Real", "PACK", "90", "120", "10", "108", "12", "2009", "36", "0", "finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Kirana Row 1", "Fresh fruit juice" },
+                    new string[] { "Snacks & Branded Foods", "Potato Chips", "Lays Magic Masala 50g", "GROC010", "Lays", "PACK", "16", "20", "0", "20", "12", "2106", "100", "0", "finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Kirana Row 1", "Spicy wafers" },
+                    new string[] { "Pulses & Dals", "Moong Dal", "Tata Sampann Moong 1kg", "GROC020", "Tata", "KG", "145", "180", "5", "171", "5", "0713", "50", "0", "finished", "TRUE", "TRUE", "TRUE", "Grocery Central", "Grains B-10", "Yellow moong split" },
+                    new string[] { "Cooking Oils & Ghee", "Mustard Oil", "Fortune Kachi Ghani 1L", "GROC050", "Fortune", "BOTTLE", "135", "180", "10", "162", "12", "1514", "48", "0", "finished", "TRUE", "TRUE", "TRUE", "Kirana Wholesale Hub", "Oil Container Row", "Pure oil" },
+                    new string[] { "Kirana General", "Table Salt", "Tata Salt 1kg", "GROC060", "Tata", "PACK", "20", "28", "0", "28", "5", "2501", "200", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Iodized salt" },
+                    new string[] { "Cleaning Supplies", "Detergent", "Surf Excel 1kg", "CLEAN01", "HUL", "PACK", "110", "180", "5", "171", "18", "3402", "60", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Wash detergent" },
+                    new string[] { "Dairy Products", "Paneer", "Amul Fresh Paneer 200g", "DAIRY01", "Amul", "PACK", "75", "90", "2", "88.2", "5", "0406", "20", "0", "finished", "TRUE", "TRUE", "TRUE", "South Storage Wing", "Cold Rack 01", "Fresh cottage cheese" },
+                    new string[] { "Biscuits & Cookies", "Gluco Biscuits", "Parle-G 800g", "BISC01", "Parle", "PACK", "65", "85", "5", "80.75", "18", "1905", "120", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Kirana Row 1", "Original glucose biscuit" },
+                    new string[] { "Spices & Masalas", "Turmeric Powder", "Catch Haldi 200g", "SPICE01", "Catch", "PACK", "45", "65", "10", "58.5", "5", "0910", "80", "0", "finished", "TRUE", "FALSE", "TRUE", "Kirana Wholesale Hub", "Traditional Herbs A", "Pure turmeric" },
+                    new string[] { "Atta & Flours", "Wheat Atta", "Aashirvaad Atta 10kg", "ATTA01", "ITC", "BAG", "420", "550", "5", "522.5", "5", "1101", "30", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Grains B-10", "MP Lokwan wheat" },
+                    new string[] { "Rice & Rice Products", "Basmati Rice", "India Gate Basmati 5kg", "RICE01", "India Gate", "BAG", "550", "950", "20", "760", "5", "1006", "15", "0", "finished", "TRUE", "FALSE", "TRUE", "Grocery Central", "Grains B-10", "Premium aged rice" },
+                    new string[] { "Appliances", "Electric Kettle", "Pigeon Amaze 1.5L", "APP001", "Pigeon", "PIECE", "450", "1200", "50", "600", "18", "8516", "25", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Stainless steel kettle" },
+                    new string[] { "Appliances", "Iron", "Bajaj Majesty DX6", "APP002", "Bajaj", "PIECE", "550", "950", "15", "807.5", "18", "8516", "40", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Hub", "Rack A-01", "Dry iron light weight" }
                 };
 
                 for (int r = 0; r < samples.Count; r++)

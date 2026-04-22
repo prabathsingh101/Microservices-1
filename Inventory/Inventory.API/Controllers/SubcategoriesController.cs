@@ -30,7 +30,6 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create(CreateSubcategoryCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
@@ -38,24 +37,16 @@ namespace Inventory.API.Controllers
             }
 
             var id = await _mediator.Send(command);
-            return Ok(
-            ApiResponse<Guid>.Ok(
-                id,
-                "Sub category created successfully"
-            ));
+            return Ok(ApiResponse<Guid>.Ok(id, "Sub category created successfully"));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> Update(
-          Guid id,
-          UpdateSubcategoryCommand command)
+        public async Task<IActionResult> Update(Guid id, UpdateSubcategoryCommand command)
         {
             if (id != command.Id)
-                return BadRequest(
-                    ApiResponse<string>.Fail("Id mismatch"));
+                return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
 
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
@@ -63,31 +54,16 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _mediator.Send(command);
-
-            return Ok(
-                ApiResponse<Guid>.Ok(
-                    result,
-                    "Subcategory updated successfully"
-                )
-            );
+            return Ok(ApiResponse<Guid>.Ok(result, "Subcategory updated successfully"));
         }
-
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var result = await _mediator.Send(
-                new DeleteSubcategoryCommand(id));
-
-            return Ok(
-                ApiResponse<Guid>.Ok(
-                    result,
-                    "Subcategory deleted successfully"
-                )
-            );
+            var result = await _mediator.Send(new DeleteSubcategoryCommand(id));
+            return Ok(ApiResponse<Guid>.Ok(result, "Subcategory deleted successfully"));
         }
-
 
         [HttpGet("{id:guid}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
@@ -109,21 +85,15 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetByCategory(Guid categoryId)
         {
-            var result = await _mediator.Send(
-                new GetSubcategoriesByCategoryQuery(categoryId));
-
+            var result = await _mediator.Send(new GetSubcategoriesByCategoryQuery(categoryId));
             return Ok(result);
         }
 
         [HttpPost("paged")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetPaged(
-            [FromBody] GridRequest request)
+        public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
         {
-            var result = await _mediator.Send(
-                new GetSubcategoriesPagedQuery(request)
-            );
-
+            var result = await _mediator.Send(new GetSubcategoriesPagedQuery(request));
             return Ok(result);
         }
 
@@ -132,12 +102,7 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> BulkDelete([FromBody] List<Guid> ids)
         {
             await _mediator.Send(new BulkDeleteSubCategoriesCommand(ids));
-
-            return Ok(new
-            {
-                success = true,
-                message = "Category deleted successfully"
-            });
+            return Ok(new { success = true, message = "Subcategories deleted successfully" });
         }
 
         [HttpPost("upload-excel")]
@@ -146,7 +111,6 @@ namespace Inventory.API.Controllers
         {
             if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
 
-            // 🚀 SMART LOGIC: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (!Guid.TryParse(companyIdClaim, out var companyId))
             {
@@ -154,38 +118,22 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _repository.UploadSubcategoriesAsync(file, companyId);
-
-            return Ok(new
-            {
-                Message = $"{result.successCount} Subcategories uploaded successfully.",
-                Errors = result.errors
-            });
+            return Ok(new { message = $"{result.successCount} Subcategories uploaded successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> CheckDuplicate([FromQuery] string name, [FromQuery] Guid? excludeId = null)
         {
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return Ok(new { exists = false });
-            }
+            if (string.IsNullOrWhiteSpace(name)) return Ok(new { exists = false });
 
-            // 🚀 SMART LOGIC: Scope check by CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (!Guid.TryParse(companyIdClaim, out var companyId))
-            {
-                return BadRequest("Invalid session: CompanyId not found");
-            }
+            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest("Invalid session: CompanyId not found");
 
             var exists = await _repository.ExistsByNameAsync(name, companyId, excludeId);
-
-            return Ok(new
-            {
-                exists = exists,
-                message = exists ? $"The subcategory name '{name}' is already used by another active subcategory." : string.Empty
-            });
+            return Ok(new { exists = exists, message = exists ? $"The subcategory name '{name}' is already used by another active subcategory." : string.Empty });
         }
+
         [HttpGet("download-template")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
@@ -202,12 +150,29 @@ namespace Inventory.API.Controllers
                     worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
                 }
 
-                // Original Sample Data
                 var samples = new List<string[]>
                 {
                     new string[] { "SUB001", "Wires & Cables", "Copper Wire", "18", "Copper electrical wire" },
                     new string[] { "SUB002", "Wires & Cables", "Aluminium Wire", "18", "Aluminium wiring" },
-                    new string[] { "SUB003", "Lighting", "LED Bulb", "12", "Energy efficient bulb" }
+                    new string[] { "SUB004", "Switches & Sockets", "Modular Switch", "18", "Designer switches" },
+                    new string[] { "SUB007", "Lighting", "LED Bulb", "12", "Energy efficient bulb" },
+                    new string[] { "SUB008", "Lighting", "Tube Light", "12", "Energy efficient tube" },
+                    new string[] { "SUB011", "Fans", "Ceiling Fan", "18", "Ceiling mounted fan" },
+                    new string[] { "SUB015", "Smart Electrical", "Smart Plug", "18", "WiFi enabled 16A smart plug" },
+                    new string[] { "SUB016", "Smart Electrical", "Smart Bulb", "12", "App controlled color lighting" },
+                    new string[] { "SUB017", "Power Backup", "Inverter", "18", "Digital pure sine wave inverter" },
+                    new string[] { "SUB020", "Appliances", "Electric Kettle", "18", "Stainless steel kettle" },
+                    new string[] { "SUB031", "Beverages", "Soft Drink", "18", "Cola and lemon drinks" },
+                    new string[] { "SUB034", "Snacks & Branded Foods", "Potato Chips", "12", "Crispy wafers" },
+                    new string[] { "SUB037", "Pulses & Dals", "Moong Dal", "5", "Yellow moong split" },
+                    new string[] { "SUB040", "Atta & Flours", "Wheat Atta", "5", "Chakki fresh flour" },
+                    new string[] { "SUB043", "Rice & Rice Products", "Basmati Rice", "5", "Premium long grain" },
+                    new string[] { "SUB046", "Spices & Masalas", "Turmeric Powder", "5", "Ground haldi" },
+                    new string[] { "SUB049", "Cooking Oils & Ghee", "Mustard Oil", "12", "Pure kachi ghani" },
+                    new string[] { "SUB052", "Salt & Sugar", "White Sugar", "5", "Refined crystalline sugar" },
+                    new string[] { "SUB055", "Dairy Products", "Fresh Paneer", "5", "Fresh cottage cheese" },
+                    new string[] { "SUB090", "Kirana General", "Table Salt", "5", "Refined iodized salt" },
+                    new string[] { "SUB091", "Cleaning Supplies", "Detergent", "18", "Wash detergent" }
                 };
 
                 for (int r = 0; r < samples.Count; r++)

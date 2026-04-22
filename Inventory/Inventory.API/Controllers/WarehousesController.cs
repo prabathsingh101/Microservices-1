@@ -89,8 +89,8 @@ public sealed class WarehousesController : ControllerBase
 
         return Ok(new
         {
-            Message = $"{result.successCount} Warehouses processed successfully.",
-            Errors = result.errors
+            message = $"{result.successCount} Warehouses processed successfully.",
+            errors = result.errors
         });
     }
     [HttpGet("download-template")]
@@ -109,10 +109,29 @@ public sealed class WarehousesController : ControllerBase
                 worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightCyan;
             }
 
-            // Sample Data
-            worksheet.Cell(2, 1).Value = "Main Warehouse";
-            worksheet.Cell(2, 2).Value = "New Delhi, India";
-            worksheet.Cell(2, 3).Value = "Primary storage for electronic items";
+            // Sample Data (Grocery & Electric Mix)
+            var warehouseData = new List<(string Name, string Location, string Description)>
+            {
+                ("Main Hub", "New Delhi, Okhla", "Primary distribution center for all units"),
+                ("Electric Branch - North", "Rohini Sector 7", "Main hub for electrical wiring and heavy equipment"),
+                ("Grocery Central", "Azadpur Mandi", "Bulk storage for grains, pulses, and dry grocery"),
+                ("Downtown Outlet", "Connaught Place", "Fast-moving retail items and display stock"),
+                ("Kirana Backup Store", "Chandni Chowk", "Small pack supplies and traditional grocery items"),
+                ("East Logi-Park", "Laxmi Nagar", "Secondary transit point for electric parts"),
+                ("West Service Ware", "Janakpuri", "Spares and maintenance equipment storage"),
+                ("South Storage Wing", "Saket", "Premium product handling and cold storage area"),
+                ("Express Warehouse", "Dwarka Sector 10", "Quick delivery dispatch center"),
+                ("Industrial Vault", "Mayapuri Industrial Area", "Heavy industrial electric motors and spares"),
+                ("Kirana Wholesale Hub", "Sadar Bazar", "Wholesale supply storage for pulses and spices"),
+                ("Retail Support Unit", "Rajouri Garden", "Frontend retail support and inventory backup")
+            };
+
+            for (int i = 0; i < warehouseData.Count; i++)
+            {
+                worksheet.Cell(i + 2, 1).Value = warehouseData[i].Name;
+                worksheet.Cell(i + 2, 2).Value = warehouseData[i].Location;
+                worksheet.Cell(i + 2, 3).Value = warehouseData[i].Description;
+            }
 
             worksheet.Columns().AdjustToContents();
 

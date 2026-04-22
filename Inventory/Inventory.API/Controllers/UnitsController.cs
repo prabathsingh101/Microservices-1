@@ -54,8 +54,8 @@ namespace Inventory.API.Controllers
 
             return Ok(new
             {
-                Message = $"{result.successCount} Units processed successfully.",
-                Errors = result.errors
+                message = $"{result.successCount} Units processed successfully.",
+                errors = result.errors
             });
         }
 
