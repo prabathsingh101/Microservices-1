@@ -11,4 +11,5 @@ public interface IUnitRepository
     Task DeleteAsync(Guid id);
     Task<bool> ExistsAsync(string name);
     IQueryable<UnitMaster> Query();
+    Task<(int successCount, List<string> errors)> UploadUnitsAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId);
 }

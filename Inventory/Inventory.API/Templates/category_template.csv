@@ -9,3 +9,93 @@ CAT007,Electrical Accessories,18,Plugs, holders, connectors
 CAT008,Industrial Electrical,18,Industrial electrical components
 CAT009,Inverters & Batteries,28,Power backup products
 CAT010,Smart Electrical,18,Smart home electrical devices
+CAT011,Home Appliances,18,Small and large home appliances
+CAT012,Kitchen Appliances,18,Electric kitchen aids
+CAT013,Tools & Testers,18,Measuring and hand tools
+CAT014,Earthing & Power,18,Earthing rods and power products
+CAT015,Motors & Pumps,18,Water motors and irrigation pumps
+CAT016,Solar Products,12,Solar panels and lights
+CAT017,Stabilizers,18,Voltage stabilizers for appliances
+CAT018,Heaters & Geysers,18,Water and room heating products
+CAT019,CCTV & Security,18,Security cameras and systems
+CAT020,Networking Products,18,Routers, cables and network gear
+CAT021,TV Accessories,18,Mounts, remotes and set top boxes
+CAT022,Audio Systems,18,Speakers and music systems
+CAT023,Computers,18,PC components and peripherals
+CAT024,Mobile Accessories,18,Chargers, cables and cases
+CAT025,Cables & Connectors,18,Specialized data and signal cables
+CAT026,Beverages,18,Soft drinks, juices and energy drinks
+CAT027,Snacks & Branded Foods,12,Chips, noodles and packed snacks
+CAT028,Pulses & Dals,5,Organic and packed pulses
+CAT029,Atta & Flours,5,Wheat flour and specialty flours
+CAT030,Rice & Rice Products,5,Basmati and non-basmati rice
+CAT031,Spices & Masalas,5,Ground and whole spices
+CAT032,Cooking Oils & Ghee,12,Refined and cold pressed oils
+CAT033,Salt & Sugar,5,Refined sugar and specialized salts
+CAT034,Dairy Products,5,Milk, paneer and curd
+CAT035,Personal Care,18,Body lotions and bath products
+CAT036,Household Care,18,Cleaning liquids and tools
+CAT037,Laundry & Detergents,18,Detergent powders and liquids
+CAT038,Biscuits & Cookies,18,Assorted biscuits and cookies
+CAT039,Breakfast Cereals,12,Oats, cornflakes and muesli
+CAT040,Chocolates & Candies,18,Confectionery items
+CAT041,Canned Goods,12,Preserved foods and fruits
+CAT042,Dry Fruits & Nuts,12,Almonds, cashews and mixed nuts
+CAT043,Baby Care,12,Baby diapers and toiletries
+CAT044,Pet Care,18,Pet food and grooming products
+CAT045,Beauty & Cosmetic,28,Premium skincare and makeup
+CAT046,Stationery,12,Office and school supplies
+CAT047,Oral Care,18,Toothpaste and oral hygiene
+CAT048,Skin Care,18,Moisturizers and face creams
+CAT049,Hair Care,18,Shampoos and hair oils
+CAT050,Tea & Coffee,12,Premium tea leaves and coffee beans
+CAT051,Bread & Bakery,5,Fresh breads, buns and cakes
+CAT052,Frozen Foods,18,Ready to fry nuggets, peas and meals
+CAT053,Organic Foods,5,Certified organic produce and grains
+CAT054,Health & Wellness,12,Protein powders and supplements
+CAT055,Packed Fruit & Vegetable,5,Pre-cut and packed greens
+CAT056,Pasta & Macaroni,12,Durum wheat pasta and sauces
+CAT057,Sauces & Spreads,12,Ketchup, mayonnaise and jams
+CAT058,Pickles & Chutneys,12,Traditional Indian pickles
+CAT059,Ready to Eat,12,Instant meal packs
+CAT060,Packed Meat & Seafood,5,Tinned and packed non-veg
+CAT061,Pooja Needs,12,Agarbatti, camphor and diya oil
+CAT062,Kitchen Accessories,18,Disposable foils, bags and tissues
+CAT063,Floor & Glass Cleaners,18,Surface specific cleaning liquids
+CAT064,Insecticides & Repellents,12,Mosquito coils and sprays
+CAT065,Fragrances & Deos,28,Perfumes and body sprays
+CAT066,Shaving Needs,18,Razors, foam and aftershave
+CAT067,Feminine Hygiene,12,Sanitary pads and liners
+CAT068,Bath & Body,18,Specialized body washes
+CAT069,First Aid & OTC,12,Bandages and basic medicines
+CAT070,Small Home Décor,18,Small candles and wall hangings
+CAT071,Small Garden Needs,12,Seeds and small pots
+CAT072,Specialty Flours,5,Besan, ragi and bajra flours
+CAT073,Gourmet Foods,18,Imported cheese and exotic items
+CAT074,Ethnic Foods,12,Region specific traditional snacks
+CAT075,Party Supplies,18,Balloons, caps and party decor
+CAT076,Baking Needs,18,Yeast, baking powder and essence
+CAT077,Festive Specials,12,Item for Diwali, Eid, Christmas
+CAT078,Diet Foods,12,Sugar-free and low-carb snacks
+CAT079,Seeds & Puffed Grains,5,Chia, flax and puffed rice (murmura)
+CAT080,Mouth Fresheners,18,Saunf, supari and elaichi packs
+CAT081,Nuts & Berries,12,Premium dried berries and nuts
+CAT082,Sweets & Mithai,12,Packed gulab jamun and rasgulla
+CAT083,Honey & Syrups,12,Pure honey and flavored syrups
+CAT084,Vinegar & Cooking Wine,12,Vinegar and culinary additives
+CAT085,Soup & Broth,12,Instant soup packets
+CAT086,Instant Mixes,12,Idli, dosa and gulab jamun mixes
+CAT087,Muesli & Granola,12,Healthy breakfast grains
+CAT088,Noodles & Vermicelli,12,Hakka noodles and seviyan
+CAT089,Spreads & Peanut Butter,12,Creamy and crunchy spreads
+CAT090,Baking Flour,5,Cake flour and bread flour
+CAT091,Liquid Detergents,18,Front and top load liquids
+CAT092,Dishwash Liquids,18,Gel and liquid utensil cleaners
+CAT093,Air Fresheners,18,Spary and pocket fresheners
+CAT094,Hair Color & Dye,28,Chemical and herbal hair colors
+CAT095,Face Masks & Serums,28,Specialized skin treatments
+CAT096,Diaper & Wipes,12,Bulk baby hygiene packs
+CAT097,Pet Grooming,18,Shampoos and brushes for pets
+CAT098,Office Stationery,12,Files, folders and calculators
+CAT099,School Supplies,12,Pencil boxes and geometry sets
+CAT100,Safety & Mask,5,Surgical and N95 masks

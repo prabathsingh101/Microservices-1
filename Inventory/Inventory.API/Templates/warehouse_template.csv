@@ -1,3 +1,16 @@
-﻿Name,City,Description,IsActive
-Main Warehouse,Delhi,Main storage area,True
-Cable & Wire Warehouse,Mumbai,Cable storage,True
+Name,City,Description,IsActive
+Main Warehouse,Delhi,Main central storage area,True
+Cable & Wire Warehouse,Mumbai,Specialized storage for heavy cables and wires,True
+Grocery Hub Central,Bangalore,Central distribution for grocery items,True
+North Zone Warehouse,Chandigarh,Regional storage for North India,True
+South Zone Storage,Chennai,Regional storage for South India,True
+East Zone Facility,Kolkata,Regional storage for East India,True
+West Zone Depot,Ahmedabad,Regional storage for West India,True
+Cold Storage Unit,Bangalore,Temperature controlled storage for dairy and perishables,True
+Electrical Spares Godown,Pune,Storage for small electrical components and spares,True
+Small Appliances Hub,Hyderabad,Storage for kitchen and home appliances,True
+Hazardous Storage Area,Delhi,Storage for batteries and industrial chemicals,True
+Raw Material Store,Jaipur,Storage for raw inventory parts,True
+Returns Processing Center,Delhi,Center for damaged and returned items,True
+Wholesale Distribution Point,Gurgaon,Direct distribution point for bulk orders,True
+Bulk Grain Silo,Punjab,Large scale storage for rice and pulses,True

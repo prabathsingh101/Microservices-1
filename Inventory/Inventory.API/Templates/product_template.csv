@@ -1,11 +1,98 @@
 Category,Subcategory,ProductName,SKU,Brand,Unit,BasePrice,MRP,Discount,SaleRate,GST%,HSNCode,MinStock,DamagedStock,ProductType,TrackInventory,RequiresExpiry,Active,DefaultWarehouse,DefaultRack,Description
-Smart Electrical,Fans,Ceiling Fan,ELEC001,Havells,PIECE,1800,2500,10,2200,18,8414,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,High speed decorative fan
-Smart Electrical,Lights,LED Bulb 9W,ELEC002,Philips,PIECE,60,120,15,100,12,8539,50,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack R7,Cool day light LED
-Smart Electrical,Switches,Modular Switch,ELEC003,Anchor,PIECE,25,45,5,35,18,8536,100,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,Smooth modular switch
-Smart Electrical,Wires,Copper Wire 2.5mm,ELEC004,Polycab,ROLL,900,1300,10,1150,18,8544,20,0,finished,TRUE,FALSE,TRUE,Cable & Wire Warehouse,Rack C2,FR PVC insulated wire
-Smart Electrical,Appliances,Electric Kettle,ELEC005,Prestige,PIECE,750,1200,12,1050,18,8516,5,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack R10,Stainless steel kettle
-Smart Electrical,Protection,MCB Single Pole,ELEC006,Schneider,PIECE,150,250,10,220,18,8536,15,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,C-Curve circuit breaker
-Smart Electrical,Cables,Coaxial Cable,ELEC007,Finolex,ROLL,1100,1600,10,1400,18,8544,10,0,finished,TRUE,FALSE,TRUE,Cable & Wire Warehouse,Rack C2,TV signal cable
-Smart Electrical,Tools,Digital Multimeter,ELEC008,Mastech,PIECE,450,800,10,700,18,8030,5,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,Auto-ranging multimeter
-Smart Electrical,Batteries,Inverter Battery,ELEC009,Luminous,PIECE,12000,16000,15,14500,28,8507,3,0,finished,TRUE,TRUE,TRUE,Main Warehouse,Rack R2,Tall tubular battery
-Smart Electrical,Fittings,Wall Bracket,ELEC010,Murphy,PIECE,350,600,10,520,18,9405,20,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,Adjustable wall fitting
+Wires & Cables,Copper Wire,Polycab 1.5mm Wire,ELEC001,Polycab,ROLL,1200,1600,10,1440,18,8544,20,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack C1,Flame retardant copper wire
+Dairy Products,Pasteurized Milk,Amul Taaza 500ml,GROC012,Amul,Pch,26,28,0,28,5,0401,300,0,finished,TRUE,TRUE,TRUE,Cold Storage Unit,Cooler A,Toned fresh milk (Needs Expiry Tracking)
+Dairy Products,Fresh Paneer,Mother Dairy 200g,GROC033,Mother Dairy,Pch,85,95,5,90,5,0406,50,0,finished,TRUE,TRUE,TRUE,Cold Storage Unit,Chiller B,Pasteurized fresh paneer (Needs Expiry Tracking)
+Beverages,Soft Drink,Coca Cola 2L,GROC001,Coca Cola,Btl,75,95,5,90,18,2202,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 1,Carbonated beverage (Batch/Expiry needed)
+Beverages,Fruit Juice,Real Orange 1L,GROC002,Real,Pkt,85,115,10,103,12,2009,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 1,Natural orange juice (Expiry required)
+Snacks & Branded Foods,Instant Noodles,Maggi Masala 280g,GROC004,Maggi,Pkt,45,52,4,50,12,1902,150,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 2,2-Minute instant noodles (Best before tracking)
+Spices & Masalas,Turmeric Powder,Tata Sampann 100g,GROC052,Tata,Pkt,35,45,5,42,5,0904,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 3,Pure haldi powder (Batch tracking)
+Cooking Oils & Ghee,Desi Ghee,Amul Ghee 1L Tin,GROC010,Amul,Tin,580,660,8,607,12,0405,30,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 6,Pure buffalo ghee (Needs Expiry)
+Inverters & Batteries,Battery,Exide IT500 150Ah,ELEC012,Exide,PIECE,12500,17000,15,14450,28,8507,5,0,finished,TRUE,TRUE,TRUE,Hazardous Storage Area,Rack B1,Tall tubular battery (MFG date required)
+Personal Care,Bath Soap,Dove Bar 125g,GROC013,Dove,PIECE,65,85,10,76,18,3401,150,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 8,Moisturizing beauty bar (Expiry/Batch tracked)
+Personal Care,Toothpaste,Colgate MaxFresh 150g,GROC014,Colgate,PIECE,95,130,15,110,18,3306,120,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 8,Peppermint cooling gel (Needs Expiry)
+Household Care,Floor Cleaner,Lizol Citrus 500ml,GROC015,Lizol,Btl,95,110,5,104,18,3808,60,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 9,Disinfectant cleaner (Expiry required)
+Biscuits & Cookies,Glucose Biscuit,Parle-G 250g,GROC017,Parle,Pkt,22,25,0,25,18,1905,500,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 11,Glucose biscuits (Best before tracking)
+Tea & Coffee,Instant Coffee,Nescafe Classic 50g,GROC019,Nescafe,Jar,165,195,10,175,12,2101,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 12,Aromatic coffee (Needs Expiry)
+Dry Fruits & Nuts,Cashews,Happilo W240 200g,GROC020,Happilo,Pkt,350,450,12,396,12,0801,20,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 13,Premium cashews (Needs Expiry)
+Baby Care,Diapers,Pampers Pants M-size,GROC021,Pampers,Pkt,650,850,15,722,12,9619,25,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 14,Baby diaper pants (Expiry tracked)
+Pet Care,Dog Food,Pedigree Meat & Rice 1.2kg,GROC022,Pedigree,Bag,350,420,10,378,18,2309,15,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 15,Complete dog nutrition (Needs Expiry)
+Beauty & Cosmetic,Face Wash,Himalaya Neem 150ml,GROC051,Himalaya,Btl,125,170,10,153,28,3304,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 20,Neem face wash (Needs Expiry)
+Chocolates & Candies,Milk Chocolate,Cadbury Silk 150g,GROC048,Cadbury,PIECE,145,175,5,166,18,1806,120,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 19,Dairy milk silk (Expiry required)
+Atta & Flours,Wheat Atta,Fortune Chakki 5kg,GROC007,Fortune,Bag,230,280,10,252,5,1101,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 4,Stone ground atta (Best before tracking)
+Rice & Rice Products,Basmati Rice,India Gate 1kg,GROC008,India Gate,Bag,110,160,15,136,5,1006,80,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 5,Aromatic long rice (Best before tracking)
+Lighting,Panel Light,Syska 12W Square,ELEC017,Syska,PIECE,450,850,20,680,12,8539,30,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack L2,LED panel light
+Fans,Ceiling Fan,Usha Swift 48 Inch,ELEC007,Usha,PIECE,1600,2400,10,2160,18,8414,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack F1,High speed fan
+MCB & Distribution,MCB,Schneider 16A SP MCB,ELEC009,Schneider,PIECE,145,230,10,207,18,8536,40,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack D1,Circuit breaker
+Wires & Cables,Flexible Cable,Finolex 3-Core Cable,ELEC002,Finolex,Mtr,45,70,5,66,18,8544,100,0,finished,TRUE,FALSE,TRUE,Cable & Wire Warehouse,Rack C1,Flexible cable
+Breakfast Cereals,Corn Flakes,Kellogg's 500g,GROC032,Kellogg's,Box,185,230,10,207,12,1904,60,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 12,Corn flakes (Needs Expiry)
+Laundry & Detergents,Washing Powder,Surf Excel 1kg,GROC016,Surf Excel,Bag,145,190,10,171,18,3402,80,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 10,Washing powder (Needs Expiry)
+Cooking Oils & Ghee,Mustard Oil,P Mark 1L,GROC036,P Mark,Btl,175,210,10,189,12,1514,60,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 6,Mustard oil (Needs Expiry)
+Skin Care,Sunscreen,Lotus Herbals SPF 50,GROC025,Lotus,PIECE,320,450,15,382,18,3304,30,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 17,Sunblock cream (Needs Expiry)
+Hair Care,Shampoo,Pantene Repair 200ml,GROC026,Pantene,Btl,125,180,10,162,18,3305,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 18,Hair repair shampoo (Needs Expiry)
+Audio Systems,BT Speaker,JBL Go 3,ELEC049,JBL,PIECE,2500,3900,15,3315,18,8518,20,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack U1,Portable speaker
+Mobile Accessories,Fast Charger,Mi 33W Sonic,ELEC050,Mi,PIECE,750,1100,10,990,18,8504,50,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack M2,High-speed adapter
+Dairy Products,Fresh Paneer,Amul Malai Paneer 200g,GROC053,Amul,Pch,75,90,5,85.5,5,0406,30,0,finished,TRUE,TRUE,TRUE,Cold Storage Unit,Chiller B,Cottage cheese (Short expiry tracking)
+Snacks & Branded Foods,Namkeen,Haldiram Aloo Bhujia 400g,GROC054,Haldiram,Pkt,70,90,10,81,12,2106,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 2,Crispy savory snack (Needs Best Before)
+Beverages,Energy Drink,Red Bull 250ml,GROC055,Red Bull,Tin,110,125,0,125,28,2202,24,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 1,Vitalizes body and mind (Needs Expiry)
+Kitchen Appliances,Induction Cooker,Prestige PIC 20,ELEC021,Prestige,PIECE,2400,3500,15,2975,18,8516,10,0,finished,TRUE,FALSE,TRUE,Small Appliances Hub,Rack R1,Induction stove
+Lighting,Tube Light,Philips T5 LED,ELEC051,Philips,PIECE,250,550,40,330,12,8539,50,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack L1,T5 LED batten
+Pulses & Dals,Kabuli Chana,Tata Sampann 1kg,GROC056,Tata,Bag,160,200,10,180,5,0713,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 3,White chickpeas (Needs Batch tracking)
+Spices & Masalas,Meat Masala,Everest 50g,GROC057,Everest,Pkt,35,45,5,42.75,5,0910,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 3,Blended spices (Needs Expiry)
+Personal Care,Hand Wash,Dettol Liquid 200ml,GROC058,Dettol,Btl,85,99,10,89,18,3401,60,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 8,Alcohol-free liquid soap (Needs Expiry)
+Laundry & Detergents,Liquid Detergent,Comfort 200ml,GROC059,Comfort,Btl,55,75,10,67.5,18,3402,120,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 10,Fabric conditioner (Needs Expiry)
+Confectionery,Candies,Pulse Candy 100pcs,GROC060,Pulse,Jar,90,100,10,90,18,1704,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 19,Tangy hard candy (Needs Expiry)
+Stationery,Pens,Uniball Eye UB-150,GROC061,Uniball,PIECE,85,100,5,95,12,9608,100,0,finished,TRUE,FALSE,TRUE,Grocery Hub Central,Shelf 16,Rollerball liquid ink pen
+Dry Fruits & Nuts,Walnuts,Happilo Kernels 200g,GROC062,Happilo,Pkt,450,600,15,510,12,0802,15,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 13,Shelled walnut kernels (Needs Expiry)
+Household Care,Cleaning Powder,Vim Bar 400g,GROC063,Vim,PIECE,25,32,10,28.8,18,3401,200,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 9,Dishwash bar (Needs Expiry)
+Hair Care,Hair Color,Loreal Excellence,GROC064,Loreal,Box,650,850,15,722.5,28,3305,20,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 18,Triple care color (Needs Expiry)
+Baby Care,Baby Wipes,Johnson's 80pcs,GROC065,Johnson,Pkt,180,250,15,212.5,12,3304,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 14,Alcohol-free gentle wipes (Needs Expiry)
+Pet Care,Cat Food,Purepet Ocean Fish 1.2kg,GROC066,Purepet,Bag,280,350,10,315,18,2309,15,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 15,Complete nutrition for adult cats (Needs Expiry)
+Beverages,Energy Drink,Monster 350ml,GROC067,Monster,Tin,125,145,5,137.75,28,2202,24,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 1,Carbonated energy booster (Needs Expiry)
+Home Appliances,Electric Iron,Morphy Richards,ELEC052,Morphy Richards,PIECE,1200,1800,15,1530,18,8516,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A2,Non-stick steam iron
+Cables & Connectors,Power Cable,Standard 3-Pin Cord,ELEC053,Generic,PIECE,120,200,10,180,18,8544,50,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack X1,Universal computer power cord
+Smart Electrical,Smart Bulb,Philips Wiz 9W,ELEC054,Philips,PIECE,650,950,20,760,18,8539,25,0,finished,TRUE,FALSE,TRUE,Smart Electrical Hub,Rack S1,WiFi enabled RGB smart bulb
+Tools & Testers,Multimeter,Mastech Digital,ELEC055,Mastech,PIECE,850,1400,15,1190,18,9030,5,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack T1,Auto-ranging digital multimeter
+MCB & Distribution,Distribution Board,Legrand 8-Way,ELEC056,Legrand,PIECE,1400,2100,10,1890,18,8537,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack D2,Ekinox surface mounting DB
+Lighting,LED Strip,Philips Hue 2M,ELEC057,Philips,BOX,1200,2200,25,1650,12,9405,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack L2,Smart color changing LED strip
+Cooking Oils & Ghee,Olive Oil,Figaro 1L Tin,GROC068,Figaro,Tin,1100,1400,10,1260,12,1509,20,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 6,Edible olive oil (Needs Expiry tracking)
+Personal Care,Sunscreen,Nivea Sun SPF 30,GROC069,Nivea,PIECE,350,500,15,425,18,3304,30,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 17,Immediate protection sunscreen (Needs Expiry)
+Biscuits & Cookies,Oatmeal Cookies,Unibic 75g,GROC070,Unibic,Pkt,45,60,10,54,18,1905,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 11,Rich oatmeal cookies (Best before required)
+Oral Care,Toothbrush,Sensodyne Soft,GROC071,Sensodyne,PIECE,85,110,10,99,18,9603,60,0,finished,TRUE,FALSE,TRUE,Grocery Hub Central,Shelf 8,Sensitive bristled toothbrush
+Hair Care,Hair Oil,Parachute Coconut 200ml,GROC072,Parachute,Btl,85,105,5,99.75,18,3305,150,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 18,Pure coconut hair oil (Needs Expiry)
+Dairy Products,Cheese Slices,Amul 200g,GROC073,Amul,Pkt,145,175,5,166.25,5,0406,60,0,finished,TRUE,TRUE,TRUE,Cold Storage Unit,Chiller B,Processed cheese slices (Needs Expiry)
+Snacks & Branded Foods,Corn Snacks,Kurkure Masala 100g,GROC074,Kurkure,Pkt,25,35,0,35,12,2106,120,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 2,Tangy corn snack (Best before required)
+Beverages,Tea,Tata Tea Gold 500g,GROC075,Tata,Bag,280,350,10,315,12,0902,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 12,Rich aromatic tea leaves (Needs Expiry)
+Cooking Oils & Ghee,Desi Ghee,Patanjali Cow Ghee 1L,GROC076,Patanjali,Tin,650,750,10,675,12,0405,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 6,Pure cow ghee (Needs Expiry)
+Stationery,Stapler,Kangaro No.10,GROC077,Kangaro,PIECE,65,85,10,76.5,12,8472,40,0,finished,TRUE,FALSE,TRUE,Grocery Hub Central,Shelf 16,Standard office stapler
+Health Supplements,Complan 500g,GROC078,Complan,Jar,320,400,10,360,18,1901,30,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 21,Health drink for kids (Needs Expiry)
+Dry Fruits & Nuts,Pistachios,Happilo Roasted 200g,GROC079,Happilo,Pkt,420,550,15,467.5,12,0802,25,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 13,Salted roasted pistas (Needs Expiry)
+Home Appliances,Juicer,Philips 500W,ELEC058,Philips,PIECE,1800,2800,15,2380,18,8509,8,0,finished,TRUE,FALSE,TRUE,Small Appliances Hub,Rack R1,Citrus and hard fruit juicer
+Fans,Wall Fan,Havells Swing 16,ELEC059,Havells,PIECE,2200,3200,12,2816,18,8414,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack F1,16-inch oscillating wall fan
+MCB & Distribution,RCCB,Legrand 40A DP 30mA,ELEC060,Legrand,PIECE,2800,4200,15,3570,18,8536,5,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack D1,RX3 series safety switch
+Wires & Cables,Telephone Cable,Finolex 2-Pair,ELEC061,Finolex,Mtr,12,20,10,18,18,8544,200,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack X1,Twin core telephone wire
+Lighting,Smart LED Bulb,Mi Smart LED,ELEC062,Mi,PIECE,450,700,20,560,18,8539,30,0,finished,TRUE,FALSE,TRUE,Smart Electrical Hub,Rack S1,Google Home enabled bulb
+Household Care,Garbage Bags,Eco-friendly Large,GROC080,Generic,Pkt,110,165,15,140,12,3923,50,0,finished,TRUE,FALSE,TRUE,Grocery Hub Central,Shelf 9,Roll of 30 disposable bags
+Baby Care,Baby Soap,Johnson's Mild 100g,GROC081,Johnson,PIECE,45,60,10,54,12,3401,80,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 14,No more tears baby soap (Needs Expiry)
+Personal Care,Shaving Foam,Gillette Sensitive,GROC082,Gillette,Btl,180,250,15,212.5,18,3307,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 8,Smooth glide shaving foam (Needs Expiry)
+Dairy Products,Sweet Curd,Mother Dairy 400g,GROC083,Mother Dairy,Pch,45,55,5,52.25,5,0403,100,0,finished,TRUE,TRUE,TRUE,Cold Storage Unit,Fridge,Mishti Doi (Short expiry tracking)
+Snacks & Branded Foods,Namkeen,Bikano Bhujia 1kg,GROC084,Bikano,Bag,220,280,10,252,12,2106,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 2,Large pack savory bhujia (Best before tracking)
+Beverages,Cold Coffee,Amul Kool 200ml,GROC085,Amul,Btl,30,35,5,33.25,12,2202,120,0,finished,TRUE,TRUE,TRUE,Main Warehouse,Fridge,Flavored milk drink (Needs Expiry)
+Stationery,Highlighters,Faber Castell 5pcs,GROC086,Faber,Box,85,120,10,108,12,9608,40,0,finished,TRUE,FALSE,TRUE,Grocery Hub Central,Shelf 16,Neon text liner set
+Electrical Accessories,Plug Top,SS 16A 3-Pin,ELEC063,SS,PIECE,65,95,10,85.5,18,8536,100,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack E1,Molded power plug
+Tools & Testers,Combination Plier,Taparia 8,ELEC064,Taparia,PIECE,185,280,15,238,18,8203,20,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack T1,Insulated handle plier
+Wires & Cables,Coaxial Cable,Polycab RG6,ELEC065,Polycab,ROLL,1800,2800,20,2240,18,8544,10,0,finished,TRUE,FALSE,TRUE,Cable & Wire Warehouse,Rack C3,High quality DTH cable
+Kitchen Appliances,Induction Cooker,Havells Insta,ELEC066,Havells,PIECE,2800,4500,25,3375,18,8516,5,0,finished,TRUE,FALSE,TRUE,Small Appliances Hub,Rack R2,Programmable touch induction
+Biscuits & Cookies,Bourbon,Britannia 150g,GROC087,Britannia,Pkt,30,35,5,33.25,18,1905,150,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 11,Cream filled chocolate biscuits (Needs Expiry)
+Breakfast Cereals,Muesli,Bagrry's 400g,GROC088,Bagrry,Box,250,380,20,304,12,1904,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 12,Multi-grain muesli (Needs Expiry)
+Dairy Products,Butter,Amul 100g,GROC089,Amul,Pkt,52,58,0,58,12,0405,100,0,finished,TRUE,TRUE,TRUE,Cold Storage Unit,Fridge,Pasteurized table butter (Needs Expiry)
+Pulses & Dals,Masoor Dal,Fortune 500g,GROC090,Fortune,Bag,65,85,10,76.5,5,0713,80,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 3,Unpolished red masoor (Needs Expiry)
+Rice & Rice Products,Poha,Rajdhani 500g,GROC091,Rajdhani,Bag,45,60,10,54,5,1904,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 5,Flattened rice (Good for breakfast)
+Cooking Oils & Ghee,Olive Oil,Bertolli 2L,GROC092,Bertolli,Tin,1800,2600,20,2080,12,1509,10,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 6,Premium extra light olive oil (Needs Expiry)
+Personal Care,Hair Serum,Livon 100ml,GROC093,Livon,Btl,145,210,15,178.5,18,3305,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 18,Damage control hair serum (Needs Expiry)
+Household Care,Glass Cleaner,Colin 500ml,GROC094,Colin,Btl,95,115,10,103.5,18,3808,60,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 9,Mirror and glass cleaner (Needs Expiry)
+Laundry & Detergents,Detergent Bar,Rin 250g,GROC095,Rin,PIECE,18,22,0,22,18,3401,300,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 10,Whitening laundry bar (Needs Expiry)
+Personal Care,Face Cream,Fair & Lovely 50g,GROC096,Glow & Lovely,PIECE,85,110,10,99,18,3304,100,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 17,Multi-vitamin skin cream (Needs Expiry)
+Baby Care,Baby Powder,Johnson's 200g,GROC097,Johnson,Btl,145,190,10,171,12,3304,50,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 14,Soft and gentle talc (Needs Expiry)
+Pet Care,Dog Food,Drools Chicken 3kg,GROC098,Drools,Bag,550,750,15,637.5,18,2309,10,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 15,Adult dog dry food (Needs Expiry)
+Beverages,Green Tea,Tetley Ginger 25 Bags,GROC099,Tetley,Box,155,210,15,178.5,12,0902,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 12,Ginger lemon green tea (Needs Expiry)
+Dairy Products,Condensed Milk,Mithai Mate 400g,GROC100,Amul,Tin,125,145,5,137.75,5,0402,40,0,finished,TRUE,TRUE,TRUE,Grocery Hub Central,Shelf 19,Sweetened condensed milk (Needs Expiry)

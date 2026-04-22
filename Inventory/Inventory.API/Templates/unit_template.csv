@@ -1,0 +1,26 @@
+Name,Description,Status (Active/Inactive)
+Kg,"Kilogram - Base unit for solid items (Grain, Sugar)",Active
+Gram,Base unit for spices and small packs,Active
+Litre,"Base unit for liquid items (Oil, Milk)",Active
+ML,Millilitre - used for small liquid quantity,Active
+Pkt,Packet - commonly used for biscuits, snacks,Active
+Pch,Pouch - used for small detergent/spice packs,Active
+Btl,"Bottle - used for soft drinks, sauces",Active
+Jar,"Jar - used for pickles, jam, honey",Active
+Box,"Box - used for tea bags, chocolates",Active
+Bag,"Bag - secondary unit for grains (5kg, 10kg)",Active
+Sck,Sack - used for wholesale grain quantities,Active
+Tin,Tin - used for ghee or edible oils,Active
+Dozen,Dozen - used for eggs or banana sets,Active
+Pcs,Pieces - used for individual items,Active
+Nos,Numbers - primary count for electrical parts,Active
+Mtr,"Meter - used for wires, cables, lighting strips",Active
+Ft,Foot - alternative measurement for piping/wiring,Active
+Coil,Coil - standard bundle for long cables/conduits,Active
+Roll,"Roll - used for tapes, foils, or LED strips",Active
+Reel,Reel - used for industrial grade wiring,Active
+Drum,Drum - used for bulk cable storage,Active
+Set,Set - used for combo packs or tools,Active
+Pair,Pair - used for tools or components,Active
+Unit,Unit - used for equipment/appliances,Active
+Bundle,Bundle - used for pipes or sticks,Active

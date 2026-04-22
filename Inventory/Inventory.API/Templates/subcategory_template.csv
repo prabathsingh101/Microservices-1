@@ -29,3 +29,123 @@ SUB027,Inverters & Batteries,Battery,28,Backup battery
 SUB028,Inverters & Batteries,UPS,28,Power backup
 SUB029,Smart Electrical,Smart Switch,18,WiFi switch
 SUB030,Smart Electrical,Smart Plug,18,App control plug
+SUB031,Beverages,Soft Drink,18,Cola and lemon drinks
+SUB032,Beverages,Fruit Juice,12,Tetra pack juices
+SUB033,Beverages,Energy Drink,18,Health boosters
+SUB034,Snacks & Branded Foods,Potato Chips,12,Crispy wafers
+SUB035,Snacks & Branded Foods,Instant Noodles,12,Masala noodles
+SUB036,Snacks & Branded Foods,Namkeen,12,Indian savory snacks
+SUB037,Pulses & Dals,Moong Dal,5,Yellow moong split
+SUB038,Pulses & Dals,Arhar Dal,5,Premium toor dal
+SUB039,Pulses & Dals,Chana Dal,5,Split gram
+SUB040,Atta & Flours,Wheat Atta,5,Chakki fresh flour
+SUB041,Atta & Flours,Maida,5,Refined wheat flour
+SUB042,Atta & Flours,Besan,5,Gram flour
+SUB043,Rice & Rice Products,Basmati Rice,5,Premium long grain
+SUB044,Rice & Rice Products,Poha,5,Thin and thick poha
+SUB045,Rice & Rice Products,Idli Rice,5,Short grain rice
+SUB046,Spices & Masalas,Turmeric Powder,5,Ground haldi
+SUB047,Spices & Masalas,Coriander Powder,5,Ground dhaniya
+SUB048,Spices & Masalas,Garam Masala,5,Blended spice mix
+SUB049,Cooking Oils & Ghee,Mustard Oil,12,Pure kachi ghani
+SUB050,Cooking Oils & Ghee,Refined Oil,12,Soybean/Sunflower oil
+SUB051,Cooking Oils & Ghee,Cow Ghee,12,Pure golden ghee
+SUB052,Salt & Sugar,White Sugar,5,Refined crystalline sugar
+SUB053,Salt & Sugar,Table Salt,5,Iodized free flow salt
+SUB054,Salt & Sugar,Brown Sugar,5,Raw cane sugar
+SUB055,Dairy Products,Fresh Milk,5,Pasteurized dairy milk
+SUB056,Dairy Products,Curd & Yogurt,5,Plain and flavored dahi
+SUB057,Dairy Products,Paneer,5,Fresh cottage cheese
+SUB058,Personal Care,Bath Soap,18,Body cleaning bars
+SUB059,Personal Care,Hand Wash,18,Liquid hand soap
+SUB060,Personal Care,Talcum Powder,18,Body fragrance powder
+SUB061,Household Care,Floor Cleaner,18,Surface disinfectant
+SUB062,Household Care,Toilet Cleaner,18,Sanitary cleaner
+SUB063,Household Care,Glass Cleaner,18,Mirror and window spray
+SUB064,Laundry & Detergents,Washing Powder,18,Fabric detergent
+SUB065,Laundry & Detergents,Detergent Bar,18,Laundry soap bars
+SUB066,Laundry & Detergents,Fabric Conditioner,18,Liquid softener
+SUB067,Biscuits & Cookies,Glucose Biscuit,18,Energy biscuits
+SUB068,Biscuits & Cookies,Cookies,18,Butter and choco cookies
+SUB069,Biscuits & Cookies,Rusks,18,Tea time toast
+SUB070,Breakfast Cereals,Corn Flakes,12,Original cereal flakes
+SUB071,Breakfast Cereals,Oats,12,Rolled and instant oats
+SUB072,Chocolates & Candies,Milk Chocolate,18,Dairy bars
+SUB073,Chocolates & Candies,Fruit Candy,18,Sugar boiled candy
+SUB074,Canned Goods,Sweet Corn,12,Tinned kernel corn
+SUB075,Canned Goods,Canned Fruit,12,Fruit in syrup
+SUB076,Dry Fruits & Nuts,Cashews,12,Whole raw kaju
+SUB077,Dry Fruits & Nuts,Almonds,12,Premium badam
+SUB078,Dry Fruits & Nuts,Walnuts,12,Shelled akhrot
+SUB079,Baby Care,Baby Diapers,12,Absorbent pants
+SUB080,Baby Care,Baby Wipes,12,Gentle wet wipes
+SUB081,Pet Care,Dog Food,18,Dry kibble for dogs
+SUB082,Pet Care,Cat Food,18,Wet and dry cat food
+SUB083,Beauty & Cosmetic,Face Wash,28,Skin cleanser gel
+SUB084,Beauty & Cosmetic,Lipstick,28,Lip color products
+SUB085,Stationery,Notebooks,12,Writing exercise books
+SUB086,Stationery,Pens & Pencils,12,Writing instruments
+SUB087,Oral Care,Toothpaste,18,Dental cleaning paste
+SUB088,Oral Care,Toothbrush,18,Manual dental brush
+SUB089,Skin Care,Moisturizers,18,Body and face creams
+SUB090,Skin Care,Sunscreen,18,UV protection lotion
+SUB091,Hair Care,Shampoo,18,Liquid hair cleanser
+SUB092,Hair Care,Hair Oil,18,Nourishing scalp oil
+SUB093,Tea & Coffee,Black Tea,12,CTC tea leaves
+SUB094,Tea & Coffee,Instant Coffee,12,Soluble coffee powder
+SUB095,Bread & Bakery,White Bread,5,Sliced sandwich bread
+SUB096,Bread & Bakery,Burger Buns,5,Soft bun packs
+SUB097,Frozen Foods,Frozen Peas,5,Preserved green peas
+SUB098,Frozen Foods,Frozen Snacks,18,Ready to fry nuggets
+SUB099,Organic Foods,Organic Pulses,5,Chemical free dals
+SUB100,Organic Foods,Organic Honey,12,Natural forest honey
+SUB101,Health & Wellness,Protein Powder,12,Nutrition supplements
+SUB102,Health & Wellness,Multivitamins,12,Daily health tablets
+SUB103,Packed Fruit & Vegetable,Salad Mix,5,Cut vegetable packs
+SUB104,Pasta & Macaroni,Penne Pasta,12,Durum wheat penne
+SUB105,Pasta & Macaroni,Pasta Sauce,12,Red and white sauces
+SUB106,Sauces & Spreads,Tomato Ketchup,12,Classic tomato sauce
+SUB107,Sauces & Spreads,Mayonnaise,12,Eggless and veg mayo
+SUB108,Pickles & Chutneys,Mango Pickle,12,Spicy aam ka achar
+SUB109,Ready to Eat,Instant Pulao,12,Heat and eat rice
+SUB110,Packed Meat & Seafood,Canned Tuna,5,Tinned fish
+SUB111,Pooja Needs,Agarbatti,12,Fragrant incense sticks
+SUB112,Kitchen Accessories,Aluminium Foil,18,Food grade wrap
+SUB113,Insecticides & Repellents,Mosquito Coil,12,Combustion repellents
+SUB114,Fragrances & Deos,Deodorant Spray,28,Body odor spray
+SUB115,Shaving Needs,Shaving Foam,18,Lubricating foam
+SUB116,Feminine Hygiene,Sanitary Pads,12,Menstrual hygiene
+SUB117,Bath & Body,Body Wash,18,Liquid shower gel
+SUB118,First Aid & OTC,Antiseptic Liquid,12,Cleaning agent for wounds
+SUB119,Specialty Flours,Ragi Flour,5,Finger millet flour
+SUB120,Gourmet Foods,Olive Oil,12,Extra virgin/Light olive oil
+SUB121,Ethnic Foods,Khakhra,12,Gujarati thin crackers
+SUB122,Party Supplies,Birthday Balloons,18,Latex balloons
+SUB123,Baking Needs,Baking Powder,18,Leavening agent
+SUB124,Diet Foods,Sugar Free Pellets,12,Sweetener tablets
+SUB125,Seeds & Puffed Grains,Murmura,5,Puffed rice for snacks
+SUB126,Mouth Fresheners,Sweet Saunf,18,Sugar coated fennel
+SUB127,Honey & Syrups,Maple Syrup,12,Pancake syrup
+SUB128,Soup & Broth,Tomato Soup,12,Instant soup mix
+SUB129,Instant Mixes,Idli Mix,12,Ready batter mix
+SUB130,Noodles & Vermicelli,Rice Vermicelli,12,Thin seviyan
+SUB131,Spreads & Peanut Butter,Crunchy Peanut Butter,12,Nut spread
+SUB132,Dishwash Liquids,Dishwash Gel,18,Liquid utensil cleaner
+SUB133,Air Fresheners,Room Spray,18,Aerosol freshener
+SUB134,Hair Color & Dye,Henna Powder,28,Natural hair dye
+SUB135,Face Masks & Serums,Sheet Mask,28,Infused skin mask
+SUB136,Diaper & Wipes,Baby Wipes Tubs,12,Bulk wipes container
+SUB137,Pet Grooming,Pet Shampoo,18,Grooming cleanser for pets
+SUB138,Office Stationery,Files & Folders,12,Document organizers
+SUB139,School Supplies,Geometry Box,12,Instrument set
+SUB140,Safety & Mask,N95 Mask,5,High protection mask
+SUB141,Mouth Fresheners,Mint Tablets,18,Breath freshener
+SUB142,Oral Care,Mouthwash,18,Liquid oral rinse
+SUB143,Dairy Products,Cheese Slices,5,Process cheese
+SUB144,Cleaning Products,Floor Cleaner,18,Surface liquid
+SUB145,Snacks & Branded Foods,Popcorn,12,Instant unpopped corn
+SUB146,Beverages,Tea Leaves,12,CTC black tea
+SUB147,Personal Care,Hair Serum,18,Post-wash hair care
+SUB148,Stationery,Sticky Notes,12,Remind notes
+SUB149,Dry Fruits & Nuts,Pistachios,12,Roasted pistas
+SUB150,Frozen Foods,McCain Fries,18,Frozen french fries

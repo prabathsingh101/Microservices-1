@@ -1,7 +1,56 @@
-﻿WarehouseName,RackName,Description,IsActive
-Main Warehouse,Rack A3,A3 Rack,True
-Main Warehouse,Rack R7,R7 Rack,True
-Main Warehouse,Rack R10,R10 Rack,True
-Main Warehouse,Rack R2,R2 Rack,True
-Cable & Wire Warehouse,Rack C2,C2 Rack,True
+WarehouseName,RackName,Description,IsActive
+Main Warehouse,Rack A1,Section for switches and sockets,True
+Main Warehouse,Rack L1,Lighting section for LED bulbs,True
+Main Warehouse,Rack F1,Fans and ventilation section,True
+Main Warehouse,Rack D1,MCB and distribution board section,True
+Main Warehouse,Rack T1,Tools and testers shelf,True
+Main Warehouse,Rack R1,Finished goods rack for appliances,True
+Main Warehouse,Rack X1,Signal and data cables area,True
+Main Warehouse,Fridge,Cold storage shelf for dairy products,True
+Cable & Wire Warehouse,Rack C1,Copper wire storage row,True
+Cable & Wire Warehouse,Rack C2,Aluminium wire storage row,True
+Cable & Wire Warehouse,Rack C3,High voltage cables drum area,True
+Grocery Hub Central,Shelf 1,Beverages and liquid section,True
+Grocery Hub Central,Shelf 2,Snacks and noodles section,True
+Grocery Hub Central,Shelf 3,Pulses and staple food section,True
+Grocery Hub Central,Shelf 4,Flour and atta section,True
+Grocery Hub Central,Shelf 5,Rice and grains section,True
+Grocery Hub Central,Shelf 6,Oils and ghee section,True
+Grocery Hub Central,Shelf 7,Sugar and salt section,True
+Grocery Hub Central,Shelf 8,Personal care items,True
+Grocery Hub Central,Shelf 9,Cleaning and household care,True
+Grocery Hub Central,Shelf 10,Laundry detergents and soaps,True
+Cold Storage Unit,Cooler A,Primary cooling area for milk,True
+Cold Storage Unit,Chiller B,Secondary cooling for paneer and curd,True
+North Zone Warehouse,Rack NZ-1,General storage for North Zone,True
+South Zone Storage,Rack SZ-1,General storage for South Zone,True
+East Zone Facility,Rack EZ-1,General storage for East Zone,True
+West Zone Depot,Rack WZ-1,General storage for West Zone,True
+Electrical Spares Godown,Rack S1,Electronic components bin,True
+Electrical Spares Godown,Rack S2,Small spare parts bin,True
+Small Appliances Hub,Rack R10,Small appliances storage,True
+Hazardous Storage Area,Rack B1,Battery storage area for inverters,True
+Hazardous Storage Area,Rack K1,Chemical and hazardous material area,True
+Returns Processing Center,Rack-R,Received items for checking,True
+Returns Processing Center,Rack-D,Confirmed damaged items,True
+Wholesale Distribution Point,Bulk L1,Pallet area for bulk shipments,True
+Bulk Grain Silo,Silo-A,Main rice storage silo,True
+Bulk Grain Silo,Silo-B,Pulse storage silo,True
 Main Warehouse,Expired - Rack,For expired products,True
+Main Warehouse,Rack A2,Secondary switch section,True
+Main Warehouse,Rack L2,Slim panel lights section,True
+Main Warehouse,Rack D2,Distribution box area,True
+Main Warehouse,Rack S1,Solar panel storage,True
+Main Warehouse,Rack S2,Voltage stabilizer area,True
+Main Warehouse,Rack V1,Security and CCTV cameras area,True
+Main Warehouse,Rack R3,Networking equipment shelf,True
+Grocery Hub Central,Shelf 11,Biscuits and cookies,True
+Grocery Hub Central,Shelf 12,Tea and coffee section,True
+Grocery Hub Central,Shelf 13,Dry fruits and nuts,True
+Grocery Hub Central,Shelf 14,Baby care products,True
+Grocery Hub Central,Shelf 15,Pet food section,True
+Grocery Hub Central,Shelf 16,Stationery and office items,True
+Grocery Hub Central,Shelf 17,Skin care products,True
+Grocery Hub Central,Shelf 18,Hair care and shampoo,True
+Grocery Hub Central,Shelf 19,Confectionery items,True
+Grocery Hub Central,Shelf 20,Premium cosmetic products,True
