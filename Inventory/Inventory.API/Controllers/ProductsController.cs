@@ -391,6 +391,53 @@ namespace Inventory.API.Controllers
                 message = exists ? $"The product name '{name}' is already used by another active product." : string.Empty
             });
         }
+
+        [HttpGet("download-template")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public IActionResult DownloadTemplate()
+        {
+            using (var workbook = new ClosedXML.Excel.XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("Products");
+                var headers = new string[] { 
+                    "Category", "Subcategory", "ProductName", "SKU", "Brand", "Unit", 
+                    "BasePrice", "MRP", "Discount", "SaleRate", "GST%", "HSNCode", "MinStock", 
+                    "DamagedStock", "ProductType", "TrackInventory", "RequiresExpiry", "Active", 
+                    "DefaultWarehouse", "DefaultRack", "Description" 
+                };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cell(1, i + 1).Value = headers[i];
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                }
+
+                // Original Sample Data from Angular Files
+                var samples = new List<string[]>
+                {
+                    new string[] { "Smart Electrical", "Fans", "Ceiling Fan", "ELEC001", "Havells", "PIECE", "1800", "2500", "10", "2200", "18", "8414", "10", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack A3", "High speed decorative fan" },
+                    new string[] { "Smart Electrical", "Lights", "LED Bulb 9W", "ELEC002", "Philips", "PIECE", "60", "120", "15", "100", "12", "8539", "50", "0", "finished", "TRUE", "FALSE", "TRUE", "Main Warehouse", "Rack R7", "Cool day light LED" },
+                    new string[] { "Smart Electrical", "Wires", "Copper Wire 2.5mm", "ELEC004", "Polycab", "ROLL", "900", "1300", "10", "1150", "18", "8544", "20", "0", "finished", "TRUE", "FALSE", "TRUE", "Cable & Wire Warehouse", "Rack C2", "FR PVC insulated wire" }
+                };
+
+                for (int r = 0; r < samples.Count; r++)
+                {
+                    for (int c = 0; c < samples[r].Length; c++)
+                    {
+                        worksheet.Cell(r + 2, c + 1).Value = samples[r][c];
+                    }
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = stream.ToArray();
+                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Product_Template.xlsx");
+                }
+            }
+        }
     }
 }
-

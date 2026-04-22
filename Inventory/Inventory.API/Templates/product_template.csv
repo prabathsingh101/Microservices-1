@@ -1,0 +1,11 @@
+Category,Subcategory,ProductName,SKU,Brand,Unit,BasePrice,MRP,Discount,SaleRate,GST%,HSNCode,MinStock,DamagedStock,ProductType,TrackInventory,RequiresExpiry,Active,DefaultWarehouse,DefaultRack,Description
+Smart Electrical,Fans,Ceiling Fan,ELEC001,Havells,PIECE,1800,2500,10,2200,18,8414,10,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,High speed decorative fan
+Smart Electrical,Lights,LED Bulb 9W,ELEC002,Philips,PIECE,60,120,15,100,12,8539,50,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack R7,Cool day light LED
+Smart Electrical,Switches,Modular Switch,ELEC003,Anchor,PIECE,25,45,5,35,18,8536,100,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,Smooth modular switch
+Smart Electrical,Wires,Copper Wire 2.5mm,ELEC004,Polycab,ROLL,900,1300,10,1150,18,8544,20,0,finished,TRUE,FALSE,TRUE,Cable & Wire Warehouse,Rack C2,FR PVC insulated wire
+Smart Electrical,Appliances,Electric Kettle,ELEC005,Prestige,PIECE,750,1200,12,1050,18,8516,5,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack R10,Stainless steel kettle
+Smart Electrical,Protection,MCB Single Pole,ELEC006,Schneider,PIECE,150,250,10,220,18,8536,15,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,C-Curve circuit breaker
+Smart Electrical,Cables,Coaxial Cable,ELEC007,Finolex,ROLL,1100,1600,10,1400,18,8544,10,0,finished,TRUE,FALSE,TRUE,Cable & Wire Warehouse,Rack C2,TV signal cable
+Smart Electrical,Tools,Digital Multimeter,ELEC008,Mastech,PIECE,450,800,10,700,18,8030,5,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,Auto-ranging multimeter
+Smart Electrical,Batteries,Inverter Battery,ELEC009,Luminous,PIECE,12000,16000,15,14500,28,8507,3,0,finished,TRUE,TRUE,TRUE,Main Warehouse,Rack R2,Tall tubular battery
+Smart Electrical,Fittings,Wall Bracket,ELEC010,Murphy,PIECE,350,600,10,520,18,9405,20,0,finished,TRUE,FALSE,TRUE,Main Warehouse,Rack A3,Adjustable wall fitting

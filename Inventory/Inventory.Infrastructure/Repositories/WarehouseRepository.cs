@@ -1,6 +1,8 @@
+using ClosedXML.Excel;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using Inventory.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Infrastructure.Repositories;
@@ -47,5 +49,68 @@ public class WarehouseRepository : IWarehouseRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Warehouses
             .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+    }
+
+    public async Task<(int successCount, List<string> errors)> UploadWarehousesAsync(IFormFile file, Guid companyId)
+    {
+        int successCount = 0;
+        var errors = new List<string>();
+
+        using (var stream = new MemoryStream())
+        {
+            await file.CopyToAsync(stream);
+            using (var workbook = new XLWorkbook(stream))
+            {
+                var worksheet = workbook.Worksheets.First();
+                var dataRows = worksheet.RowsUsed().Skip(1); // Skip Header
+
+                // Pre-fetch for Upsert
+                var dbWarehouses = await _context.Warehouses
+                    .Where(x => x.CompanyId == companyId)
+                    .ToListAsync();
+                var dbWarehousesByName = dbWarehouses.ToDictionary(w => w.Name.ToLower().Trim(), w => w);
+
+                var newWarehouses = new List<Warehouse>();
+                int updateCount = 0;
+
+                foreach (var row in dataRows)
+                {
+                    int rowNum = row.RowNumber();
+                    try
+                    {
+                        var name = row.Cell(1).Value.ToString()?.Trim();
+                        var city = row.Cell(2).Value.ToString()?.Trim();
+                        var description = row.Cell(3).Value.ToString()?.Trim();
+                        var activeStatus = row.Cell(4).Value.ToString()?.Trim().ToUpper() ?? "TRUE";
+                        bool isActive = activeStatus == "TRUE" || activeStatus == "1" || activeStatus == "ACTIVE";
+
+                        if (string.IsNullOrWhiteSpace(name)) continue;
+
+                        if (dbWarehousesByName.TryGetValue(name.ToLower(), out var existing))
+                        {
+                            existing.Update(name, city, description, isActive, companyId);
+                            updateCount++;
+                        }
+                        else
+                        {
+                            var warehouse = new Warehouse(name, city, description, isActive, companyId);
+                            newWarehouses.Add(warehouse);
+                        }
+                        successCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Row {rowNum}: Error - {ex.Message}");
+                    }
+                }
+
+                if (newWarehouses.Any() || updateCount > 0)
+                {
+                    if (newWarehouses.Any()) await _context.Warehouses.AddRangeAsync(newWarehouses);
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
+        return (successCount, errors);
     }
 }

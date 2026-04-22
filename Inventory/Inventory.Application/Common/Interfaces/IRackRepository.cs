@@ -10,4 +10,5 @@ public interface IRackRepository
     Task<List<Rack>> GetAllAsync();
     Task<List<Rack>> GetByWarehouseIdAsync(Guid warehouseId);
     Task<Rack?> GetByIdAsync(Guid id);
+    Task<(int successCount, List<string> errors)> UploadRacksAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId);
 }

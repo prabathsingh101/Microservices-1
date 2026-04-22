@@ -186,5 +186,47 @@ namespace Inventory.API.Controllers
                 message = exists ? $"The subcategory name '{name}' is already used by another active subcategory." : string.Empty
             });
         }
+        [HttpGet("download-template")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public IActionResult DownloadTemplate()
+        {
+            using (var workbook = new ClosedXML.Excel.XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("Subcategories");
+                var headers = new string[] { "SubcategoryCode", "CategoryName", "SubcategoryName", "DefaultGst", "Description" };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cell(1, i + 1).Value = headers[i];
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                }
+
+                // Original Sample Data
+                var samples = new List<string[]>
+                {
+                    new string[] { "SUB001", "Wires & Cables", "Copper Wire", "18", "Copper electrical wire" },
+                    new string[] { "SUB002", "Wires & Cables", "Aluminium Wire", "18", "Aluminium wiring" },
+                    new string[] { "SUB003", "Lighting", "LED Bulb", "12", "Energy efficient bulb" }
+                };
+
+                for (int r = 0; r < samples.Count; r++)
+                {
+                    for (int c = 0; c < samples[r].Length; c++)
+                    {
+                        worksheet.Cell(r + 2, c + 1).Value = samples[r][c];
+                    }
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = stream.ToArray();
+                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Subcategory_Template.xlsx");
+                }
+            }
+        }
     }
 }

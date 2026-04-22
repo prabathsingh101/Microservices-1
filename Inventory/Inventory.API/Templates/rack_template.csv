@@ -1,0 +1,7 @@
+﻿WarehouseName,RackName,Description,IsActive
+Main Warehouse,Rack A3,A3 Rack,True
+Main Warehouse,Rack R7,R7 Rack,True
+Main Warehouse,Rack R10,R10 Rack,True
+Main Warehouse,Rack R2,R2 Rack,True
+Cable & Wire Warehouse,Rack C2,C2 Rack,True
+Main Warehouse,Expired - Rack,For expired products,True

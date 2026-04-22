@@ -9,4 +9,5 @@ public interface IWarehouseRepository
     Task DeleteAsync(Warehouse warehouse);
     Task<List<Warehouse>> GetAllAsync();
     Task<Warehouse?> GetByIdAsync(Guid id);
+    Task<(int successCount, List<string> errors)> UploadWarehousesAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId);
 }

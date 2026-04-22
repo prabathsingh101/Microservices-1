@@ -175,5 +175,47 @@ namespace Inventory.API.Controllers
             });
         }
 
+        [HttpGet("download-template")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public IActionResult DownloadTemplate()
+        {
+            using (var workbook = new ClosedXML.Excel.XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("Categories");
+                var headers = new string[] { "CategoryCode", "CategoryName", "DefaultGst", "Description" };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cell(1, i + 1).Value = headers[i];
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                }
+
+                // Original Sample Data
+                var samples = new List<string[]>
+                {
+                    new string[] { "CAT001", "Wires & Cables", "18", "Electrical wiring and cables" },
+                    new string[] { "CAT002", "Switches & Sockets", "18", "Modular switches and sockets" },
+                    new string[] { "CAT003", "Lighting", "12", "Indoor and outdoor lighting" }
+                };
+
+                for (int r = 0; r < samples.Count; r++)
+                {
+                    for (int c = 0; c < samples[r].Length; c++)
+                    {
+                        worksheet.Cell(r + 2, c + 1).Value = samples[r][c];
+                    }
+                }
+
+                worksheet.Columns().AdjustToContents();
+
+                using (var stream = new System.IO.MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var content = stream.ToArray();
+                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Category_Template.xlsx");
+                }
+            }
+        }
     }
 }

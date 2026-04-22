@@ -1,0 +1,11 @@
+CategoryCode,CategoryName,DefaultGst,Description
+CAT001,Wires & Cables,18,Electrical wiring and cables
+CAT002,Switches & Sockets,18,Modular switches and sockets
+CAT003,Lighting,12,Indoor and outdoor lighting
+CAT004,Fans,18,Ceiling, wall and exhaust fans
+CAT005,MCB & Distribution,18,Circuit breakers and DB boxes
+CAT006,Conduits & Fittings,18,PVC conduits and accessories
+CAT007,Electrical Accessories,18,Plugs, holders, connectors
+CAT008,Industrial Electrical,18,Industrial electrical components
+CAT009,Inverters & Batteries,28,Power backup products
+CAT010,Smart Electrical,18,Smart home electrical devices
