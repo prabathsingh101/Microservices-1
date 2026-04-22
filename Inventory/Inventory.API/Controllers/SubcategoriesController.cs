@@ -118,7 +118,8 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _repository.UploadSubcategoriesAsync(file, companyId);
-            return Ok(new { message = $"{result.successCount} Subcategories uploaded successfully.", errors = result.errors });
+            int totalAffected = result.successCount + result.updateCount;
+            return Ok(new { message = $"{totalAffected} Subcategories processed successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]
@@ -138,55 +139,34 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
         {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "subcategory_template.csv");
+            if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
+
             using (var workbook = new ClosedXML.Excel.XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Subcategories");
-                var headers = new string[] { "SubcategoryCode", "CategoryName", "SubcategoryName", "DefaultGst", "Description" };
-
-                for (int i = 0; i < headers.Length; i++)
+                var csvLines = System.IO.File.ReadAllLines(filePath);
+                
+                if (csvLines.Length > 0)
                 {
-                    worksheet.Cell(1, i + 1).Value = headers[i];
-                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
-                }
-
-                var samples = new List<string[]>
-                {
-                    new string[] { "SUB001", "Wires & Cables", "Copper Wire", "18", "Copper electrical wire" },
-                    new string[] { "SUB002", "Wires & Cables", "Aluminium Wire", "18", "Aluminium wiring" },
-                    new string[] { "SUB004", "Switches & Sockets", "Modular Switch", "18", "Designer switches" },
-                    new string[] { "SUB007", "Lighting", "LED Bulb", "12", "Energy efficient bulb" },
-                    new string[] { "SUB008", "Lighting", "Tube Light", "12", "Energy efficient tube" },
-                    new string[] { "SUB011", "Fans", "Ceiling Fan", "18", "Ceiling mounted fan" },
-                    new string[] { "SUB015", "Smart Electrical", "Fans", "18", "Smart high-speed fans" },
-                    new string[] { "SUB016", "Smart Electrical", "Lights", "12", "Smart LED lighting solutions" },
-                    new string[] { "SUB017", "Smart Electrical", "Switches", "18", "WiFi modular switches" },
-                    new string[] { "SUB018", "Smart Electrical", "Wires", "18", "Premium grade smart wiring" },
-                    new string[] { "SUB019", "Smart Electrical", "Appliances", "18", "Smart kitchen appliances" },
-                    new string[] { "SUB020", "Smart Electrical", "Protection", "18", "Voltage protectors and smart MCBs" },
-                    new string[] { "SUB021", "Smart Electrical", "Cables", "18", "Heavy duty data and power cables" },
-                    new string[] { "SUB022", "Smart Electrical", "Tools", "12", "Smart precision tools" },
-                    new string[] { "SUB023", "Smart Electrical", "Batteries", "18", "Deep cycle and lithium batteries" },
-                    new string[] { "SUB024", "Smart Electrical", "Fittings", "18", "Smart conduit and lighting fittings" },
-                    new string[] { "SUB031", "Beverages", "Soft Drink", "18", "Cola and lemon drinks" },
-                    new string[] { "SUB032", "Beverages", "Fruit Juice", "12", "Fresh and packed fruit juices" },
-                    new string[] { "SUB034", "Snacks & Branded Foods", "Potato Chips", "12", "Crispy wafers" },
-                    new string[] { "SUB037", "Pulses & Dals", "Moong Dal", "5", "Yellow moong split" },
-                    new string[] { "SUB040", "Atta & Flours", "Wheat Atta", "5", "Chakki fresh flour" },
-                    new string[] { "SUB043", "Rice & Rice Products", "Basmati Rice", "5", "Premium long grain" },
-                    new string[] { "SUB046", "Spices & Masalas", "Turmeric Powder", "5", "Ground haldi" },
-                    new string[] { "SUB049", "Cooking Oils & Ghee", "Mustard Oil", "12", "Pure kachi ghani" },
-                    new string[] { "SUB052", "Salt & Sugar", "White Sugar", "5", "Refined crystalline sugar" },
-                    new string[] { "SUB055", "Dairy Products", "Fresh Paneer", "5", "Fresh cottage cheese" },
-                    new string[] { "SUB090", "Kirana General", "Table Salt", "5", "Refined iodized salt" },
-                    new string[] { "SUB091", "Cleaning Supplies", "Detergent", "18", "Wash detergent" }
-                };
-
-                for (int r = 0; r < samples.Count; r++)
-                {
-                    for (int c = 0; c < samples[r].Length; c++)
+                    // 1. Process Header
+                    var headers = csvLines[0].Split(',');
+                    for (int i = 0; i < headers.Length; i++)
                     {
-                        worksheet.Cell(r + 2, c + 1).Value = samples[r][c];
+                        worksheet.Cell(1, i + 1).Value = headers[i];
+                        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                    }
+
+                    // 2. Process Data Rows
+                    for (int r = 1; r < csvLines.Length; r++)
+                    {
+                        if (string.IsNullOrWhiteSpace(csvLines[r])) continue;
+                        var cells = csvLines[r].Split(',');
+                        for (int c = 0; c < cells.Length; c++)
+                        {
+                            worksheet.Cell(r + 1, c + 1).Value = cells[c];
+                        }
                     }
                 }
 

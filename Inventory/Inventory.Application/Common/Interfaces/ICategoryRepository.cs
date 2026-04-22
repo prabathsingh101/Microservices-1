@@ -20,6 +20,6 @@ public interface ICategoryRepository
 
     IQueryable<Category> Query();
 
-    Task<(int successCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId);
+    Task<(int successCount, int updateCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId);
     Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null);
 }

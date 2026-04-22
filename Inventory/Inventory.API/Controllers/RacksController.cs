@@ -100,45 +100,40 @@ public sealed class RacksController : ControllerBase
             errors = result.errors
         });
     }
+
     [HttpGet("download-template")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public IActionResult DownloadTemplate()
     {
+        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "rack_template.csv");
+        if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
+
         using (var workbook = new ClosedXML.Excel.XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Racks");
-            var headers = new string[] { "WarehouseName", "RackName", "Description" };
-
-            for (int i = 0; i < headers.Length; i++)
+            var csvLines = System.IO.File.ReadAllLines(filePath);
+            
+            if (csvLines.Length > 0)
             {
-                worksheet.Cell(1, i + 1).Value = headers[i];
-                worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
-            }
+                // 1. Process Header
+                var headers = csvLines[0].Split(',');
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cell(1, i + 1).Value = headers[i];
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                }
 
-            // Sample Data (Varied Rack Types)
-            var rackData = new List<(string Warehouse, string Name, string Description)>
-            {
-                ("Main Warehouse", "Rack A3", "Primary storage for electronic components"),
-                ("Main Warehouse", "Rack R7", "Secondary stock area"),
-                ("Main Warehouse", "Rack R10", "High shelf storage"),
-                ("Main Warehouse", "Rack R2", "Small parts section"),
-                ("Cable & Wire Warehouse", "Rack C1", "Heavy cable spool rack"),
-                ("Cable & Wire Warehouse", "Rack C2", "Electrical wire spool section"),
-                ("Grocery Central", "Kirana Row 1", "Dedicated row for spices and oils"),
-                ("Grocery Central", "Grains B-10", "Heavy-duty rack for 50kg grain sacks"),
-                ("Kirana Wholesale Hub", "Traditional Herbs A", "Shelving for medicinal herbs and traditional packs"),
-                ("Industrial Vault", "Heavy Motor Stand", "Floor reinforced rack for heavy industrial motors"),
-                ("South Storage Wing", "Cold Rack 01", "Insulated rack for temperature-sensitive grocery items"),
-                ("Main Warehouse", "Expired Rack", "Designated area for storing expired or damaged items"),
-                ("Downtown Outlet", "Front Display Rack", "Retail shelf for fast-moving items")
-            };
-
-            for (int i = 0; i < rackData.Count; i++)
-            {
-                worksheet.Cell(i + 2, 1).Value = rackData[i].Warehouse;
-                worksheet.Cell(i + 2, 2).Value = rackData[i].Name;
-                worksheet.Cell(i + 2, 3).Value = rackData[i].Description;
+                // 2. Process Data Rows
+                for (int r = 1; r < csvLines.Length; r++)
+                {
+                    if (string.IsNullOrWhiteSpace(csvLines[r])) continue;
+                    var cells = csvLines[r].Split(',');
+                    for (int c = 0; c < cells.Length; c++)
+                    {
+                        worksheet.Cell(r + 1, c + 1).Value = cells[c];
+                    }
+                }
             }
 
             worksheet.Columns().AdjustToContents();

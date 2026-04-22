@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Inventory.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/units")]
     [ApiController]
     public class UnitsController : ControllerBase
     {
@@ -63,55 +63,35 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
         {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "unit_template.csv");
+            if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
+
             using (var workbook = new ClosedXML.Excel.XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Units");
-                var headers = new string[] { "Name", "Description", "Status (Active/Inactive)" };
-
-                for (int i = 0; i < headers.Length; i++)
+                var csvLines = System.IO.File.ReadAllLines(filePath);
+                
+                if (csvLines.Length > 0)
                 {
-                    worksheet.Cell(1, i + 1).Value = headers[i];
-                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightCyan;
-                }
+                    // 1. Process Header
+                    var headers = csvLines[0].Split(',');
+                    for (int i = 0; i < headers.Length; i++)
+                    {
+                        worksheet.Cell(1, i + 1).Value = headers[i];
+                        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightCyan;
+                    }
 
-                var unitsData = new List<(string Name, string Description, string Status)>
-                {
-                    // Grocery Units
-                    ("Kg", "Kilogram - Base unit for solid items (Grain, Sugar)", "Active"),
-                    ("Gram", "Base unit for spices and small packs", "Active"),
-                    ("Litre", "Base unit for liquid items (Oil, Milk)", "Active"),
-                    ("ML", "Millilitre - used for small liquid quantity", "Active"),
-                    ("Pkt", "Packet - commonly used for biscuits, snacks", "Active"),
-                    ("Pch", "Pouch - used for small detergent/spice packs", "Active"),
-                    ("Btl", "Bottle - used for soft drinks, sauces", "Active"),
-                    ("Jar", "Jar - used for pickles, jam, honey", "Active"),
-                    ("Box", "Box - used for tea bags, chocolates", "Active"),
-                    ("Bag", "Bag - secondary unit for grains (5kg, 10kg)", "Active"),
-                    ("Sck", "Sack - used for wholesale grain quantities", "Active"),
-                    ("Tin", "Tin - used for ghee or edible oils", "Active"),
-                    ("Dozen", "Dozen - used for eggs or banana sets", "Active"),
-                    ("Pcs", "Pieces - used for individual items", "Active"),
-                    
-                    // Electric Units
-                    ("Nos", "Numbers - primary count for electrical parts", "Active"),
-                    ("Mtr", "Meter - used for wires, cables, lighting strips", "Active"),
-                    ("Ft", "Foot - alternative measurement for piping/wiring", "Active"),
-                    ("Coil", "Coil - standard bundle for long cables/conduits", "Active"),
-                    ("Roll", "Roll - used for tapes, foils, or LED strips", "Active"),
-                    ("Reel", "Reel - used for industrial grade wiring", "Active"),
-                    ("Drum", "Drum - used for bulk cable storage", "Active"),
-                    ("Set", "Set - used for combo packs or tools", "Active"),
-                    ("Pair", "Pair - used for tools or components", "Active"),
-                    ("Unit", "Unit - used for equipment/appliances", "Active"),
-                    ("Bundle", "Bundle - used for pipes or sticks", "Active")
-                };
-
-                for (int i = 0; i < unitsData.Count; i++)
-                {
-                    worksheet.Cell(i + 2, 1).Value = unitsData[i].Name;
-                    worksheet.Cell(i + 2, 2).Value = unitsData[i].Description;
-                    worksheet.Cell(i + 2, 3).Value = unitsData[i].Status;
+                    // 2. Process Data Rows
+                    for (int r = 1; r < csvLines.Length; r++)
+                    {
+                        if (string.IsNullOrWhiteSpace(csvLines[r])) continue;
+                        var cells = csvLines[r].Split(',');
+                        for (int c = 0; c < cells.Length; c++)
+                        {
+                            worksheet.Cell(r + 1, c + 1).Value = cells[c];
+                        }
+                    }
                 }
 
                 worksheet.Columns().AdjustToContents();

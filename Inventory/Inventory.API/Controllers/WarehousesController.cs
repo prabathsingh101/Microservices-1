@@ -102,41 +102,35 @@ public sealed class WarehousesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public IActionResult DownloadTemplate()
     {
+        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "warehouse_template.csv");
+        if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
+
         using (var workbook = new ClosedXML.Excel.XLWorkbook())
         {
             var worksheet = workbook.Worksheets.Add("Warehouses");
-            var headers = new string[] { "Name", "Location", "Description", "IsActive" };
-
-            for (int i = 0; i < headers.Length; i++)
+            var csvLines = System.IO.File.ReadAllLines(filePath);
+            
+            if (csvLines.Length > 0)
             {
-                worksheet.Cell(1, i + 1).Value = headers[i];
-                worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightCyan;
-            }
+                // 1. Process Header
+                var headers = csvLines[0].Split(',');
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cell(1, i + 1).Value = headers[i];
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightCyan;
+                }
 
-            // Sample Data (Grocery & Electric Mix)
-            var warehouseData = new List<(string Name, string Location, string Description)>
-            {
-                ("Main Warehouse", "New Delhi, Okhla", "Primary distribution center for all units"),
-                ("Cable & Wire Warehouse", "Rohini Sector 7", "Main hub for electrical wiring and heavy equipment"),
-                ("Grocery Central", "Azadpur Mandi", "Bulk storage for grains, pulses, and dry grocery"),
-                ("Downtown Outlet", "Connaught Place", "Fast-moving retail items and display stock"),
-                ("Kirana Backup Store", "Chandni Chowk", "Small pack supplies and traditional grocery items"),
-                ("East Logi-Park", "Laxmi Nagar", "Secondary transit point for electric parts"),
-                ("West Service Ware", "Janakpuri", "Spares and maintenance equipment storage"),
-                ("South Storage Wing", "Saket", "Premium product handling and cold storage area"),
-                ("Express Warehouse", "Dwarka Sector 10", "Quick delivery dispatch center"),
-                ("Industrial Vault", "Mayapuri Industrial Area", "Heavy industrial electric motors and spares"),
-                ("Kirana Wholesale Hub", "Sadar Bazar", "Wholesale supply storage for pulses and spices"),
-                ("Retail Support Unit", "Rajouri Garden", "Frontend retail support and inventory backup")
-            };
-
-            for (int i = 0; i < warehouseData.Count; i++)
-            {
-                worksheet.Cell(i + 2, 1).Value = warehouseData[i].Name;
-                worksheet.Cell(i + 2, 2).Value = warehouseData[i].Location;
-                worksheet.Cell(i + 2, 3).Value = warehouseData[i].Description;
-                worksheet.Cell(i + 2, 4).Value = "TRUE";
+                // 2. Process Data Rows
+                for (int r = 1; r < csvLines.Length; r++)
+                {
+                    if (string.IsNullOrWhiteSpace(csvLines[r])) continue;
+                    var cells = csvLines[r].Split(',');
+                    for (int c = 0; c < cells.Length; c++)
+                    {
+                        worksheet.Cell(r + 1, c + 1).Value = cells[c];
+                    }
+                }
             }
 
             worksheet.Columns().AdjustToContents();

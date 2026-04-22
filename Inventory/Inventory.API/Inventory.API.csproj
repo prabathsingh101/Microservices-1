@@ -31,6 +31,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Templates\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="vclibs\**\*.*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

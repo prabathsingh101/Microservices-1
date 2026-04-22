@@ -16,6 +16,8 @@ services:
       dockerfile: Gateway/Gateway.API/Dockerfile
     ports:
       - "5000:8080"
+    environment:
+      - ReverseProxy__Clusters__inventory-cluster__Destinations__destination1__Address=http://host.docker.internal:5042
     depends_on:
       - identity.api
       - customers.api

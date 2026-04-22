@@ -91,10 +91,11 @@ public sealed class CategoryRepository : ICategoryRepository
         return _db.Categories.Where(x => x.CompanyId == companyId).AsQueryable();
     }
 
-    public async Task<(int successCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId)
-    {
-        var errors = new List<string>();
-        int successCount = 0;
+        public async Task<(int successCount, int updateCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId)
+        {
+            var errors = new List<string>();
+            int successCount = 0;
+            int updateCount = 0;
 
         using (var stream = new MemoryStream())
         {
@@ -109,7 +110,7 @@ public sealed class CategoryRepository : ICategoryRepository
                 if (headerRow == null)
                 {
                     errors.Add("Invalid Template: File is empty.");
-                    return (0, errors);
+                    return (0, 0, errors);
                 }
 
                 var expectedHeaders = new List<string> { "CategoryCode", "CategoryName", "DefaultGst", "Description" };
@@ -117,7 +118,7 @@ public sealed class CategoryRepository : ICategoryRepository
 
                 for (int i = 1; i <= expectedHeaders.Count; i++)
                 {
-                    var val = headerRow.Cell(i).GetValue<string>().Trim();
+                    var val = headerRow.Cell(i).GetValue<string>().Replace("\"", "").Trim();
                     if (!string.IsNullOrEmpty(val)) actualHeaders.Add(val);
                 }
 
@@ -127,7 +128,7 @@ public sealed class CategoryRepository : ICategoryRepository
                 if (!headersMatch)
                 {
                     errors.Add($"Invalid Template: Headers do not match. Expected: {string.Join(", ", expectedHeaders)}");
-                    return (0, errors);
+                    return (0, 0, errors);
                 }
 
                 var dataRows = rows.Skip(1);
@@ -149,7 +150,6 @@ public sealed class CategoryRepository : ICategoryRepository
                 }
 
                 var newCategories = new List<Category>();
-                int updateCount = 0;
 
                 // 3. In-File Duplicate Check
                 var fileCodes = new HashSet<string>();
@@ -185,19 +185,19 @@ public sealed class CategoryRepository : ICategoryRepository
                         }
 
                         // Duplicate Check (In-File)
-                        if (fileCodes.Contains(code.ToLower()))
+                        if (fileCodes.Contains(code?.ToLower().Trim() ?? ""))
                         {
                             errors.Add($"Row {rowNum}: Duplicate Code '{code}' in file.");
                             continue;
                         }
-                        if (fileNames.Contains(name.ToLower()))
+                        if (fileNames.Contains(name?.ToLower().Trim() ?? ""))
                         {
                             errors.Add($"Row {rowNum}: Duplicate Name '{name}' in file.");
                             continue;
                         }
 
-                        fileCodes.Add(code.ToLower());
-                        fileNames.Add(name.ToLower());
+                        fileCodes.Add(code?.ToLower().Trim() ?? "");
+                        fileNames.Add(name?.ToLower().Trim() ?? "");
 
                         // GST Parsing
                         decimal defaultGst = 0;
@@ -214,12 +214,12 @@ public sealed class CategoryRepository : ICategoryRepository
                         Category? existingCategory = null;
 
                         // Priority 1: Check by Code
-                        if (dbCatsByCode.TryGetValue(code.ToLower(), out var catByCode))
+                        if (dbCatsByCode.TryGetValue(code?.ToLower().Trim() ?? "", out var catByCode))
                         {
                             existingCategory = catByCode;
                         }
                         // Priority 2: Check by Name
-                        else if (dbCatsByName.TryGetValue(name.ToLower(), out var catByName))
+                        else if (dbCatsByName.TryGetValue(name?.ToLower().Trim() ?? "", out var catByName))
                         {
                             existingCategory = catByName;
                         }
@@ -272,7 +272,7 @@ public sealed class CategoryRepository : ICategoryRepository
                 }
             }
         }
-        return (successCount, errors);
+        return (successCount, updateCount, errors);
     }
 
     public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)

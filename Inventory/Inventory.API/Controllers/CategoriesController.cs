@@ -109,7 +109,8 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _categoryRepository.UploadCategoriesAsync(file, companyId);
-            return Ok(new { message = $"{result.successCount} Categories uploaded successfully.", errors = result.errors });
+            int totalAffected = result.successCount + result.updateCount;
+            return Ok(new { message = $"{totalAffected} Categories processed successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]
@@ -129,55 +130,34 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
         {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "category_template.csv");
+            if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
+
             using (var workbook = new ClosedXML.Excel.XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Categories");
-                var headers = new string[] { "CategoryCode", "CategoryName", "DefaultGst", "Description" };
-
-                for (int i = 0; i < headers.Length; i++)
+                var csvLines = System.IO.File.ReadAllLines(filePath);
+                
+                if (csvLines.Length > 0)
                 {
-                    worksheet.Cell(1, i + 1).Value = headers[i];
-                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                    worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
-                }
-
-                var samples = new List<string[]>
-                {
-                    new string[] { "CAT001", "Wires & Cables", "18", "Electrical wiring and cables" },
-                    new string[] { "CAT002", "Switches & Sockets", "18", "Modular switches and sockets" },
-                    new string[] { "CAT003", "Lighting", "12", "Indoor and outdoor lighting" },
-                    new string[] { "CAT004", "Fans", "18", "Ceiling, wall and exhaust fans" },
-                    new string[] { "CAT005", "MCB & Distribution", "18", "Circuit breakers and DB boxes" },
-                    new string[] { "CAT006", "Smart Electrical", "18", "Smart automation and high-end electrical gadgets" },
-                    new string[] { "CAT007", "Power Backup", "12", "UPS, Inverters and batteries" },
-                    new string[] { "CAT008", "Appliances", "18", "Kitchen and home electrical appliances" },
-                    new string[] { "CAT026", "Beverages", "18", "Soft drinks, juices and energy drinks" },
-                    new string[] { "CAT027", "Snacks & Branded Foods", "12", "Chips, noodles and packed snacks" },
-                    new string[] { "CAT028", "Pulses & Dals", "5", "Organic and packed pulses" },
-                    new string[] { "CAT029", "Atta & Flours", "5", "Wheat flour and specialty flours" },
-                    new string[] { "CAT030", "Rice & Rice Products", "5", "Basmati and non-basmati rice" },
-                    new string[] { "CAT031", "Spices & Masalas", "5", "Ground and whole spices" },
-                    new string[] { "CAT032", "Cooking Oils & Ghee", "12", "Refined and cold pressed oils" },
-                    new string[] { "CAT033", "Salt & Sugar", "5", "Refined sugar and specialized salts" },
-                    new string[] { "CAT034", "Dairy Products", "5", "Milk, paneer and curd" },
-                    new string[] { "CAT035", "Personal Care", "18", "Body lotions and bath products" },
-                    new string[] { "CAT038", "Biscuits & Cookies", "18", "Assorted biscuits and cookies" },
-                    new string[] { "CAT039", "Breakfast Cereals", "12", "Oats, cornflakes and muesli" },
-                    new string[] { "CAT045", "Beauty & Cosmetic", "28", "Premium skincare and makeup" },
-                    new string[] { "CAT050", "Tea & Coffee", "12", "Premium tea leaves and coffee beans" },
-                    new string[] { "CAT051", "Bread & Bakery", "5", "Fresh breads, buns and cakes" },
-                    new string[] { "CAT052", "Frozen Foods", "18", "Ready to fry nuggets, peas and meals" },
-                    new string[] { "CAT082", "Sweets & Mithai", "12", "Packed gulab jamun and rasgulla" },
-                    new string[] { "CAT086", "Instant Mixes", "12", "Idli, dosa and gulab jamun mixes" },
-                    new string[] { "CAT090", "Kirana General", "5", "Daily household grocery essentials" },
-                    new string[] { "CAT091", "Cleaning Supplies", "18", "Detergents and floor cleaners" }
-                };
-
-                for (int r = 0; r < samples.Count; r++)
-                {
-                    for (int c = 0; c < samples[r].Length; c++)
+                    // 1. Process Header
+                    var headers = csvLines[0].Split(',');
+                    for (int i = 0; i < headers.Length; i++)
                     {
-                        worksheet.Cell(r + 2, c + 1).Value = samples[r][c];
+                        worksheet.Cell(1, i + 1).Value = headers[i];
+                        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                    }
+
+                    // 2. Process Data Rows
+                    for (int r = 1; r < csvLines.Length; r++)
+                    {
+                        if (string.IsNullOrWhiteSpace(csvLines[r])) continue;
+                        var cells = csvLines[r].Split(',');
+                        for (int c = 0; c < cells.Length; c++)
+                        {
+                            worksheet.Cell(r + 1, c + 1).Value = cells[c];
+                        }
                     }
                 }
 
