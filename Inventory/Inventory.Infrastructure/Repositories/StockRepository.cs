@@ -456,8 +456,27 @@ namespace Inventory.Infrastructure.Repositories
                                  (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
+                // 🎯 3. SMART SYNC: Fetch Unlinked Sales (Missing Warehouse/Rack)
+                // These are sales that deducted from Master but didn't link to a batch in UI
+                var unlinkedSales = await _context.SaleOrderItems
+                    .Where(si => si.CompanyId == companyId &&
+                                si.ProductId == item.ProductId && 
+                                (si.WarehouseId == null || si.RackId == null) &&
+                                (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .SumAsync(si => (decimal?)si.Qty) ?? 0;
+
                 // 4. Update Net Stats
-                item.TotalSold = grossSold - totalSaleReturn;
+                // If it's the oldest batch, we attribute the unlinked sales to it (FIFO Display logic)
+                var isOldest = await _context.GRNDetails
+                    .Where(g => g.ProductId == item.ProductId && g.CompanyId == companyId)
+                    .OrderBy(g => g.GRNHeader.ReceivedDate)
+                    .Select(g => new { g.WarehouseId, g.RackId })
+                    .FirstOrDefaultAsync();
+
+                var adjustment = (isOldest != null && isOldest.WarehouseId == item.WarehouseId && isOldest.RackId == item.RackId) 
+                                 ? unlinkedSales : 0;
+
+                item.TotalSold = grossSold + adjustment - totalSaleReturn;
                 
                 // 🎯 5. Final Stock Update: Physical Stock Calculation
                 // Rule: Show what's in the rack until it is completely deleted (purged)
@@ -632,7 +651,37 @@ namespace Inventory.Infrastructure.Repositories
                     }
                 }
 
-                item.History = allBatches.Take(15).ToList(); // Return top 15 batches with real AvailableQty
+                // 🎯 8. Merge Sales & Adjustments into History for full Audit Trail
+                var transactions = await _context.InventoryTransactions
+                    .Where(it => it.ProductId == item.ProductId && it.WarehouseId == item.WarehouseId && it.RackId == item.RackId)
+                    .OrderByDescending(it => it.CreatedOn)
+                    .Take(20)
+                    .Select(it => new StockHistoryDto
+                    {
+                        ProductId = it.ProductId,
+                        WarehouseId = it.WarehouseId,
+                        RackId = it.RackId,
+                        ReceivedDate = (it.CreatedOn ?? DateTime.Now).AddHours(5).AddMinutes(30),
+                        PONumber = it.ReferenceId, // Fixed field name
+                        TransactionType = it.TransactionType,
+                        SupplierName = it.TransactionType.Contains("Sale") ? "Customer" : "System",
+                        ProductName = item.ProductName,
+                        ReceivedQty = it.TransactionType.EndsWith("-IN") || it.TransactionType == "GRN" ? it.Quantity : 0,
+                        RejectedQty = it.TransactionType.EndsWith("-OUT") || it.TransactionType.Contains("Sale") ? it.Quantity : 0,
+                        WarehouseName = item.WarehouseName,
+                        RackName = item.RackName,
+                        ManufacturingDate = it.MfgDate,
+                        ExpiryDate = it.ExpDate,
+                        AvailableQty = 0 // Contextual in UI
+                    }).ToListAsync();
+
+                // Combine GRN batches and Transactions, then Sort by Date
+                var combinedHistory = allBatches.Concat(transactions)
+                    .OrderByDescending(h => h.ReceivedDate)
+                    .Take(20)
+                    .ToList();
+
+                item.History = combinedHistory;
                 
                 // 🎯 If the location has no physical stock left but was once purged (Expired Rack case)
                 if (item.AvailableStock == 0 && (item.History.Any(h => h.IsAlreadyPurged) || item.WarehouseName.ToLower().Contains("expired") || item.RackName.ToLower().Contains("expired")))

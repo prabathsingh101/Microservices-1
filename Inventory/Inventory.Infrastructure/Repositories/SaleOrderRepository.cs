@@ -345,6 +345,24 @@ public class SaleOrderRepository : ISaleOrderRepository
                     // Current stock mein se order qty minus kar dein
                     product.CurrentStock -= item.Qty;
 
+                    // 🆕 FIFO FALLBACK: If Sale Item has no Warehouse/Rack, try to link it to the oldest available batch
+                    if (item.WarehouseId == null || item.RackId == null)
+                    {
+                        var oldestBatch = await _context.GRNDetails
+                            .Where(g => g.ProductId == item.ProductId && g.CompanyId == companyId && (g.ReceivedQty - g.RejectedQty) > 0)
+                            .OrderBy(g => g.GRNHeader.ReceivedDate)
+                            .FirstOrDefaultAsync();
+
+                        if (oldestBatch != null)
+                        {
+                            item.WarehouseId = oldestBatch.WarehouseId;
+                            item.RackId = oldestBatch.RackId;
+                            item.MfgDate = oldestBatch.MfgDate;
+                            item.ExpDate = oldestBatch.ExpDate;
+                            _context.SaleOrderItems.Update(item);
+                        }
+                    }
+
                     // 🆕 Record Inventory Transaction for Audit Trail
                     bool isQuick = order.SONumber.Contains("-Q-");
                     var saleTx = new InventoryTransaction(
