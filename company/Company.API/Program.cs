@@ -93,11 +93,28 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Safe Database Initialization
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<CompanyDbContext>();
-    // db.Database.EnsureDeleted(); // Fixed: Removed to prevent data loss on every restart
-    db.Database.Migrate(); // applies migrations, creates DB if not exists
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<CompanyDbContext>();
+        if (context.Database.CanConnect())
+        {
+            Log.Information("Company Database connected. Applying migrations...");
+            context.Database.Migrate();
+        }
+        else
+        {
+            Log.Warning("Company Database not found. Attempting to create...");
+            context.Database.EnsureCreated();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while initializing the Company database.");
+    }
 }
 
 app.MapControllers();

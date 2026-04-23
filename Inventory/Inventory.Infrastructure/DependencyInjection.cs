@@ -28,6 +28,7 @@ namespace Inventory.Infrastructure
                             maxRetryCount: 10,
                             maxRetryDelay: TimeSpan.FromSeconds(30),
                             errorNumbersToAdd: null);
+                        sqlOptions.CommandTimeout(300); // Badha kar 5 minutes kar diya
                     })
                 .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 

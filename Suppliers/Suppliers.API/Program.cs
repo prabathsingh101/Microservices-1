@@ -96,10 +96,28 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+// Safe Database Initialization
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<SupplierDbContext>();
-    db.Database.Migrate(); // applies migrations, creates DB if not exists
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<SupplierDbContext>();
+        if (context.Database.CanConnect())
+        {
+            Log.Information("Supplier Database connected. Applying migrations...");
+            context.Database.Migrate();
+        }
+        else
+        {
+            Log.Warning("Supplier Database not found. Attempting to create...");
+            context.Database.EnsureCreated();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while initializing the Supplier database.");
+    }
 }
 
 app.MapControllers();

@@ -130,7 +130,7 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
         {
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "category_template.csv");
+            var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "category_template.csv");
             if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
 
             using (var workbook = new ClosedXML.Excel.XLWorkbook())

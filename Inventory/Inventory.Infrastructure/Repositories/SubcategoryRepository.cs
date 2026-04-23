@@ -201,14 +201,12 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                         if (existingSubcat != null)
                         {
                             existingSubcat.Update(code, name, categoryId, defaultGst, description, true, companyId);
-                            await _context.SaveChangesAsync();
                             updateCount++;
                         }
                         else
                         {
                             var subcat = new Subcategory(categoryId, code, name, defaultGst, description, true, companyId);
                             await _context.Subcategories.AddAsync(subcat);
-                            await _context.SaveChangesAsync();
                             successCount++;
                         }
                     }
@@ -216,6 +214,12 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                     {
                         errors.Add($"Row {rowNum}: {ex.Message}");
                     }
+                }
+                
+                // Batch Save at the end
+                if (successCount > 0 || updateCount > 0)
+                {
+                    await _context.SaveChangesAsync();
                 }
             }
         }

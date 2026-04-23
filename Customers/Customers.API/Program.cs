@@ -86,10 +86,28 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+// Safe Database Initialization
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<CustomerDbContext>();
-    db.Database.Migrate(); // applies migrations, creates DB if not exists
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<CustomerDbContext>();
+        if (context.Database.CanConnect())
+        {
+            Log.Information("Customer Database connected. Applying migrations...");
+            context.Database.Migrate();
+        }
+        else
+        {
+            Log.Warning("Customer Database not found. Attempting to create...");
+            context.Database.EnsureCreated();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while initializing the Customer database.");
+    }
 }
 
 app.MapControllers();

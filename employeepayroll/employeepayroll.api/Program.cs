@@ -93,10 +93,28 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Safe Database Initialization
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<EmployeePayrollDBContext>();
-    db.Database.Migrate(); // applies migrations, creates DB if not exists
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<EmployeePayrollDBContext>();
+        if (context.Database.CanConnect())
+        {
+            Log.Information("EmployeePayroll Database connected. Applying migrations...");
+            context.Database.Migrate();
+        }
+        else
+        {
+            Log.Warning("EmployeePayroll Database not found. Attempting to create...");
+            context.Database.EnsureCreated();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while initializing the EmployeePayroll database.");
+    }
 }
 
 app.MapControllers();

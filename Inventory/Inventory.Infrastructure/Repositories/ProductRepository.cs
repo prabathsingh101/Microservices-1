@@ -470,7 +470,6 @@ public sealed class ProductRepository : IProductRepository
                                 modifiedon: DateTime.UtcNow,
                                 companyId: companyId
                             );
-                            await _db.SaveChangesAsync();
                             updateCount++;
                         }
                         else
@@ -502,7 +501,6 @@ public sealed class ProductRepository : IProductRepository
                                 companyId: companyId
                             );
                             await _db.Products.AddAsync(product);
-                            await _db.SaveChangesAsync();
                             successCount++;
                         }
                     }
@@ -510,6 +508,11 @@ public sealed class ProductRepository : IProductRepository
                     {
                         errors.Add($"Row {rowNum}: Fatal Error - {ex.Message}");
                     }
+                }
+
+                if (successCount > 0 || updateCount > 0)
+                {
+                    await _db.SaveChangesAsync();
                 }
 
                 if (successCount == 0 && !errors.Any())

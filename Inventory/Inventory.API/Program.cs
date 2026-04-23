@@ -103,15 +103,33 @@ app.UseCors("AllowAngularDev");
 
 app.UseMiddleware<Inventory.API.Middleware.ExceptionHandlingMiddleware>();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Safe Database Initialization
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-    db.Database.Migrate(); // applies migrations, creates DB if not exists
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<InventoryDbContext>();
+        if (context.Database.CanConnect())
+        {
+            Log.Information("Inventory Database connected. Applying migrations...");
+            context.Database.Migrate();
+        }
+        else
+        {
+            Log.Warning("Inventory Database not found. Attempting to create...");
+            context.Database.EnsureCreated();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while initializing the Inventory database. App will still start.");
+    }
 }
 
 app.MapControllers();

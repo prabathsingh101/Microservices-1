@@ -243,11 +243,16 @@ public sealed class InventoryDbContext : DbContext,
             builder.Property(x => x.Quantity).HasPrecision(18, 2);
         });
 
-        // --- 🔒 GLOBAL MULTI-TENANT FILTER ---
+        // --- 🔒 GLOBAL MULTI-TENANT FILTER & INDEXING ---
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(Inventory.Domain.Common.IMultiTenant).IsAssignableFrom(entityType.ClrType))
             {
+                // 1. Add Index on CompanyId for performance (Unique name to avoid collisions)
+                modelBuilder.Entity(entityType.ClrType)
+                    .HasIndex("CompanyId")
+                    .HasDatabaseName("IX_MT_" + entityType.ClrType.Name + "_CompanyId");
+                // 2. Set Global Query Filter
                 var method = typeof(InventoryDbContext).GetMethod(nameof(SetGlobalQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                     ?.MakeGenericMethod(entityType.ClrType);
                 method?.Invoke(this, new object[] { modelBuilder });
