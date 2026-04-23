@@ -87,12 +87,29 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task UpdateProductStockAsync(Guid productId, decimal adjustmentQty)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId);
-        if (product != null)
+        
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            product.CurrentStock += adjustmentQty;
-            _context.Products.Update(product);
-            await _context.SaveChangesAsync();
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId);
+            if (product != null)
+            {
+                // Safety check for outward adjustments
+                if (adjustmentQty < 0 && product.CurrentStock < Math.Abs(adjustmentQty))
+                {
+                    throw new InvalidOperationException($"Stock conflict for {product.Name}. Cannot deduct {Math.Abs(adjustmentQty)} when current stock is {product.CurrentStock}.");
+                }
+
+                product.CurrentStock += adjustmentQty;
+                _context.Products.Update(product);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
         }
     }
 
@@ -324,85 +341,104 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<bool> UpdateSaleOrderStatusAsync(Guid id, string status)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        // 1. Pehle Order fetch karein
-        var order = await _context.SaleOrders.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
-        if (order == null) return false;
-
-        // 2. Agar status 'Confirmed' ho raha hai aur pehle se nahi tha
-        if (status == "Confirmed" && order.Status != "Confirmed")
+        
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            // Order ke saare items nikaalein
-            var items = await _context.SaleOrderItems
-                                      .Where(x => x.SaleOrderId == id)
-                                      .ToListAsync();
+            // 1. Pehle Order fetch karein
+            var order = await _context.SaleOrders.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+            if (order == null) return false;
 
-            foreach (var item in items)
+            // 2. Agar status 'Confirmed' ho raha hai aur pehle se nahi tha
+            if (status == "Confirmed" && order.Status != "Confirmed")
             {
-                // Product table se stock kam karein
-                var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId);
-                if (product != null)
+                // Order ke saare items nikaalein
+                var items = await _context.SaleOrderItems
+                                          .Where(x => x.SaleOrderId == id)
+                                          .ToListAsync();
+
+                foreach (var item in items)
                 {
-                    // Current stock mein se order qty minus kar dein
-                    product.CurrentStock -= item.Qty;
-
-                    // 🆕 FIFO FALLBACK: If Sale Item has no Warehouse/Rack, try to link it to the oldest available batch
-                    if (item.WarehouseId == null || item.RackId == null)
+                    // Product table se stock kam karein (Locking the row for update)
+                    var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId);
+                    if (product != null)
                     {
-                        var oldestBatch = await _context.GRNDetails
-                            .Where(g => g.ProductId == item.ProductId && g.CompanyId == companyId && (g.ReceivedQty - g.RejectedQty) > 0)
-                            .OrderBy(g => g.GRNHeader.ReceivedDate)
-                            .FirstOrDefaultAsync();
-
-                        if (oldestBatch != null)
+                        // 🛡️ CONCURRENCY GUARD: Check if sufficient stock is available
+                        if (product.CurrentStock < item.Qty)
                         {
-                            item.WarehouseId = oldestBatch.WarehouseId;
-                            item.RackId = oldestBatch.RackId;
-                            item.MfgDate = oldestBatch.MfgDate;
-                            item.ExpDate = oldestBatch.ExpDate;
-                            _context.SaleOrderItems.Update(item);
+                            throw new InvalidOperationException($"Insufficient Stock for '{item.ProductName}'. Available: {product.CurrentStock}, Required: {item.Qty}. Operation cancelled to prevent negative stock.");
                         }
-                    }
 
-                    // 🆕 Record Inventory Transaction for Audit Trail
-                    bool isQuick = order.SONumber.Contains("-Q-");
-                    var saleTx = new InventoryTransaction(
-                        item.ProductId,
-                        item.Qty,
-                        isQuick ? "QuickSale" : "Sale",
-                        order.SONumber,
-                        item.WarehouseId,
-                        item.RackId,
-                        item.MfgDate,
-                        item.ExpDate
-                    );
-                    await _context.InventoryTransactions.AddAsync(saleTx);
+                        // Current stock mein se order qty minus kar dein
+                        product.CurrentStock -= item.Qty;
+
+                        // 🆕 FIFO FALLBACK: If Sale Item has no Warehouse/Rack, try to link it to the oldest available batch
+                        if (item.WarehouseId == null || item.RackId == null)
+                        {
+                            var oldestBatch = await _context.GRNDetails
+                                .Where(g => g.ProductId == item.ProductId && g.CompanyId == companyId && (g.ReceivedQty - g.RejectedQty) > 0)
+                                .OrderBy(g => g.GRNHeader.ReceivedDate)
+                                .FirstOrDefaultAsync();
+
+                            if (oldestBatch != null)
+                            {
+                                item.WarehouseId = oldestBatch.WarehouseId;
+                                item.RackId = oldestBatch.RackId;
+                                item.MfgDate = oldestBatch.MfgDate;
+                                item.ExpDate = oldestBatch.ExpDate;
+                                _context.SaleOrderItems.Update(item);
+                            }
+                        }
+
+                        // 🆕 Record Inventory Transaction for Audit Trail
+                        bool isQuick = order.SONumber.Contains("-Q-");
+                        var saleTx = new InventoryTransaction(
+                            item.ProductId,
+                            item.Qty,
+                            isQuick ? "QuickSale" : "Sale",
+                            order.SONumber,
+                            item.WarehouseId,
+                            item.RackId,
+                            item.MfgDate,
+                            item.ExpDate
+                        );
+                        await _context.InventoryTransactions.AddAsync(saleTx);
+                    }
                 }
             }
+
+            // 3. Status update karein aur save karein
+            order.Status = status;
+            var saved = await _context.SaveChangesAsync() > 0;
+            
+            await transaction.CommitAsync();
+
+            if (saved && status == "Confirmed")
+            {
+                try
+                {
+                    await _customerClient.RecordSaleAsync(
+                        order.CustomerId,
+                        order.GrandTotal,
+                        order.SONumber,
+                        $"Sale Invoice generated: {order.SONumber}",
+                        "System"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Customer Ledger sync error: {ex.Message}");
+                }
+            }
+
+            return saved;
         }
-
-        // 3. Status update karein aur save karein
-        order.Status = status;
-        var saved = await _context.SaveChangesAsync() > 0;
-
-        if (saved && status == "Confirmed")
+        catch (Exception ex)
         {
-            try
-            {
-                await _customerClient.RecordSaleAsync(
-                    order.CustomerId,
-                    order.GrandTotal,
-                    order.SONumber,
-                    $"Sale Invoice generated: {order.SONumber}",
-                    "System"
-                );
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Customer Ledger sync error: {ex.Message}");
-            }
+            await transaction.RollbackAsync();
+            Console.WriteLine($"Error updating sale order status: {ex.Message}");
+            throw; // Re-throw to handle in API layer
         }
-
-        return saved;
     }
 
     public async Task<SaleOrderDetailDto?> GetSaleOrderByIdAsync(Guid id)
