@@ -523,7 +523,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                 WarehouseName = x.Warehouse != null ? x.Warehouse.Name : null,
                 RackId = x.RackId,
                 RackName = x.Rack != null ? x.Rack.Name : null,
-                CurrentStock = _context.Products.Where(p => p.Id == x.ProductId && p.CompanyId == companyId).Select(p => p.CurrentStock).FirstOrDefault(),
+                CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
+                               (_context.SaleOrderItems.Where(si => si.ProductId == x.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
 
                 // Dynamic Policy Calculation
                 IsReturnable = x.SaleOrder.SODate >= limitDate,

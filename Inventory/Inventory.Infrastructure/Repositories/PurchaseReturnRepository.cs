@@ -52,7 +52,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         Rate = gd.UnitRate,
                         GstPercent = gd.GstPercent,
                         DiscountPercent = gd.DiscountPercent,
-                        CurrentStock = gd.Product != null ? gd.Product.CurrentStock : 0,
+                        CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == gd.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
+                                       (_context.SaleOrderItems.Where(si => si.ProductId == gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                                       (_context.SaleReturnItems.Where(sri => sri.ProductId == gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
                         WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
                         RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
                         MfgDate = gd.MfgDate,
@@ -126,7 +128,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             GstPercent = x.gd.GstPercent,
             DiscountPercent = x.gd.DiscountPercent,
             ReceivedDate = x.gh.ReceivedDate,
-            CurrentStock = x.gd.Product != null ? x.gd.Product.CurrentStock : 0,
+            CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.gd.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
+                           (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                           (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
             WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : "N/A",
             RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
             MfgDate = x.gd.MfgDate,
