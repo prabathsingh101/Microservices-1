@@ -3,6 +3,7 @@ using Identity.Domain.Menus;
 using Identity.Domain.Permissions;
 using Identity.Domain.Roles;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 namespace Identity.Infrastructure.Persistence;
 
@@ -41,15 +42,26 @@ public class IdentityDbContext : DbContext
         modelBuilder.Entity<Menu>()
         .HasMany(m => m.Children)
         .WithOne(m => m.Parent)
-        .HasForeignKey(m => m.ParentId); // Isse MenuId1 hat jayega
+        .HasForeignKey(m => m.ParentId);
 
         modelBuilder.ApplyConfigurationsFromAssembly(
         typeof(IdentityDbContext).Assembly);
 
+        // --- 🔒 GLOBAL MULTI-TENANT FILTERS ---
+        
+        // Roles and Permissions are Company-wide (Global to all branches)
         modelBuilder.Entity<Identity.Domain.Roles.Role>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
         modelBuilder.Entity<RolePermission>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
-        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
-        modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
+        
+        // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId (if present in context)
+        modelBuilder.Entity<Identity.Domain.User>().HasQueryFilter(e => 
+            e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            
+        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => 
+            e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            
+        modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => 
+            e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
 
         base.OnModelCreating(modelBuilder);
     }
@@ -69,16 +81,28 @@ public class IdentityDbContext : DbContext
     private void ApplyTenantInfo()
     {
         var entries = ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Added && e.Entity is Domain.Common.IMultiTenant);
+            .Where(e => (e.State == EntityState.Added || e.State == EntityState.Modified) && e.Entity is Domain.Common.IMultiTenant);
 
         var currentCompanyId = _currentUserService.CompanyId;
+        var currentBranchId = _currentUserService.BranchId;
 
         foreach (var entry in entries)
         {
             var tenantEntity = (Domain.Common.IMultiTenant)entry.Entity;
+            
             if (tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty)
             {
                 tenantEntity.CompanyId = currentCompanyId;
+            }
+
+            // Set BranchId for Branch-specific entities
+            var typeName = tenantEntity.GetType().Name;
+            if (typeName == "User" || typeName == "RefreshToken" || typeName == "RolePrintSetting")
+            {
+                if (string.IsNullOrEmpty(tenantEntity.BranchId))
+                {
+                    tenantEntity.BranchId = currentBranchId;
+                }
             }
         }
     }

@@ -1,3 +1,5 @@
+namespace Inventory.Application.DashBoard.DTOs;
+
 public class RecentActivityDto
 {
     public string Product { get; set; } = string.Empty; // Product Name

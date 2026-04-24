@@ -14,6 +14,7 @@ namespace Inventory.Application.GRN.DTOs
         public decimal TotalAmount { get; set; }
         public string CreatedBy { get; set; }   
         public Guid? CompanyId { get; set; }
+        public string? BranchId { get; set; }
         public List<GRNItemDTO> Items { get; set; }
     }
 }

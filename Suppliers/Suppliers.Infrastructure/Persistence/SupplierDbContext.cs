@@ -77,7 +77,9 @@ namespace Suppliers.Infrastructure.Persistence
         private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, IMultiTenant
         {
             modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-                _currentUserService != null && e.CompanyId == _currentUserService.CompanyId);
+                _currentUserService != null && 
+                e.CompanyId == _currentUserService.CompanyId &&
+                (e.BranchId == null || !_currentUserService.BranchId.HasValue || e.BranchId == _currentUserService.BranchId));
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -93,6 +95,10 @@ namespace Suppliers.Infrastructure.Persistence
                         {
                             entry.Entity.CompanyId = _currentUserService?.CompanyId;
                         }
+                        if (entry.Entity.BranchId == null || entry.Entity.BranchId == Guid.Empty)
+                        {
+                            entry.Entity.BranchId = _currentUserService?.BranchId;
+                        }
                         break;
                     case EntityState.Modified:
                         entry.Entity.ModifiedOn = DateTime.Now;
@@ -101,6 +107,10 @@ namespace Suppliers.Infrastructure.Persistence
                         if (entry.Entity.CompanyId == null || entry.Entity.CompanyId == Guid.Empty)
                         {
                             entry.Entity.CompanyId = _currentUserService?.CompanyId;
+                        }
+                        if (entry.Entity.BranchId == null || entry.Entity.BranchId == Guid.Empty)
+                        {
+                            entry.Entity.BranchId = _currentUserService?.BranchId;
                         }
                         break;
                 }

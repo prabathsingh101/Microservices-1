@@ -28,6 +28,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
         var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
 
         // 🚀 GLOBAL ADMIN BYPASS: Root Admin see EVERYTHING
@@ -42,8 +43,19 @@ public class UsersController : ControllerBase
         }
         else if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            // Tenant Admin: Strictly filter by their own company
-            users = await _userRepository.GetByCompanyAsync(companyId);
+            // Tenant Admin: Filter by company and potentially branch
+            var branchId = branchIdClaim;
+            
+            if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin"))
+            {
+                // Branch User: Only see users in their own branch
+                users = await _userRepository.GetByBranchAsync(companyId, branchId);
+            }
+            else
+            {
+                // Company Admin: See all users in their company
+                users = await _userRepository.GetByCompanyAsync(companyId);
+            }
         }
         else if (roles.Any(r => r.Contains("Admin", StringComparison.OrdinalIgnoreCase)))
         {
@@ -66,6 +78,7 @@ public class UsersController : ControllerBase
             u.Email,
             u.IsActive,
             u.CompanyId,
+            u.BranchId,
             CompanyName = u.CompanyId.HasValue 
                           ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown") 
                           : "System Admin",
@@ -80,6 +93,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetPaged([FromBody] Identity.Application.Common.Models.GridRequest request)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
         var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
         bool isGlobalRoot = roles.Contains("Default Admin");
 
@@ -88,10 +102,21 @@ public class UsersController : ControllerBase
             .ThenInclude(ur => ur.Role)
             .AsNoTracking();
 
-        // 1. Tenant Filtering
+        // 1. Tenant & Branch Filtering
         if (!isGlobalRoot && Guid.TryParse(companyIdClaim, out var companyId))
         {
-            query = query.Where(u => u.CompanyId == companyId);
+            var branchId = branchIdClaim;
+            
+            if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin"))
+            {
+                // Branch User: Only see users in their own branch
+                query = query.Where(u => u.CompanyId == companyId && u.BranchId == branchId);
+            }
+            else
+            {
+                // Company Admin: See all users in their company
+                query = query.Where(u => u.CompanyId == companyId);
+            }
         }
 
         // 2. Search
@@ -147,6 +172,7 @@ public class UsersController : ControllerBase
             u.Email,
             u.IsActive,
             u.CompanyId,
+            u.BranchId,
             CompanyName = u.CompanyId.HasValue
                           ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown")
                           : "System Admin",
@@ -183,6 +209,7 @@ public class UsersController : ControllerBase
             user.Email,
             user.IsActive,
             user.CompanyId,
+            user.BranchId,
             CompanyName = companyName,
             RoleIds = user.UserRoles.Select(ur => ur.RoleId).ToList()
         });

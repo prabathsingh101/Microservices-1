@@ -124,9 +124,10 @@ namespace Inventory.Infrastructure.Repositories
                 try
                 {
                     var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+                    var branchId = _currentUserService.BranchId;
                     // 1. Fetch PO and Products (Use AsNoTracking to get fresh DB values on retry)
                     var po = await _context.PurchaseOrders
-                                           .Where(p => p.Id == header.PurchaseOrderId && p.CompanyId == companyId)
+                                           .Where(p => p.Id == header.PurchaseOrderId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId))
                                            .Include(p => p.Items)
                                            .FirstOrDefaultAsync();
 
@@ -138,7 +139,7 @@ namespace Inventory.Infrastructure.Repositories
 
                     var productIds = details.Select(d => d.ProductId).Distinct().ToList();
                     var products = await _context.Products
-                                                 .Where(p => productIds.Contains(p.Id) && p.CompanyId == companyId)
+                                                 .Where(p => productIds.Contains(p.Id) && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId))
                                                  .ToListAsync();
 
                     DateTime utcNow = DateTime.UtcNow;
@@ -166,11 +167,33 @@ namespace Inventory.Infrastructure.Repositories
                         header.GRNItems ??= new List<GRNDetail>();
                         header.GRNItems.Add(item);
 
-                        // 🚀 USE RAW SQL FOR STOCK UPDATE TO BYPASS EFTRACKING ISSUES
+                        // 🚀 UPDATE PRODUCT MASTER (GLOBAL)
                         decimal qtyToIncrease = item.ReceivedQty - item.RejectedQty;
                         await _context.Database.ExecuteSqlRawAsync(
-                            "UPDATE Products SET CurrentStock = CurrentStock + {0}, ModifiedOn = {1}, ModifiedBy = {2}, CompanyId = COALESCE(CompanyId, {3}) WHERE Id = {4} AND CompanyId = {3}",
-                            qtyToIncrease, utcNow, header.CreatedBy, header.CompanyId, item.ProductId);
+                            "UPDATE Products SET CurrentStock = CurrentStock + {0}, ModifiedOn = {1}, ModifiedBy = {2}, CompanyId = COALESCE(CompanyId, {3}), BranchId = COALESCE(BranchId, {4}) WHERE Id = {5} AND CompanyId = {3} AND (BranchId IS NULL OR BranchId = {4})",
+                            qtyToIncrease, utcNow, header.CreatedBy, header.CompanyId, header.BranchId, item.ProductId);
+
+                        // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                        {
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+                            
+                            if (whStock != null)
+                            {
+                                whStock.Quantity += qtyToIncrease;
+                            }
+                            else
+                            {
+                                await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                                {
+                                    ProductId = item.ProductId,
+                                    WarehouseId = item.WarehouseId.Value,
+                                    Quantity = qtyToIncrease,
+                                    MinStock = 0 // Default
+                                });
+                            }
+                        }
 
                         // 🆕 Record Inventory Transaction
                         var transactionRecord = new InventoryTransaction(
@@ -242,7 +265,8 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<string> GenerateGRNNumber()
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var count = await _context.GRNHeaders.Where(x => x.CompanyId == companyId).CountAsync();
+            var branchId = _currentUserService.BranchId;
+            var count = await _context.GRNHeaders.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).CountAsync();
             return $"GRN-{DateTime.Now.Year}-{(count + 1022 + 1)}";
         }
 
@@ -259,10 +283,11 @@ namespace Inventory.Infrastructure.Repositories
 
             // 1. View Mode Logic: Agar poIds khali hai lekin grnHeaderId hai, toh header table se sahi POId nikaalein
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = _currentUserService.BranchId;
             if (grnHeaderId != null && !idList.Any())
             {
                 var poId = await _context.GRNHeaders
-                    .Where(x => x.Id == grnHeaderId && x.CompanyId == companyId)
+                    .Where(x => x.Id == grnHeaderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
                     .Select(x => x.PurchaseOrderId)
                     .FirstOrDefaultAsync();
 
@@ -276,7 +301,7 @@ namespace Inventory.Infrastructure.Repositories
             var pos = await _context.PurchaseOrders
                 .Include(h => h.Items)
                 .ThenInclude(i => i.Product)
-                .Where(h => idList.Contains(h.Id) && h.CompanyId == companyId)
+                .Where(h => idList.Contains(h.Id) && h.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId))
                 .ToListAsync();
 
             if (!pos.Any()) return null;
@@ -293,12 +318,12 @@ namespace Inventory.Infrastructure.Repositories
                 POHeaderId = isBulk ? Guid.Empty : firstPO.Id,
                 PONumber = isBulk ? string.Join(", ", pos.Select(p => p.PoNumber)) : (firstPO.PoNumber ?? ""),
                 GrnNumber = grnHeaderId != null ?
-                            _context.GRNHeaders.Where(x => x.Id == grnHeaderId && x.CompanyId == companyId).Select(x => x.GRNNumber).FirstOrDefault() :
+                            _context.GRNHeaders.Where(x => x.Id == grnHeaderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).Select(x => x.GRNNumber).FirstOrDefault() :
                             "AUTO-GEN",
                 SupplierId = sameSupplier ? allSupplierIds.First() : Guid.Empty,
                 SupplierName = sameSupplier ? (pos.First().SupplierName ?? "Unknown") : "Multiple Suppliers",
                 Remarks = grnHeaderId != null ?
-                          _context.GRNHeaders.Where(x => x.Id == grnHeaderId && x.CompanyId == companyId).Select(x => x.Remarks).FirstOrDefault() : ""
+                          _context.GRNHeaders.Where(x => x.Id == grnHeaderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).Select(x => x.Remarks).FirstOrDefault() : ""
             };
 
             var items = new List<POItemForGRNDTO>();
@@ -309,7 +334,7 @@ namespace Inventory.Infrastructure.Repositories
                 Guid singlePoId = idList.First();
                 items = await (from d in _context.GRNDetails
                              join poi in _context.PurchaseOrderItems on new { d.GRNHeader.PurchaseOrderId, d.ProductId } equals new { poi.PurchaseOrderId, poi.ProductId }
-                             where d.GRNHeaderId == grnHeaderId && d.CompanyId == companyId && poi.CompanyId == companyId
+                             where d.GRNHeaderId == grnHeaderId && d.CompanyId == companyId && poi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || d.BranchId == branchId)
                              select new POItemForGRNDTO
                              {
                                  ProductId = d.ProductId,
@@ -335,7 +360,7 @@ namespace Inventory.Infrastructure.Repositories
                 // 1. Fetch returns to check replacements
                 var returnLookup = await _context.PurchaseReturnItems
                     .Include(ri => ri.PurchaseReturn)
-                    .Where(ri => ri.CompanyId == companyId && ri.PurchaseReturn.Items.Any(i => _context.GRNDetails.Any(gd => gd.ProductId == ri.ProductId && idList.Contains(gd.GRNHeader.PurchaseOrderId) && gd.CompanyId == companyId)))
+                    .Where(ri => ri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId) && ri.PurchaseReturn.Items.Any(i => _context.GRNDetails.Any(gd => gd.ProductId == ri.ProductId && idList.Contains(gd.GRNHeader.PurchaseOrderId) && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId))))
                     .Join(_context.GRNDetails.Where(gd => gd.CompanyId == companyId), ri => ri.GrnRef, gd => gd.GRNHeader.GRNNumber, (ri, gd) => new { ri, gd })
                     .Where(x => idList.Contains(x.gd.GRNHeader.PurchaseOrderId))
                     .GroupBy(x => x.ri.ProductId)
@@ -347,7 +372,7 @@ namespace Inventory.Infrastructure.Repositories
                     foreach (var d in po.Items)
                     {
                         var netInWarehouse = await _context.GRNDetails
-                            .Where(gd => gd.ProductId == d.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id && gd.CompanyId == companyId)
+                            .Where(gd => gd.ProductId == d.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId))
                             .SumAsync(gd => gd.ReceivedQty - gd.RejectedQty);
 
                         var pending = d.Qty - netInWarehouse;
@@ -407,7 +432,8 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<GRNPagedResponseDto> GetGRNPagedListAsync(string search, string sortField, string sortOrder, int pageIndex, int pageSize, bool isQuick = false)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var query = _context.GRNHeaders.Where(x => x.IsQuick == isQuick && x.CompanyId == companyId).AsQueryable();
+            var branchId = _currentUserService.BranchId;
+            var query = _context.GRNHeaders.Where(x => x.IsQuick == isQuick && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsQueryable();
 
             // 1. Searching Logic (Existing preserved)
             if (!string.IsNullOrWhiteSpace(search))
@@ -559,9 +585,10 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = _currentUserService.BranchId;
             // Step 1: GRN Header fetch karein aur uske details ko PO items ke saath join karein
             var grnData = await _context.GRNHeaders
-                .Where(h => h.GRNNumber == grnNumber && h.CompanyId == companyId)
+                .Where(h => h.GRNNumber == grnNumber && h.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId))
                 .AsNoTracking()
                 .Select(h => new GrnPrintDto
                 {
@@ -729,11 +756,35 @@ namespace Inventory.Infrastructure.Repositories
                             // Update ReceivedQty in PO Item
                             item.ReceivedQty = item.ReceivedQty + qtyToReceiveNow;
 
-                            // STOCK UPDATE
+                            // STOCK UPDATE (GLOBAL)
                             var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId);
                             if (product != null)
                             {
                                 product.CurrentStock += (qtyToReceiveNow - rejectedQty);
+                            }
+
+                            // STOCK UPDATE (WAREHOUSE SPECIFIC)
+                            var whId = reqItem?.WarehouseId ?? item.Product?.DefaultWarehouseId;
+                            if (whId.HasValue)
+                            {
+                                var qtyToIncrease = qtyToReceiveNow - rejectedQty;
+                                var whStock = await _context.WarehouseStocks
+                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == whId);
+                                
+                                if (whStock != null)
+                                {
+                                    whStock.Quantity += qtyToIncrease;
+                                }
+                                else
+                                {
+                                    await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                                    {
+                                        ProductId = item.ProductId,
+                                        WarehouseId = whId.Value,
+                                        Quantity = qtyToIncrease,
+                                        MinStock = 0
+                                    });
+                                }
                             }
 
                             if (item.ReceivedQty < item.Qty)

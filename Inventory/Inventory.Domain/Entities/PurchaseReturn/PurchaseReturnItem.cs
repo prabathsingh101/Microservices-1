@@ -21,4 +21,6 @@ public class PurchaseReturnItem : BaseAuditableEntity
     public PurchaseReturn PurchaseReturn { get; set; }
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
+    public Guid? WarehouseId { get; set; }
+    public Guid? RackId { get; set; }
 }

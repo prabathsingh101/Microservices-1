@@ -43,5 +43,12 @@ namespace Inventory.Application.Common.Interfaces
             Guid rackId,
             DateTime? mfgDate,
             DateTime? expDate);
+
+        Task<object> GetWarehouseStockAsync(
+            string? search,
+            string? sortField,
+            string? sortOrder,
+            int pageIndex,
+            int pageSize);
     }
 }

@@ -9,5 +9,6 @@ public record RegisterUserCommand(
     string Password,
     List<Guid> RoleIds,
     Guid? CompanyId = null,
+    string? BranchId = null,
     string? CompanyName = null
 ) : IRequest<Guid>;

@@ -1,3 +1,5 @@
+namespace Inventory.Application.DashBoard.DTOs;
+
 public class DashboardChartDto
 {
     // Trends Chart (Line Chart)

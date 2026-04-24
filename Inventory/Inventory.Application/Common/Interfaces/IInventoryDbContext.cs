@@ -37,6 +37,7 @@ namespace Inventory.Application.Common.Interfaces
         DbSet<Warehouse> Warehouses { get; }
         DbSet<Rack> Racks { get; }
         DbSet<InventoryTransaction> InventoryTransactions { get; }
+        DbSet<WarehouseStock> WarehouseStocks { get; }
 
         // Is property se Handler ka error fix ho jayega
         DatabaseFacade Database { get; }

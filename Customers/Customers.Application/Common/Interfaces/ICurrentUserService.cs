@@ -6,5 +6,6 @@ namespace Customers.Application.Common.Interfaces
     {
         string? UserId { get; }
         Guid? CompanyId { get; }
+        Guid? BranchId { get; }
     }
 }

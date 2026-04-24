@@ -2,7 +2,7 @@ using Identity.Domain.Users;
 
 namespace Identity.Domain.Entities;
 
-public class RefreshToken
+public class RefreshToken : Identity.Domain.Common.IMultiTenant
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public string Token { get; private set; } = null!;
@@ -11,20 +11,22 @@ public class RefreshToken
 
     // FK
     public Guid UserId { get; private set; }
-    public Guid? CompanyId { get; private set; }
+    public Guid? CompanyId { get; set; }
+    public string? BranchId { get; set; }
 
     // Navigation (optional)
     public User? User { get; private set; }
 
     private RefreshToken() { } // EF Core
 
-    public RefreshToken(Guid userId, string token, DateTime expiresAt, Guid? companyId = null)
+    public RefreshToken(Guid userId, string token, DateTime expiresAt, Guid? companyId = null, string? branchId = null)
     {
         UserId = userId;
         Token = token;
         ExpiresAt = expiresAt;
         IsRevoked = false;
         CompanyId = companyId;
+        BranchId = branchId;
     }
 
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;

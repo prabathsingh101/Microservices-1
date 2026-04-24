@@ -44,8 +44,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<string?> GetLastPoNumberAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.PurchaseOrders.AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .OrderByDescending(x => x.CreatedOn)
             .Select(x => x.PoNumber)
             .FirstOrDefaultAsync();
@@ -54,8 +55,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<string?> GetLatestPoNumberAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.PurchaseOrders.AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .OrderByDescending(x => x.CreatedOn)
             .Select(x => x.PoNumber)
             .FirstOrDefaultAsync();
@@ -65,9 +67,10 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     int pageIndex, int pageSize, string? sortField, string? sortOrder, string? filter)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Base Query with Eager Loading for Items and Products
         var query = _context.PurchaseOrders.AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Include(x => x.Items)
                 .ThenInclude(i => i.Product) // Product data load karega taaki null error na aaye
             .AsSplitQuery()
@@ -129,10 +132,11 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<(IEnumerable<PurchaseOrder> Data, int Total, decimal TotalAmount, int TodayCount, int MonthCount)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // STEP 1: Base Query - AsNoTracking use karein fast read ke liye
         var query = _context.PurchaseOrders
             .AsNoTracking()
-            .Where(x => x.IsQuick == request.IsQuick && x.CompanyId == companyId)
+            .Where(x => x.IsQuick == request.IsQuick && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .AsQueryable();
 
         // 1. GLOBAL SEARCH FIX (Including 'Received' status logic)
@@ -229,8 +233,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<PurchaseOrder?> GetByIdWithItemsAsync(Guid id, CancellationToken ct)
     {
       var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+      var branchId = _currentUserService.BranchId;
       var data= await _context.PurchaseOrders.AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Include(x => x.Items) // Yeh child table 'PurchaseOrderItems' se data layega
             .ThenInclude(i => i.Product)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -244,7 +249,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<bool> DeleteItemAsync(Guid itemId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var item = await _context.PurchaseOrderItems.FirstOrDefaultAsync(x => x.Id == itemId && x.CompanyId == companyId);
+        var branchId = _currentUserService.BranchId;
+        var item = await _context.PurchaseOrderItems.FirstOrDefaultAsync(x => x.Id == itemId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         if (item == null) return false;
 
         _context.PurchaseOrderItems.Remove(item);
@@ -254,8 +260,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task UpdatePOTotalsAsync(Guid poId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var items = await _context.PurchaseOrderItems.AsNoTracking()
-                                  .Where(x => x.PurchaseOrderId == poId && x.CompanyId == companyId)
+                                  .Where(x => x.PurchaseOrderId == poId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
                                   .ToListAsync();
 
         var po = await _context.PurchaseOrders.FindAsync(poId);
@@ -294,9 +301,10 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<PurchaseOrder> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.PurchaseOrders
             .Include(p => p.Items)
-            .FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId);
+            .FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
     }
 
     public void Delete(PurchaseOrder po)
@@ -378,11 +386,12 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<IEnumerable<PendingPODto>> GetPendingPurchaseOrdersAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Fetch POs that are Approved and have pending quantities
         // 2. SAFETY LOCK: Exclude POs that already have an "At-Gate" Gate Pass (Status 1)
         return await _context.PurchaseOrders.AsNoTracking()
             .Where(po => po.CompanyId == companyId && (po.Status == "Approved" || po.Status == "Partially Received") 
-                && po.Items.Any(i => i.Qty > i.ReceivedQty))
+                && po.Items.Any(i => i.Qty > i.ReceivedQty) && (string.IsNullOrEmpty(branchId) || po.BranchId == branchId))
             .Where(po => !_context.GatePasses.Any(gp => 
                 gp.ReferenceType == 1 && // 1 = PurchaseOrder
                 gp.ReferenceId == po.Id.ToString() && 
@@ -402,8 +411,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(Guid poId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var poItems = await _context.PurchaseOrderItems.AsNoTracking()
-            .Where(poi => poi.PurchaseOrderId == poId && poi.CompanyId == companyId)
+            .Where(poi => poi.PurchaseOrderId == poId && poi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || poi.BranchId == branchId))
             .Include(poi => poi.Product)
             .ToListAsync();
 
@@ -430,8 +440,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<POHeaderDetailsDto?> GetPOHeaderAsync(Guid lastPurchaseOrderId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.PurchaseOrders.AsNoTracking()
-        .Where(x => x.Id == lastPurchaseOrderId && x.CompanyId == companyId)
+        .Where(x => x.Id == lastPurchaseOrderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
         
         .Select(x => new POHeaderDetailsDto
         {
@@ -450,8 +461,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<ProductPriceDto?> GetPriceListRateAsync( Guid productId, Guid priceListId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.PriceListItems.AsNoTracking()
-            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId)
+            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || pi.BranchId == branchId))
             .Select(pi => new ProductPriceDto
             {
                 ProductId = pi.ProductId,

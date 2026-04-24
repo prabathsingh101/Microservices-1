@@ -23,7 +23,7 @@ public sealed class UpdateWarehouseCommandHandler : IRequestHandler<UpdateWareho
             throw new Exception("Warehouse not found");
         }
 
-        warehouse.Update(request.Name, request.City, request.Description, request.IsActive, request.CompanyId);
+        warehouse.Update(request.Name, request.City, request.Description, request.IsActive, request.CompanyId, request.BranchId);
 
         await _repository.UpdateAsync(warehouse);
         await _context.SaveChangesAsync(cancellationToken);

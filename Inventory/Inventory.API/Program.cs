@@ -57,6 +57,7 @@ builder.Services.AddControllers()
         // Taaki dates aur complex objects sahi se serialize hon
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.Converters.Add(new StringOrNumberConverter());
     });
 
 // Add services to the container.
@@ -108,7 +109,8 @@ app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Safe Database Initialization
+/* 
+// Safe Database Initialization - Disabled for Manual Schema Management
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -117,13 +119,13 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<InventoryDbContext>();
         if (context.Database.CanConnect())
         {
-            Log.Information("Inventory Database connected. Applying migrations...");
-            context.Database.Migrate();
+            Log.Information("Inventory Database connected.");
+            // context.Database.Migrate(); // Disabled
         }
         else
         {
-            Log.Warning("Inventory Database not found. Attempting to create...");
-            context.Database.EnsureCreated();
+            Log.Warning("Inventory Database not found.");
+            // context.Database.EnsureCreated(); // Disabled
         }
     }
     catch (Exception ex)
@@ -131,6 +133,7 @@ using (var scope = app.Services.CreateScope())
         Log.Error(ex, "An error occurred while initializing the Inventory database. App will still start.");
     }
 }
+*/
 
 app.MapControllers();
 

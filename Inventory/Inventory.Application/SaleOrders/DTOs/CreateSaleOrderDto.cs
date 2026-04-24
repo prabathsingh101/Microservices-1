@@ -9,6 +9,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public Guid Id { get; set; }
         public string? SONumber { get; set; } // Add this for consistency
         public Guid CompanyId { get; set; }
+        public string? BranchId { get; set; }
         public Guid CustomerId { get; set; }
         public DateTime SoDate { get; set; }
         public DateTime? ExpectedDeliveryDate { get; set; }

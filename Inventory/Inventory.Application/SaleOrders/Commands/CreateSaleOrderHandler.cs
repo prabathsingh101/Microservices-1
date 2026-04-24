@@ -60,6 +60,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
         {
             Id = dto.Id,
             CompanyId = dto.CompanyId,
+            BranchId = dto.BranchId,
             SONumber = finalSONo,
             CustomerId = dto.CustomerId,
             SODate = dto.SoDate,
@@ -96,7 +97,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 ExpDate = i.ExpiryDate,
                 WarehouseId = i.WarehouseId,
                 RackId = i.RackId,
-                CompanyId = dto.CompanyId
+                CompanyId = dto.CompanyId,
+                BranchId = dto.BranchId
             }).ToList()
         };
 

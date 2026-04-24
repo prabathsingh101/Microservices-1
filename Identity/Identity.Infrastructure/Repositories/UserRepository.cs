@@ -29,6 +29,14 @@ public class UserRepository : IUserRepository
             .AnyAsync(u => u.UserName == userName && u.CompanyId == companyId);
     }
 
+    // Overloads for more specific checks if needed
+    public async Task<bool> ExistsByEmailAsync(string email, Guid? companyId, string? branchId)
+    {
+        return await _context.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(u => u.Email == email && u.CompanyId == companyId && u.BranchId == branchId);
+    }
+
     public async Task AddAsync(User user)
     {
         await _context.Users.AddAsync(user);
@@ -102,6 +110,16 @@ public class UserRepository : IUserRepository
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
             .Where(u => u.CompanyId == companyId)
+            .OrderBy(u => u.UserName)
+            .ToListAsync();
+    }
+
+    public async Task<List<User>> GetByBranchAsync(Guid companyId, string branchId)
+    {
+        return await _context.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .Where(u => u.CompanyId == companyId && u.BranchId == branchId)
             .OrderBy(u => u.UserName)
             .ToListAsync();
     }

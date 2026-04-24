@@ -38,9 +38,10 @@ public class RackRepository : IRackRepository
     public async Task<List<Rack>> GetAllAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Racks
             .Include(r => r.Warehouse)
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .AsNoTracking()
             .ToListAsync();
     }
@@ -48,8 +49,9 @@ public class RackRepository : IRackRepository
     public async Task<List<Rack>> GetByWarehouseIdAsync(Guid warehouseId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Racks
-            .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId)
+            .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || r.BranchId == branchId))
             .AsNoTracking()
             .ToListAsync();
     }
@@ -57,8 +59,9 @@ public class RackRepository : IRackRepository
     public async Task<Rack?> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Racks
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
     }
 
     public async Task<(int successCount, List<string> errors)> UploadRacksAsync(IFormFile file, Guid companyId)
@@ -109,16 +112,18 @@ public class RackRepository : IRackRepository
                             continue;
                         }
 
+                        var branchId = _currentUserService.BranchId;
+
                         var existing = dbRacks.FirstOrDefault(r => r.Name.ToLower().Trim() == rackName.ToLower() && r.WarehouseId == warehouseId);
 
                         if (existing != null)
                         {
-                            existing.Update(warehouseId, rackName, description, isActive, companyId);
+                            existing.Update(warehouseId, rackName, description, isActive, companyId, branchId);
                             updateCount++;
                         }
                         else
                         {
-                            var rack = new Rack(warehouseId, rackName, description, isActive, companyId);
+                            var rack = new Rack(warehouseId, rackName, description, isActive, companyId, branchId);
                             newRacks.Add(rack);
                         }
                         successCount++;

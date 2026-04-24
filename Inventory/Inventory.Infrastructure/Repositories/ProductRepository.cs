@@ -41,41 +41,64 @@ public sealed class ProductRepository : IProductRepository
     public async Task<Product?> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Products
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
     }
 
     public async Task<List<Product>> GetAllAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        return await _db.Products
+        var branchId = _currentUserService.BranchId;
+
+        var products = await _db.Products
             .AsNoTracking()
             .Where(x => x.CompanyId == companyId)
             .ToListAsync();
+
+        // If branch context exists, override CurrentStock with branch-specific sum (Optimized Batch Fetch)
+        if (!string.IsNullOrEmpty(branchId))
+        {
+            var branchStocks = await _db.WarehouseStocks
+                .Where(ws => ws.BranchId == branchId && ws.CompanyId == companyId)
+                .GroupBy(ws => ws.ProductId)
+                .Select(g => new { ProductId = g.Key, TotalQty = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.ProductId, x => x.TotalQty);
+
+            foreach (var p in products)
+            {
+                p.CurrentStock = branchStocks.GetValueOrDefault(p.Id, 0);
+            }
+        }
+
+        return products;
     }
 
     public async Task<List<Product>> GetByCategoryIdAsync(Guid categoryId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Products
             .AsNoTracking()
-            .Where(x => x.CategoryId == categoryId && x.CompanyId == companyId)
+            .Where(x => x.CategoryId == categoryId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .ToListAsync();
     }
 
     public async Task<List<Product>> GetBySubcategoryIdAsync(Guid subcategoryId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Products
             .AsNoTracking()
-            .Where(x => x.SubcategoryId == subcategoryId && x.CompanyId == companyId)
+            .Where(x => x.SubcategoryId == subcategoryId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .ToListAsync();
     }
 
     public IQueryable<Product> Query()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        return _db.Products.Where(x => x.CompanyId == companyId).AsQueryable();
+        var branchId = _currentUserService.BranchId;
+        return _db.Products.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsQueryable();
     }
     public void DeleteRange(List<Product> products)
     {
@@ -85,8 +108,9 @@ public sealed class ProductRepository : IProductRepository
     public async Task<List<Product>> GetByIdsAsync(List<Guid> ids)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Products
-            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .ToListAsync();
     }
 
@@ -99,9 +123,10 @@ public sealed class ProductRepository : IProductRepository
     public async Task<List<Product>> SearchActiveProductsAsync(string term)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Products
          .AsNoTracking()
-         .Where(p => p.CompanyId == companyId && p.IsActive && p.Name.Contains(term))
+         .Where(p => p.CompanyId == companyId && p.IsActive && p.Name.Contains(term) && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId))
          .Take(20)
          .ToListAsync();
     }
@@ -173,32 +198,41 @@ public sealed class ProductRepository : IProductRepository
     public async Task<IEnumerable<LowStockProductDto>> GetLowStockProductsAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        return await _db.Products
+        var branchId = _currentUserService.BranchId;
+
+        var query = _db.Products
             .AsNoTracking()
-            .Where(p => p.CompanyId == companyId && p.IsActive && p.CurrentStock <= p.MinStock) // Dashboard wala logic
-            .Select(p => new LowStockProductDto
-            {
-                Id = p.Id,
-                CategoryName = p.Category.CategoryName, // Join logic
-                SubCategoryName = p.Subcategory.SubcategoryName,
-                ProductName = p.Name,
-                SKU = p.Sku,
-                Unit = p.Unit,
-                CurrentStock = p.CurrentStock,
-                MinStock = p.MinStock,
-                BasePurchasePrice = p.BasePurchasePrice
-            })
-            .ToListAsync();
+            .Where(p => p.CompanyId == companyId && p.IsActive);
+
+        var products = await query.Select(p => new LowStockProductDto
+        {
+            Id = p.Id,
+            CategoryName = p.Category.CategoryName,
+            SubCategoryName = p.Subcategory.SubcategoryName,
+            ProductName = p.Name,
+            SKU = p.Sku,
+            Unit = p.Unit,
+            BasePurchasePrice = p.BasePurchasePrice,
+            MinStock = p.MinStock,
+            // If branch exists, use branch stock, else use global current stock
+            CurrentStock = !string.IsNullOrEmpty(branchId) ? 
+                (_db.WarehouseStocks.Where(ws => ws.ProductId == p.Id && ws.BranchId == branchId).Sum(ws => (decimal?)ws.Quantity) ?? 0) : 
+                p.CurrentStock
+        }).ToListAsync();
+
+        // Filter by low stock condition after getting the branch/global quantity
+        return products.Where(p => p.CurrentStock <= p.MinStock).ToList();
     }
 
     public async Task<List<ExcelExportDto>> GetLowStockExportDataAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var products = await _db.Products
             .Include(p => p.Category)
             .Include(p => p.DefaultWarehouse)
             .Include(p => p.DefaultRack)
-            .Where(p => p.CompanyId == companyId && p.CurrentStock <= p.MinStock)
+            .Where(p => p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId) && p.CurrentStock <= p.MinStock)
             .Select(p => new ExcelExportDto
             {
                 ProductName = p.Name,
@@ -218,10 +252,11 @@ public sealed class ProductRepository : IProductRepository
     public async Task<List<StockMovementDto>> GetRecentMovementsPagedAsync(int pageNumber, int pageSize)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Purchase Orders se movements nikalna
         var purchases = _db.PurchaseOrders
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(po => new StockMovementDto
             {
                 Product = "PO: " + po.PoNumber, 
@@ -234,7 +269,7 @@ public sealed class ProductRepository : IProductRepository
         // 2. Sale Orders se movements nikalna
         var sales = _db.SaleOrders
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(so => new StockMovementDto
             {
                 Product = "SO: " + so.Id,
@@ -526,8 +561,9 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
+        var branchId = _currentUserService.BranchId;
         var query = _db.Products.AsNoTracking()
-            .Where(p => p.CompanyId == companyId && p.Name.ToLower().Trim() == name.ToLower().Trim());
+            .Where(p => p.CompanyId == companyId && p.Name.ToLower().Trim() == name.ToLower().Trim() && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

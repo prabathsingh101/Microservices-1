@@ -127,5 +127,18 @@ namespace Inventory.API.Controllers
             var result = await _mediator.Send(new SyncStockCommand());
             return Ok(new { success = result, message = "Stock synchronized successfully." });
         }
+
+        [HttpGet("warehouse-stock")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetWarehouseStock(
+           [FromQuery] string? search,
+           [FromQuery] string? sortField,
+           [FromQuery] string? sortOrder,
+           [FromQuery] int pageIndex = 0,
+           [FromQuery] int pageSize = 10)
+        {
+            var result = await _stockRepo.GetWarehouseStockAsync(search, sortField, sortOrder, pageIndex, pageSize);
+            return Ok(result);
+        }
     }
 }

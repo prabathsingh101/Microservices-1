@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Inventory.Application.DashBoard.DTOs;
 
 namespace Inventory.Application.Common.Interfaces
 {

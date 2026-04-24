@@ -9,14 +9,16 @@ public class Role : IMultiTenant
     public string RoleName { get; set; } = default!;
     
     public Guid? CompanyId { get; set; } // NULL = System Role, GUID = Customer Role
+    public string? BranchId { get; set; }
 
     private Role() { } // EF Core
 
-    public Role(string roleName, Guid? companyId = null)
+    public Role(string roleName, Guid? companyId = null, string? branchId = null)
     {
         Id = Guid.NewGuid();
         RoleName = roleName;
         CompanyId = companyId;
+        BranchId = branchId;
     }
 
     // Navigation Properties

@@ -27,6 +27,7 @@ public class IdentityDbContextFactory
     private class DesignTimeCurrentUserService : Application.Interfaces.ICurrentUserService
     {
         public Guid? CompanyId => null;
+        public string? BranchId => null;
         public Guid? UserId => null;
         public bool IsSuperAdmin => false;
     }

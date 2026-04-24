@@ -185,30 +185,44 @@ public class RolesController : ControllerBase
     }
 
     [HttpGet("{roleId}/print-settings")]
-    public async Task<IActionResult> GetPrintSettings(Guid roleId, [FromQuery] Guid? companyId, [FromServices] IRolePrintSettingRepository printRepo)
+    public async Task<IActionResult> GetPrintSettings(Guid roleId, [FromQuery] Guid? companyId, [FromQuery] string? branchId, [FromServices] IRolePrintSettingRepository printRepo)
     {
         var targetCompanyId = companyId;
+        var targetBranchId = branchId;
+
         if (targetCompanyId == null)
         {
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var cid)) targetCompanyId = cid;
         }
 
-        var settings = await printRepo.GetPrintSettingsByRoleIdAsync(roleId, targetCompanyId);
+        if (string.IsNullOrEmpty(targetBranchId))
+        {
+            targetBranchId = User.FindFirst("BranchId")?.Value;
+        }
+
+        var settings = await printRepo.GetPrintSettingsByRoleIdAsync(roleId, targetCompanyId, targetBranchId);
         return Ok(settings);
     }
 
     [HttpPut("{roleId}/print-settings")]
-    public async Task<IActionResult> UpdatePrintSettings(Guid roleId, [FromBody] IEnumerable<Domain.PrintSettings.RolePrintSetting> settings, [FromQuery] Guid? companyId, [FromServices] IRolePrintSettingRepository printRepo)
+    public async Task<IActionResult> UpdatePrintSettings(Guid roleId, [FromBody] IEnumerable<Domain.PrintSettings.RolePrintSetting> settings, [FromQuery] Guid? companyId, [FromQuery] string? branchId, [FromServices] IRolePrintSettingRepository printRepo)
     {
         var targetCompanyId = companyId;
+        var targetBranchId = branchId;
+
         if (targetCompanyId == null)
         {
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var cid)) targetCompanyId = cid;
         }
 
-        await printRepo.UpdateRolePrintSettingsAsync(roleId, settings, targetCompanyId);
+        if (string.IsNullOrEmpty(targetBranchId))
+        {
+            targetBranchId = User.FindFirst("BranchId")?.Value;
+        }
+
+        await printRepo.UpdateRolePrintSettingsAsync(roleId, settings, targetCompanyId, targetBranchId);
         return Ok();
     }
 

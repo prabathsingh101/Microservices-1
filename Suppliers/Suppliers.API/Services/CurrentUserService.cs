@@ -33,5 +33,27 @@ namespace Suppliers.API.Services
                 return null;
             }
         }
+
+        public Guid? BranchId
+        {
+            get
+            {
+                var httpContext = _httpContextAccessor.HttpContext;
+                if (httpContext == null) return null;
+
+                // 1. Try JWT Claim
+                var claimValue = httpContext.User.Claims.FirstOrDefault(c =>
+                    c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase) ||
+                    c.Type.Equals("branchid", StringComparison.OrdinalIgnoreCase))?.Value;
+
+                if (Guid.TryParse(claimValue, out var claimId)) return claimId;
+
+                // 2. Fallback to Header (X-Branch-Id)
+                var headerValue = httpContext.Request.Headers["X-Branch-Id"].ToString();
+                if (Guid.TryParse(headerValue, out var headerId)) return headerId;
+
+                return null;
+            }
+        }
     }
 }

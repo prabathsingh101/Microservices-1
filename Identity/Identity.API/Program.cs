@@ -1,5 +1,6 @@
 using FluentValidation.AspNetCore;
 using Identity.API.Extensions;
+using Identity.API.Helpers;
 using Identity.Application.Interfaces;
 using Identity.Infrastructure;
 using Identity.Infrastructure.Persistence;
@@ -27,6 +28,11 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddOpenApi();
 builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new StringOrNumberConverter());
+    })
     .AddFluentValidation();
 
 builder.Services.AddHttpClient();
@@ -87,7 +93,8 @@ app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Safe Database Initialization
+/* 
+// Safe Database Initialization - Disabled for Manual Schema Management
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -96,13 +103,13 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<IdentityDbContext>();
         if (context.Database.CanConnect())
         {
-            Log.Information("Identity Database connected. Applying migrations...");
-            context.Database.Migrate();
+            Log.Information("Identity Database connected.");
+            // context.Database.Migrate(); // Disabled
         }
         else
         {
-            Log.Warning("Identity Database not found. Attempting to create...");
-            context.Database.EnsureCreated();
+            Log.Warning("Identity Database not found.");
+            // context.Database.EnsureCreated(); // Disabled
         }
     }
     catch (Exception ex)
@@ -110,6 +117,7 @@ using (var scope = app.Services.CreateScope())
         Log.Error(ex, "An error occurred while initializing the Identity database.");
     }
 }
+*/
 
 app.MapControllers();
 

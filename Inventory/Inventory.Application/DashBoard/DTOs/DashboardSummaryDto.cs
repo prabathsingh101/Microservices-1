@@ -1,3 +1,5 @@
+namespace Inventory.Application.DashBoard.DTOs;
+
 public class DashboardSummaryDto
 {
     public decimal TotalSales { get; set; } // ?4,50,000

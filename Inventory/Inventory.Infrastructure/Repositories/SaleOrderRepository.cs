@@ -78,8 +78,9 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<decimal> GetAvailableStockAsync(Guid productId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Products
-            .Where(p => p.Id == productId && p.CompanyId == companyId)
+            .Where(p => p.Id == productId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId))
             .Select(p => p.CurrentStock)
             .FirstOrDefaultAsync();
     }
@@ -87,8 +88,9 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task UpdateProductStockAsync(Guid productId, decimal adjustmentQty)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         
-        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId);
+        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
         if (product != null)
         {
             // Safety check for outward adjustments (Concurrency Guard)
@@ -106,8 +108,9 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<string> GetLastSONumberAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.SaleOrders
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .OrderByDescending(x => x.SODate) // SODate se sort karna behtar hai [cite: 2026-04-19]
             .ThenByDescending(x => x.SONumber)
             .Select(x => x.SONumber)
@@ -124,9 +127,10 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task UpdateAsync(SaleOrder order)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var existingOrder = await _context.SaleOrders
             .Include(o => o.Items)
-            .FirstOrDefaultAsync(o => o.Id == order.Id && o.CompanyId == companyId);
+            .FirstOrDefaultAsync(o => o.Id == order.Id && o.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || o.BranchId == branchId));
 
         if (existingOrder != null)
         {
@@ -163,7 +167,8 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<bool> DeleteAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var order = await _context.SaleOrders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId);
+        var branchId = _currentUserService.BranchId;
+        var order = await _context.SaleOrders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || o.BranchId == branchId));
         if (order == null) return false;
 
         _context.SaleOrderItems.RemoveRange(order.Items);
@@ -174,9 +179,10 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<List<StockExportDto>> GetSaleReportDataAsync(List<Guid> orderIds)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // Selected Orders ke Product IDs fetch karein
         return await _context.SaleOrderItems
-            .Where(si => orderIds.Contains(si.SaleOrderId) && si.CompanyId == companyId) // Filter by selected Guid IDs
+            .Where(si => orderIds.Contains(si.SaleOrderId) && si.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || si.BranchId == branchId)) // Filter by selected Guid IDs
             .GroupBy(si => new { si.ProductId, si.ProductName, si.Unit })
             .Select(group => new StockExportDto
             {
@@ -199,10 +205,11 @@ public class SaleOrderRepository : ISaleOrderRepository
      bool isQuick = false)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Optimized Base Query
         var query = _context.SaleOrders
             .AsNoTracking()
-            .Where(o => o.CompanyId == companyId && o.IsQuick == isQuick)
+            .Where(o => o.CompanyId == companyId && o.IsQuick == isQuick && (string.IsNullOrEmpty(branchId) || o.BranchId == branchId))
             .AsQueryable();
 
         // 2. Searching logic [cite: 2026-02-03]
@@ -331,12 +338,13 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<bool> UpdateSaleOrderStatusAsync(Guid id, string status)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             // 1. Pehle Order fetch karein
-            var order = await _context.SaleOrders.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+            var order = await _context.SaleOrders.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
             if (order == null) return false;
 
             // 2. Agar status 'Confirmed' ho raha hai aur pehle se nahi tha
@@ -359,7 +367,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                             throw new InvalidOperationException($"Insufficient Stock for '{item.ProductName}'. Available: {product.CurrentStock}, Required: {item.Qty}. Operation cancelled to prevent negative stock.");
                         }
 
-                        // Current stock mein se order qty minus kar dein
+                        // Current stock mein se order qty minus kar dein (GLOBAL)
                         product.CurrentStock -= item.Qty;
 
                         // 🆕 FIFO FALLBACK: If Sale Item has no Warehouse/Rack, try to link it to the oldest available batch
@@ -379,6 +387,29 @@ public class SaleOrderRepository : ISaleOrderRepository
                                 _context.SaleOrderItems.Update(item);
                             }
                         }
+
+                        // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK (MINUS)
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                        {
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                            if (whStock != null)
+                            {
+                                whStock.Quantity -= item.Qty;
+                            }
+                            else
+                            {
+                                await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                                {
+                                    ProductId = item.ProductId,
+                                    WarehouseId = item.WarehouseId.Value,
+                                    Quantity = -item.Qty,
+                                    MinStock = 0
+                                });
+                            }
+                        }
+
 
                         // 🆕 Record Inventory Transaction for Audit Trail
                         bool isQuick = order.SONumber.Contains("-Q-");
@@ -434,11 +465,11 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<SaleOrderDetailDto?> GetSaleOrderByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Database se Order aur uske Items fetch karein
         var order = await _context.SaleOrders
-
             .Include(o => o.Items)
-            .Where(o => o.Id == id && o.CompanyId == companyId)
+            .Where(o => o.Id == id && o.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || o.BranchId == branchId))
             .Select(o => new SaleOrderDetailDto
             {
                 Id = o.Id,
@@ -502,9 +533,10 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<List<SaleOrderLookupDto>> GetOrdersByCustomerAsync(Guid customerId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.SaleOrders
             .AsNoTracking()
-            .Where(x => x.CustomerId == customerId && x.Status == "Confirmed" && x.CompanyId == companyId) // Sirf confirmed orders [cite: 2026-02-05]
+            .Where(x => x.CustomerId == customerId && x.Status == "Confirmed" && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)) // Sirf confirmed orders [cite: 2026-02-05]
             .Select(x => new SaleOrderLookupDto
             {
                 SaleOrderId = x.Id,
@@ -516,6 +548,7 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var now = DateTime.Now;
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
 
         // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
         var company = await _companyClient.GetCompanyProfileAsync();
@@ -535,7 +568,7 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         return await _context.SaleOrderItems
             .AsNoTracking()
-            .Where(x => x.SaleOrderId == saleOrderId && x.CompanyId == companyId)
+            .Where(x => x.SaleOrderId == saleOrderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(x => new SaleOrderItemGridDto
             {
                 ProductId = x.ProductId,
@@ -598,11 +631,12 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<List<PendingSODto>> GetPendingSaleOrdersAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Fetch SOs that are Confirmed
         // 2. SAFETY LOCK: Exclude SOs that already have an "At-Gate" Gate Pass (Status 1)
         var orders = await _context.SaleOrders
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
+            .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == "") && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .OrderByDescending(x => x.SODate)
             .Select(x => new PendingSODto
             {

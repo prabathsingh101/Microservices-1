@@ -5,7 +5,6 @@ namespace Inventory.Domain.Entities
     public class InventoryTransaction : BaseAuditableEntity
     {
         public Guid Id { get; private set; }
-        public Guid CompanyId { get; private set; }
 
         public Guid ProductId { get; private set; }
         public decimal Quantity { get; private set; }
@@ -29,7 +28,8 @@ namespace Inventory.Domain.Entities
             Guid? rackId = null,
             DateTime? mfgDate = null,
             DateTime? expDate = null,
-            Guid? companyId = null)
+            Guid? companyId = null,
+            string? branchId = null)
         {
             Id = Guid.NewGuid();
             ProductId = productId;
@@ -41,6 +41,7 @@ namespace Inventory.Domain.Entities
             MfgDate = mfgDate;
             ExpDate = expDate;
             CompanyId = companyId ?? Guid.Empty;
+            BranchId = branchId;
         }
     }
 }

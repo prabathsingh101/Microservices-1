@@ -2,9 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using employeepayroll.Domain.Enums;
 
+using employeepayroll.Domain.Common;
+
 namespace employeepayroll.Domain.Entities;
 
-public class Leave
+public class Leave : BaseAuditableEntity
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -29,9 +31,4 @@ public class Leave
 
     public string? AdminRemarks { get; set; }
 
-    // Audit fields
-    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedOn { get; set; }
-    public Guid? CreatedBy { get; set; }
-    public Guid? UpdatedBy { get; set; }
 }

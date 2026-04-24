@@ -25,5 +25,6 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
         public Guid? CompanyId { get; set; }
+        public string? BranchId { get; set; }
     }
 }

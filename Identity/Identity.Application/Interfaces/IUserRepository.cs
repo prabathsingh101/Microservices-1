@@ -17,6 +17,7 @@ public interface IUserRepository
     Task<User?> GetByIdAsync(Guid id);
     Task<List<User>> GetAllUsersAsync();
     Task<List<User>> GetByCompanyAsync(Guid companyId);
+    Task<List<User>> GetByBranchAsync(Guid companyId, string branchId);
     Task ClearRolesAsync(Guid userId);
     Task UpdateAsync(User user);
     Task DeleteAsync(Guid id);

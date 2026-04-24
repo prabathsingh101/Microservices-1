@@ -8,12 +8,14 @@ public class CreateSaleReturnDto
     public string? CreatedBy { get; set; }
     public string? ModifiedBy { get; set; }
     public Guid? CompanyId { get; set; }
+    public string? BranchId { get; set; }
     public List<SaleReturnItemDto> Items { get; set; } = new();
 }
 
 public class SaleReturnItemDto
 {
     public Guid? CompanyId { get; set; }
+    public string? BranchId { get; set; }
     public Guid ProductId { get; set; } //
     public decimal ReturnQty { get; set; }
     public decimal UnitPrice { get; set; }

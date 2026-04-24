@@ -42,10 +42,15 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
         // Update details
         user.UpdateDetails(request.UserName, request.Email, request.IsActive);
 
-        // Update CompanyId if provided
+        // Update CompanyId/BranchId if provided
         if (request.CompanyId != user.CompanyId)
         {
              user.SetCompanyId(request.CompanyId);
+        }
+
+        if (request.BranchId != user.BranchId)
+        {
+            user.SetBranchId(request.BranchId);
         }
 
         // Update Roles

@@ -86,7 +86,8 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
-// Safe Database Initialization
+/* 
+// Safe Database Initialization - Disabled for Manual Schema Management
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -95,13 +96,13 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<CustomerDbContext>();
         if (context.Database.CanConnect())
         {
-            Log.Information("Customer Database connected. Applying migrations...");
-            context.Database.Migrate();
+            Log.Information("Customer Database connected.");
+            // context.Database.Migrate(); // Disabled
         }
         else
         {
-            Log.Warning("Customer Database not found. Attempting to create...");
-            context.Database.EnsureCreated();
+            Log.Warning("Customer Database not found.");
+            // context.Database.EnsureCreated(); // Disabled
         }
     }
     catch (Exception ex)
@@ -109,6 +110,7 @@ using (var scope = app.Services.CreateScope())
         Log.Error(ex, "An error occurred while initializing the Customer database.");
     }
 }
+*/
 
 app.MapControllers();
 

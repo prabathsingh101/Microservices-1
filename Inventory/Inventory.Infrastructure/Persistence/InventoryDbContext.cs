@@ -49,6 +49,7 @@ public sealed class InventoryDbContext : DbContext,
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<Rack> Racks => Set<Rack>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+    public DbSet<WarehouseStock> WarehouseStocks => Set<WarehouseStock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -243,6 +244,15 @@ public sealed class InventoryDbContext : DbContext,
             builder.Property(x => x.Quantity).HasPrecision(18, 2);
         });
 
+        modelBuilder.Entity<WarehouseStock>(builder =>
+        {
+            builder.Property(x => x.Quantity).HasPrecision(18, 2);
+            builder.Property(x => x.MinStock).HasPrecision(18, 2);
+            builder.HasIndex(x => new { x.ProductId, x.WarehouseId, x.CompanyId, x.BranchId })
+                   .HasDatabaseName("IX_WarehouseStock_Main");
+        });
+
+
         // --- 🔒 GLOBAL MULTI-TENANT FILTER & INDEXING ---
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
@@ -262,9 +272,20 @@ public sealed class InventoryDbContext : DbContext,
 
     private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, Inventory.Domain.Common.IMultiTenant
     {
-        modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId || 
-            (_currentUserService.CompanyId == null && e.CompanyId == Guid.Empty));
+        var entityName = typeof(TEntity).Name;
+        
+        // Warehouses and Racks should be visible company-wide regardless of BranchId
+        if (entityName == "Warehouse" || entityName == "Rack")
+        {
+            modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+                e.CompanyId == _currentUserService.CompanyId);
+        }
+        else
+        {
+            modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+                e.CompanyId == _currentUserService.CompanyId &&
+                (e.BranchId == null || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+        }
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -292,12 +313,36 @@ public sealed class InventoryDbContext : DbContext,
             var entity = entry.Entity;
             var type = entity.GetType();
 
-            // Set CompanyId for Multi-tenant entities
+            // Set CompanyId & BranchId for Multi-tenant entities
             if ((entry.State == EntityState.Added || entry.State == EntityState.Modified) && entity is Inventory.Domain.Common.IMultiTenant tenantEntity)
             {
                 if (tenantEntity.CompanyId == Guid.Empty)
                 {
                     tenantEntity.CompanyId = currentCompanyId ?? Guid.Empty;
+                }
+
+                // Automatically set BranchId only for transactional/stock entities
+                // Masters like Product, Category, Warehouse should be Global (BranchId = null)
+                var entityName = type.Name;
+                var transactionalEntities = new[] { 
+                    "WarehouseStock", "PurchaseOrder", "PurchaseOrderItem", 
+                    "SaleOrder", "SaleOrderItem", "GRNHeader", "GRNDetail", 
+                    "InventoryTransaction", "PurchaseReturn", "PurchaseReturnItem", 
+                    "SaleReturnHeader", "SaleReturnItem", "ExpenseEntry",
+                    "Warehouse", "Rack"
+                };
+
+                if (transactionalEntities.Contains(entityName))
+                {
+                    if (string.IsNullOrEmpty(tenantEntity.BranchId))
+                    {
+                        tenantEntity.BranchId = _currentUserService.BranchId;
+                    }
+                }
+                else
+                {
+                    // Ensure BranchId is null for Global Masters
+                    tenantEntity.BranchId = null;
                 }
             }
 

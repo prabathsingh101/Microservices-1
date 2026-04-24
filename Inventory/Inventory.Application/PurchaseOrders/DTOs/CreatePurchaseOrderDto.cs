@@ -20,6 +20,7 @@ public record CreatePurchaseOrderDto(
     string CreatedBy,
     bool IsQuick, // Quick Purchase flag
     Guid CompanyId,
+    string? BranchId,
     List<PoItemDto> Items);
 
 public record PoItemDto(

@@ -22,7 +22,8 @@ public sealed class GetWarehousesQueryHandler : IRequestHandler<GetWarehousesQue
             w.Name,
             w.City,
             w.Description,
-            w.IsActive
+            w.IsActive,
+            w.BranchId
         )).ToList();
     }
 }

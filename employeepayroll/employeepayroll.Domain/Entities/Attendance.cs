@@ -2,9 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using employeepayroll.Domain.Enums;
 
+using employeepayroll.Domain.Common;
+
 namespace employeepayroll.Domain.Entities;
 
-public class Attendance
+public class Attendance : BaseAuditableEntity
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -23,10 +25,4 @@ public class Attendance
     public AttendanceMethod Method { get; set; } = AttendanceMethod.Manual;
 
     public string? Remarks { get; set; }
-
-    // Audit fields
-    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedOn { get; set; }
-    public Guid? CreatedBy { get; set; }
-    public Guid? UpdatedBy { get; set; }
 }

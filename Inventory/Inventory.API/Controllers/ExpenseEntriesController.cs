@@ -23,13 +23,16 @@ public class ExpenseEntriesController : ControllerBase
     public async Task<IActionResult> GetList([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
             .AsQueryable();
 
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            query = query.Where(x => x.CompanyId == companyId);
+            var branchId = branchIdClaim;
+            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
         if (!string.IsNullOrEmpty(search))
@@ -54,13 +57,16 @@ public class ExpenseEntriesController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
             .AsQueryable();
 
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            query = query.Where(x => x.CompanyId == companyId);
+            var branchId = branchIdClaim;
+            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
         var result = await query.FirstOrDefaultAsync(x => x.Id == id);
@@ -73,11 +79,18 @@ public class ExpenseEntriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create(ExpenseEntry entry)
     {
-        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
             entry.CompanyId = companyId;
+        }
+
+        if (!string.IsNullOrEmpty(branchIdClaim))
+        {
+            entry.BranchId = branchIdClaim;
         }
 
         _context.ExpenseEntries.Add(entry);
@@ -103,11 +116,18 @@ public class ExpenseEntriesController : ControllerBase
         existing.AttachmentPath = entry.AttachmentPath;
         existing.ModifiedOn = DateTime.Now;
 
-        // 🚀 SMART INJECTION: Ensure CompanyId is safe on update
+        // 🚀 SMART INJECTION: Ensure CompanyId & BranchId are safe on update
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
             existing.CompanyId = companyId;
+        }
+
+        if (!string.IsNullOrEmpty(branchIdClaim))
+        {
+            existing.BranchId = branchIdClaim;
         }
 
         await _context.SaveChangesAsync();
@@ -131,13 +151,16 @@ public class ExpenseEntriesController : ControllerBase
     public async Task<IActionResult> GetChartData([FromBody] DashboardFilter filters)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
             .AsQueryable();
 
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            query = query.Where(x => x.CompanyId == companyId);
+            var branchId = branchIdClaim;
+            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
         if (filters.StartDate.HasValue)
@@ -163,7 +186,9 @@ public class ExpenseEntriesController : ControllerBase
     public async Task<IActionResult> GetMonthlyTotals([FromQuery] int months = 6)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        Guid? companyId = Guid.TryParse(companyIdClaim, out var cid) ? cid : null;
+        Guid? companyId = Guid.TryParse(companyIdClaim, out var cid) ? cid : (Guid?)null;
+
+        var branchId = User.FindFirst("BranchId")?.Value;
 
         var startDate = DateTime.Today.AddMonths(-(months - 1));
         startDate = new DateTime(startDate.Year, startDate.Month, 1);
@@ -173,8 +198,8 @@ public class ExpenseEntriesController : ControllerBase
 
         if (companyId.HasValue)
         {
-            expenseQuery = expenseQuery.Where(x => x.CompanyId == companyId.Value);
-            purchaseQuery = purchaseQuery.Where(x => x.CompanyId == companyId.Value);
+            expenseQuery = expenseQuery.Where(x => x.CompanyId == companyId.Value && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            purchaseQuery = purchaseQuery.Where(x => x.CompanyId == companyId.Value && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
         var expenseData = await expenseQuery

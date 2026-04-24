@@ -37,18 +37,27 @@ public class RegisterUserHandler
         RegisterUserCommand request,
         CancellationToken cancellationToken)
     {
-        // ✅ Step 1: Resolve Target Company ID
+        // ✅ Step 1: Resolve Target Company & Branch ID
         Guid? targetCompanyId = null;
+        string? targetBranchId = null;
 
-        // Priority 1: Explicitly provided CompanyId in the request (e.g., Super Admin creating for another company)
+        // Priority 1: Explicitly provided CompanyId/BranchId in the request
         if (request.CompanyId.HasValue && request.CompanyId.Value != Guid.Empty)
         {
             targetCompanyId = request.CompanyId.Value;
         }
-        // Priority 2: Current Logged-in User's Context (Scope to tenant by default)
         else if (_currentUserService.CompanyId.HasValue && _currentUserService.CompanyId.Value != Guid.Empty)
         {
             targetCompanyId = _currentUserService.CompanyId.Value;
+        }
+
+        if (!string.IsNullOrEmpty(request.BranchId))
+        {
+            targetBranchId = request.BranchId;
+        }
+        else if (!string.IsNullOrEmpty(_currentUserService.BranchId))
+        {
+            targetBranchId = _currentUserService.BranchId;
         }
 
         // 🚀 SAFETY: If Role is provided, double check the CompanyId from the Role 
@@ -71,6 +80,7 @@ public class RegisterUserHandler
 
         var user = new User(request.UserName, request.Email);
         if (targetCompanyId.HasValue) user.SetCompanyId(targetCompanyId.Value);
+        if (!string.IsNullOrEmpty(targetBranchId)) user.SetBranchId(targetBranchId);
 
         // ✅ Step 2: Hash Password
         var hash = _passwordHasher.HashPassword(user, request.Password);

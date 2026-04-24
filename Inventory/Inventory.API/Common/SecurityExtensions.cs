@@ -7,12 +7,11 @@ public static class SecurityExtensions
     public static Guid GetCompanyId(this ClaimsPrincipal user)
     {
         var companyIdClaim = user.FindFirst("CompanyId")?.Value;
-        if (Guid.TryParse(companyIdClaim, out var companyId))
-        {
-            return companyId;
-        }
+        return Guid.TryParse(companyIdClaim, out var companyId) ? companyId : Guid.Empty;
+    }
 
-        // Check header as fallback if needed (though usually handled by CurrentUserService)
-        return Guid.Empty;
+    public static string? GetBranchId(this ClaimsPrincipal user)
+    {
+        return user.FindFirst("BranchId")?.Value;
     }
 }

@@ -92,17 +92,25 @@ namespace Inventory.API.Controllers
 
             try
             {
-                // 🚀 SMART INJECTION: Get CompanyId from Claims to ensure security
+                // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims to ensure security
                 var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
                 if (Guid.TryParse(companyIdClaim, out var companyId))
                 {
                     returnDto.CompanyId = companyId;
+                }
+
+                if (!string.IsNullOrEmpty(branchIdClaim))
+                {
+                    returnDto.BranchId = branchIdClaim;
                 }
 
                 // DTO ko Entity mein map karein [cite: 2026-02-04]
                 var returnEntity = new Inventory.Domain.Entities.PurchaseReturn
                 {
                     CompanyId = returnDto.CompanyId ?? Guid.Empty,
+                    BranchId = returnDto.BranchId,
                     SupplierId = returnDto.SupplierId,
                     ReturnDate = returnDto.ReturnDate,
                     Remarks = returnDto.Remarks,
@@ -125,6 +133,7 @@ namespace Inventory.API.Controllers
                     returnEntity.Items.Add(new Inventory.Domain.Entities.PurchaseReturnItem
                     {
                         CompanyId = returnDto.CompanyId ?? Guid.Empty,
+                        BranchId = returnDto.BranchId,
                         ProductId = item.ProductId,
                         GrnRef = item.GrnRef,
                         ReturnQty = item.ReturnQty,

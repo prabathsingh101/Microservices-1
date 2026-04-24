@@ -10,6 +10,7 @@ public class User : Identity.Domain.Common.IMultiTenant
 
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid? CompanyId { get; set; } // Link to their business organization
+    public string? BranchId { get; set; } // Link to their specific branch
     public string UserName { get; private set; } = default!;
     public string Email { get; private set; } = default!;
     public string PasswordHash { get; private set; } = default!;
@@ -38,6 +39,11 @@ public class User : Identity.Domain.Common.IMultiTenant
     public void SetCompanyId(Guid? companyId)
     {
         CompanyId = companyId;
+    }
+
+    public void SetBranchId(string? branchId)
+    {
+        BranchId = branchId;
     }
 
     public void AssignRole(Guid roleId)

@@ -14,7 +14,7 @@ public class Rack : BaseAuditableEntity
 
     private Rack() { }
 
-    public Rack(Guid warehouseId, string name, string? description, bool isActive, Guid companyId)
+    public Rack(Guid warehouseId, string name, string? description, bool isActive, Guid companyId, string? branchId = null)
     {
         Id = Guid.NewGuid();
         WarehouseId = warehouseId;
@@ -22,14 +22,16 @@ public class Rack : BaseAuditableEntity
         Description = description;
         IsActive = isActive;
         CompanyId = companyId;
+        BranchId = branchId;
     }
 
-    public void Update(Guid warehouseId, string name, string? description, bool isActive, Guid companyId)
+    public void Update(Guid warehouseId, string name, string? description, bool isActive, Guid companyId, string? branchId = null)
     {
         WarehouseId = warehouseId;
         Name = name;
         Description = description;
         IsActive = isActive;
         CompanyId = companyId;
+        BranchId = branchId;
     }
 }

@@ -37,12 +37,13 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     public async Task<List<RejectedItemDto>> GetRejectedItemsBySupplierAsync(Guid supplierId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var query = from gd in _context.GRNDetails
                          .Include(x => x.Product)
                          .Include(x => x.Warehouse)
                          .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
-                    where gh.SupplierId == supplierId && gd.RejectedQty > 0 && gh.CompanyId == companyId
+                    where gh.SupplierId == supplierId && gd.RejectedQty > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
                     select new RejectedItemDto
                     {
                         ProductId = gd.ProductId,
@@ -69,8 +70,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         try
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = _currentUserService.BranchId;
             var allSupplierIds = await (from gh in _context.GRNHeaders
-                                        where gh.CompanyId == companyId
+                                        where gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
                                         select gh.SupplierId)
                                        .Distinct()
                                        .ToListAsync();
@@ -93,6 +95,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     public async Task<List<ReceivedStockDto>> GetReceivedStockBySupplierAsync(Guid supplierId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         // 1. Fetch Company Profile for Return Policy [cite: 2026-04-08]
         var company = await _companyClient.GetCompanyProfileAsync();
         int windowValue = company?.PurchaseReturnWindowValue ?? 72;
@@ -115,7 +118,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         .Include(x => x.Warehouse)
                         .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
-                    where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0 && gh.CompanyId == companyId
+                    where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
                     select new { gd, gh }).ToListAsync();
 
         var result = rawList.Select(x => new ReceivedStockDto
@@ -162,11 +165,12 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 foreach (var item in returnData.Items)
                 {
                     var companyId = returnData.CompanyId;
+                    var branchId = returnData.BranchId;
                     var grnDetail = await _context.GRNDetails
                         .Include(gd => gd.GRNHeader)
                         .FirstOrDefaultAsync(gd => gd.ProductId == item.ProductId
                                              && gd.GRNHeader.GRNNumber == item.GrnRef
-                                             && gd.CompanyId == companyId);
+                                             && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId));
 
                     if (grnDetail == null) throw new Exception($"GRN not found for {item.GrnRef}");
                     if (item.ReturnQty <= 0) continue;
@@ -174,7 +178,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     var poItem = await _context.PurchaseOrderItems
                         .FirstOrDefaultAsync(poi => poi.ProductId == item.ProductId 
                                              && poi.PurchaseOrderId == grnDetail.GRNHeader.PurchaseOrderId
-                                             && poi.CompanyId == companyId);
+                                             && poi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || poi.BranchId == branchId));
 
                     if (poItem != null)
                     {
@@ -285,8 +289,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         bool isQuick = false)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var query = _context.PurchaseReturns.AsNoTracking()
-            .Where(x => x.CompanyId == companyId && x.IsQuick == isQuick)
+            .Where(x => x.CompanyId == companyId && x.IsQuick == isQuick && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .AsQueryable();
 
         if (fromDate.HasValue)
@@ -360,7 +365,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         
         var grnDetailsList = await _context.PurchaseReturnItems
             .AsNoTracking()
-            .Where(ri => pagedIds.Contains(ri.PurchaseReturnId) && ri.CompanyId == companyId)
+            .Where(ri => pagedIds.Contains(ri.PurchaseReturnId) && ri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId))
             .Select(ri => new { ri.PurchaseReturnId, ri.GrnRef })
             .Distinct()
             .ToListAsync();
@@ -414,10 +419,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     public async Task<PurchaseReturnDetailDto?> GetPurchaseReturnByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var purchaseReturn = await _context.PurchaseReturns
             .AsNoTracking()
             .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
 
         if (purchaseReturn == null) return null;
 
@@ -464,9 +470,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     public async Task<byte[]> ExportPurchaseReturnsToExcelAsync(DateTime? fromDate, DateTime? toDate)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var data = await _context.PurchaseReturns
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId &&
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId) &&
                         (!fromDate.HasValue || x.ReturnDate >= fromDate) &&
                         (!toDate.HasValue || x.ReturnDate <= toDate))
             .OrderByDescending(x => x.ReturnDate)
@@ -516,9 +523,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     public async Task<List<PendingPRDto>> GetPendingPurchaseReturnsAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var returns = await _context.PurchaseReturns
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == ""))
+            .Where(x => x.CompanyId == companyId && x.Status == "Confirmed" && (x.GatePassNo == null || x.GatePassNo == "") && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .OrderByDescending(x => x.ReturnDate)
             .Select(x => new PendingPRDto
             {
@@ -549,8 +557,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
     public async Task<bool> BulkOutwardAsync(List<Guid> ids)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         var records = await _context.PurchaseReturns
-            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .ToListAsync();
 
         if (!records.Any()) return false;
@@ -577,7 +586,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         var today = DateTime.Today;
         var tomorrow = today.AddDays(1);
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var queryBase = _context.PurchaseReturns.Where(x => x.CompanyId == companyId && x.IsQuick == isQuick);
+        var branchId = _currentUserService.BranchId;
+        var queryBase = _context.PurchaseReturns.Where(x => x.CompanyId == companyId && x.IsQuick == isQuick && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
 
         // 1. Aaj kitne returns aaye (Range check is safer than .Date)
         var totalToday = await queryBase.CountAsync(x => x.ReturnDate >= today && x.ReturnDate < tomorrow);

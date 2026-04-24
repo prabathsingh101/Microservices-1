@@ -43,6 +43,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 var po = new PurchaseOrder
                 {
                     CompanyId = dto.CompanyId,
+                    BranchId = dto.BranchId,
                     PoNumber = generatedPoNumber,
                     SupplierId = dto.SupplierId,
                     SupplierName = dto.SupplierName,
@@ -76,7 +77,8 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                         Total = i.Total,
                         MfgDate = i.ManufacturingDate,
                         ExpDate = i.ExpiryDate,
-                        CompanyId = dto.CompanyId
+                        CompanyId = dto.CompanyId,
+                        BranchId = dto.BranchId
                     }).ToList()
                 };
 

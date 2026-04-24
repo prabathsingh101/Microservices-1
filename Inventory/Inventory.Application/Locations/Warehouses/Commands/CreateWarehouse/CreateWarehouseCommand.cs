@@ -7,5 +7,6 @@ public record CreateWarehouseCommand(
     string? City,
     string? Description,
     bool IsActive,
-    Guid CompanyId
+    Guid CompanyId,
+    string? BranchId = null
 ) : IRequest<Guid>;

@@ -22,12 +22,15 @@ public class ExpenseCategoriesController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         var query = _context.ExpenseCategories
             .Where(x => x.IsActive);
 
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            query = query.Where(x => x.CompanyId == companyId);
+            var branchId = branchIdClaim;
+            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
         var result = await query
@@ -41,12 +44,15 @@ public class ExpenseCategoriesController : ControllerBase
     public async Task<IActionResult> GetAllPost()
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         var query = _context.ExpenseCategories
             .Where(x => x.IsActive);
 
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            query = query.Where(x => x.CompanyId == companyId);
+            var branchId = branchIdClaim;
+            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
         var result = await query
@@ -68,11 +74,18 @@ public class ExpenseCategoriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create(ExpenseCategory category)
     {
-        // 🚀 SMART INJECTION: Get CompanyId from Claims
+        // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
             category.CompanyId = companyId;
+        }
+
+        if (!string.IsNullOrEmpty(branchIdClaim))
+        {
+            category.BranchId = branchIdClaim;
         }
 
         _context.ExpenseCategories.Add(category);
@@ -94,11 +107,18 @@ public class ExpenseCategoriesController : ControllerBase
         existing.IsActive = category.IsActive;
         existing.ModifiedOn = DateTime.Now;
 
-        // 🚀 SMART INJECTION: Ensure CompanyId is safe on update
+        // 🚀 SMART INJECTION: Ensure CompanyId & BranchId are safe on update
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
             existing.CompanyId = companyId;
+        }
+
+        if (!string.IsNullOrEmpty(branchIdClaim))
+        {
+            existing.BranchId = branchIdClaim;
         }
 
         await _context.SaveChangesAsync();

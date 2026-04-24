@@ -71,7 +71,10 @@ namespace Customers.Infrastructure.Persistence
 
         private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, IMultiTenant
         {
-            modelBuilder.Entity<TEntity>().HasQueryFilter(e => e.CompanyId == _currentUserService!.CompanyId);
+            modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+                _currentUserService != null && 
+                e.CompanyId == _currentUserService.CompanyId &&
+                (e.BranchId == null || !_currentUserService.BranchId.HasValue || e.BranchId == _currentUserService.BranchId));
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -91,19 +94,32 @@ namespace Customers.Infrastructure.Persistence
             {
                 if (entry.Entity is BaseAuditableEntity auditableEntity)
                 {
-                    if (entry.State == EntityState.Added)
+                    switch (entry.State)
                     {
-                        auditableEntity.CreatedOn = DateTime.UtcNow;
-                        auditableEntity.CreatedBy = _currentUserService.UserId ?? "System";
-                        if (auditableEntity.CompanyId == null || auditableEntity.CompanyId == Guid.Empty)
-                        {
-                            auditableEntity.CompanyId = _currentUserService.CompanyId;
-                        }
-                    }
-                    else
-                    {
-                        auditableEntity.ModifiedOn = DateTime.UtcNow;
-                        auditableEntity.ModifiedBy = _currentUserService.UserId ?? "System";
+                        case EntityState.Added:
+                            auditableEntity.CreatedOn = DateTime.Now;
+                            auditableEntity.CreatedBy = _currentUserService?.UserId;
+                            if (auditableEntity.CompanyId == null || auditableEntity.CompanyId == Guid.Empty)
+                            {
+                                auditableEntity.CompanyId = _currentUserService?.CompanyId ?? Guid.Empty;
+                            }
+                            if (auditableEntity.BranchId == null || auditableEntity.BranchId == Guid.Empty)
+                            {
+                                auditableEntity.BranchId = _currentUserService?.BranchId;
+                            }
+                            break;
+                        case EntityState.Modified:
+                            auditableEntity.ModifiedOn = DateTime.Now;
+                            auditableEntity.ModifiedBy = _currentUserService?.UserId;
+                            if (auditableEntity.CompanyId == null || auditableEntity.CompanyId == Guid.Empty)
+                            {
+                                auditableEntity.CompanyId = _currentUserService?.CompanyId ?? Guid.Empty;
+                            }
+                            if (auditableEntity.BranchId == null || auditableEntity.BranchId == Guid.Empty)
+                            {
+                                auditableEntity.BranchId = _currentUserService?.BranchId;
+                            }
+                            break;
                     }
                 }
             }

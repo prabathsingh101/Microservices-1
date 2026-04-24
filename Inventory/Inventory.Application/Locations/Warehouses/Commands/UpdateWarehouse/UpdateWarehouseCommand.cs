@@ -8,5 +8,6 @@ public record UpdateWarehouseCommand(
     string? City,
     string? Description,
     bool IsActive,
-    Guid CompanyId
+    Guid CompanyId,
+    string? BranchId = null
 ) : IRequest<Unit>;

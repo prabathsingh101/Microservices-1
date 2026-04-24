@@ -24,11 +24,17 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Save([FromBody] CreateGRNCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 command.Data.CompanyId = companyId;
+            }
+
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                command.Data.BranchId = branchIdClaim;
             }
 
             string newGrnNumber = await _mediator.Send(command);
@@ -88,11 +94,17 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> CreateBulkGrn([FromBody] BulkGrnRequestDto request)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 request.CompanyId = companyId;
+            }
+
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                request.BranchId = branchIdClaim;
             }
 
             if (request.PurchaseOrderIds == null || !request.PurchaseOrderIds.Any())

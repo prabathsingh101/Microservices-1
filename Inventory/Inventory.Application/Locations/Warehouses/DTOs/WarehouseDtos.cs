@@ -5,7 +5,8 @@ public record WarehouseDto(
     string Name,
     string? City,
     string? Description,
-    bool IsActive
+    bool IsActive,
+    string? BranchId
 );
 
 public record CreateWarehouseDto(

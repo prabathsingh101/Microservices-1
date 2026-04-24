@@ -1,9 +1,10 @@
+using employeepayroll.Domain.Common;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace employeepayroll.Domain.Entities;
 
-public class SalarySlip
+public class SalarySlip : BaseAuditableEntity
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -39,10 +40,4 @@ public class SalarySlip
 
     // Status
     public string Status { get; set; } = "Paid"; // e.g. Paid, Generated, OnHold
-
-    // Audit fields
-    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedOn { get; set; }
-    public Guid? CreatedBy { get; set; }
-    public Guid? UpdatedBy { get; set; }
 }

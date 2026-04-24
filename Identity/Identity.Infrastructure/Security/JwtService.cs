@@ -32,6 +32,7 @@ public class JwtService : IJwtService
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.UserName!),
             new Claim("CompanyId", user.CompanyId?.ToString() ?? string.Empty),
+            new Claim("BranchId", user.BranchId?.ToString() ?? string.Empty),
             new Claim("CompanyName", companyName ?? string.Empty)
         };
 
@@ -68,7 +69,8 @@ public class JwtService : IJwtService
             Roles = roles,
             Email = user.Email!,
             CompanyName = companyName,
-            CompanyId = user.CompanyId
+            CompanyId = user.CompanyId,
+            BranchId = user.BranchId
         };
     }
 }

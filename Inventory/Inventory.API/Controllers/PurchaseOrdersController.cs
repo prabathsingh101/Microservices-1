@@ -40,11 +40,18 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 dto = dto with { CompanyId = companyId };
+            }
+
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                dto = dto with { BranchId = branchIdClaim };
             }
 
             var result = await _mediator.Send(new CreatePurchaseOrderCommand(dto));
@@ -121,11 +128,18 @@ namespace Inventory.API.Controllers
                 return BadRequest(new { message = "ID mismatch between URL and body." });
             }
 
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 dto.CompanyId = companyId;
+            }
+
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                dto.BranchId = branchIdClaim;
             }
 
             // 2. Command Create karna

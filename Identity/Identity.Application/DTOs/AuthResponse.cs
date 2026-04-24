@@ -11,6 +11,7 @@ namespace Identity.Application.DTOs
         public string? CompanyName { get; set; }
         public string? CompanyTagline { get; set; }
         public Guid? CompanyId { get; set; }
+        public string? BranchId { get; set; }
         public string SubscriptionStatus { get; set; } = "Active";
         public bool IsSubscriptionExpired { get; set; } = false;
         public IEnumerable<UserPermissionDto> Permissions { get; set; } = new List<UserPermissionDto>();

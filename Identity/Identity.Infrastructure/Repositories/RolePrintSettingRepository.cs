@@ -14,17 +14,17 @@ public class RolePrintSettingRepository : IRolePrintSettingRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<RolePrintSetting>> GetPrintSettingsByRoleIdAsync(Guid roleId, Guid? companyId)
+    public async Task<IEnumerable<RolePrintSetting>> GetPrintSettingsByRoleIdAsync(Guid roleId, Guid? companyId, string? branchId)
     {
         return await _context.RolePrintSettings
-            .Where(rs => rs.RoleId == roleId && rs.CompanyId == companyId)
+            .Where(rs => rs.RoleId == roleId && rs.CompanyId == companyId && rs.BranchId == branchId)
             .ToListAsync();
     }
 
-    public async Task UpdateRolePrintSettingsAsync(Guid roleId, IEnumerable<RolePrintSetting> settings, Guid? companyId)
+    public async Task UpdateRolePrintSettingsAsync(Guid roleId, IEnumerable<RolePrintSetting> settings, Guid? companyId, string? branchId)
     {
         var existingSettings = await _context.RolePrintSettings
-            .Where(rs => rs.RoleId == roleId && rs.CompanyId == companyId)
+            .Where(rs => rs.RoleId == roleId && rs.CompanyId == companyId && rs.BranchId == branchId)
             .ToListAsync();
 
         foreach (var setting in settings)
@@ -37,7 +37,8 @@ public class RolePrintSettingRepository : IRolePrintSettingRepository
             else
             {
                 setting.RoleId = roleId; 
-                setting.CompanyId = companyId; // Explicitly set CompanyId
+                setting.CompanyId = companyId;
+                setting.BranchId = branchId;
                 await _context.RolePrintSettings.AddAsync(setting);
             }
         }

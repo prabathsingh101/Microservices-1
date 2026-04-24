@@ -1,8 +1,9 @@
+using employeepayroll.Domain.Common;
 using System.ComponentModel.DataAnnotations;
 
 namespace employeepayroll.Domain.Entities;
 
-public class Employee
+public class Employee : BaseAuditableEntity
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -39,10 +40,4 @@ public class Employee
     public virtual ICollection<Attendance>? Attendances { get; set; }
     public virtual ICollection<Leave>? Leaves { get; set; }
     public virtual ICollection<SalarySlip>? SalarySlips { get; set; }
-
-    // Audit fields
-    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedOn { get; set; }
-    public Guid? CreatedBy { get; set; }
-    public Guid? UpdatedBy { get; set; }
 }
