@@ -33,11 +33,18 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create([FromBody] CreatePriceListCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 command = command with { companyId = companyId };
+            }
+
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                command = command with { branchId = branchIdClaim };
             }
 
             var resultId = await _mediator.Send(command);
@@ -51,11 +58,18 @@ namespace Inventory.API.Controllers
         {
             if (id != command.id) return BadRequest("ID Mismatch");
 
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 command = command with { companyId = companyId };
+            }
+
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                command = command with { branchId = branchIdClaim };
             }
 
             var result = await _mediator.Send(command);

@@ -14,5 +14,6 @@ public record UpdatePriceListCommand : IRequest<bool>
     public bool isActive { get; init; }
     public string remarks { get; init; }
     public Guid companyId { get; init; }
+    public string? branchId { get; init; }
     public List<PriceListItemUpdateDto> priceListItems { get; init; }
 }

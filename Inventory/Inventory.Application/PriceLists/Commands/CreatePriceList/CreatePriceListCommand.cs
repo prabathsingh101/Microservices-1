@@ -13,5 +13,6 @@ public record CreatePriceListCommand(
     bool isActive,
     string createdBy,
     Guid companyId,
+    string? branchId,
     List<CreatePriceListItemDto> priceListItems
 ) : IRequest<Guid>;

@@ -84,6 +84,12 @@ public sealed class CreatePriceListCommandHandler
             request.companyId
         );
 
+        // 🚀 JWT se inject hone wali branchId entity par set karo
+        if (!string.IsNullOrEmpty(request.branchId))
+        {
+            priceList.BranchId = request.branchId;
+        }
+
         foreach (var itemDto in request.priceListItems)
         {
             var item = new PriceListItem(
@@ -96,6 +102,11 @@ public sealed class CreatePriceListCommandHandler
                 itemDto.maxQty,
                 request.companyId
             );
+            // 🚀 JWT se inject hone wali branchId item par bhi set karo
+            if (!string.IsNullOrEmpty(request.branchId))
+            {
+                item.BranchId = request.branchId;
+            }
             priceList.PriceListItems.Add(item);
         }
 

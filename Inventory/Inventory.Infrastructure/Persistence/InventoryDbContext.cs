@@ -329,7 +329,7 @@ public sealed class InventoryDbContext : DbContext,
                     "SaleOrder", "SaleOrderItem", "GRNHeader", "GRNDetail", 
                     "InventoryTransaction", "PurchaseReturn", "PurchaseReturnItem", 
                     "SaleReturnHeader", "SaleReturnItem", "ExpenseEntry",
-                    "Warehouse", "Rack"
+                    "Warehouse", "Rack", "PriceList", "PriceListItem"
                 };
 
                 if (transactionalEntities.Contains(entityName))

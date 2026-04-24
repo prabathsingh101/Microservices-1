@@ -69,6 +69,12 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
         entity.IsActive = request.isActive;
         entity.Remarks = request.remarks;
 
+        // 🚀 JWT se inject hone wali branchId entity par set karo
+        if (!string.IsNullOrEmpty(request.branchId))
+        {
+            entity.BranchId = request.branchId;
+        }
+
         // 4. SYNC LOGIC (Delete nahi, Sync karein)
         // Pehle wo items hatayein jo request mein nahi hain (UI se delete kiye gaye)
         var itemsToRemove = entity.PriceListItems
@@ -94,6 +100,7 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                 existingItem.MinQty = itemDto.minQty;
                 existingItem.MaxQty = itemDto.maxQty;
                 existingItem.Unit = itemDto.unit;
+                existingItem.BranchId = request.branchId; // 🚀 JWT se inject hone wali branchId
             }
             else
             {
@@ -107,7 +114,8 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                     MinQty = itemDto.minQty,
                     MaxQty = itemDto.maxQty,
                     Unit = itemDto.unit,
-                    CompanyId = request.companyId
+                    CompanyId = request.companyId,
+                    BranchId = request.branchId // 🚀 JWT se inject hone wali branchId
                 });
             }
         }
