@@ -629,7 +629,7 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 // 2. Deduct Net Generic Sales using FIFO (Oldest first)
-                var netGenericSold = genericSalesSum - genericReturnsSum;
+                var netGenericSold = genericSalesSum + adjustment - genericReturnsSum;
                 if (netGenericSold > 0)
                 {
                     var oldestFirstBatches = allBatches.OrderBy(b => b.ReceivedDate).ToList();

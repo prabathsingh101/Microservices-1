@@ -14,17 +14,17 @@ public class RolePrintSettingRepository : IRolePrintSettingRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<RolePrintSetting>> GetPrintSettingsByRoleIdAsync(Guid roleId)
+    public async Task<IEnumerable<RolePrintSetting>> GetPrintSettingsByRoleIdAsync(Guid roleId, Guid? companyId)
     {
         return await _context.RolePrintSettings
-            .Where(rs => rs.RoleId == roleId)
+            .Where(rs => rs.RoleId == roleId && rs.CompanyId == companyId)
             .ToListAsync();
     }
 
-    public async Task UpdateRolePrintSettingsAsync(Guid roleId, IEnumerable<RolePrintSetting> settings)
+    public async Task UpdateRolePrintSettingsAsync(Guid roleId, IEnumerable<RolePrintSetting> settings, Guid? companyId)
     {
         var existingSettings = await _context.RolePrintSettings
-            .Where(rs => rs.RoleId == roleId)
+            .Where(rs => rs.RoleId == roleId && rs.CompanyId == companyId)
             .ToListAsync();
 
         foreach (var setting in settings)
@@ -36,7 +36,8 @@ public class RolePrintSettingRepository : IRolePrintSettingRepository
             }
             else
             {
-                setting.RoleId = roleId; // Ensure RoleId is set correctly
+                setting.RoleId = roleId; 
+                setting.CompanyId = companyId; // Explicitly set CompanyId
                 await _context.RolePrintSettings.AddAsync(setting);
             }
         }

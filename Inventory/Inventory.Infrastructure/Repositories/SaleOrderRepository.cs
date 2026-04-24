@@ -88,28 +88,18 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId);
+        if (product != null)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId);
-            if (product != null)
+            // Safety check for outward adjustments (Concurrency Guard)
+            if (adjustmentQty < 0 && product.CurrentStock < Math.Abs(adjustmentQty))
             {
-                // Safety check for outward adjustments
-                if (adjustmentQty < 0 && product.CurrentStock < Math.Abs(adjustmentQty))
-                {
-                    throw new InvalidOperationException($"Stock conflict for {product.Name}. Cannot deduct {Math.Abs(adjustmentQty)} when current stock is {product.CurrentStock}.");
-                }
-
-                product.CurrentStock += adjustmentQty;
-                _context.Products.Update(product);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                throw new InvalidOperationException($"Stock conflict for {product.Name}. Cannot deduct {Math.Abs(adjustmentQty)} when current stock is {product.CurrentStock}.");
             }
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
+
+            product.CurrentStock += adjustmentQty;
+            _context.Products.Update(product);
+            await _context.SaveChangesAsync();
         }
     }
 

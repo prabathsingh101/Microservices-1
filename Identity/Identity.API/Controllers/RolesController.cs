@@ -185,16 +185,30 @@ public class RolesController : ControllerBase
     }
 
     [HttpGet("{roleId}/print-settings")]
-    public async Task<IActionResult> GetPrintSettings(Guid roleId, [FromServices] IRolePrintSettingRepository printRepo)
+    public async Task<IActionResult> GetPrintSettings(Guid roleId, [FromQuery] Guid? companyId, [FromServices] IRolePrintSettingRepository printRepo)
     {
-        var settings = await printRepo.GetPrintSettingsByRoleIdAsync(roleId);
+        var targetCompanyId = companyId;
+        if (targetCompanyId == null)
+        {
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var cid)) targetCompanyId = cid;
+        }
+
+        var settings = await printRepo.GetPrintSettingsByRoleIdAsync(roleId, targetCompanyId);
         return Ok(settings);
     }
 
     [HttpPut("{roleId}/print-settings")]
-    public async Task<IActionResult> UpdatePrintSettings(Guid roleId, [FromBody] IEnumerable<Domain.PrintSettings.RolePrintSetting> settings, [FromServices] IRolePrintSettingRepository printRepo)
+    public async Task<IActionResult> UpdatePrintSettings(Guid roleId, [FromBody] IEnumerable<Domain.PrintSettings.RolePrintSetting> settings, [FromQuery] Guid? companyId, [FromServices] IRolePrintSettingRepository printRepo)
     {
-        await printRepo.UpdateRolePrintSettingsAsync(roleId, settings);
+        var targetCompanyId = companyId;
+        if (targetCompanyId == null)
+        {
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var cid)) targetCompanyId = cid;
+        }
+
+        await printRepo.UpdateRolePrintSettingsAsync(roleId, settings, targetCompanyId);
         return Ok();
     }
 
