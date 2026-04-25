@@ -62,5 +62,18 @@ public class CurrentUserService : ICurrentUserService
             return null;
         }
     }
+
+    public string? Email
+    {
+        get
+        {
+            var claims = _httpContextAccessor.HttpContext?.User?.Claims;
+            if (claims == null) return null;
+
+            return claims.FirstOrDefault(c => 
+                c.Type.Equals(ClaimTypes.Email, StringComparison.OrdinalIgnoreCase) || 
+                c.Type.Equals("email", StringComparison.OrdinalIgnoreCase))?.Value;
+        }
+    }
 }
 

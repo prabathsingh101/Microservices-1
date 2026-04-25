@@ -35,32 +35,36 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
     public async Task<Subcategory?> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Subcategories
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
     }
 
     public async Task<List<Subcategory>> GetAllAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Subcategories
             .Include(s => s.Category)
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
             .ToListAsync();
     }
 
     public async Task<List<Subcategory>> GetByCategoryIdAsync(Guid categoryId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Subcategories
             .Include(s => s.Category)
-            .Where(s => s.CategoryId == categoryId && s.CompanyId == companyId)
+            .Where(s => s.CategoryId == categoryId && s.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || s.BranchId == branchId || s.BranchId == null))
             .ToListAsync();
     }
 
     public IQueryable<Subcategory> Query()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        return _context.Subcategories.Where(x => x.CompanyId == companyId).AsQueryable();
+        var branchId = _currentUserService.BranchId;
+        return _context.Subcategories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).AsQueryable();
     }
 
     public void Delete(Subcategory subcategory)
@@ -76,8 +80,9 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
     public async Task<List<Subcategory>> GetByIdsAsync(List<Guid> ids)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _context.Subcategories
-            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
             .ToListAsync();
     }
 
@@ -97,7 +102,7 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
             .AnyAsync(x => categoryIds.Contains(x.CategoryId) && x.CompanyId == companyId);
     }
 
-    public async Task<(int successCount, int updateCount, List<string> errors)> UploadSubcategoriesAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId)
+    public async Task<(int successCount, int updateCount, List<string> errors)> UploadSubcategoriesAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId, string? branchId = null)
     {
         var errors = new List<string>();
         int successCount = 0;
@@ -141,14 +146,14 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
 
                 // 2. Pre-fetch ALL Categories for lookup (Case-insensitive) by Name
                 var categories = await _context.Categories
-                    .Where(x => x.CompanyId == companyId)
+                    .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .AsNoTracking()
                     .ToDictionaryAsync(c => (c.CategoryName ?? "").ToLower().Trim(), c => c.Id);
 
                 // 3. Pre-fetch existing Subcategories for Upsert logic (Update if exists, Insert if new)
                 // We don't use AsNoTracking() so we can update existing entities
                 var dbSubcategories = await _context.Subcategories
-                    .Where(x => x.CompanyId == companyId)
+                    .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
                 var dbSubcatsByCode = dbSubcategories.ToDictionary(s => (s.SubcategoryCode ?? "").ToLower().Trim(), s => s);
                 
@@ -200,12 +205,12 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
 
                         if (existingSubcat != null)
                         {
-                            existingSubcat.Update(code, name, categoryId, defaultGst, description, true, companyId);
+                            existingSubcat.Update(code, name, categoryId, defaultGst, description, true, companyId, branchId);
                             updateCount++;
                         }
                         else
                         {
-                            var subcat = new Subcategory(categoryId, code, name, defaultGst, description, true, companyId);
+                            var subcat = new Subcategory(categoryId, code, name, defaultGst, description, true, companyId, branchId);
                             await _context.Subcategories.AddAsync(subcat);
                             successCount++;
                         }
@@ -228,8 +233,9 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
 
     public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
+        var branchId = _currentUserService.BranchId;
         var query = _context.Subcategories.AsNoTracking()
-            .Where(x => x.CompanyId == companyId && x.SubcategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive);
+            .Where(x => x.CompanyId == companyId && x.SubcategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

@@ -10,5 +10,6 @@ public sealed record UpdateSubcategoryCommand(
     decimal DefaultGst,
     string? Description,
     bool IsActive,
-    Guid CompanyId
+    Guid CompanyId,
+    string? BranchId = null
 ) : IRequest<Guid>;

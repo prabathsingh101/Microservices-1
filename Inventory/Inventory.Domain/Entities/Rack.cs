@@ -5,7 +5,6 @@ namespace Inventory.Domain.Entities;
 public class Rack : BaseAuditableEntity
 {
     public Guid Id { get; private set; }
-    public Guid CompanyId { get; private set; }
     public Guid WarehouseId { get; private set; }
     public virtual Warehouse Warehouse { get; private set; } = null!;
     public string Name { get; private set; } = null!;

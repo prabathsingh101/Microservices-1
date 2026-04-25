@@ -33,11 +33,11 @@ public sealed class WarehousesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
     public async Task<IActionResult> Create(CreateWarehouseCommand command)
     {
-        // ... (rest of the create logic stays the same)
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+        var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            command = command with { CompanyId = companyId };
+            command = command with { CompanyId = companyId, BranchId = branchId };
         }
 
         var id = await _mediator.Send(command);
@@ -51,11 +51,11 @@ public sealed class WarehousesController : ControllerBase
         if (id != command.Id)
             return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
 
-        // ... (rest of the update logic stays the same)
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+        var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
         if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            command = command with { CompanyId = companyId };
+            command = command with { CompanyId = companyId, BranchId = branchId };
         }
 
         await _mediator.Send(command);
@@ -84,13 +84,14 @@ public sealed class WarehousesController : ControllerBase
     {
         if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
 
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+        var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
         if (!Guid.TryParse(companyIdClaim, out var companyId))
         {
             return BadRequest("Invalid session: CompanyId not found");
         }
 
-        var result = await _warehouseRepository.UploadWarehousesAsync(file, companyId);
+        var result = await _warehouseRepository.UploadWarehousesAsync(file, companyId, branchId);
 
         return Ok(new
         {
@@ -147,7 +148,7 @@ public sealed class WarehousesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> DebugInfo()
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
         Guid.TryParse(companyIdClaim, out var companyId);
 
         var count = await _context.Warehouses.CountAsync(x => x.CompanyId == companyId);
@@ -166,7 +167,8 @@ public sealed class WarehousesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> SeedSample()
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+        var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
         if (!Guid.TryParse(companyIdClaim, out var companyId))
         {
             return BadRequest(new { success = false, message = "CompanyId not found in claims." });
@@ -178,24 +180,24 @@ public sealed class WarehousesController : ControllerBase
             // 🔥 If they exist, let's make sure they are active
             foreach (var w in existingWarehouses)
             {
-                w.Update(w.Name, w.City, w.Description, true, w.CompanyId);
+                w.Update(w.Name, w.City, w.Description, true, w.CompanyId, branchId);
             }
             
             var existingRacks = await _context.Racks.Where(x => x.CompanyId == companyId).ToListAsync();
             foreach (var r in existingRacks)
             {
-                r.Update(r.WarehouseId, r.Name, r.Description, true, r.CompanyId);
+                r.Update(r.WarehouseId, r.Name, r.Description, true, r.CompanyId, branchId);
             }
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true, message = "Existing Warehouses and Racks have been activated." });
         }
 
-        var mainWarehouse = new Warehouse("Main Warehouse", "New Delhi", "Primary distribution center", true, companyId);
+        var mainWarehouse = new Warehouse("Main Warehouse", "New Delhi", "Primary distribution center", true, companyId, branchId);
         await _context.Warehouses.AddAsync(mainWarehouse);
         
-        var rackA = new Rack(mainWarehouse.Id, "Rack A1", "Ground Floor", true, companyId);
-        var rackB = new Rack(mainWarehouse.Id, "Rack B2", "First Floor", true, companyId);
+        var rackA = new Rack(mainWarehouse.Id, "Rack A1", "Ground Floor", true, companyId, branchId);
+        var rackB = new Rack(mainWarehouse.Id, "Rack B2", "First Floor", true, companyId, branchId);
         await _context.Racks.AddRangeAsync(rackA, rackB);
 
         await _context.SaveChangesAsync();

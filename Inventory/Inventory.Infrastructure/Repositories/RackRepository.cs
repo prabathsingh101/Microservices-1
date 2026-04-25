@@ -41,7 +41,7 @@ public class RackRepository : IRackRepository
         var branchId = _currentUserService.BranchId;
         return await _context.Racks
             .Include(r => r.Warehouse)
-            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
             .AsNoTracking()
             .ToListAsync();
     }
@@ -51,7 +51,7 @@ public class RackRepository : IRackRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.Racks
-            .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || r.BranchId == branchId))
+            .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || r.BranchId == branchId || r.BranchId == null))
             .AsNoTracking()
             .ToListAsync();
     }
@@ -61,10 +61,10 @@ public class RackRepository : IRackRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.Racks
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
     }
 
-    public async Task<(int successCount, List<string> errors)> UploadRacksAsync(IFormFile file, Guid companyId)
+    public async Task<(int successCount, List<string> errors)> UploadRacksAsync(IFormFile file, Guid companyId, string? branchId = null)
     {
         int successCount = 0;
         var errors = new List<string>();
@@ -79,11 +79,11 @@ public class RackRepository : IRackRepository
 
                 // Pre-fetch for mapping & upsert
                 var warehouses = await _context.Warehouses
-                    .Where(x => x.CompanyId == companyId)
+                    .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToDictionaryAsync(w => w.Name.ToLower().Trim(), w => w.Id);
 
                 var dbRacks = await _context.Racks
-                    .Where(x => x.CompanyId == companyId)
+                    .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
 
                 var newRacks = new List<Rack>();
@@ -112,18 +112,19 @@ public class RackRepository : IRackRepository
                             continue;
                         }
 
-                        var branchId = _currentUserService.BranchId;
+                        // Use the branchId passed from the controller instead of claim in the loop if available
+                        var currentBranchId = branchId ?? _currentUserService.BranchId;
 
                         var existing = dbRacks.FirstOrDefault(r => r.Name.ToLower().Trim() == rackName.ToLower() && r.WarehouseId == warehouseId);
 
                         if (existing != null)
                         {
-                            existing.Update(warehouseId, rackName, description, isActive, companyId, branchId);
+                            existing.Update(warehouseId, rackName, description, isActive, companyId, currentBranchId);
                             updateCount++;
                         }
                         else
                         {
-                            var rack = new Rack(warehouseId, rackName, description, isActive, companyId, branchId);
+                            var rack = new Rack(warehouseId, rackName, description, isActive, companyId, currentBranchId);
                             newRacks.Add(rack);
                         }
                         successCount++;

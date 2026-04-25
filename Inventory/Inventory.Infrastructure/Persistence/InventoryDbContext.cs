@@ -329,7 +329,8 @@ public sealed class InventoryDbContext : DbContext,
                     "SaleOrder", "SaleOrderItem", "GRNHeader", "GRNDetail", 
                     "InventoryTransaction", "PurchaseReturn", "PurchaseReturnItem", 
                     "SaleReturnHeader", "SaleReturnItem", "ExpenseEntry",
-                    "Warehouse", "Rack", "PriceList", "PriceListItem"
+                    "Warehouse", "Rack", "PriceList", "PriceListItem",
+                    "Category", "Subcategory", "Product", "UnitMaster"
                 };
 
                 if (transactionalEntities.Contains(entityName))
@@ -362,7 +363,22 @@ public sealed class InventoryDbContext : DbContext,
                         }
                     }
                 }
+
+                // Set CreatedBy
+                var createdByProp = type.GetProperty("CreatedBy");
+                if (createdByProp != null && createdByProp.CanWrite)
+                {
+                    createdByProp.SetValue(entity, _currentUserService.Email);
+                }
             }
+
+            // Set ModifiedBy
+            var modifiedByProp = type.GetProperty("ModifiedBy");
+            if (modifiedByProp != null && modifiedByProp.CanWrite)
+            {
+                modifiedByProp.SetValue(entity, _currentUserService.Email);
+            }
+
             // ... same update logic ...
             var updateProps = new[] { "ModifiedOn", "ModifiedOn", "ModifiedOn", "UpdatedAt" };
             foreach (var propName in updateProps)

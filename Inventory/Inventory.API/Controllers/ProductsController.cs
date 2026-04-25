@@ -1,40 +1,28 @@
-using Inventory.API.Common;
-using Inventory.Application.Common.Models;
 using Inventory.Application.Products.Commands.CreateProduct;
 using Inventory.Application.Products.Commands.DeleteProduct;
 using Inventory.Application.Products.Commands.UpdateProduct;
-using Inventory.Application.Products.Queries.GetProductById;
 using Inventory.Application.Products.Queries.GetProducts;
+using Inventory.Application.Products.Queries.GetProductById;
+using Inventory.Application.Common.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Inventory.API.Common;
+using Inventory.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Application.Common.Interfaces;
+using Inventory.Application.Products.DTOs;
+using ClosedXML.Excel;
 
 namespace Inventory.API.Controllers
 {
-    [Route("api/products")]
     [ApiController]
-    public class ProductsController : ControllerBase
+    [Route("api/products")]
+    public sealed class ProductsController : ControllerBase
     {
         private readonly IMediator _mediator;
-        private readonly Inventory.Application.Common.Interfaces.IProductRepository _productRepository;
-        private readonly Inventory.Application.Common.Interfaces.ICurrentUserService _currentUserService;
-
-        [HttpGet("debug-company")]
-        public IActionResult GetDebugCompany()
-        {
-            var companyId = _currentUserService.CompanyId;
-            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
-            return Ok(new { companyId, claims });
-        }
-
-        [HttpGet]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetAll()
-        {
-            var result = await _mediator.Send(new GetProductsQuery());
-            return Ok(result);
-        }
+        private readonly IProductRepository _productRepository;
+        private readonly ICurrentUserService _currentUserService;
 
         public ProductsController(IMediator mediator, 
             Inventory.Application.Common.Interfaces.IProductRepository productRepository,
@@ -45,14 +33,39 @@ namespace Inventory.API.Controllers
             _currentUserService = currentUserService;
         }
 
+        [HttpGet("paged")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetPaged([FromQuery] GridRequest request)
+        {
+            var result = await _mediator.Send(new GetProductsPagedQuery(request));
+            return Ok(result);
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetAll()
+        {
+            var result = await _mediator.Send(new GetProductsQuery());
+            return Ok(result);
+        }
+
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var result = await _mediator.Send(new GetProductByIdQuery(id));
+            return Ok(result);
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create(CreateProductCommand command)
         {
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
-                command = command with { CompanyId = companyId };
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
             }
 
             var id = await _mediator.Send(command);
@@ -66,10 +79,11 @@ namespace Inventory.API.Controllers
             if (id != command.Id)
                 return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
 
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
-                command = command with { CompanyId = companyId };
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
             }
 
             var result = await _mediator.Send(command);
@@ -81,47 +95,22 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             await _mediator.Send(new DeleteProductCommand(id));
-            return Ok(new { success = true, message = "Product deleted successfully" });
-        }
-
-        [HttpPost("bulk-delete")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> BulkDelete([FromBody] List<Guid> ids)
-        {
-            // SMART FIX: Using correct singular command name
-            await _mediator.Send(new BulkDeleteProductCommand(ids));
-            return Ok(new { success = true, message = "Products deleted successfully" });
-        }
-
-        [HttpGet("{id:guid}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetById(Guid id)
-        {
-            var result = await _mediator.Send(new GetProductByIdQuery(id));
-            return Ok(result);
-        }
-
-        [HttpPost("paged")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
-        {
-            var result = await _mediator.Send(new GetProductsPagedQuery(request));
-            return Ok(result);
+            return Ok(ApiResponse<bool>.Ok(true, "Product deleted successfully"));
         }
 
         [HttpPost("upload-excel")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> UploadExcel(IFormFile file)
         {
-            if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
+            if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
 
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (!Guid.TryParse(companyIdClaim, out var companyId))
             {
-                return BadRequest("Invalid or missing CompanyId in your session.");
+                return BadRequest(ApiResponse<string>.Fail("Invalid or missing CompanyId in your session."));
             }
-
-            var result = await _productRepository.UploadProductsAsync(file, companyId);
+            var result = await _productRepository.UploadProductsAsync(file, companyId, branchId);
             int totalAffected = result.successCount + result.updateCount;
             return Ok(new { message = $"{totalAffected} Products processed successfully.", errors = result.errors });
         }
@@ -131,12 +120,52 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> CheckDuplicate([FromQuery] string name, [FromQuery] Guid? excludeId = null)
         {
             if (string.IsNullOrWhiteSpace(name)) return Ok(new { exists = false });
-
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest("Invalid session: CompanyId not found");
+            
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest(ApiResponse<string>.Fail("Invalid session"));
 
             var exists = await _productRepository.ExistsByNameAsync(name, companyId, excludeId);
-            return Ok(new { exists = exists, message = exists ? $"The product name '{name}' is already used by another active product." : string.Empty });
+            return Ok(new { exists });
+        }
+
+        [HttpGet("search")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> Search([FromQuery] string term)
+        {
+            var result = await _productRepository.SearchActiveProductsAsync(term);
+            return Ok(result);
+        }
+
+        [HttpGet("rate")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetRate([FromQuery] Guid productId, [FromQuery] Guid? priceListId)
+        {
+            var result = await _productRepository.GetProductRateAsync(productId, priceListId);
+            return Ok(result);
+        }
+
+        [HttpGet("low-stock")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetLowStock()
+        {
+            var result = await _productRepository.GetLowStockProductsAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("export-low-stock")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> ExportLowStock()
+        {
+            var data = await _productRepository.GetLowStockExportDataAsync();
+            return Ok(data);
+        }
+
+        [HttpGet("recent-movements")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetRecentMovements([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var result = await _productRepository.GetRecentMovementsPagedAsync(pageNumber, pageSize);
+            return Ok(result);
         }
 
         [HttpGet("download-template")]
@@ -144,25 +173,27 @@ namespace Inventory.API.Controllers
         public IActionResult DownloadTemplate()
         {
             var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "product_template.csv");
+            if (!System.IO.File.Exists(filePath)) 
+            {
+                filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "product_template.csv");
+            }
             if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
 
-            using (var workbook = new ClosedXML.Excel.XLWorkbook())
+            using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Products");
                 var csvLines = System.IO.File.ReadAllLines(filePath);
                 
                 if (csvLines.Length > 0)
                 {
-                    // 1. Process Header
                     var headers = csvLines[0].Split(',');
                     for (int i = 0; i < headers.Length; i++)
                     {
                         worksheet.Cell(1, i + 1).Value = headers[i];
                         worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightCyan;
                     }
 
-                    // 2. Process Data Rows
                     for (int r = 1; r < csvLines.Length; r++)
                     {
                         if (string.IsNullOrWhiteSpace(csvLines[r])) continue;

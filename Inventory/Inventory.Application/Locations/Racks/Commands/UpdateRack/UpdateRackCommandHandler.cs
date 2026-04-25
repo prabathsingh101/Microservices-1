@@ -23,7 +23,7 @@ public sealed class UpdateRackCommandHandler : IRequestHandler<UpdateRackCommand
             throw new Exception("Rack not found");
         }
 
-        rack.Update(request.WarehouseId, request.Name, request.Description, request.IsActive, request.CompanyId);
+        rack.Update(request.WarehouseId, request.Name, request.Description, request.IsActive, request.CompanyId, request.BranchId);
 
         await _repository.UpdateAsync(rack);
         await _context.SaveChangesAsync(cancellationToken);

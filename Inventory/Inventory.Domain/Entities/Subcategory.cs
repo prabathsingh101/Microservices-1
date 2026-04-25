@@ -5,7 +5,6 @@ namespace Inventory.Domain.Entities;
 public sealed class Subcategory : BaseAuditableEntity
 {
     public Guid Id { get; set; }
-    public Guid CompanyId { get; set; }
     public Guid CategoryId { get; set; }
     public Category Category { get; set; }
     public string? SubcategoryCode { get; set; } = null!;
@@ -23,7 +22,8 @@ public sealed class Subcategory : BaseAuditableEntity
         decimal defaultGst,
         string? description,
         bool isactive,
-        Guid companyId)
+        Guid companyId,
+        string? branchId = null)
     {
         Id = Guid.NewGuid();
         CategoryId = categoryid;
@@ -33,6 +33,7 @@ public sealed class Subcategory : BaseAuditableEntity
         Description = description;
         IsActive = isactive;
         CompanyId = companyId;
+        BranchId = branchId;
     }
 
     public void Update(
@@ -42,7 +43,8 @@ public sealed class Subcategory : BaseAuditableEntity
         decimal defaultgst,
         string? description,
         bool isActive,
-        Guid companyId)
+        Guid companyId,
+        string? branchId = null)
     {
         SubcategoryCode = code;
         SubcategoryName = name;
@@ -51,5 +53,6 @@ public sealed class Subcategory : BaseAuditableEntity
         Description = description;
         IsActive = isActive;
         CompanyId = companyId;
+        BranchId = branchId;
     }
 }

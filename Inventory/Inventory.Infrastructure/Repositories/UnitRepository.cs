@@ -20,7 +20,8 @@ namespace Inventory.Infrastructure.Repositories
         public async Task DeleteAsync(Guid id)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId);
+            var branchId = _currentUserService.BranchId;
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || u.BranchId == branchId || u.BranchId == null));
             if (unit != null)
             {
                 _context.Units.Remove(unit);
@@ -30,16 +31,18 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<IEnumerable<UnitMaster>> GetAllAsync()
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = _currentUserService.BranchId;
             return await _context.Units
                          .AsNoTracking()
-                         .Where(x => x.CompanyId == companyId)
+                         .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                          .ToListAsync();
         }
 
         public async Task<UnitMaster> GetByIdAsync(Guid id) 
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            return await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId);
+            var branchId = _currentUserService.BranchId;
+            return await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || u.BranchId == branchId || u.BranchId == null));
         }
 
         public Task UpdateAsync(UnitMaster unit)
@@ -51,16 +54,18 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<bool> ExistsAsync(string name)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            return await _context.Units.AnyAsync(u => u.Name.ToLower() == name.ToLower() && u.CompanyId == companyId);
+            var branchId = _currentUserService.BranchId;
+            return await _context.Units.AnyAsync(u => u.Name.ToLower() == name.ToLower() && u.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || u.BranchId == branchId || u.BranchId == null));
         }
 
         public IQueryable<UnitMaster> Query() 
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            return _context.Units.Where(x => x.CompanyId == companyId).AsQueryable();
+            var branchId = _currentUserService.BranchId;
+            return _context.Units.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).AsQueryable();
         }
 
-        public async Task<(int successCount, List<string> errors)> UploadUnitsAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId)
+        public async Task<(int successCount, List<string> errors)> UploadUnitsAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId, string? branchId = null)
         {
             int successCount = 0;
             var errors = new List<string>();
@@ -75,7 +80,7 @@ namespace Inventory.Infrastructure.Repositories
 
                     // Pre-fetch for Upsert
                     var dbUnits = await _context.Units
-                        .Where(x => x.CompanyId == companyId)
+                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                         .ToListAsync();
                     var dbUnitsByName = dbUnits.ToDictionary(w => w.Name.ToLower().Trim(), w => w);
 
@@ -96,12 +101,12 @@ namespace Inventory.Infrastructure.Repositories
 
                             if (dbUnitsByName.TryGetValue(name.ToLower(), out var existing))
                             {
-                                existing.Update(name, description, isActive, companyId);
+                                existing.Update(name, description, isActive, companyId, branchId);
                                 updateCount++;
                             }
                             else
                             {
-                                var unit = new UnitMaster(name, description, companyId);
+                                var unit = new UnitMaster(name, description, companyId, branchId);
                                 if (!isActive) { /* UnitMaster constructor sets isActive=true by default, but we can't easily change it if it's private set without a method, oh wait, Update can do it or I can just use a hack or add a param to constructor */ 
                                     existing = unit; // Wait, I can just call Update on it immediately if I want, or add it to constructor
                                 }

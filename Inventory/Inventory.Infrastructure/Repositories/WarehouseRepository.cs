@@ -40,7 +40,7 @@ public class WarehouseRepository : IWarehouseRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.Warehouses
-            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
             .AsNoTracking()
             .ToListAsync();
     }
@@ -50,10 +50,10 @@ public class WarehouseRepository : IWarehouseRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.Warehouses
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
     }
 
-    public async Task<(int successCount, List<string> errors)> UploadWarehousesAsync(IFormFile file, Guid companyId)
+    public async Task<(int successCount, List<string> errors)> UploadWarehousesAsync(IFormFile file, Guid companyId, string? branchId = null)
     {
         int successCount = 0;
         var errors = new List<string>();
@@ -68,7 +68,7 @@ public class WarehouseRepository : IWarehouseRepository
 
                 // Pre-fetch for Upsert
                 var dbWarehouses = await _context.Warehouses
-                    .Where(x => x.CompanyId == companyId)
+                    .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
                 var dbWarehousesByName = dbWarehouses.ToDictionary(w => w.Name.ToLower().Trim(), w => w);
 
@@ -92,16 +92,16 @@ public class WarehouseRepository : IWarehouseRepository
 
                         if (string.IsNullOrWhiteSpace(name)) continue;
 
-                        var branchId = _currentUserService.BranchId;
+                        var currentBranchId = branchId ?? _currentUserService.BranchId;
 
                         if (dbWarehousesByName.TryGetValue(name.ToLower(), out var existing))
                         {
-                            existing.Update(name, city, description, isActive, companyId, branchId);
+                            existing.Update(name, city, description, isActive, companyId, currentBranchId);
                             updateCount++;
                         }
                         else
                         {
-                            var warehouse = new Warehouse(name, city, description, isActive, companyId, branchId);
+                            var warehouse = new Warehouse(name, city, description, isActive, companyId, currentBranchId);
                             newWarehouses.Add(warehouse);
                         }
                         successCount++;

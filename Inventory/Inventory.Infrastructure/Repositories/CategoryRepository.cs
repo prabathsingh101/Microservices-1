@@ -40,15 +40,17 @@ public sealed class CategoryRepository : ICategoryRepository
     public async Task<Category?> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        return await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
+        var branchId = _currentUserService.BranchId;
+        return await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
     }
 
     public async Task<List<Category>> GetAllAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Categories
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId)
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
             .ToListAsync();
     }
     
@@ -56,8 +58,9 @@ public sealed class CategoryRepository : ICategoryRepository
     public async Task<List<Category>> GetByIdsAsync(List<Guid> ids)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
         return await _db.Categories
-            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
             .ToListAsync();
     }
 
@@ -88,10 +91,11 @@ public sealed class CategoryRepository : ICategoryRepository
     public IQueryable<Category> Query()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        return _db.Categories.Where(x => x.CompanyId == companyId).AsQueryable();
+        var branchId = _currentUserService.BranchId;
+        return _db.Categories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).AsQueryable();
     }
 
-        public async Task<(int successCount, int updateCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId)
+        public async Task<(int successCount, int updateCount, List<string> errors)> UploadCategoriesAsync(IFormFile file, Guid companyId, string? branchId = null)
         {
             var errors = new List<string>();
             int successCount = 0;
@@ -135,7 +139,7 @@ public sealed class CategoryRepository : ICategoryRepository
 
                 // 2. Pre-fetch Categories FOR THIS COMPANY ONLY
                 var dbCategories = await _db.Categories
-                    .Where(x => x.CompanyId == companyId)
+                    .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
 
                 var dbCatsByCode = dbCategories.ToDictionary(c => c.CategoryCode?.ToLower().Trim() ?? "", c => c);
@@ -234,7 +238,8 @@ public sealed class CategoryRepository : ICategoryRepository
                                 description: description,
                                 isActive: true, 
                                 companyId: companyId, // Explicitly pass CompanyId
-                                parentCategoryId: null
+                                parentCategoryId: null,
+                                branchId: branchId
                             );
                             updateCount++;
                         }
@@ -248,7 +253,8 @@ public sealed class CategoryRepository : ICategoryRepository
                                 description,
                                 true, // IsActive
                                 companyId, // Mandatory CompanyId
-                                null // ParentCategoryId
+                                null, // ParentCategoryId
+                                branchId
                             );
                             newCategories.Add(category);
                         }
@@ -277,8 +283,9 @@ public sealed class CategoryRepository : ICategoryRepository
 
     public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
+        var branchId = _currentUserService.BranchId;
         var query = _db.Categories.AsNoTracking()
-            .Where(x => x.CompanyId == companyId && x.CategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive);
+            .Where(x => x.CompanyId == companyId && x.CategoryName.ToLower().Trim() == name.ToLower().Trim() && x.IsActive && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

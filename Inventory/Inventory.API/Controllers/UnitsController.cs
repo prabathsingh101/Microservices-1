@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Inventory.API.Common;
 
 namespace Inventory.API.Controllers
 {
@@ -27,30 +28,31 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> CreateBulk([FromBody] CreateBulkUnitsCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
-                command = command with { CompanyId = companyId };
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
             }
 
             var result = await _mediator.Send(command);
-            return result ? Ok() : BadRequest("Could not save units");
+            return result ? Ok(ApiResponse<bool>.Ok(true, "Units saved successfully")) : BadRequest(ApiResponse<string>.Fail("Could not save units"));
         }
 
         [HttpPost("upload-excel")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> UploadExcel(IFormFile file)
         {
-            if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
+            if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
 
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (!Guid.TryParse(companyIdClaim, out var companyId))
             {
-                return BadRequest("Invalid session: CompanyId not found");
+                return BadRequest(ApiResponse<string>.Fail("Invalid session: CompanyId not found"));
             }
 
-            var result = await _unitRepository.UploadUnitsAsync(file, companyId);
+            var result = await _unitRepository.UploadUnitsAsync(file, companyId, branchId);
 
             return Ok(new
             {
@@ -63,8 +65,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
         {
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "unit_template.csv");
-            if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
+            var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "unit_template.csv");
+            if (!System.IO.File.Exists(filePath)) 
+            {
+                // Fallback to ContentRootPath if BaseDirectory fails
+                filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "unit_template.csv");
+            }
+            if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found at " + filePath);
 
             using (var workbook = new ClosedXML.Excel.XLWorkbook())
             {
@@ -73,7 +80,6 @@ namespace Inventory.API.Controllers
                 
                 if (csvLines.Length > 0)
                 {
-                    // 1. Process Header
                     var headers = csvLines[0].Split(',');
                     for (int i = 0; i < headers.Length; i++)
                     {
@@ -82,7 +88,6 @@ namespace Inventory.API.Controllers
                         worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightCyan;
                     }
 
-                    // 2. Process Data Rows
                     for (int r = 1; r < csvLines.Length; r++)
                     {
                         if (string.IsNullOrWhiteSpace(csvLines[r])) continue;
@@ -109,17 +114,17 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitCommand command)
         {
-            if (id != command.Id) return BadRequest("ID mismatch");
+            if (id != command.Id) return BadRequest(ApiResponse<string>.Fail("ID mismatch"));
 
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
-                command = command with { CompanyId = companyId };
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
             }
 
             var result = await _mediator.Send(command);
-            return result ? Ok() : BadRequest("Could not update unit");
+            return result ? Ok(ApiResponse<bool>.Ok(true, "Unit updated successfully")) : BadRequest(ApiResponse<string>.Fail("Could not update unit"));
         }
 
         [HttpDelete("delete/{id}")]
@@ -127,7 +132,7 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(new DeleteUnitCommand(id));
-            return result ? Ok() : BadRequest("Could not delete unit");
+            return result ? Ok(ApiResponse<bool>.Ok(true, "Unit deleted successfully")) : BadRequest(ApiResponse<string>.Fail("Could not delete unit"));
         }
 
         [HttpGet("getbyid/{id}")]

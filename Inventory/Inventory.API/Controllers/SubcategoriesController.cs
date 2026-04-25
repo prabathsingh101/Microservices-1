@@ -1,26 +1,29 @@
-using Inventory.API.Common;
-using Inventory.Application.Common.Models;
 using Inventory.Application.Subcategories.Commands.CreateSubcategory;
 using Inventory.Application.Subcategories.Commands.Delete;
 using Inventory.Application.Subcategories.Commands.UpdateSubcategory;
 using Inventory.Application.Subcategories.Queries.GetSubcategories;
+using Inventory.Application.Subcategories.Queries.GetSubcategoriesByCategory;
 using Inventory.Application.Subcategories.Queries.GetSubcategoryById;
 using Inventory.Application.Subcategories.Queries.Searching;
+using Inventory.Application.Subcategories.DTOs;
+using Inventory.Application.Common.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Inventory.API.Common;
+using Inventory.Application.Common.Interfaces;
+using ClosedXML.Excel;
 
 namespace Inventory.API.Controllers
 {
-    [Route("api/subcategories")]
     [ApiController]
-    public class SubcategoriesController : ControllerBase
+    [Route("api/subcategories")]
+    public sealed class SubcategoriesController : ControllerBase
     {
         private readonly IMediator _mediator;
-        private readonly Inventory.Application.Common.Interfaces.ISubcategoryRepository _repository;
+        private readonly ISubcategoryRepository _repository;
 
-        public SubcategoriesController(IMediator mediator, Inventory.Application.Common.Interfaces.ISubcategoryRepository repository)
+        public SubcategoriesController(IMediator mediator, ISubcategoryRepository repository)
         {
             _mediator = mediator;
             _repository = repository;
@@ -30,10 +33,11 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create(CreateSubcategoryCommand command)
         {
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
-                command = command with { CompanyId = companyId };
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
             }
 
             var id = await _mediator.Send(command);
@@ -47,10 +51,11 @@ namespace Inventory.API.Controllers
             if (id != command.Id)
                 return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
 
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
-                command = command with { CompanyId = companyId };
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
             }
 
             var result = await _mediator.Send(command);
@@ -65,11 +70,17 @@ namespace Inventory.API.Controllers
             return Ok(ApiResponse<Guid>.Ok(result, "Subcategory deleted successfully"));
         }
 
-        [HttpGet("{id:guid}")]
+        [HttpGet("{id}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _mediator.Send(new GetSubcategoryByIdQuery(id));
+            if (result == null) 
+            {
+                // Lenient check if not found with branch filter
+                var all = await _mediator.Send(new GetSubcategoriesQuery());
+                result = all.FirstOrDefault(x => x.Id == id);
+            }
             return Ok(result);
         }
 
@@ -81,7 +92,7 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
-        [HttpGet("by-category/{categoryId}")]
+        [HttpGet("by-category/{categoryId:guid}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetByCategory(Guid categoryId)
         {
@@ -102,22 +113,23 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> BulkDelete([FromBody] List<Guid> ids)
         {
             await _mediator.Send(new BulkDeleteSubCategoriesCommand(ids));
-            return Ok(new { success = true, message = "Subcategories deleted successfully" });
+            return Ok(ApiResponse<bool>.Ok(true, "Subcategories deleted successfully"));
         }
 
         [HttpPost("upload-excel")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> UploadExcel(IFormFile file)
         {
-            if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
+            if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
 
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
             if (!Guid.TryParse(companyIdClaim, out var companyId))
             {
-                return BadRequest("Invalid or missing CompanyId in your session.");
+                return BadRequest(ApiResponse<string>.Fail("Invalid or missing CompanyId in your session."));
             }
 
-            var result = await _repository.UploadSubcategoriesAsync(file, companyId);
+            var result = await _repository.UploadSubcategoriesAsync(file, companyId, branchId);
             int totalAffected = result.successCount + result.updateCount;
             return Ok(new { message = $"{totalAffected} Subcategories processed successfully.", errors = result.errors });
         }
@@ -127,38 +139,40 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> CheckDuplicate([FromQuery] string name, [FromQuery] Guid? excludeId = null)
         {
             if (string.IsNullOrWhiteSpace(name)) return Ok(new { exists = false });
-
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest("Invalid session: CompanyId not found");
+            
+            var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
+            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest(ApiResponse<string>.Fail("Invalid session"));
 
             var exists = await _repository.ExistsByNameAsync(name, companyId, excludeId);
-            return Ok(new { exists = exists, message = exists ? $"The subcategory name '{name}' is already used by another active subcategory." : string.Empty });
+            return Ok(new { exists });
         }
 
         [HttpGet("download-template")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public IActionResult DownloadTemplate()
         {
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "subcategory_template.csv");
+            var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "subcategory_template.csv");
+            if (!System.IO.File.Exists(filePath)) 
+            {
+                filePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "subcategory_template.csv");
+            }
             if (!System.IO.File.Exists(filePath)) return NotFound("Template file not found.");
 
-            using (var workbook = new ClosedXML.Excel.XLWorkbook())
+            using (var workbook = new XLWorkbook())
             {
                 var worksheet = workbook.Worksheets.Add("Subcategories");
                 var csvLines = System.IO.File.ReadAllLines(filePath);
                 
                 if (csvLines.Length > 0)
                 {
-                    // 1. Process Header
                     var headers = csvLines[0].Split(',');
                     for (int i = 0; i < headers.Length; i++)
                     {
                         worksheet.Cell(1, i + 1).Value = headers[i];
                         worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightSteelBlue;
+                        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightCyan;
                     }
 
-                    // 2. Process Data Rows
                     for (int r = 1; r < csvLines.Length; r++)
                     {
                         if (string.IsNullOrWhiteSpace(csvLines[r])) continue;

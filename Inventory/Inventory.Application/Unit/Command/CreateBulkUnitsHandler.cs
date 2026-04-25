@@ -41,12 +41,12 @@ namespace Inventory.Application.Units.Command
                 if (unitsByName.TryGetValue(nameKey, out var existingUnit))
                 {
                     // UPDATE
-                    existingUnit.Update(item.Name, item.Description, true, request.CompanyId);
+                    existingUnit.Update(item.Name, item.Description, true, request.CompanyId, request.BranchId);
                 }
                 else
                 {
                     // INSERT
-                    var unit = new UnitMaster(item.Name, item.Description, request.CompanyId);
+                    var unit = new UnitMaster(item.Name, item.Description, request.CompanyId, request.BranchId);
                     await _repo.AddAsync(unit);
                 }
             }
@@ -71,7 +71,7 @@ namespace Inventory.Application.Units.Command
             var unit = await _repo.GetByIdAsync(request.Id);
             if (unit == null) return false;
 
-            unit.Update(request.Name, request.Description, request.IsActive, request.CompanyId);
+            unit.Update(request.Name, request.Description, request.IsActive, request.CompanyId, request.BranchId);
             await _repo.UpdateAsync(unit);
             return await _uow.SaveChangesAsync(ct) > 0;
         }
