@@ -21,8 +21,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
             var supplier = await _repository.GetByIdAsync(request.Id);
             if (supplier == null) return false;
 
-            supplier.Deactivate();
-            await _repository.UpdateAsync(supplier);
+            await _repository.DeleteAsync(supplier);
             return true;
         }
     }

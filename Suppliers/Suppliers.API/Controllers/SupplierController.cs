@@ -32,12 +32,22 @@ namespace Suppliers.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create([FromBody] CreateSupplierDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var userEmail = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? "System";
+
+            if (!string.IsNullOrEmpty(companyIdClaim))
             {
-                dto = dto with { companyId = companyId };
+                dto = dto with { companyId = companyIdClaim };
             }
+
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                dto = dto with { branchId = branchIdClaim };
+            }
+
+            dto = dto with { createdBy = userEmail };
 
             var command = new CreateSupplierCommand(dto);
             var id = await _mediator.Send(command);
@@ -57,12 +67,22 @@ namespace Suppliers.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Update(Guid id, [FromBody] CreateSupplierDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var userEmail = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? "System";
+
+            if (!string.IsNullOrEmpty(companyIdClaim))
             {
-                dto = dto with { companyId = companyId };
+                dto = dto with { companyId = companyIdClaim };
             }
+
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                dto = dto with { branchId = branchIdClaim };
+            }
+
+            dto = dto with { modifiedBy = userEmail };
 
             var result = await _mediator.Send(new UpdateSupplierCommand(id, dto));
             return result ? Ok(result) : NotFound();

@@ -21,6 +21,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
             var supplier = await _repository.GetByIdAsync(request.Id);
             if (supplier == null) return false;
 
+            Guid? companyId = Guid.TryParse(request.SupplierData.companyId, out var cId) ? cId : null;
+
             supplier.UpdateDetails(
                 request.SupplierData.name,
                 request.SupplierData.phone,
@@ -29,7 +31,9 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.email,
                 request.SupplierData.isActive,
                 request.SupplierData.defaultpricelistId,
-                request.SupplierData.companyId
+                companyId,
+                request.SupplierData.branchId,
+                request.SupplierData.modifiedBy
             );
 
             await _repository.UpdateAsync(supplier);

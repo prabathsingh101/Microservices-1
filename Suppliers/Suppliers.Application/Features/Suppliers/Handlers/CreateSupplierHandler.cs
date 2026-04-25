@@ -19,6 +19,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
 
         public async Task<Guid> Handle(CreateSupplierCommand request, CancellationToken cancellationToken)
         {
+            Guid? companyId = Guid.TryParse(request.SupplierData.companyId, out var cId) ? cId : null;
+
             var supplier = new Supplier(
                 request.SupplierData.name,
                 request.SupplierData.phone,
@@ -27,7 +29,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.email,
                 request.SupplierData.createdBy,
                 request.SupplierData.isActive,
-                request.SupplierData.companyId,
+                companyId,
+                request.SupplierData.branchId,
                 request.SupplierData.defaultpricelistId
             );
 

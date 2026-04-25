@@ -34,7 +34,7 @@ namespace Suppliers.API.Services
             }
         }
 
-        public Guid? BranchId
+        public string? BranchId
         {
             get
             {
@@ -46,11 +46,11 @@ namespace Suppliers.API.Services
                     c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase) ||
                     c.Type.Equals("branchid", StringComparison.OrdinalIgnoreCase))?.Value;
 
-                if (Guid.TryParse(claimValue, out var claimId)) return claimId;
+                if (!string.IsNullOrEmpty(claimValue)) return claimValue;
 
                 // 2. Fallback to Header (X-Branch-Id)
                 var headerValue = httpContext.Request.Headers["X-Branch-Id"].ToString();
-                if (Guid.TryParse(headerValue, out var headerId)) return headerId;
+                if (!string.IsNullOrEmpty(headerValue)) return headerValue;
 
                 return null;
             }

@@ -32,7 +32,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 s.IsActive,
                 s.CreatedBy,
                 s.DefaultPriceListId,
-                s.CompanyId
+                s.CompanyId?.ToString(),
+                s.BranchId
             );
         }
     }

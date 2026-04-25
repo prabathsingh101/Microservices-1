@@ -22,10 +22,9 @@ namespace Suppliers.Infrastructure.Repositories
         }
 
         private Guid _companyId => _currentUserService.CompanyId ?? Guid.Empty;
-        private Guid? _branchId => _currentUserService.BranchId;
+        private string? _branchId => _currentUserService.BranchId;
 
-        public IQueryable<Supplier> Query() => _context.Suppliers.AsNoTracking()
-            .Where(x => x.CompanyId == _companyId && (x.BranchId == null || !_branchId.HasValue || x.BranchId == _branchId));
+        public IQueryable<Supplier> Query() => _context.Suppliers.AsNoTracking();
 
         public async Task<IEnumerable<Supplier>> GetAllAsync() =>
             await Query().ToListAsync();
@@ -39,7 +38,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task AddAsync(Supplier supplier)
         {
             supplier.CompanyId = _companyId;
-            if (supplier.BranchId == null || supplier.BranchId == Guid.Empty)
+            if (string.IsNullOrEmpty(supplier.BranchId))
             {
                 supplier.BranchId = _branchId;
             }
@@ -50,6 +49,12 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task UpdateAsync(Supplier supplier)
         {
             _context.Suppliers.Update(supplier);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(Supplier supplier)
+        {
+            _context.Suppliers.Remove(supplier);
             await _context.SaveChangesAsync();
         }
         public async Task<bool> ExistsAsync(Guid id)

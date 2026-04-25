@@ -15,6 +15,7 @@ namespace Suppliers.Application.Common.Interfaces
         Task<IEnumerable<Supplier>> GetAllAsync();
         Task AddAsync(Supplier supplier);
         Task UpdateAsync(Supplier supplier);
+        Task DeleteAsync(Supplier supplier);
         Task SaveChangesAsync();
         Task<List<SupplierSelectDto>> GetSuppliersByIdsAsync(List<Guid> ids);
         Task<List<Guid>> GetIdsByNameAsync(string name);
