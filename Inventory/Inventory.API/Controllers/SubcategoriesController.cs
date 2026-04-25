@@ -92,6 +92,14 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("count")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetCount()
+        {
+            var result = await _mediator.Send(new GetSubcategoriesQuery());
+            return Ok(result.Count());
+        }
+
         [HttpGet("by-category/{categoryId:guid}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> GetByCategory(Guid categoryId)
@@ -130,8 +138,7 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _repository.UploadSubcategoriesAsync(file, companyId, branchId);
-            int totalAffected = result.successCount + result.updateCount;
-            return Ok(new { message = $"{totalAffected} Subcategories processed successfully.", errors = result.errors });
+            return Ok(new { message = $"{result.successCount} New Subcategories saved and {result.updateCount} Subcategories updated successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]
