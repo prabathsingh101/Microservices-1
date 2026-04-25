@@ -257,8 +257,8 @@ public sealed class CategoryRepository : ICategoryRepository
                                 branchId
                             );
                             newCategories.Add(category);
+                            successCount++;
                         }
-                        successCount++;
                      }
                      catch(Exception ex)
                      {

@@ -106,8 +106,7 @@ namespace Inventory.API.Controllers
             }
 
             var result = await _categoryRepository.UploadCategoriesAsync(file, companyId, branchId);
-            int totalAffected = result.successCount + result.updateCount;
-            return Ok(new { message = $"{totalAffected} Categories processed successfully.", errors = result.errors });
+            return Ok(new { message = $"{result.successCount} New Categories saved and {result.updateCount} Categories updated successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]

@@ -111,8 +111,7 @@ namespace Inventory.API.Controllers
                 return BadRequest(ApiResponse<string>.Fail("Invalid or missing CompanyId in your session."));
             }
             var result = await _productRepository.UploadProductsAsync(file, companyId, branchId);
-            int totalAffected = result.successCount + result.updateCount;
-            return Ok(new { message = $"{totalAffected} Products processed successfully.", errors = result.errors });
+            return Ok(new { message = $"{result.successCount} New Products saved and {result.updateCount} Products updated successfully.", errors = result.errors });
         }
 
         [HttpGet("check-duplicate")]
