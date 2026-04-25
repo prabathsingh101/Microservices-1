@@ -33,9 +33,9 @@ namespace Inventory.API.Controllers
             _currentUserService = currentUserService;
         }
 
-        [HttpGet("paged")]
+        [HttpPost("paged")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetPaged([FromQuery] GridRequest request)
+        public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
         {
             var result = await _mediator.Send(new GetProductsPagedQuery(request));
             return Ok(result);

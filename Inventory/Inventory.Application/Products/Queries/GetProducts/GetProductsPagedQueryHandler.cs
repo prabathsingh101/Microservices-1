@@ -50,7 +50,7 @@ internal sealed class GetProductsPagedQueryHandler
                 {
                     "productname" or "name" => query.Where(x => x.Name.ToLower().Contains(val)),
                     "categoryid" => Guid.TryParse(val, out var catId) ? query.Where(x => x.CategoryId == catId) : query,
-                    "subcategoryid" => Guid.TryParse(val, out var subId) ? query.Where(x => x.SubcategoryId == subId) : query,
+                    "subcategoryid" => Guid.TryParse(val.Replace("\"", "").Trim(), out var subId) ? query.Where(x => x.SubcategoryId == subId) : query,
                     "categoryname" => query.Where(x => x.Category.CategoryName.ToLower().Contains(val)),
                     "subcategoryname" => query.Where(x => x.Subcategory.SubcategoryName.ToLower().Contains(val)),
                     "sku" => query.Where(x => x.Sku.ToLower().Contains(val)),

@@ -98,7 +98,18 @@ public sealed class ProductRepository : IProductRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
-        return _db.Products.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).AsQueryable();
+        
+        // Handle "null" string from frontend/currentUserService
+        if (branchId == "null") branchId = null;
+
+        var query = _db.Products.Where(x => x.CompanyId == companyId);
+        
+        if (!string.IsNullOrEmpty(branchId))
+        {
+            query = query.Where(x => x.BranchId == branchId || x.BranchId == null);
+        }
+        
+        return query.AsQueryable();
     }
     public void DeleteRange(List<Product> products)
     {

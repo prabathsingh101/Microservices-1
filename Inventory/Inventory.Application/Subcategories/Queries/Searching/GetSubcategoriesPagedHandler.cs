@@ -10,10 +10,12 @@ namespace Inventory.Application.Subcategories.Queries.Searching
         : IRequestHandler<GetSubcategoriesPagedQuery, GridResponse<SubcategoryDto>>
     {
         private readonly ISubcategoryRepository _repository;
+        private readonly IInventoryDbContext _context;
 
-        public GetSubcategoriesPagedHandler(ISubcategoryRepository repository)
+        public GetSubcategoriesPagedHandler(ISubcategoryRepository repository, IInventoryDbContext context)
         {
             _repository = repository;
+            _context = context;
         }
 
         public async Task<GridResponse<SubcategoryDto>> Handle(
@@ -68,6 +70,9 @@ namespace Inventory.Application.Subcategories.Queries.Searching
 
                         "isActive" =>
                             query.Where(x => x.IsActive == (value == "true" || value == "yes")),
+
+                        "productName" =>
+                            query.Where(x => _context.Products.Any(p => p.SubcategoryId == x.Id && EF.Functions.Like(p.Name, likeValue))),
 
                         _ => query
                     };
