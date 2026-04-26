@@ -33,6 +33,7 @@ public class RolePrintSettingRepository : IRolePrintSettingRepository
             if (existing != null)
             {
                 existing.UpdateFormat(setting.PrintFormat);
+                _context.Entry(existing).State = EntityState.Modified; // Force auditing trigger
             }
             else
             {
