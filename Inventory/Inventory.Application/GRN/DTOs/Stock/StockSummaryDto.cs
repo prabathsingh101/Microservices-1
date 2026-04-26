@@ -33,6 +33,8 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? Sku { get; set; }
         public decimal GstPercent { get; set; }
         public bool IsExpiryRequired { get; set; }
+        public string? BranchId { get; set; }
+        public string? BranchName { get; set; }
 
         public List<StockHistoryDto> History { get; set; } = new List<StockHistoryDto>();
     }
@@ -58,5 +60,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public bool IsExpiryRequired { get; set; }
         public decimal AvailableQty { get; set; }
         public bool IsAlreadyPurged { get; set; }
+        public string? BranchId { get; set; }
+        public string? BranchName { get; set; }
     }
 }

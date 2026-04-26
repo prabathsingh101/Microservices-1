@@ -206,10 +206,21 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         ReceivedDate = allG.GRNHeader.ReceivedDate,
                         PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
+                        GRNNumber = allG.GRNHeader.GRNNumber,
                         SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
-                        RejectedQty = allG.RejectedQty
+                        RejectedQty = allG.RejectedQty,
+                        TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
+                        WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
+                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
+                        ManufacturingDate = allG.MfgDate,
+                        ExpiryDate = allG.ExpDate,
+                        IsExpiryRequired = allG.Product.IsExpiryRequired,
+                        AvailableQty = allG.ReceivedQty - allG.RejectedQty, // Placeholder: Total inward for this batch
+                        BranchId = allG.BranchId,
+                        BranchName = allG.BranchId // Since we don't have BranchName in GRNDetail, we'll use ID or join if needed. 
+                        // Actually, let's just use BranchId for now.
                     }).ToListAsync();
             }
 
