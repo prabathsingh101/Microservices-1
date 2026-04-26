@@ -59,7 +59,7 @@ namespace Inventory.Infrastructure.Repositories
             return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task AddNotificationAsync(string title, string message, string type, string url)
+        public async Task AddNotificationAsync(string title, string message, string type, string url, string? branchId = null, Guid? companyId = null)
         {
             var notification = new AppNotification
             {
@@ -69,8 +69,8 @@ namespace Inventory.Infrastructure.Repositories
                 TargetUrl = url,
                 IsRead = false,
                 CreatedAt = DateTime.Now,
-                CompanyId = _currentUserService.CompanyId ?? Guid.Empty,
-                BranchId = _currentUserService.BranchId
+                CompanyId = companyId ?? _currentUserService.CompanyId ?? Guid.Empty,
+                BranchId = branchId ?? _currentUserService.BranchId
             };
             _context.AppNotifications.Add(notification);
             await _context.SaveChangesAsync();

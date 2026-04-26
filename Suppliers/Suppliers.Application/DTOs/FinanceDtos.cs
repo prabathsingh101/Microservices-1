@@ -51,6 +51,7 @@ namespace Suppliers.Application.DTOs
     {
         public Guid SupplierId { get; set; }
         public Guid CompanyId { get; set; }
+        public string? BranchId { get; set; } // Added for multi-tenancy
         public decimal Amount { get; set; }
         public string? ReferenceId { get; set; } // GRN Number
         public string? Description { get; set; }

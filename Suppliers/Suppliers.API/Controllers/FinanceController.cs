@@ -37,9 +37,14 @@ namespace Suppliers.API.Controllers
             {
                 // 🚀 SMART INJECTION: Get CompanyId from Claims
                 var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                var branchIdClaim = User.FindFirst("BranchId")?.Value;
                 if (Guid.TryParse(companyIdClaim, out var companyId))
                 {
                     paymentDto.CompanyId = companyId;
+                }
+                if (!string.IsNullOrEmpty(branchIdClaim))
+                {
+                    paymentDto.BranchId = branchIdClaim;
                 }
 
                 var command = new RecordSupplierPaymentCommand(paymentDto);
@@ -60,9 +65,14 @@ namespace Suppliers.API.Controllers
         {
             // 🚀 SMART INJECTION: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
             {
                 purchase.CompanyId = companyId;
+            }
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                purchase.BranchId = branchIdClaim;
             }
 
             var command = new RecordSupplierPurchaseCommand(purchase);

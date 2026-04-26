@@ -40,6 +40,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             Remarks = dto.Remarks,
             CreatedBy = dto.CreatedBy,
             Status = "Received",
+            BranchId = dto.BranchId,
             ModifiedOn = DateTime.Now
         };
 
@@ -61,6 +62,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             RackId = i.RackId,
             MfgDate = i.ManufacturingDate,
             ExpDate = i.ExpiryDate,
+            BranchId = dto.BranchId,
             ModifiedOn = DateTime.Now
         }).ToList();
 

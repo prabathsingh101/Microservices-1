@@ -373,7 +373,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                     title,
                     message,
                     "PO",
-                    "/app/inventory/polist"
+                    "/app/inventory/polist",
+                    po.BranchId,
+                    po.CompanyId
                 );
             }
 
@@ -513,7 +515,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 title,
                 message,
                 "PO",
-                "/app/inventory/polist" // Seedha list page par navigate karega
+                "/app/inventory/polist", // Seedha list page par navigate karega
+                pos.FirstOrDefault()?.BranchId,
+                pos.FirstOrDefault()?.CompanyId ?? Guid.Empty
             );
 
             return true;
@@ -557,7 +561,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 title,
                 message,
                 "PO",
-                "/app/inventory/polist" // Redirect to PO list
+                "/app/inventory/polist", // Redirect to PO list
+                pos.FirstOrDefault()?.BranchId,
+                pos.FirstOrDefault()?.CompanyId ?? Guid.Empty
             );
 
             // --- BULK EMAIL/WHATSAPP TRIGGER ---
@@ -642,7 +648,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 title,
                 message,
                 "PO",
-                "/app/inventory/polist" // Redirect to PO list to take action
+                "/app/inventory/polist", // Redirect to PO list to take action
+                pos.FirstOrDefault()?.BranchId,
+                pos.FirstOrDefault()?.CompanyId ?? Guid.Empty
             );
 
             return true;

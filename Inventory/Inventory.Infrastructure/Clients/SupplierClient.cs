@@ -27,19 +27,34 @@ namespace Inventory.Infrastructure.Clients
             try
             {
                 var context = _httpContextAccessor.HttpContext;
-                if (context != null && context.Request.Headers.ContainsKey("Authorization"))
+                if (context != null)
                 {
-                    var authHeader = context.Request.Headers["Authorization"].ToString();
-                    if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    // 1. Propagate Authorization Header (JWT)
+                    if (context.Request.Headers.ContainsKey("Authorization"))
                     {
-                        var token = authHeader.Substring("Bearer ".Length).Trim();
-                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        var authHeader = context.Request.Headers["Authorization"].ToString();
+                        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var token = authHeader.Substring("Bearer ".Length).Trim();
+                            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                        }
+                    }
+
+                    // 2. Propagate Tenant Headers (Crucial for Multi-tenancy)
+                    if (context.Request.Headers.ContainsKey("X-Company-Id"))
+                    {
+                        client.DefaultRequestHeaders.Add("X-Company-Id", context.Request.Headers["X-Company-Id"].ToString());
+                    }
+
+                    if (context.Request.Headers.ContainsKey("X-Branch-Id"))
+                    {
+                        client.DefaultRequestHeaders.Add("X-Branch-Id", context.Request.Headers["X-Branch-Id"].ToString());
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SupplierClient] Failed to attach auth token: {ex.Message}");
+                Console.WriteLine($"[SupplierClient] Failed to propagate headers: {ex.Message}");
             }
         }
 

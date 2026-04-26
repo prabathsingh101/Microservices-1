@@ -330,7 +330,8 @@ public sealed class InventoryDbContext : DbContext,
                     "InventoryTransaction", "PurchaseReturn", "PurchaseReturnItem", 
                     "SaleReturnHeader", "SaleReturnItem", "ExpenseEntry",
                     "Warehouse", "Rack", "PriceList", "PriceListItem",
-                    "Category", "Subcategory", "Product", "UnitMaster"
+                    "Category", "Subcategory", "Product", "UnitMaster",
+                    "AppNotification"
                 };
 
                 if (transactionalEntities.Contains(entityName))

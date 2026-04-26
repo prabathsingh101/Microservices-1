@@ -40,18 +40,21 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
 
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
             {
                 dto = dto with { CompanyId = companyId };
             }
 
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                dto = dto with { BranchId = branchIdClaim };
+                dto = dto with { BranchId = finalBranchId };
             }
 
             var result = await _mediator.Send(new CreatePurchaseOrderCommand(dto));
@@ -247,6 +250,23 @@ namespace Inventory.API.Controllers
         {
             if (dto == null || string.IsNullOrEmpty(dto.Status))
                 return BadRequest("Data sahi nahi hai");
+
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
+            {
+                dto.CompanyId = companyId;
+            }
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            if (!string.IsNullOrEmpty(finalBranchId))
+            {
+                dto.BranchId = finalBranchId;
+            }
 
             var command = new UpdatePOStatusCommand(dto.Id, dto.Status);
             var result = await _mediator.Send(command);

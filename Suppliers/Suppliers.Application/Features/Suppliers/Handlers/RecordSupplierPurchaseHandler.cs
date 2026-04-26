@@ -31,7 +31,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 Balance = currentBalance,
                 TransactionDate = dto.TransactionDate,
                 Description = dto.Description ?? (isDebitNote ? "Purchase Return: " : "Purchase via GRN: ") + dto.ReferenceId,
-                CompanyId = dto.CompanyId
+                CompanyId = dto.CompanyId,
+                BranchId = dto.BranchId
             };
 
             await _repository.AddLedgerEntryAsync(supplierLedger);

@@ -246,7 +246,9 @@ namespace Inventory.Infrastructure.Repositories
                             "Goods Received",
                             $"Inventory updated. GRN {header.GRNNumber} generated successfully.",
                             "Inventory",
-                            "/app/inventory/grn-list"
+                            "/app/inventory/grn-list",
+                            header.BranchId,
+                            header.CompanyId
                         );
                     } catch (Exception ex) { 
                         Console.WriteLine($"[GRNRepository] Notification error: {ex.Message}");
@@ -804,7 +806,9 @@ namespace Inventory.Infrastructure.Repositories
                                 "Goods Received",
                                 $"Inventory updated for PO #{poId}. GRN {newGrnNumber} generated successfully.",
                                 "Inventory",
-                                "/app/inventory/grn-list"
+                                "/app/inventory/grn-list",
+                                grnHeader.BranchId,
+                                grnHeader.CompanyId
                             );
 
                             await _supplierClient.RecordPurchaseAsync(

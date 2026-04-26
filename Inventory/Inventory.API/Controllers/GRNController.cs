@@ -24,17 +24,21 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Save([FromBody] CreateGRNCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
             {
                 command.Data.CompanyId = companyId;
             }
 
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                command.Data.BranchId = branchIdClaim;
+                command.Data.BranchId = finalBranchId;
             }
 
             string newGrnNumber = await _mediator.Send(command);
@@ -94,17 +98,21 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> CreateBulkGrn([FromBody] BulkGrnRequestDto request)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
             {
                 request.CompanyId = companyId;
             }
 
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                request.BranchId = branchIdClaim;
+                request.BranchId = finalBranchId;
             }
 
             if (request.PurchaseOrderIds == null || !request.PurchaseOrderIds.Any())

@@ -12,6 +12,6 @@ namespace Inventory.Application.Common.Interfaces
         Task<bool> MarkAllAsReadAsync();
 
         // Modules ise call karke notification generate karenge
-        Task AddNotificationAsync(string title, string message, string type, string url);
+        Task AddNotificationAsync(string title, string message, string type, string url, string? branchId = null, Guid? companyId = null);
     }
 }
