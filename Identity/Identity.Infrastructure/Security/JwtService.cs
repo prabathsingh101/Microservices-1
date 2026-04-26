@@ -19,7 +19,7 @@ public class JwtService : IJwtService
         _config = config;
     }
 
-    public AuthResponse Generate(User user, List<string> roles, string? companyName = null)
+    public AuthResponse Generate(User user, List<string> roles, string? companyName = null, string? branchName = null)
     {
         var jwt = _config.GetSection("Jwt");
 
@@ -33,6 +33,7 @@ public class JwtService : IJwtService
             new Claim(ClaimTypes.Name, user.UserName!),
             new Claim("CompanyId", user.CompanyId?.ToString() ?? string.Empty),
             new Claim("BranchId", user.BranchId?.ToString() ?? string.Empty),
+            new Claim("BranchName", branchName ?? string.Empty),
             new Claim("CompanyName", companyName ?? string.Empty)
         };
 
@@ -70,7 +71,8 @@ public class JwtService : IJwtService
             Email = user.Email!,
             CompanyName = companyName,
             CompanyId = user.CompanyId,
-            BranchId = user.BranchId
+            BranchId = user.BranchId,
+            BranchName = branchName
         };
     }
 }

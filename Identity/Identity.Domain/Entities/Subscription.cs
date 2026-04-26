@@ -1,8 +1,10 @@
 using System;
 
+using Identity.Domain.Common;
+
 namespace Identity.Domain.Entities
 {
-    public class Subscription
+    public class Subscription : AuditableEntity
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
         public Guid CompanyId { get; private set; } // Link to the company/tenant

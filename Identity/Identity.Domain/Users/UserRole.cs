@@ -1,8 +1,9 @@
+using Identity.Domain.Common;
 using Identity.Domain.Roles;
 
 namespace Identity.Domain.Users;
 
-public class UserRole : Identity.Domain.Common.IMultiTenant
+public class UserRole : AuditableEntity, Identity.Domain.Common.IMultiTenant
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
 

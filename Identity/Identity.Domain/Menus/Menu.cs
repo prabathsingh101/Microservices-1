@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 
+using Identity.Domain.Common;
+
 namespace Identity.Domain.Menus;
 
-public class Menu
+public class Menu : AuditableEntity, IMultiTenant
 {
     [Key]
     public Guid Id { get; set; }
@@ -11,6 +13,9 @@ public class Menu
     public string? Icon { get; set; }
     public Guid? ParentId { get; set; }
     public int Order { get; set; }
+
+    public Guid? CompanyId { get; set; }
+    public string? BranchId { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore]
     public Menu? Parent { get; private set; }

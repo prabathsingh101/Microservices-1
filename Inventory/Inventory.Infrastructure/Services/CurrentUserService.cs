@@ -45,19 +45,23 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            var claims = _httpContextAccessor.HttpContext?.User?.Claims;
-            if (claims == null) return null;
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return null;
 
-            // 1. Try claim 'branchid' or 'BranchId'
-            var claimValue = claims.FirstOrDefault(c => 
-                c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase) || 
-                c.Type.Equals("branchid", StringComparison.OrdinalIgnoreCase))?.Value;
+            // 1. Try Header 'X-Branch-Id' FIRST - Active Working Context
+            var headerValue = httpContext.Request.Headers["X-Branch-Id"].ToString();
+            if (!string.IsNullOrEmpty(headerValue) && headerValue != "null") return headerValue;
 
-            if (!string.IsNullOrEmpty(claimValue)) return claimValue;
+            // 2. Fallback: Try claim 'branchid' or 'BranchId' - Home Branch
+            var claims = httpContext.User?.Claims;
+            if (claims != null)
+            {
+                var claimValue = claims.FirstOrDefault(c => 
+                    c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase) || 
+                    c.Type.Equals("branchid", StringComparison.OrdinalIgnoreCase))?.Value;
 
-            // 2. Fallback: Try Header 'X-Branch-Id'
-            var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Branch-Id"].ToString();
-            if (!string.IsNullOrEmpty(headerValue)) return headerValue;
+                if (!string.IsNullOrEmpty(claimValue)) return claimValue;
+            }
 
             return null;
         }

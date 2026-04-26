@@ -34,6 +34,11 @@ public class RolesController : ControllerBase
             r.Id,
             r.RoleName,
             r.CompanyId,
+            r.BranchId,
+            r.CreatedBy,
+            r.CreatedDate,
+            r.LastModifiedBy,
+            r.LastModifiedDate,
             CompanyName = r.CompanyId.HasValue && subscriptions.ContainsKey(r.CompanyId.Value) 
                           ? subscriptions[r.CompanyId.Value] 
                           : (r.CompanyId == null ? "System" : "Unknown")
@@ -78,6 +83,11 @@ public class RolesController : ControllerBase
                 r.Id, 
                 r.RoleName, 
                 r.CompanyId, 
+                r.BranchId,
+                r.CreatedBy,
+                r.CreatedDate,
+                r.LastModifiedBy,
+                r.LastModifiedDate,
                 CompanyName = r.CompanyId == null ? "System" : (subscriptions.ContainsKey(cid) ? subscriptions[cid] : "Unknown")
             }).ToList();
 
@@ -147,7 +157,7 @@ public class RolesController : ControllerBase
                         foreach (var ur in usersToUpdate)
                         {
                              _context.UserRoles.Remove(ur);
-                             await _context.UserRoles.AddAsync(new Domain.Users.UserRole(ur.UserId, targetRoleId, loggedInCompanyId.Value));
+                             await _context.UserRoles.AddAsync(new Domain.Users.UserRole(ur.UserId, targetRoleId, loggedInCompanyId.Value, ur.BranchId));
                         }
 
                         await _context.SaveChangesAsync();
@@ -173,10 +183,15 @@ public class RolesController : ControllerBase
         }
         else
         {
-            // 🚀 SUPER ADMIN: Just ensure the RolePermission entries have the Role's CompanyId (if any)
+            // 🚀 SUPER ADMIN: Just ensure the RolePermission entries have the Role's CompanyId and the current context's BranchId
+            var currentBranchId = Request.Headers["X-Branch-Id"].ToString();
+            if (string.IsNullOrEmpty(currentBranchId)) currentBranchId = User.FindFirst("BranchId")?.Value;
+
             foreach (var p in permissions)
             {
                 p.CompanyId = role.CompanyId;
+                // If p.BranchId is null or empty, it means Global was selected. 
+                // We only fallback to the header branch if we are NOT a super admin doing global management.
             }
         }
 
@@ -228,12 +243,13 @@ public class RolesController : ControllerBase
 
     // --- Role Management CRUD ---
 
-    public record RoleRequest(string RoleName, Guid? CompanyId = null);
+    public record RoleRequest(string RoleName, Guid? CompanyId = null, string? BranchId = null);
 
     [HttpPost]
     public async Task<IActionResult> CreateRole([FromBody] RoleRequest request)
     {
         Guid? targetCompanyId = request.CompanyId;
+        string? targetBranchId = request.BranchId;
 
         if (targetCompanyId == null)
         {
@@ -244,7 +260,13 @@ public class RolesController : ControllerBase
             }
         }
 
-        var role = new Role(request.RoleName, targetCompanyId);
+        if (string.IsNullOrEmpty(targetBranchId))
+        {
+            targetBranchId = Request.Headers["X-Branch-Id"].ToString();
+            if (string.IsNullOrEmpty(targetBranchId)) targetBranchId = User.FindFirst("BranchId")?.Value;
+        }
+
+        var role = new Role(request.RoleName, targetCompanyId, targetBranchId);
         await _roleRepository.AddAsync(role);
         await _context.SaveChangesAsync();
 
@@ -258,6 +280,9 @@ public class RolesController : ControllerBase
         if (role == null) return NotFound();
 
         role.RoleName = request.RoleName;
+        // 🛡️ Update BranchId: Map 'GLOBAL' back to null
+        role.BranchId = (request.BranchId == "GLOBAL") ? null : request.BranchId;
+
         await _roleRepository.UpdateAsync(role);
         await _context.SaveChangesAsync();
 

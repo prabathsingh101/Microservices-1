@@ -1,9 +1,10 @@
+using Identity.Domain.Common;
 using Identity.Domain.Entities;
 using Identity.Domain.Users;
 
 namespace Identity.Domain;
 
-public class User : Identity.Domain.Common.IMultiTenant
+public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
 {
     private readonly List<UserRole> _userRoles = new();
     private readonly List<RefreshToken> _refreshTokens = new();
@@ -51,13 +52,13 @@ public class User : Identity.Domain.Common.IMultiTenant
         if (_userRoles.Any(r => r.RoleId == roleId))
             return;
 
-        _userRoles.Add(new UserRole(Id, roleId, this.CompanyId));
+        _userRoles.Add(new UserRole(Id, roleId, this.CompanyId, this.BranchId));
     }
 
     // ✅ FIXED
     public void AddRefreshToken(string token, DateTime expiresAt)
     {
-        _refreshTokens.Add(new RefreshToken(Id, token, expiresAt, this.CompanyId));
+        _refreshTokens.Add(new RefreshToken(Id, token, expiresAt, this.CompanyId, this.BranchId));
     }
 
     public void RevokeRefreshToken(string token)
@@ -88,11 +89,12 @@ public class User : Identity.Domain.Common.IMultiTenant
             var existing = _userRoles.FirstOrDefault(r => r.RoleId == roleId);
             if (existing == null)
             {
-                _userRoles.Add(new UserRole(Id, roleId, this.CompanyId));
+                _userRoles.Add(new UserRole(Id, roleId, this.CompanyId, this.BranchId));
             }
             else
             {
                 existing.CompanyId = this.CompanyId;
+                existing.BranchId = this.BranchId;
             }
         }
     }

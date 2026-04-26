@@ -173,6 +173,10 @@ public class UsersController : ControllerBase
             u.IsActive,
             u.CompanyId,
             u.BranchId,
+            u.CreatedBy,
+            u.CreatedDate,
+            u.LastModifiedBy,
+            u.LastModifiedDate,
             CompanyName = u.CompanyId.HasValue
                           ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown")
                           : "System Admin",

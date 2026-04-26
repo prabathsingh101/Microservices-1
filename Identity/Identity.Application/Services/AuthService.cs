@@ -84,7 +84,8 @@ namespace Identity.Application.Services
             
             Console.WriteLine($"[DEBUG] Permissions loaded: {permissions.Count}");
 
-            var response = _jwtService.Generate(user, roles);
+            var userSub = await _subscriptions.GetByCompanyIdAsync(user.CompanyId ?? Guid.Empty);
+            var response = _jwtService.Generate(user, roles, userSub?.CompanyName, null);
             response.Permissions = permissions;
 
             return response;

@@ -81,27 +81,52 @@ public class IdentityDbContext : DbContext
     private void ApplyTenantInfo()
     {
         var entries = ChangeTracker.Entries()
-            .Where(e => (e.State == EntityState.Added || e.State == EntityState.Modified) && e.Entity is Domain.Common.IMultiTenant);
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
         var currentCompanyId = _currentUserService.CompanyId;
         var currentBranchId = _currentUserService.BranchId;
+        var currentUserId = _currentUserService.UserId;
 
         foreach (var entry in entries)
         {
-            var tenantEntity = (Domain.Common.IMultiTenant)entry.Entity;
-            
-            if (tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty)
+            // 1. 🕒 AUDIT LOGIC (for AuditableEntity)
+            if (entry.Entity is Domain.Common.AuditableEntity auditable)
             {
-                tenantEntity.CompanyId = currentCompanyId;
+                if (entry.State == EntityState.Added)
+                {
+                    auditable.CreatedDate = DateTime.UtcNow;
+                    auditable.CreatedBy = currentUserId?.ToString();
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    auditable.LastModifiedDate = DateTime.UtcNow;
+                    auditable.LastModifiedBy = currentUserId?.ToString();
+                }
             }
 
-            // Set BranchId for Branch-specific entities
-            var typeName = tenantEntity.GetType().Name;
-            if (typeName == "User" || typeName == "RefreshToken" || typeName == "RolePrintSetting")
+            // 2. 🏢 TENANT LOGIC (for IMultiTenant)
+            if (entry.Entity is Domain.Common.IMultiTenant tenantEntity)
             {
-                if (string.IsNullOrEmpty(tenantEntity.BranchId))
+                if (tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty)
                 {
-                    tenantEntity.BranchId = currentBranchId;
+                    tenantEntity.CompanyId = currentCompanyId;
+                }
+
+                var entityType = tenantEntity.GetType();
+                bool isBranchSpecific = typeof(Identity.Domain.User).IsAssignableFrom(entityType) || 
+                                       typeof(RefreshToken).IsAssignableFrom(entityType) || 
+                                       typeof(Domain.Roles.Role).IsAssignableFrom(entityType) ||
+                                       typeof(Domain.Permissions.RolePermission).IsAssignableFrom(entityType) ||
+                                       typeof(Domain.Users.UserRole).IsAssignableFrom(entityType) ||
+                                       typeof(Domain.Menus.Menu).IsAssignableFrom(entityType) ||
+                                       typeof(Domain.PrintSettings.RolePrintSetting).IsAssignableFrom(entityType);
+
+                if (isBranchSpecific)
+                {
+                    if (string.IsNullOrEmpty(tenantEntity.BranchId) && !string.IsNullOrEmpty(currentBranchId))
+                    {
+                        tenantEntity.BranchId = currentBranchId;
+                    }
                 }
             }
         }

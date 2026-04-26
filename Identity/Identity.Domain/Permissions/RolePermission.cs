@@ -2,16 +2,18 @@ using Identity.Domain.Entities;
 using Identity.Domain.Roles;
 using Identity.Domain.Menus;
 using System.ComponentModel.DataAnnotations;
+using Identity.Domain.Common;
 
 namespace Identity.Domain.Permissions;
 
-public class RolePermission
+public class RolePermission : AuditableEntity, IMultiTenant
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid RoleId { get; set; }
     public Guid MenuId { get; set; }
     public Guid? CompanyId { get; set; } // Added for Multi-Tenancy
+    public string? BranchId { get; set; }
     public bool CanView { get; set; }
     public bool CanAdd { get; set; }
     public bool CanEdit { get; set; }

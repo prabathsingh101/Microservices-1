@@ -1,8 +1,9 @@
 using Identity.Domain.Users;
+using Identity.Domain.Common;
 
 namespace Identity.Domain.Entities;
 
-public class RefreshToken : Identity.Domain.Common.IMultiTenant
+public class RefreshToken : AuditableEntity, IMultiTenant
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public string Token { get; private set; } = null!;

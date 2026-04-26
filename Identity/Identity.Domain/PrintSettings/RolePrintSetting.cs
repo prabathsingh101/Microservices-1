@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Identity.Domain.Roles;
+using Identity.Domain.Common;
 
 namespace Identity.Domain.PrintSettings;
 
-public class RolePrintSetting : Identity.Domain.Common.IMultiTenant
+public class RolePrintSetting : AuditableEntity, IMultiTenant
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();

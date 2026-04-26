@@ -2,13 +2,13 @@ using Identity.Domain.Common;
 
 namespace Identity.Domain.Roles;
 
-public class Role : IMultiTenant
+public class Role : AuditableEntity, IMultiTenant
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     public string RoleName { get; set; } = default!;
     
-    public Guid? CompanyId { get; set; } // NULL = System Role, GUID = Customer Role
+    public Guid? CompanyId { get; set; }
     public string? BranchId { get; set; }
 
     private Role() { } // EF Core

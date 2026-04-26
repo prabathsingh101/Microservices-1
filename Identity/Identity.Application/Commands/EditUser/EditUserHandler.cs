@@ -48,9 +48,11 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
              user.SetCompanyId(request.CompanyId);
         }
 
+        // Handle BranchId update (explicitly allow null for Global)
         if (request.BranchId != user.BranchId)
         {
-            user.SetBranchId(request.BranchId);
+            var targetBid = string.IsNullOrEmpty(request.BranchId) ? null : request.BranchId;
+            user.SetBranchId(targetBid);
         }
 
         // Update Roles
