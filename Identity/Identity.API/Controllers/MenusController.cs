@@ -28,7 +28,18 @@ public class MenusController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var menus = await _menuService.GetAllMenusAsync();
-        return Ok(menus);
+        var menuDtos = menus.Select(m => new Identity.Application.DTOs.MenuDto
+        {
+            Id = m.Id,
+            Title = m.Title,
+            Url = m.Url,
+            Icon = m.Icon,
+            ParentId = m.ParentId,
+            Order = m.Order,
+            CompanyId = m.CompanyId,
+            BranchId = m.BranchId
+        });
+        return Ok(menuDtos);
     }
 
     [HttpPost]
