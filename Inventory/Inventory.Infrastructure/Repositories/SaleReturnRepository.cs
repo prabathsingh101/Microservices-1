@@ -158,6 +158,20 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         var companyId = header.CompanyId;
                         var branchId = header.BranchId;
+
+                        // Auto-resolve branchId from Warehouse if null (for Admin/Cross-branch sessions) [cite: 2026-04-27]
+                        if (string.IsNullOrEmpty(branchId) && item.WarehouseId.HasValue)
+                        {
+                            var warehouse = await _context.Warehouses.AsNoTracking()
+                                .FirstOrDefaultAsync(w => w.Id == item.WarehouseId && w.CompanyId == companyId);
+                            if (warehouse != null)
+                            {
+                                branchId = warehouse.BranchId;
+                                if (string.IsNullOrEmpty(header.BranchId)) header.BranchId = branchId;
+                            }
+                        }
+                        if (string.IsNullOrEmpty(item.BranchId)) item.BranchId = branchId;
+
                         var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
                         if (product != null)
                         {
@@ -183,7 +197,9 @@ namespace Inventory.Infrastructure.Repositories
                                         ProductId = item.ProductId,
                                         WarehouseId = item.WarehouseId.Value,
                                         Quantity = item.ReturnQty,
-                                        MinStock = 0
+                                        MinStock = 0,
+                                        CompanyId = companyId,
+                                        BranchId = branchId
                                     });
                                 }
                             }
@@ -198,7 +214,9 @@ namespace Inventory.Infrastructure.Repositories
                                 item.WarehouseId, 
                                 item.RackId,
                                 item.MfgDate,
-                                item.ExpDate
+                                item.ExpDate,
+                                companyId,
+                                branchId
                             );
                             await _context.InventoryTransactions.AddAsync(returnTx);
                         }

@@ -9,6 +9,7 @@ namespace Inventory.Application.Stock.Commands.RejectStock
         Guid RackId,
         decimal Quantity,
         DateTime? ExpiryDate,
+        string? BranchId = null,
         string Reason = "Expired Stock Removal"
     ) : IRequest<bool>;
 }

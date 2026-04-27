@@ -405,7 +405,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                                     ProductId = item.ProductId,
                                     WarehouseId = item.WarehouseId.Value,
                                     Quantity = -item.Qty,
-                                    MinStock = 0
+                                    MinStock = 0,
+                                    CompanyId = order.CompanyId,
+                                    BranchId = order.BranchId
                                 });
                             }
                         }
@@ -421,7 +423,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                             item.WarehouseId,
                             item.RackId,
                             item.MfgDate,
-                            item.ExpDate
+                            item.ExpDate,
+                            order.CompanyId,
+                            order.BranchId
                         );
                         await _context.InventoryTransactions.AddAsync(saleTx);
                     }

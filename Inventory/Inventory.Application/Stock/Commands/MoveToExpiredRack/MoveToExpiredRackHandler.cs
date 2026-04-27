@@ -23,6 +23,7 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
         public async Task<bool> Handle(MoveToExpiredRackCommand request, CancellationToken ct)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = _currentUserService.BranchId;
             // 1. Find the Expired Rack (Rack E1 / Expired Products / Damaged / Rejected)
             var targetRack = await _context.Racks
                 .FirstOrDefaultAsync(r => r.CompanyId == companyId && (r.Name.ToLower().Contains("e1") || 
@@ -131,7 +132,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 request.SourceRackId,
                 request.ExpiryDate,
                 request.ExpiryDate,
-                companyId
+                companyId,
+                branchId
             );
             await _context.InventoryTransactions.AddAsync(outTx, ct);
 
@@ -145,7 +147,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 targetRack.Id,
                 request.ExpiryDate,
                 request.ExpiryDate,
-                companyId
+                companyId,
+                branchId
             );
             await _context.InventoryTransactions.AddAsync(inTx, ct);
 

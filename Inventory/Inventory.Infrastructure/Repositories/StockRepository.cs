@@ -77,7 +77,8 @@ namespace Inventory.Infrastructure.Repositories
                     RackName = g.Rack != null ? g.Rack.Name : "N/A",
                     Sku = g.Product.Sku,
                     GstPercent = g.Product.DefaultGst ?? 0,
-                    IsExpiryRequired = g.Product.IsExpiryRequired
+                    IsExpiryRequired = g.Product.IsExpiryRequired,
+                    BranchId = g.BranchId
                 })
                 .Select(group => new StockSummaryDto
                 {
@@ -92,6 +93,7 @@ namespace Inventory.Infrastructure.Repositories
                     Sku = group.Key.Sku,
                     GstPercent = group.Key.GstPercent,
                     IsExpiryRequired = group.Key.IsExpiryRequired,
+                    BranchId = group.Key.BranchId,
                     TotalReceived = group.Sum(x => x.ReceivedQty),
                     TotalRejected = group.Sum(x => (x.Rack != null && (
                         x.Rack.Name.ToLower().Contains("e1") || 

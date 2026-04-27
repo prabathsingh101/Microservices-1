@@ -23,6 +23,8 @@ namespace Inventory.Application.Stock.Commands.RejectStock
         public async Task<bool> Handle(RejectStockCommand request, CancellationToken ct)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = !string.IsNullOrEmpty(request.BranchId) ? request.BranchId : _currentUserService.BranchId;
+
             // 1. Find the product
             var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && p.CompanyId == companyId, ct);
             if (product == null) throw new Exception($"Product with ID {request.ProductId} not found.");
@@ -32,7 +34,7 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                 .Where(g => g.ProductId == request.ProductId &&
                             g.WarehouseId == request.WarehouseId &&
                             g.RackId == request.RackId &&
-                            g.CompanyId == companyId);
+                            g.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || g.BranchId == branchId));
 
             // Fetch rack info to check if it's an expired/unusable rack
             var rack = await _context.Racks.FirstOrDefaultAsync(r => r.Id == request.RackId && r.CompanyId == companyId, ct);
@@ -114,9 +116,20 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                     request.RackId,
                     null,
                     request.ExpiryDate,
-                    companyId
+                    companyId,
+                    branchId
                 );
                 await _context.InventoryTransactions.AddAsync(adjTx, ct);
+
+                // 🚀 Update Warehouse Stock (REDUCE)
+                var whStock = await _context.WarehouseStocks
+                    .FirstOrDefaultAsync(ws => ws.ProductId == request.ProductId && ws.WarehouseId == request.WarehouseId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId), ct);
+                
+                if (whStock != null)
+                {
+                    whStock.Quantity -= actualRejected;
+                    if (whStock.Quantity < 0) whStock.Quantity = 0;
+                }
             }
             else 
             {
@@ -130,9 +143,20 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                     request.RackId,
                     null,
                     request.ExpiryDate,
-                    companyId
+                    companyId,
+                    branchId
                 );
                 await _context.InventoryTransactions.AddAsync(purgeTx, ct);
+
+                // 🚀 Update Warehouse Stock (REDUCE)
+                var whStock = await _context.WarehouseStocks
+                    .FirstOrDefaultAsync(ws => ws.ProductId == request.ProductId && ws.WarehouseId == request.WarehouseId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId), ct);
+
+                if (whStock != null)
+                {
+                    whStock.Quantity -= actualRejected;
+                    if (whStock.Quantity < 0) whStock.Quantity = 0;
+                }
             }
 
             return await _context.SaveChangesAsync(ct) > 0;

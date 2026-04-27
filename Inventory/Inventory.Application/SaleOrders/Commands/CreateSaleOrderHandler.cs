@@ -55,6 +55,20 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             finalSONo = $"{prefix}-{DateTime.Now.Year}-{nextId:D4}";
         }
 
+        // 🚀 AUTO-RESOLVE BRANCH ID FROM WAREHOUSE IF MISSING
+        if (string.IsNullOrEmpty(dto.BranchId) && dto.Items != null && dto.Items.Any())
+        {
+            var firstWhId = dto.Items.FirstOrDefault(i => i.WarehouseId != null)?.WarehouseId;
+            if (firstWhId != null)
+            {
+                var warehouse = await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == firstWhId);
+                if (warehouse != null && !string.IsNullOrEmpty(warehouse.BranchId))
+                {
+                    dto.BranchId = warehouse.BranchId;
+                }
+            }
+        }
+
         // 2. SaleOrder Object Mapping
         var saleOrder = new SaleOrder
         {
@@ -182,7 +196,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         item.RackId,
                         item.MfgDate,
                         item.ExpDate,
-                        saleOrder.CompanyId
+                        saleOrder.CompanyId,
+                        saleOrder.BranchId
                     );
                     await _context.InventoryTransactions.AddAsync(saleTx);
                 }

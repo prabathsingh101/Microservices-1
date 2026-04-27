@@ -190,7 +190,9 @@ namespace Inventory.Infrastructure.Repositories
                                     ProductId = item.ProductId,
                                     WarehouseId = item.WarehouseId.Value,
                                     Quantity = qtyToIncrease,
-                                    MinStock = 0 // Default
+                                    MinStock = 0, // Default
+                                    CompanyId = header.CompanyId,
+                                    BranchId = header.BranchId
                                 });
                             }
                         }
@@ -205,7 +207,8 @@ namespace Inventory.Infrastructure.Repositories
                             item.RackId,
                             item.MfgDate,
                             item.ExpDate,
-                            header.CompanyId
+                            header.CompanyId,
+                            header.BranchId
                         );
                         await _context.InventoryTransactions.AddAsync(transactionRecord);
 
@@ -748,7 +751,8 @@ namespace Inventory.Infrastructure.Repositories
                                     grnDetail.RackId,
                                     reqItem?.MfgDate,
                                     reqItem?.ExpDate,
-                                    grnHeader.CompanyId
+                                    grnHeader.CompanyId,
+                                    grnHeader.BranchId
                                 );
                                 await _context.InventoryTransactions.AddAsync(transactionRecord);
                             }
@@ -784,7 +788,9 @@ namespace Inventory.Infrastructure.Repositories
                                         ProductId = item.ProductId,
                                         WarehouseId = whId.Value,
                                         Quantity = qtyToIncrease,
-                                        MinStock = 0
+                                        MinStock = 0,
+                                        CompanyId = grnHeader.CompanyId,
+                                        BranchId = grnHeader.BranchId
                                     });
                                 }
                             }

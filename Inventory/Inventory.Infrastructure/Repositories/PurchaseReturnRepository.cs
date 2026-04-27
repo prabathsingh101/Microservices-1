@@ -173,6 +173,15 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                              && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId));
 
                     if (grnDetail == null) throw new Exception($"GRN not found for {item.GrnRef}");
+
+                    // Auto-resolve branchId if null (for Admin sessions) [cite: 2026-04-27]
+                    if (string.IsNullOrEmpty(branchId))
+                    {
+                        branchId = grnDetail.BranchId;
+                        if (string.IsNullOrEmpty(returnData.BranchId)) returnData.BranchId = branchId;
+                    }
+                    if (string.IsNullOrEmpty(item.BranchId)) item.BranchId = branchId;
+                    if (item.CompanyId == Guid.Empty) item.CompanyId = companyId;
                     if (item.ReturnQty <= 0) continue;
 
                     var poItem = await _context.PurchaseOrderItems
@@ -239,7 +248,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                 grnDetail.WarehouseId,
                                 grnDetail.RackId,
                                 item.MfgDate,
-                                item.ExpDate
+                                item.ExpDate,
+                                companyId,
+                                branchId
                             );
                             await _context.InventoryTransactions.AddAsync(returnTx);
                         }
