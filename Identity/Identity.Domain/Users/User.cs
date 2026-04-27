@@ -58,13 +58,19 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
     // ✅ FIXED
     public void AddRefreshToken(string token, DateTime expiresAt)
     {
-        _refreshTokens.Add(new RefreshToken(Id, token, expiresAt, this.CompanyId, this.BranchId));
+        var refreshToken = new RefreshToken(Id, token, expiresAt, this.CompanyId, this.BranchId);
+        
+        // 🕒 Manually set audit fields because during login, ICurrentUserService might be null
+        refreshToken.CreatedBy = this.Email; // Use user's email as creator during login
+        refreshToken.CreatedDate = DateTime.UtcNow;
+        
+        _refreshTokens.Add(refreshToken);
     }
 
     public void RevokeRefreshToken(string token)
     {
         var rt = _refreshTokens.Single(x => x.Token == token);
-        rt.Revoke();
+        rt.Revoke(this.Email); // Pass user email as revoker
     }
 
     public void UpdateDetails(string userName, string email, bool isActive)

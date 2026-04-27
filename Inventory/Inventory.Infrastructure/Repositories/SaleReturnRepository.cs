@@ -175,8 +175,7 @@ namespace Inventory.Infrastructure.Repositories
                         var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
                         if (product != null)
                         {
-                            // Sales Return = Increase Current Stock (GLOBAL)
-                            product.CurrentStock += item.ReturnQty;
+                            // ⚡ REDUNDANT: Products.CurrentStock removed.
                             product.ModifiedOn = DateTime.Now;
                             product.ModifiedBy = header.CreatedBy ?? "system";
 

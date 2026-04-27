@@ -40,11 +40,17 @@ namespace Inventory.Infrastructure.Repositories
             {
                 TotalSales = await saleOrders.SumAsync(x => x.GrandTotal),
                 PendingPurchaseOrders = await purchaseOrders.CountAsync(x => x.Status == "Submitted"),
-                TotalStockItems = (int)await products.SumAsync(x => x.CurrentStock),
-                LowStockAlertCount = await products.CountAsync(x => x.IsActive && x.CurrentStock <= x.MinStock),
-                TotalStockValue = await products
-                    .Where(x => x.IsActive)
-                    .SumAsync(x => x.CurrentStock * x.BasePurchasePrice)
+                TotalStockItems = (int)(await _context.WarehouseStocks
+                    .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                    .SumAsync(x => (decimal?)x.Quantity) ?? 0),
+                LowStockAlertCount = await _context.Products
+                    .Where(p => p.CompanyId == companyId && p.IsActive && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId || p.BranchId == null))
+                    .CountAsync(p => (_context.WarehouseStocks
+                        .Where(ws => ws.ProductId == p.Id && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                        .Sum(ws => (decimal?)ws.Quantity) ?? 0) <= p.MinStock),
+                TotalStockValue = await _context.WarehouseStocks
+                    .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                    .SumAsync(ws => ws.Quantity * ws.Product.BasePurchasePrice)
             };
         }
 
@@ -77,15 +83,13 @@ namespace Inventory.Infrastructure.Repositories
                 chart.PurchaseData.Add(purchaseTrends.FirstOrDefault(x => x.Month == i)?.Total ?? 0);
             }
 
-            chart.FinishedGoods = (int)await _context.Products
-                .AsNoTracking()
-                .Where(x => x.IsActive && x.ProductType == "1" && x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
-                .SumAsync(x => x.CurrentStock);
+            chart.FinishedGoods = (int)(await _context.WarehouseStocks
+                .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId) && ws.Product.IsActive && ws.Product.ProductType == "1")
+                .SumAsync(x => (decimal?)x.Quantity) ?? 0);
 
-            chart.RawMaterials = (int)await _context.Products
-                .AsNoTracking()
-                .Where(x => x.IsActive && x.ProductType == "2" && x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
-                .SumAsync(x => x.CurrentStock);
+            chart.RawMaterials = (int)(await _context.WarehouseStocks
+                .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId) && ws.Product.IsActive && ws.Product.ProductType == "2")
+                .SumAsync(x => (decimal?)x.Quantity) ?? 0);
 
             chart.DamagedItems = (int)await _context.Products
                 .AsNoTracking()

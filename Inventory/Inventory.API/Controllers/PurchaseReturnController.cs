@@ -141,6 +141,8 @@ namespace Inventory.API.Controllers
                         TotalAmount = itemTotal,
                         MfgDate = item.MfgDate,
                         ExpDate = item.ExpDate,
+                        WarehouseId = item.WarehouseId,
+                        RackId = item.RackId,
                         CreatedOn = DateTime.Now,
                         CreatedBy = item.CreatedBy ?? returnDto.CreatedBy,
                         ModifiedBy = item.ModifiedBy ?? returnDto.ModifiedBy,
@@ -165,7 +167,12 @@ namespace Inventory.API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Internal Server Error", error = ex.Message });
+                var inner = ex.InnerException?.Message ?? "";
+                return StatusCode(500, new { 
+                    message = "Internal Server Error", 
+                    error = ex.Message,
+                    details = inner
+                });
             }
         }
 

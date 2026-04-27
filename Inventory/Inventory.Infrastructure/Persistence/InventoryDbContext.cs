@@ -133,7 +133,6 @@ public sealed class InventoryDbContext : DbContext,
             builder.Property(x => x.Discount).HasPrecision(18, 2);
             builder.Property(x => x.SaleRate).HasPrecision(18, 2);
             builder.Property(x => x.DefaultGst).HasPrecision(18, 2);
-            builder.Property(x => x.CurrentStock).HasPrecision(18, 2);
             builder.Property(x => x.DamagedStock).HasPrecision(18, 2);
         });
 

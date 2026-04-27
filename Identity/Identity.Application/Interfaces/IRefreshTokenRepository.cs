@@ -1,4 +1,4 @@
-﻿using Identity.Domain.Entities;
+using Identity.Domain.Entities;
 
 namespace Identity.Application.Interfaces
 {
@@ -6,6 +6,6 @@ namespace Identity.Application.Interfaces
     {
         Task<RefreshToken?> GetAsync(string token);
         Task AddAsync(RefreshToken token);
-        Task RevokeAllAsync(Guid userId);
+        Task RevokeAllAsync(Guid userId, string? revokedBy = null);
     }
 }

@@ -92,26 +92,40 @@ namespace Inventory.Application.Stock.Commands
                 }
                 else
                 {
+                    // Fetch branchId from Warehouse table to keep data consistent
+                    var warehouse = await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == warehouseId);
+                    
                     await _context.WarehouseStocks.AddAsync(new Inventory.Domain.Entities.WarehouseStock
                     {
                         ProductId = productId,
                         WarehouseId = warehouseId,
                         Quantity = finalQty,
                         CompanyId = companyId,
+                        BranchId = warehouse?.BranchId,
                         MinStock = 0
                     });
                 }
             }
 
-            // Step 4: Also Update Global Product Master Stock for consistency
-            var products = await _context.Products.Where(p => p.CompanyId == companyId).ToListAsync(ct);
-            foreach (var product in products)
+            // Step 4: RECONCILE PURCHASE ORDER QUANTITIES
+            // Recalculate ReceivedQty in PO Items based on GRNs and Returns
+            var poItems = await _context.PurchaseOrderItems.Where(poi => poi.CompanyId == companyId).ToListAsync(ct);
+            foreach (var item in poItems)
             {
-                var productPrefix = $"{product.Id}_";
-                product.CurrentStock = stockMap.Where(x => x.Key.StartsWith(productPrefix)).Sum(x => x.Value);
-                if (product.CurrentStock < 0) product.CurrentStock = 0;
-            }
+                var acceptedInGrn = await _context.GRNDetails
+                    .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == item.PurchaseOrderId && gd.CompanyId == companyId)
+                    .SumAsync(gd => gd.ReceivedQty - gd.RejectedQty, ct);
 
+                var returnedInPr = await _context.PurchaseReturnItems
+                    .Where(ri => ri.ProductId == item.ProductId && ri.CompanyId == companyId)
+                    .Join(_context.GRNDetails.Where(gd => gd.GRNHeader.PurchaseOrderId == item.PurchaseOrderId),
+                          ri => ri.GrnRef, gd => gd.GRNHeader.GRNNumber, (ri, gd) => (decimal?)ri.ReturnQty)
+                    .SumAsync(ct) ?? 0;
+
+                item.ReceivedQty = acceptedInGrn - returnedInPr;
+                if (item.ReceivedQty < 0) item.ReceivedQty = 0;
+            }
+            
             return await _context.SaveChangesAsync(ct) > 0;
         }
     }

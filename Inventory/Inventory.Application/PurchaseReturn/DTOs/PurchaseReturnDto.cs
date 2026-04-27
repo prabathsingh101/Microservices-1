@@ -28,6 +28,8 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public decimal Rate { get; set; }
         public decimal GstPercent {  get; set; }
         public decimal DiscountPercent {  get; set; }
+        public Guid? WarehouseId { get; set; }
+        public Guid? RackId { get; set; }
 
         public decimal TotalAmount { get; set; }
         public decimal TaxAmount { get; set; }

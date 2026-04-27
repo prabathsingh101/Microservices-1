@@ -41,9 +41,6 @@ public sealed class ProductConfiguration
                .HasPrecision(5, 2)
                .IsRequired(false);
 
-        builder.Property(x => x.CurrentStock)
-               .HasPrecision(18, 2);
-
         builder.Property(x => x.DamagedStock)
                .HasPrecision(18, 2);
 

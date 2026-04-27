@@ -133,7 +133,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         oldGrandTotal = existingWithItems.GrandTotal;
                         foreach (var item in existingWithItems.Items)
                         {
-                            await _repo.UpdateProductStockAsync(item.ProductId, item.Qty);
+                            // ⚡ REDUNDANT: Products.CurrentStock update removed.
 
                             // 🆕 Record Reversal in Audit Trail
                             var reversalTx = new InventoryTransaction(
@@ -145,9 +145,22 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                                 item.RackId,
                                 item.MfgDate,
                                 item.ExpDate,
-                                existingWithItems.CompanyId
+                                existingWithItems.CompanyId,
+                                existingWithItems.BranchId
                             );
                             await _context.InventoryTransactions.AddAsync(reversalTx);
+
+                            // 🚀 RESTORE PHYSICAL WAREHOUSE STOCK
+                            if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                            {
+                                var whStock = await _context.WarehouseStocks
+                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                                if (whStock != null)
+                                {
+                                    whStock.Quantity += item.Qty;
+                                }
+                            }
                         }
 
                         // Optional: Record reversal for OLD amount before recording NEW
@@ -184,7 +197,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                     {
                         throw new Exception($"Insufficient stock for {item.ProductName}. Available: {availableStock}");
                     }
-                    await _repo.UpdateProductStockAsync(item.ProductId, -item.Qty);
+                        // await _repo.UpdateProductStockAsync(item.ProductId, -item.Qty); // REMOVED
 
                     // 🆕 Record Inventory Transaction
                     var saleTx = new InventoryTransaction(
@@ -200,6 +213,30 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         saleOrder.BranchId
                     );
                     await _context.InventoryTransactions.AddAsync(saleTx);
+
+                    // 🚀 UPDATE PHYSICAL WAREHOUSE STOCK
+                    if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                    {
+                        var whStock = await _context.WarehouseStocks
+                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                        if (whStock != null)
+                        {
+                            whStock.Quantity -= item.Qty;
+                        }
+                        else
+                        {
+                            await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                            {
+                                ProductId = item.ProductId,
+                                WarehouseId = item.WarehouseId.Value,
+                                Quantity = -item.Qty,
+                                MinStock = 0,
+                                CompanyId = saleOrder.CompanyId,
+                                BranchId = saleOrder.BranchId
+                            });
+                        }
+                    }
                 }
 
                 // 3. Record New Ledger

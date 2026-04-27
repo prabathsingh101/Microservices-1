@@ -103,8 +103,7 @@ namespace Inventory.Application.Stock.Commands.RejectStock
             // If it DOESN'T, I should reduce it here too.
             if (!isExpiredRack)
             {
-                product.CurrentStock -= actualRejected;
-                if (product.CurrentStock < 0) product.CurrentStock = 0;
+                // ⚡ REDUNDANT: Products.CurrentStock removed.
 
                 // 🆕 Record Inventory Transaction for Audit Trail (OUTWARD)
                 var adjTx = new InventoryTransaction(

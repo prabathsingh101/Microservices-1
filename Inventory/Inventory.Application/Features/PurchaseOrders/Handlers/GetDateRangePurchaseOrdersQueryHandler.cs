@@ -34,16 +34,16 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         .Select(gd => new { gd.ReceivedQty, gd.RejectedQty })
                         .ToList();
 
-                    // Dynamic calculation (Received - Rejected) handles both returns and original rejections accurately
-                    var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty);
-                    var totalRejected = grnSummary.Sum(s => s.RejectedQty);
-                    if (totalAccepted < 0) totalAccepted = 0;
-
                     // Fetch total returned quantity for this specific PO item
                     var totalReturned = _context.PurchaseReturnItems
                         .Where(ri => ri.ProductId == item.ProductId && 
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+
+                    // Dynamic calculation (Received - Rejected - Returned) handles returns and original rejections accurately
+                    var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty) - totalReturned;
+                    var totalRejected = grnSummary.Sum(s => s.RejectedQty);
+                    if (totalAccepted < 0) totalAccepted = 0;
 
                     return new PurchaseOrderItemDto
                     {
@@ -63,8 +63,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         RejectedQty = totalRejected,
                         ReturnQty = totalReturned,
 
-                        // Pending = (Ordered - NetReceived)
-                        PendingQty = item.Qty - item.ReceivedQty,
+                        // Pending = (Ordered - NetAccepted)
+                        PendingQty = item.Qty - totalAccepted,
                         ManufacturingDate = item.MfgDate,
                         ExpiryDate = item.ExpDate,
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,

@@ -113,13 +113,8 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                 }
             }
             
-            // 5. Update Product CurrentStock (Moved items are no longer usable/available)
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId, ct);
-            if (product != null)
-            {
-                product.CurrentStock -= request.Quantity;
-                if (product.CurrentStock < 0) product.CurrentStock = 0;
-            }
+            // ⚡ REDUNDANT: Products.CurrentStock removed as displays use live transaction summation.
+
 
             // 6. 🆕 Record Inventory Transactions for Audit Trail
             // Transaction for OUT from source

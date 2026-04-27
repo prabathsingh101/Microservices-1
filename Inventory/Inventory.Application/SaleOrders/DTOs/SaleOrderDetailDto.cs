@@ -25,6 +25,9 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal? SgstAmount { get; set; }
         public string Remarks { get; set; } = string.Empty;
         public DateTime? ExpectedDeliveryDate { get; set; }
+        public string? BranchId { get; set; }
+        public Guid CompanyId { get; set; }
+        public bool IsQuick { get; set; }
 
         public List<SaleOrderItemDto> Items { get; set; } = new();
     }

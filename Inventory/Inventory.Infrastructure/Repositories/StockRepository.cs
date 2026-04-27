@@ -70,7 +70,6 @@ namespace Inventory.Infrastructure.Repositories
                     ProductName = g.Product.Name,
                     UnitName = g.Product.Unit,
                     MinStock = g.Product.MinStock,
-                    ActualCurrentStock = g.Product.CurrentStock,
                     g.WarehouseId,
                     WarehouseName = g.Warehouse != null ? g.Warehouse.Name : "N/A",
                     g.RackId,
@@ -172,6 +171,10 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
+                var totalPurchaseReturn = await _context.PurchaseReturnItems
+                    .Where(pri => pri.CompanyId == companyId && pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
+                    .SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
+
                 var unlinkedSales = await salesQuery
                     .Where(si => (si.WarehouseId == null || si.RackId == null) && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
@@ -184,7 +187,8 @@ namespace Inventory.Infrastructure.Repositories
                 var adjustment = (isOldest != null && isOldest.WarehouseId == item.WarehouseId && isOldest.RackId == item.RackId) ? unlinkedSales : 0;
 
                 item.TotalSold = grossSold + adjustment - totalSaleReturn;
-                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold;
+                item.TotalReturned = totalPurchaseReturn;
+                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalPurchaseReturn;
 
                 var earliestBatch = await grnQuery
                     .Where(g => g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
@@ -213,16 +217,28 @@ namespace Inventory.Infrastructure.Repositories
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
                         RejectedQty = allG.RejectedQty,
+                        SoldQty = (_context.SaleOrderItems.Where(soi => soi.ProductId == allG.ProductId && soi.WarehouseId == allG.WarehouseId && soi.RackId == allG.RackId && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered" || soi.SaleOrder.Status == "Completed")).Sum(soi => (decimal?)soi.Qty) ?? 0) -
+                                 (_context.SaleReturnItems.Where(sri => sri.ProductId == allG.ProductId && sri.WarehouseId == allG.WarehouseId && sri.RackId == allG.RackId).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
+                        ReturnedQty = _context.PurchaseReturnItems
+                            .Where(pri => pri.GrnRef == allG.GRNHeader.GRNNumber && pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId)
+                            .Sum(pri => (decimal?)pri.ReturnQty) ?? 0,
                         TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
                         WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
                         RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,
                         ExpiryDate = allG.ExpDate,
                         IsExpiryRequired = allG.Product.IsExpiryRequired,
-                        AvailableQty = allG.ReceivedQty - allG.RejectedQty, // Placeholder: Total inward for this batch
+                        CurrentStock = _context.GRNDetails.Where(g => g.ProductId == allG.ProductId && g.WarehouseId == allG.WarehouseId && g.RackId == allG.RackId).Sum(x => x.ReceivedQty - x.RejectedQty) - 
+                                      (_context.SaleOrderItems.Where(soi => soi.ProductId == allG.ProductId && soi.WarehouseId == allG.WarehouseId && soi.RackId == allG.RackId && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered")).Sum(soi => (decimal?)soi.Qty) ?? 0) +
+                                      (_context.SaleReturnItems.Where(sri => sri.ProductId == allG.ProductId && sri.WarehouseId == allG.WarehouseId && sri.RackId == allG.RackId).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
+                                      (_context.PurchaseReturnItems.Where(pri => pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId).Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
+                        TotalReturned = _context.PurchaseReturnItems.Where(pri => pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId).Sum(pri => (decimal?)pri.ReturnQty) ?? 0,
+                        AvailableQty = allG.ReceivedQty - allG.RejectedQty - 
+                                      (_context.SaleOrderItems.Where(soi => soi.ProductId == allG.ProductId && soi.WarehouseId == allG.WarehouseId && soi.RackId == allG.RackId && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered")).Sum(soi => (decimal?)soi.Qty) ?? 0) +
+                                      (_context.SaleReturnItems.Where(sri => sri.ProductId == allG.ProductId && sri.WarehouseId == allG.WarehouseId && sri.RackId == allG.RackId).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
+                                      (_context.PurchaseReturnItems.Where(pri => pri.GrnRef == allG.GRNHeader.GRNNumber && pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId).Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
                         BranchId = allG.BranchId,
-                        BranchName = allG.BranchId // Since we don't have BranchName in GRNDetail, we'll use ID or join if needed. 
-                        // Actually, let's just use BranchId for now.
+                        BranchName = allG.BranchId
                     }).ToListAsync();
             }
 

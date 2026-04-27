@@ -107,7 +107,8 @@ public class IdentityDbContext : DbContext
             // 2. 🏢 TENANT LOGIC (for IMultiTenant)
             if (entry.Entity is Domain.Common.IMultiTenant tenantEntity)
             {
-                if (tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty)
+                // Only set CompanyId if it's missing AND we have a context value
+                if ((tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty) && currentCompanyId.HasValue)
                 {
                     tenantEntity.CompanyId = currentCompanyId;
                 }
@@ -123,6 +124,7 @@ public class IdentityDbContext : DbContext
 
                 if (isBranchSpecific)
                 {
+                    // Only set BranchId if it's missing AND we have a context value
                     if (string.IsNullOrEmpty(tenantEntity.BranchId) && !string.IsNullOrEmpty(currentBranchId))
                     {
                         tenantEntity.BranchId = currentBranchId;

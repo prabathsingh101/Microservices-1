@@ -1,4 +1,4 @@
-﻿using Identity.Application.Interfaces;
+using Identity.Application.Interfaces;
 using Identity.Domain.Entities;
 using Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -29,12 +29,14 @@ namespace Identity.Infrastructure.Repositories
             await _context.RefreshTokens.AddAsync(token);
         }
 
-        public async Task RevokeAllAsync(Guid userId)
+        public async Task RevokeAllAsync(Guid userId, string? revokedBy = null)
         {
             await _context.RefreshTokens
                 .Where(x => x.UserId == userId && !x.IsRevoked)
-                .ExecuteUpdateAsync(setters =>
-                    setters.SetProperty(x => x.IsRevoked, true));
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.IsRevoked, true)
+                    .SetProperty(x => x.LastModifiedBy, revokedBy)
+                    .SetProperty(x => x.LastModifiedDate, DateTime.UtcNow));
         }
     }
 

@@ -78,32 +78,18 @@ public class SaleOrderRepository : ISaleOrderRepository
     public async Task<decimal> GetAvailableStockAsync(Guid productId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
-        return await _context.Products
-            .Where(p => p.Id == productId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId))
-            .Select(p => p.CurrentStock)
-            .FirstOrDefaultAsync();
-    }
-
-    public async Task UpdateProductStockAsync(Guid productId, decimal adjustmentQty)
-    {
-        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         
-        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
-        if (product != null)
-        {
-            // Safety check for outward adjustments (Concurrency Guard)
-            if (adjustmentQty < 0 && product.CurrentStock < Math.Abs(adjustmentQty))
-            {
-                throw new InvalidOperationException($"Stock conflict for {product.Name}. Cannot deduct {Math.Abs(adjustmentQty)} when current stock is {product.CurrentStock}.");
-            }
+        // Use live transaction-based math for validation
+        var received = await _context.GRNDetails.Where(g => g.ProductId == productId && g.CompanyId == companyId).SumAsync(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0;
+        var sold = await _context.SaleOrderItems.Where(si => si.ProductId == productId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).SumAsync(si => (decimal?)si.Qty) ?? 0;
+        var purReturned = await _context.PurchaseReturnItems.Where(pri => pri.ProductId == productId && pri.CompanyId == companyId && pri.PurchaseReturn.Status == "Confirmed").SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
+        var saleReturned = await _context.SaleReturnItems.Where(sri => sri.ProductId == productId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
-            product.CurrentStock += adjustmentQty;
-            _context.Products.Update(product);
-            await _context.SaveChangesAsync();
-        }
+        return received - sold - purReturned + saleReturned;
     }
+
+    // REMOVED: UpdateProductStockAsync (Now using Live Transactions)
+
 
     public async Task<string> GetLastSONumberAsync()
     {
@@ -357,78 +343,83 @@ public class SaleOrderRepository : ISaleOrderRepository
 
                 foreach (var item in items)
                 {
-                    // Product table se stock kam karein (Locking the row for update)
-                    var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId);
-                    if (product != null)
+                    // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK (MINUS)
+                    if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                     {
-                        // 🛡️ CONCURRENCY GUARD: Check if sufficient stock is available
-                        if (product.CurrentStock < item.Qty)
+                        var whStock = await _context.WarehouseStocks
+                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                        if (whStock != null)
                         {
-                            throw new InvalidOperationException($"Insufficient Stock for '{item.ProductName}'. Available: {product.CurrentStock}, Required: {item.Qty}. Operation cancelled to prevent negative stock.");
+                            whStock.Quantity -= item.Qty;
                         }
-
-                        // Current stock mein se order qty minus kar dein (GLOBAL)
-                        product.CurrentStock -= item.Qty;
-
-                        // 🆕 FIFO FALLBACK: If Sale Item has no Warehouse/Rack, try to link it to the oldest available batch
-                        if (item.WarehouseId == null || item.RackId == null)
+                        else
                         {
-                            var oldestBatch = await _context.GRNDetails
-                                .Where(g => g.ProductId == item.ProductId && g.CompanyId == companyId && (g.ReceivedQty - g.RejectedQty) > 0)
-                                .OrderBy(g => g.GRNHeader.ReceivedDate)
-                                .FirstOrDefaultAsync();
-
-                            if (oldestBatch != null)
+                            await _context.WarehouseStocks.AddAsync(new WarehouseStock
                             {
-                                item.WarehouseId = oldestBatch.WarehouseId;
-                                item.RackId = oldestBatch.RackId;
-                                item.MfgDate = oldestBatch.MfgDate;
-                                item.ExpDate = oldestBatch.ExpDate;
-                                _context.SaleOrderItems.Update(item);
-                            }
+                                ProductId = item.ProductId,
+                                WarehouseId = item.WarehouseId.Value,
+                                Quantity = -item.Qty,
+                                MinStock = 0,
+                                CompanyId = order.CompanyId,
+                                BranchId = order.BranchId
+                            });
                         }
-
-                        // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK (MINUS)
-                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
-                        {
-                            var whStock = await _context.WarehouseStocks
-                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
-
-                            if (whStock != null)
-                            {
-                                whStock.Quantity -= item.Qty;
-                            }
-                            else
-                            {
-                                await _context.WarehouseStocks.AddAsync(new WarehouseStock
-                                {
-                                    ProductId = item.ProductId,
-                                    WarehouseId = item.WarehouseId.Value,
-                                    Quantity = -item.Qty,
-                                    MinStock = 0,
-                                    CompanyId = order.CompanyId,
-                                    BranchId = order.BranchId
-                                });
-                            }
-                        }
-
-
-                        // 🆕 Record Inventory Transaction for Audit Trail
-                        bool isQuick = order.SONumber.Contains("-Q-");
-                        var saleTx = new InventoryTransaction(
-                            item.ProductId,
-                            item.Qty,
-                            isQuick ? "QuickSale" : "Sale",
-                            order.SONumber,
-                            item.WarehouseId,
-                            item.RackId,
-                            item.MfgDate,
-                            item.ExpDate,
-                            order.CompanyId,
-                            order.BranchId
-                        );
-                        await _context.InventoryTransactions.AddAsync(saleTx);
                     }
+
+                    // 🆕 Record Inventory Transaction for Audit Trail
+                    bool isQuick = order.SONumber.Contains("-Q-");
+                    var saleTx = new InventoryTransaction(
+                        item.ProductId,
+                        -item.Qty, // Negative because it is REDUCING stock
+                        isQuick ? "QuickSale" : "Sale",
+                        order.SONumber,
+                        item.WarehouseId,
+                        item.RackId,
+                        item.MfgDate,
+                        item.ExpDate,
+                        order.CompanyId,
+                        order.BranchId
+                    );
+                    await _context.InventoryTransactions.AddAsync(saleTx);
+                }
+            }
+            // 3. Agar pehle 'Confirmed' tha aur ab status change ho raha hai (Reverse Stock)
+            else if (order.Status == "Confirmed" && status != "Confirmed")
+            {
+                var items = await _context.SaleOrderItems
+                                          .Where(x => x.SaleOrderId == id)
+                                          .ToListAsync();
+
+                foreach (var item in items)
+                {
+                    // 🚀 RESTORE PHYSICAL WAREHOUSE STOCK (PLUS)
+                    if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                    {
+                        var whStock = await _context.WarehouseStocks
+                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                        if (whStock != null)
+                        {
+                            whStock.Quantity += item.Qty;
+                        }
+                    }
+
+                    // 🆕 Record Inventory Transaction (REVERSAL)
+                    bool isQuick = order.SONumber.Contains("-Q-");
+                    var reversalTx = new InventoryTransaction(
+                        item.ProductId,
+                        item.Qty, // Positive because it is READDING stock
+                        (isQuick ? "QuickSale" : "Sale") + "-REVERSED",
+                        order.SONumber,
+                        item.WarehouseId,
+                        item.RackId,
+                        item.MfgDate,
+                        item.ExpDate,
+                        order.CompanyId,
+                        order.BranchId
+                    );
+                    await _context.InventoryTransactions.AddAsync(reversalTx);
                 }
             }
 
@@ -494,6 +485,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SgstAmount = o.SgstAmount,
                 Remarks = o.Remarks,
                 ExpectedDeliveryDate = o.ExpectedDeliveryDate,
+                BranchId = o.BranchId,
+                CompanyId = o.CompanyId,
+                IsQuick = o.IsQuick,
                 // Items ki mapping yahan karein
                 Items = o.Items.Select(oi => new SaleOrderItemDto
                 {

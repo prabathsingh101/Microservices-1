@@ -167,11 +167,8 @@ namespace Inventory.Infrastructure.Repositories
                         header.GRNItems ??= new List<GRNDetail>();
                         header.GRNItems.Add(item);
 
-                        // 🚀 UPDATE PRODUCT MASTER (GLOBAL)
+                        // ⚡ REDUNDANT: Products.CurrentStock is no longer used for displays.
                         decimal qtyToIncrease = item.ReceivedQty - item.RejectedQty;
-                        await _context.Database.ExecuteSqlRawAsync(
-                            "UPDATE Products SET CurrentStock = CurrentStock + {0}, ModifiedOn = {1}, ModifiedBy = {2}, CompanyId = COALESCE(CompanyId, {3}), BranchId = COALESCE(BranchId, {4}) WHERE Id = {5} AND CompanyId = {3} AND (BranchId IS NULL OR BranchId = {4})",
-                            qtyToIncrease, utcNow, header.CreatedBy, header.CompanyId, header.BranchId, item.ProductId);
 
                         // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK
                         if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
@@ -217,7 +214,7 @@ namespace Inventory.Infrastructure.Repositories
                         {
                             await _context.Database.ExecuteSqlRawAsync(
                                 "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty + {0} WHERE PurchaseOrderId = {1} AND ProductId = {2} AND CompanyId = {3}",
-                                item.ReceivedQty, header.PurchaseOrderId, item.ProductId, header.CompanyId);
+                                item.ReceivedQty - item.RejectedQty, header.PurchaseOrderId, item.ProductId, header.CompanyId);
                         }
                     }
 
@@ -376,11 +373,7 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     foreach (var d in po.Items)
                     {
-                        var netInWarehouse = await _context.GRNDetails
-                            .Where(gd => gd.ProductId == d.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId))
-                            .SumAsync(gd => gd.ReceivedQty - gd.RejectedQty);
-
-                        var pending = d.Qty - netInWarehouse;
+                        var pending = d.Qty - d.ReceivedQty;
                         decimal proposedRecv = 0;
 
                         if (!string.IsNullOrEmpty(gatePassNo))
@@ -468,7 +461,8 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     ProductName = d.Product.Name,
                     OrderedQty = d.OrderedQty,
-                    ReceivedQty = d.ReceivedQty,
+                    ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == g.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == g.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
 
                     // FIX: Pending calculation for historical view
                     // Hum PO Item ki cumulative 'ReceivedQty' ke bajaye transaction level logic use karenge
@@ -480,7 +474,11 @@ namespace Inventory.Infrastructure.Repositories
                                            prev.GRNHeader.PurchaseOrderId == g.PurchaseOrderId &&
                                            prev.GRNHeader.CreatedOn <= g.CreatedOn &&
                                            prev.CompanyId == companyId)
-                            .Sum(prev => prev.ReceivedQty - prev.RejectedQty)
+                            .Sum(prev => prev.ReceivedQty - prev.RejectedQty) -
+                        (_context.PurchaseReturnItems
+                            .Where(ri => ri.ProductId == d.ProductId && ri.CompanyId == companyId)
+                            .Join(_context.GRNDetails.Where(gd => gd.GRNHeader.PurchaseOrderId == g.PurchaseOrderId && gd.GRNHeader.CreatedOn <= g.CreatedOn), ri => ri.GrnRef, gd => gd.GRNHeader.GRNNumber, (ri, gd) => (decimal?)ri.ReturnQty)
+                            .Sum() ?? 0)
                     )) : 0,
 
                     RejectedQty = d.RejectedQty,
@@ -620,8 +618,8 @@ namespace Inventory.Infrastructure.Repositories
                                   Unit = d.Product.Unit,
                                   OrderedQty = d.OrderedQty,
                                   PendingQty = d.PendingQty,
-                                  ReceivedQty = d.ReceivedQty,
-                                  AcceptedQty = d.AcceptedQty,
+                                  ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                                  AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                                   RejectedQty = d.RejectedQty,
                                   UnitRate = d.UnitRate,
                                   DiscountPercent = poi.DiscountPercent,
@@ -760,14 +758,10 @@ namespace Inventory.Infrastructure.Repositories
                             grnTotalAmount += (qtyToReceiveNow - rejectedQty) * item.Rate * (1 + (item.GstPercent / 100));
 
                             // Update ReceivedQty in PO Item
-                            item.ReceivedQty = item.ReceivedQty + qtyToReceiveNow;
+                            item.ReceivedQty = item.ReceivedQty + (qtyToReceiveNow - rejectedQty);
 
-                            // STOCK UPDATE (GLOBAL)
-                            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId);
-                            if (product != null)
-                            {
-                                product.CurrentStock += (qtyToReceiveNow - rejectedQty);
-                            }
+                            // ⚡ REDUNDANT: Products.CurrentStock removed.
+
 
                             // STOCK UPDATE (WAREHOUSE SPECIFIC)
                             var whId = reqItem?.WarehouseId ?? item.Product?.DefaultWarehouseId;

@@ -21,7 +21,10 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
     public decimal? DefaultGst { get; set; }
     public string HSNCode { get; private set; } = null!;
     public int MinStock { get;  set; } = 0;
+    
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public decimal CurrentStock { get; set; } = 0;
+    
     public bool TrackInventory { get; private set; }    
     public bool IsActive { get;  set; }
     public string? Description { get; private set; }

@@ -17,7 +17,7 @@ namespace Inventory.Application.Common.Interfaces
 
 
         Task<decimal> GetAvailableStockAsync(Guid productId);
-        Task UpdateProductStockAsync(Guid productId, decimal adjustmentQty);
+        // REMOVED: UpdateProductStockAsync
         Task BeginTransactionAsync();
         Task CommitTransactionAsync();
         Task RollbackTransactionAsync();

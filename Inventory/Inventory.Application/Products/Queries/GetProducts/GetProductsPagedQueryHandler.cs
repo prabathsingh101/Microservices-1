@@ -10,13 +10,16 @@ internal sealed class GetProductsPagedQueryHandler
     : IRequestHandler<GetProductsPagedQuery, GridResponse<ProductDto>>
 {
     private readonly IProductRepository _repository;
-    private readonly IInventoryDbContext _context; // 🆕 Context added to fetch Discounts
+    private readonly IInventoryDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
     public GetProductsPagedQueryHandler(IProductRepository repository, 
-        IInventoryDbContext context)
+        IInventoryDbContext context,
+        ICurrentUserService currentUserService)
     {
         _repository = repository;
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task<GridResponse<ProductDto>> Handle(
@@ -85,9 +88,7 @@ internal sealed class GetProductsPagedQueryHandler
             "minstock" => request.Request.SortDirection == "asc"
                 ? query.OrderBy(x => x.MinStock)
                 : query.OrderByDescending(x => x.MinStock),
-            "currentstock" => request.Request.SortDirection == "asc"
-                ? query.OrderBy(x => x.CurrentStock)
-                : query.OrderByDescending(x => x.CurrentStock),
+            "currentstock" => query.OrderByDescending(x => x.CreatedOn),
             _ => query.OrderByDescending(x => x.CreatedOn)
         };
 
@@ -106,36 +107,81 @@ internal sealed class GetProductsPagedQueryHandler
         // let's just use the Master data to ensure binding works without timeout.
         // If we really need accurate per-batch info, we should do it in a single join/group query.
 
-        var items = itemsData.Select(p => new ProductDto
-        {
-            id = p.Id,
-            categoryId = p.CategoryId,
-            categoryName = p.Category.CategoryName,
-            subcategoryId = p.SubcategoryId,
-            subcategoryName = p.Subcategory.SubcategoryName,
-            sku = p.Sku,
-            mrp = p.MRP,
-            saleRate = p.SaleRate,
-            productName = p.Name,
-            unit = p.Unit,
-            hsnCode = p.HSNCode,
-            minStock = p.MinStock,
-            basePurchasePrice = p.BasePurchasePrice,
-            currentStock = p.CurrentStock,
-            damagedStock = p.DamagedStock,
-            defaultGst = p.DefaultGst,
-            discount = p.Discount,
-            isExpiryRequired = p.IsExpiryRequired,
-            productType = int.TryParse(p.ProductType, out var type) ? type : 1,
-            description = p.Description,
-            trackInventory = p.TrackInventory,
-            defaultWarehouseId = p.DefaultWarehouseId,
-            defaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
-            defaultRackId = p.DefaultRackId,
-            defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
-            imageUrl = p.ImageUrl,
-            createdOn = p.CreatedOn,
-            modifiedOn = p.ModifiedOn
+        // 🚀 SMART TRANSACTION-BASED STOCK CALCULATION
+        var productIds = itemsData.Select(p => p.Id).ToList();
+        var companyIdClaim = _currentUserService.CompanyId;
+        var branchId = _currentUserService.BranchId;
+
+        var receivedStock = await _context.GRNDetails
+            .IgnoreQueryFilters()
+            .Where(gd => gd.CompanyId == companyIdClaim && productIds.Contains(gd.ProductId))
+            .Where(gd => string.IsNullOrEmpty(branchId) || gd.BranchId == branchId)
+            .GroupBy(gd => gd.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReceivedQty - x.RejectedQty) })
+            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
+
+        var soldStock = await _context.SaleOrderItems
+            .IgnoreQueryFilters()
+            .Where(soi => soi.CompanyId == companyIdClaim && productIds.Contains(soi.ProductId) && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered"))
+            .Where(soi => string.IsNullOrEmpty(branchId) || soi.BranchId == branchId)
+            .GroupBy(soi => soi.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0 })
+            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
+
+        var purchaseReturnedStock = await _context.PurchaseReturnItems
+            .IgnoreQueryFilters()
+            .Where(pri => pri.CompanyId == companyIdClaim && productIds.Contains(pri.ProductId))
+            .Where(pri => string.IsNullOrEmpty(branchId) || pri.BranchId == branchId)
+            .GroupBy(pri => pri.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0 })
+            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
+
+        var saleReturnedStock = await _context.SaleReturnItems
+            .IgnoreQueryFilters()
+            .Where(sri => sri.CompanyId == companyIdClaim && productIds.Contains(sri.ProductId))
+            .Where(sri => string.IsNullOrEmpty(branchId) || sri.BranchId == branchId)
+            .GroupBy(sri => sri.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0 })
+            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
+
+        var items = itemsData.Select(p => {
+            var received = receivedStock.GetValueOrDefault(p.Id, 0);
+            var sold = soldStock.GetValueOrDefault(p.Id, 0);
+            var purReturned = purchaseReturnedStock.GetValueOrDefault(p.Id, 0);
+            var saleReturned = saleReturnedStock.GetValueOrDefault(p.Id, 0);
+            var actualStock = received - sold - purReturned + saleReturned;
+
+            return new ProductDto
+            {
+                id = p.Id,
+                categoryId = p.CategoryId,
+                categoryName = p.Category.CategoryName,
+                subcategoryId = p.SubcategoryId,
+                subcategoryName = p.Subcategory.SubcategoryName,
+                sku = p.Sku,
+                mrp = p.MRP,
+                saleRate = p.SaleRate,
+                productName = p.Name,
+                unit = p.Unit,
+                hsnCode = p.HSNCode,
+                minStock = p.MinStock,
+                basePurchasePrice = p.BasePurchasePrice,
+                currentStock = actualStock > 0 ? actualStock : 0, // ⚡ Accurate Live Stock
+                damagedStock = p.DamagedStock,
+                defaultGst = p.DefaultGst,
+                discount = p.Discount,
+                isExpiryRequired = p.IsExpiryRequired,
+                productType = int.TryParse(p.ProductType, out var type) ? type : 1,
+                description = p.Description,
+                trackInventory = p.TrackInventory,
+                defaultWarehouseId = p.DefaultWarehouseId,
+                defaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
+                defaultRackId = p.DefaultRackId,
+                defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
+                imageUrl = p.ImageUrl,
+                createdOn = p.CreatedOn,
+                modifiedOn = p.ModifiedOn
+            };
         }).ToList();
 
         return new GridResponse<ProductDto>(items, totalCount);

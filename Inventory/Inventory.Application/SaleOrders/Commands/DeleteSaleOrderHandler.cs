@@ -5,6 +5,8 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Domain.Entities;
 
 namespace Inventory.Application.SaleOrders.Commands
 {
@@ -12,11 +14,13 @@ namespace Inventory.Application.SaleOrders.Commands
     {
         private readonly ISaleOrderRepository _repo;
         private readonly ICustomerClient _customerClient;
+        private readonly IInventoryDbContext _context;
 
-        public DeleteSaleOrderHandler(ISaleOrderRepository repo, ICustomerClient customerClient)
+        public DeleteSaleOrderHandler(ISaleOrderRepository repo, ICustomerClient customerClient, IInventoryDbContext context)
         {
             _repo = repo;
             _customerClient = customerClient;
+            _context = context;
         }
 
         public async Task<bool> Handle(DeleteSaleOrderCommand request, CancellationToken cancellationToken)
@@ -33,8 +37,32 @@ namespace Inventory.Application.SaleOrders.Commands
                 {
                     foreach (var item in order.Items)
                     {
-                        // Adding back stock (Positive adjustment)
-                        await _repo.UpdateProductStockAsync(item.ProductId, item.Qty);
+                        // 🆕 Record Reversal in Audit Trail
+                        var reversalTx = new InventoryTransaction(
+                            item.ProductId,
+                            item.Qty, // Positive because it is READDING stock
+                            (order.IsQuick ? "QuickSale" : "Sale") + "-DELETED",
+                            order.SoNumber,
+                            item.WarehouseId,
+                            item.RackId,
+                            item.ManufacturingDate,
+                            item.ExpiryDate,
+                            order.CompanyId,
+                            order.BranchId
+                        );
+                        await _context.InventoryTransactions.AddAsync(reversalTx);
+
+                        // 🚀 RESTORE PHYSICAL WAREHOUSE STOCK
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                        {
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                            if (whStock != null)
+                            {
+                                whStock.Quantity += item.Qty;
+                            }
+                        }
                     }
 
                     // 2. Ledger Sync (Reverse Sale)

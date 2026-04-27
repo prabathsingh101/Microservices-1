@@ -58,8 +58,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                        (_context.SaleReturnItems.Where(sri => sri.ProductId == gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
                         WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
                         RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
+                        WarehouseId = gd.WarehouseId,
+                        RackId = gd.RackId,
                         MfgDate = gd.MfgDate,
-                        ExpDate = gd.ExpDate
+                        ExpDate = gd.ExpDate,
+                        BranchId = gh.BranchId
                     };
 
         return await query.ToListAsync();
@@ -138,6 +141,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
             MfgDate = x.gd.MfgDate,
             ExpDate = x.gd.ExpDate,
+            WarehouseId = x.gd.WarehouseId,
+            RackId = x.gd.RackId,
+            BranchId = x.gh.BranchId,
             IsReturnable = x.gh.ReceivedDate >= limitDate,
             RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours)
         })
@@ -167,12 +173,17 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     var companyId = returnData.CompanyId;
                     var branchId = returnData.BranchId;
                     var grnDetail = await _context.GRNDetails
+                        .IgnoreQueryFilters() // 🚀 Super Admin bypass
                         .Include(gd => gd.GRNHeader)
                         .FirstOrDefaultAsync(gd => gd.ProductId == item.ProductId
                                              && gd.GRNHeader.GRNNumber == item.GrnRef
-                                             && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId));
+                                             && gd.CompanyId == companyId);
 
-                    if (grnDetail == null) throw new Exception($"GRN not found for {item.GrnRef}");
+                    if (grnDetail == null) 
+                    {
+                        var contextBranch = _currentUserService.BranchId ?? "NULL";
+                        throw new Exception($"GRN details not found for ProductId: {item.ProductId} and GrnRef: {item.GrnRef}. Search BranchId used: {branchId}, Session BranchId: {contextBranch}");
+                    }
 
                     // Auto-resolve branchId if null (for Admin sessions) [cite: 2026-04-27]
                     if (string.IsNullOrEmpty(branchId))
@@ -185,10 +196,12 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     if (item.ReturnQty <= 0) continue;
 
                     var poItem = await _context.PurchaseOrderItems
+                        .IgnoreQueryFilters()
                         .FirstOrDefaultAsync(poi => poi.ProductId == item.ProductId 
                                              && poi.PurchaseOrderId == grnDetail.GRNHeader.PurchaseOrderId
-                                             && poi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || poi.BranchId == branchId));
+                                             && poi.CompanyId == companyId);
 
+                    // If no PO, use DTO/Item values for calculation
                     if (poItem != null)
                     {
                         poItem.ReceivedQty -= item.ReturnQty;
@@ -198,62 +211,71 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         item.GstPercent = poItem.GstPercent;
                         item.DiscountPercent = poItem.DiscountPercent;
                         item.Rate = poItem.Rate;
-
-                        decimal baseAmount = item.ReturnQty * item.Rate;
-                        decimal discountAmt = baseAmount * (item.DiscountPercent / 100);
-                        decimal taxableAmount = baseAmount - discountAmt;
-                        decimal itemTax = taxableAmount * (item.GstPercent / 100);
-
-                        item.TaxAmount = itemTax;
-                        item.TotalAmount = taxableAmount + itemTax;
-
-                        totalHeaderSubTotal += taxableAmount;
-                        totalHeaderTax += itemTax;
                     }
 
+                    decimal baseAmount = item.ReturnQty * item.Rate;
+                    decimal discountAmt = baseAmount * (item.DiscountPercent / 100);
+                    decimal taxableAmount = baseAmount - discountAmt;
+                    decimal itemTax = taxableAmount * (item.GstPercent / 100);
+
+                    item.TaxAmount = itemTax;
+                    item.TotalAmount = taxableAmount + itemTax;
+
+                    totalHeaderSubTotal += taxableAmount;
                     decimal initialRejectedQty = grnDetail.RejectedQty;
                     decimal qtyToReturn = item.ReturnQty;
+                    totalHeaderTax += itemTax;
 
-                    if (grnDetail.RejectedQty >= qtyToReturn)
-                    {
-                        grnDetail.RejectedQty -= qtyToReturn;
-                    }
-                    else
-                    {
-                        grnDetail.RejectedQty = 0;
-                    }
-
-                    grnDetail.ReceivedQty -= qtyToReturn;
-                    if (grnDetail.ReceivedQty < 0) grnDetail.ReceivedQty = 0;
-                    grnDetail.AcceptedQty = grnDetail.ReceivedQty - grnDetail.RejectedQty;
-                    if (grnDetail.AcceptedQty < 0) grnDetail.AcceptedQty = 0;
-
-                    _context.GRNDetails.Update(grnDetail);
+                    // 🚀 HISTORICAL INTEGRITY: We no longer modify GRNDetails (Received/Rejected) 
+                    // during a return. The original GRN should remain a record of the inward gate entry.
+                    // Net stock and Pending calculations now join with PurchaseReturnItems.
+                    
+                    // _context.GRNDetails.Update(grnDetail); // Removed to keep history intact
 
                     decimal deductionFromCurrentStock = Math.Max(0, qtyToReturn - initialRejectedQty);
 
                     if (deductionFromCurrentStock > 0)
                     {
-                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == returnData.CompanyId);
-                        if (product != null)
-                        {
-                            product.CurrentStock -= deductionFromCurrentStock;
-                            _context.Products.Update(product);
-
-                            var returnTx = new InventoryTransaction(
-                                item.ProductId,
-                                -item.ReturnQty,
-                                returnData.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn",
-                                returnData.ReturnNumber,
-                                grnDetail.WarehouseId,
-                                grnDetail.RackId,
-                                item.MfgDate,
-                                item.ExpDate,
-                                companyId,
-                                branchId
-                            );
-                            await _context.InventoryTransactions.AddAsync(returnTx);
-                        }
+                         var wsWarehouseId = item.WarehouseId ?? grnDetail.WarehouseId;
+                             var wsRackId = item.RackId ?? grnDetail.RackId;
+                             
+                             var warehouseStock = await _context.WarehouseStocks
+                                 .IgnoreQueryFilters()
+                                 .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                      && ws.WarehouseId == wsWarehouseId
+                                                      && ws.CompanyId == companyId);
+                                                     
+                             if (warehouseStock != null)
+                             {
+                                 warehouseStock.Quantity -= deductionFromCurrentStock;
+                                 if (warehouseStock.Quantity < 0) warehouseStock.Quantity = 0;
+                                 _context.WarehouseStocks.Update(warehouseStock);
+                             }
+                             else if (wsWarehouseId.HasValue)
+                             {
+                                 await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                                 {
+                                     ProductId = item.ProductId,
+                                     WarehouseId = wsWarehouseId.Value,
+                                     Quantity = -deductionFromCurrentStock,
+                                     CompanyId = companyId,
+                                     BranchId = branchId
+                                 });
+                             }
+                             
+                             var returnTx = new InventoryTransaction(
+                                 item.ProductId,
+                                 -item.ReturnQty,
+                                 returnData.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn",
+                                 returnData.ReturnNumber,
+                                 wsWarehouseId,
+                                 item.RackId ?? grnDetail.RackId,
+                                 item.MfgDate,
+                                 item.ExpDate,
+                                 companyId,
+                                 branchId
+                             );
+                             await _context.InventoryTransactions.AddAsync(returnTx);
                     }
                 }
 
@@ -282,8 +304,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                Console.WriteLine($"Error: {ex.Message}");
-                return false;
+                var inner = ex.InnerException?.Message ?? "";
+                Console.WriteLine($"PurchaseReturn Error: {ex.Message} | {inner}");
+                throw new Exception($"Save failed: {ex.Message}. {inner}");
             }
         });
     }

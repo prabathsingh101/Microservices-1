@@ -33,9 +33,14 @@ public class RefreshToken : AuditableEntity, IMultiTenant
     public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
     public bool IsActive => !IsExpired && !IsRevoked;
 
-    // ✅ REQUIRED METHOD (THIS WAS MISSING)
-    public void Revoke()
+    // ✅ REQUIRED METHOD (Updated with Audit support)
+    public void Revoke(string? revokedBy = null)
     {
         IsRevoked = true;
+        if (!string.IsNullOrEmpty(revokedBy))
+        {
+            LastModifiedBy = revokedBy;
+            LastModifiedDate = DateTime.UtcNow;
+        }
     }
 }

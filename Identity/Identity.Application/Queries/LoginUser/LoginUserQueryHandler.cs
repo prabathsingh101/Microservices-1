@@ -136,7 +136,7 @@ public class LoginUserQueryHandler
 
         // 5. Revoke old tokens
         Console.WriteLine("[DEBUG-HANDLER] Revoking old tokens...");
-        await _tokens.RevokeAllAsync(user.Id);
+        await _tokens.RevokeAllAsync(user.Id, user.Email);
 
         var rolesStrings = user.UserRoles
             .Select(r => r.Role?.RoleName ?? "User")
@@ -152,13 +152,9 @@ public class LoginUserQueryHandler
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();
 
-        // 8. Add Refresh Token
+        // 8. Add Refresh Token (Domain method handles Audit & Tenant context)
         Console.WriteLine("[DEBUG-HANDLER] Adding refresh token...");
-        await _tokens.AddAsync(
-            new RefreshToken(
-                user.Id,
-                auth.RefreshToken,
-                auth.ExpiresAt.AddDays(7)));
+        user.AddRefreshToken(auth.RefreshToken, DateTime.UtcNow.AddDays(7));
 
         Console.WriteLine("[DEBUG-HANDLER] Saving changes...");
         await _uow.SaveChangesAsync(ct);

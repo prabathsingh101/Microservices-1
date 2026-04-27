@@ -18,6 +18,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public decimal TotalRejected { get; set; }
         public decimal TotalExpired { get; set; }
         public decimal TotalSold { get; set; }
+        public decimal TotalReturned { get; set; }
         public bool IsAlreadyPurged { get; set; }
         public DateTime? ReceivedDate { get; set; }
         public DateTime? PurgedDate { get; set; }
@@ -52,13 +53,17 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? ProductName { get; set; }
         public decimal ReceivedQty { get; set; }
         public decimal RejectedQty { get; set; }
+        public decimal SoldQty { get; set; }
         public decimal ExpiredQty { get; set; }
+        public decimal ReturnedQty { get; set; }
         public string? WarehouseName { get; set; }
         public string? RackName { get; set; }
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public bool IsExpiryRequired { get; set; }
         public decimal AvailableQty { get; set; }
+        public decimal CurrentStock { get; set; }
+        public decimal TotalReturned { get; set; }
         public bool IsAlreadyPurged { get; set; }
         public string? BranchId { get; set; }
         public string? BranchName { get; set; }
