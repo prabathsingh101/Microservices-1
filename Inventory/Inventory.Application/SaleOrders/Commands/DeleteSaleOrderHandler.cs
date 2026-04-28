@@ -32,8 +32,8 @@ namespace Inventory.Application.SaleOrders.Commands
 
             await _repo.ExecuteInTransactionAsync(async () =>
             {
-                // 1. If Order was Confirmed, Revert Stock
-                if (order.Status == "Confirmed")
+                // 1. If Order was Confirmed/Delivered/Completed, Revert Stock
+                if (order.Status == "Confirmed" || order.Status == "Delivered" || order.Status == "Completed")
                 {
                     foreach (var item in order.Items)
                     {

@@ -24,18 +24,22 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Save([FromBody] CreateGRNCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
             var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
-
-            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 command.Data.CompanyId = companyId;
             }
 
-            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
             if (!string.IsNullOrEmpty(finalBranchId))
             {
                 command.Data.BranchId = finalBranchId;
@@ -98,18 +102,22 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> CreateBulkGrn([FromBody] BulkGrnRequestDto request)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
             var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
-
-            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 request.CompanyId = companyId;
             }
 
-            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
             if (!string.IsNullOrEmpty(finalBranchId))
             {
                 request.BranchId = finalBranchId;

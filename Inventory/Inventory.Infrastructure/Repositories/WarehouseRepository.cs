@@ -70,7 +70,7 @@ public class WarehouseRepository : IWarehouseRepository
                 var dbWarehouses = await _context.Warehouses
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
-                var dbWarehousesByName = dbWarehouses.ToDictionary(w => w.Name.ToLower().Trim(), w => w);
+                var dbWarehousesByName = dbWarehouses.GroupBy(w => w.Name.ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
 
                 var newWarehouses = new List<Warehouse>();
                 int updateCount = 0;
@@ -122,3 +122,4 @@ public class WarehouseRepository : IWarehouseRepository
         return (successCount, errors);
     }
 }
+

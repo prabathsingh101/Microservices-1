@@ -22,14 +22,19 @@ public class ExpenseCategoriesController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
         var branchIdClaim = User.FindFirst("BranchId")?.Value;
+        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+        string? branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+            ? branchIdHeader 
+            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
 
         var query = _context.ExpenseCategories
             .Where(x => x.IsActive);
 
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
-            var branchId = branchIdClaim;
             query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
@@ -44,14 +49,19 @@ public class ExpenseCategoriesController : ControllerBase
     public async Task<IActionResult> GetAllPost()
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
         var branchIdClaim = User.FindFirst("BranchId")?.Value;
+        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+        string? branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+            ? branchIdHeader 
+            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
 
         var query = _context.ExpenseCategories
             .Where(x => x.IsActive);
 
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
-            var branchId = branchIdClaim;
             query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
@@ -74,18 +84,25 @@ public class ExpenseCategoriesController : ControllerBase
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
     public async Task<IActionResult> Create(ExpenseCategory category)
     {
-        // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+        // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+        
+        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
             category.CompanyId = companyId;
         }
 
-        if (!string.IsNullOrEmpty(branchIdClaim))
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+        string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+            ? branchIdHeader 
+            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+        if (!string.IsNullOrEmpty(finalBranchId))
         {
-            category.BranchId = branchIdClaim;
+            category.BranchId = finalBranchId;
         }
 
         _context.ExpenseCategories.Add(category);
@@ -109,16 +126,23 @@ public class ExpenseCategoriesController : ControllerBase
 
         // 🚀 SMART INJECTION: Ensure CompanyId & BranchId are safe on update
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+        
+        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
             existing.CompanyId = companyId;
         }
 
-        if (!string.IsNullOrEmpty(branchIdClaim))
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+        string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+            ? branchIdHeader 
+            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+        if (!string.IsNullOrEmpty(finalBranchId))
         {
-            existing.BranchId = branchIdClaim;
+            existing.BranchId = finalBranchId;
         }
 
         await _context.SaveChangesAsync();

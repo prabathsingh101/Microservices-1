@@ -79,13 +79,13 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         
-        // Use live transaction-based math for validation
-        var received = await _context.GRNDetails.Where(g => g.ProductId == productId && g.CompanyId == companyId).SumAsync(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0;
-        var sold = await _context.SaleOrderItems.Where(si => si.ProductId == productId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).SumAsync(si => (decimal?)si.Qty) ?? 0;
-        var purReturned = await _context.PurchaseReturnItems.Where(pri => pri.ProductId == productId && pri.CompanyId == companyId && pri.PurchaseReturn.Status == "Confirmed").SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
-        var saleReturned = await _context.SaleReturnItems.Where(sri => sri.ProductId == productId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
+        // ✅ Read directly from WarehouseStocks — single source of truth
+        // WarehouseStocks is updated on every GRN, PurchaseReturn, Sale, and SaleReturn event
+        var totalStock = await _context.WarehouseStocks
+            .Where(ws => ws.ProductId == productId && ws.CompanyId == companyId)
+            .SumAsync(ws => (decimal?)ws.Quantity) ?? 0;
 
-        return received - sold - purReturned + saleReturned;
+        return totalStock;
     }
 
     // REMOVED: UpdateProductStockAsync (Now using Live Transactions)
@@ -178,7 +178,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 TotalRejected = _context.GRNDetails.Where(g => g.ProductId == group.Key.ProductId && g.CompanyId == companyId).Sum(x => x.RejectedQty),
                 AvailableStock = (_context.GRNDetails.Where(g => g.ProductId == group.Key.ProductId && g.CompanyId == companyId).Sum(x => x.ReceivedQty) -
                                   _context.GRNDetails.Where(g => g.ProductId == group.Key.ProductId && g.CompanyId == companyId).Sum(x => x.RejectedQty)) -
-                                 (_context.SaleOrderItems.Where(si => si.ProductId == group.Key.ProductId && si.SaleOrder.Status == "Confirmed" && si.CompanyId == companyId).Sum(si => (decimal?)si.Qty) ?? 0)
+                                 (_context.SaleOrderItems.Where(si => si.ProductId == group.Key.ProductId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed") && si.CompanyId == companyId).Sum(si => (decimal?)si.Qty) ?? 0)
             }).ToListAsync();
     }
 
@@ -581,8 +581,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 RackId = x.RackId,
                 RackName = x.Rack != null ? x.Rack.Name : null,
                 CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
-                               (_context.SaleOrderItems.Where(si => si.ProductId == x.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
+                               (_context.SaleOrderItems.Where(si => si.ProductId == x.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Completed")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
 
                 // Dynamic Policy Calculation
                 IsReturnable = x.SaleOrder.SODate >= limitDate,

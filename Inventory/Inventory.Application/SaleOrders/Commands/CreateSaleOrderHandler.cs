@@ -193,6 +193,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 foreach (var item in saleOrder.Items)
                 {
                     decimal availableStock = await _repo.GetAvailableStockAsync(item.ProductId);
+                    Console.WriteLine($"[StockCheck] Product: {item.ProductName}, Required: {item.Qty}, Available: {availableStock}");
                     if (availableStock < item.Qty)
                     {
                         throw new Exception($"Insufficient stock for {item.ProductName}. Available: {availableStock}");
@@ -238,6 +239,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         }
                     }
                 }
+
+                // ⚡ CRITICAL FIX: Persist WarehouseStock and Transaction changes to DB
+                await _context.SaveChangesAsync();
 
                 // 3. Record New Ledger
                 try

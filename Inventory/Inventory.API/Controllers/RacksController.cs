@@ -89,18 +89,26 @@ public sealed class RacksController : ControllerBase
 
     [HttpPost("upload-excel")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> UploadExcel(IFormFile file)
+    public async Task<IActionResult> UploadExcel([FromForm] IFormFile file)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
 
         var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
-        var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
-        if (!Guid.TryParse(companyIdClaim, out var companyId))
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+        
+        if (!Guid.TryParse(companyIdHeader, out var companyId) && !Guid.TryParse(companyIdClaim, out companyId))
         {
             return BadRequest(ApiResponse<string>.Fail("Invalid session: CompanyId not found"));
         }
 
-        var result = await _rackRepository.UploadRacksAsync(file, companyId, branchId);
+        var branchIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
+        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+        
+        var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+            ? branchIdHeader 
+            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+        var result = await _rackRepository.UploadRacksAsync(file, companyId, finalBranchId);
 
         return Ok(new
         {

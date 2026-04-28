@@ -33,18 +33,25 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
         public async Task<IActionResult> Create([FromBody] CreatePriceListCommand command)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 command = command with { companyId = companyId };
             }
 
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                command = command with { branchId = branchIdClaim };
+                command = command with { branchId = finalBranchId };
             }
 
             var resultId = await _mediator.Send(command);
@@ -58,18 +65,25 @@ namespace Inventory.API.Controllers
         {
             if (id != command.id) return BadRequest("ID Mismatch");
 
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 command = command with { companyId = companyId };
             }
 
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                command = command with { branchId = branchIdClaim };
+                command = command with { branchId = finalBranchId };
             }
 
             var result = await _mediator.Send(command);

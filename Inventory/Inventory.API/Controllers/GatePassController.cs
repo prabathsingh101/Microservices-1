@@ -31,9 +31,15 @@ namespace Inventory.API.Controllers
         {
             try 
             {
-                // 🔥 SMART INJECTION: Inject CompanyId & BranchId from Secure Claims
-                command.CompanyId = User.GetCompanyId();
-                command.BranchId = User.GetBranchId();
+                // 🔥 SMART INJECTION: Inject CompanyId & BranchId from Headers or Secure Claims
+                var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+                command.CompanyId = Guid.TryParse(companyIdHeader, out var cId) ? cId : User.GetCompanyId();
+
+                var branchIdClaim = User.GetBranchId();
+                var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+                command.BranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                    ? branchIdHeader 
+                    : branchIdClaim;
 
                 var result = await _mediator.Send(command);
                 return Ok(ApiResponse<GatePassDto>.Ok(

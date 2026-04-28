@@ -92,18 +92,25 @@ namespace Inventory.API.Controllers
 
             try
             {
-                // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims to ensure security
+                // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims to ensure security
                 var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-                var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-                if (Guid.TryParse(companyIdClaim, out var companyId))
+                var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+                
+                if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
                 {
                     returnDto.CompanyId = companyId;
                 }
 
-                if (!string.IsNullOrEmpty(branchIdClaim))
+                var branchIdClaim = User.FindFirst("BranchId")?.Value;
+                var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+                string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                    ? branchIdHeader 
+                    : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+                if (!string.IsNullOrEmpty(finalBranchId))
                 {
-                    returnDto.BranchId = branchIdClaim;
+                    returnDto.BranchId = finalBranchId;
                 }
 
                 // DTO ko Entity mein map karein [cite: 2026-02-04]

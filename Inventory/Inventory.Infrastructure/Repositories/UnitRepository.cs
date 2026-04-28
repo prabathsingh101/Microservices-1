@@ -82,7 +82,7 @@ namespace Inventory.Infrastructure.Repositories
                     var dbUnits = await _context.Units
                         .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                         .ToListAsync();
-                    var dbUnitsByName = dbUnits.ToDictionary(w => w.Name.ToLower().Trim(), w => w);
+                    var dbUnitsByName = dbUnits.GroupBy(w => w.Name.ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
 
                     var newUnits = new List<UnitMaster>();
                     int updateCount = 0;
@@ -131,3 +131,4 @@ namespace Inventory.Infrastructure.Repositories
         }
     }
 }
+

@@ -78,9 +78,10 @@ public class RackRepository : IRackRepository
                 var dataRows = worksheet.RowsUsed().Skip(1); // Skip Header
 
                 // Pre-fetch for mapping & upsert
-                var warehouses = await _context.Warehouses
+                var warehousesList = await _context.Warehouses
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
-                    .ToDictionaryAsync(w => w.Name.ToLower().Trim(), w => w.Id);
+                    .ToListAsync();
+                var warehouses = warehousesList.GroupBy(w => w.Name.ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
 
                 var dbRacks = await _context.Racks
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))

@@ -135,7 +135,16 @@ namespace Inventory.Infrastructure.Repositories
             }
 
             if (!string.IsNullOrEmpty(search))
-                groupedQuery = groupedQuery.Where(x => x.ProductName.Contains(search));
+            {
+                if (Guid.TryParse(search, out Guid searchGuid))
+                {
+                    groupedQuery = groupedQuery.Where(x => x.ProductId == searchGuid);
+                }
+                else
+                {
+                    groupedQuery = groupedQuery.Where(x => x.ProductName.Contains(search));
+                }
+            }
 
             bool isDesc = sortOrder?.ToLower() == "desc";
             groupedQuery = sortField?.ToLower() switch
@@ -164,7 +173,7 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 var grossSold = await salesQuery
-                    .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed"))
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
                 var totalSaleReturn = await returnsQuery
@@ -176,7 +185,7 @@ namespace Inventory.Infrastructure.Repositories
                     .SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
 
                 var unlinkedSales = await salesQuery
-                    .Where(si => (si.WarehouseId == null || si.RackId == null) && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed"))
+                    .Where(si => (si.WarehouseId == null || si.RackId == null) && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed"))
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
                 var isOldest = await grnQuery
@@ -204,42 +213,64 @@ namespace Inventory.Infrastructure.Repositories
                     item.ReceivedDate = earliestBatch.ReceivedDate;
                 }
 
-                item.History = await grnQuery
-                    .Where(g => g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
-                    .OrderByDescending(g => g.GRNHeader.ReceivedDate)
-                    .Take(10)
+                var history = await grnQuery
+                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
                     .Select(allG => new StockHistoryDto
                     {
+                        ProductId = allG.ProductId,
+                        WarehouseId = allG.WarehouseId,
+                        RackId = allG.RackId,
                         ReceivedDate = allG.GRNHeader.ReceivedDate,
                         PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
                         GRNNumber = allG.GRNHeader.GRNNumber,
-                        SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName,
+                        SupplierName = allG.GRNHeader.PurchaseOrder.SupplierId != null ? "Supplier" : "N/A",
+                        TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
                         RejectedQty = allG.RejectedQty,
-                        SoldQty = (_context.SaleOrderItems.Where(soi => soi.ProductId == allG.ProductId && soi.WarehouseId == allG.WarehouseId && soi.RackId == allG.RackId && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered" || soi.SaleOrder.Status == "Completed")).Sum(soi => (decimal?)soi.Qty) ?? 0) -
-                                 (_context.SaleReturnItems.Where(sri => sri.ProductId == allG.ProductId && sri.WarehouseId == allG.WarehouseId && sri.RackId == allG.RackId).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
-                        ReturnedQty = _context.PurchaseReturnItems
-                            .Where(pri => pri.GrnRef == allG.GRNHeader.GRNNumber && pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId)
-                            .Sum(pri => (decimal?)pri.ReturnQty) ?? 0,
-                        TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
-                        WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
-                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
                         ManufacturingDate = allG.MfgDate,
                         ExpiryDate = allG.ExpDate,
                         IsExpiryRequired = allG.Product.IsExpiryRequired,
-                        CurrentStock = _context.GRNDetails.Where(g => g.ProductId == allG.ProductId && g.WarehouseId == allG.WarehouseId && g.RackId == allG.RackId).Sum(x => x.ReceivedQty - x.RejectedQty) - 
-                                      (_context.SaleOrderItems.Where(soi => soi.ProductId == allG.ProductId && soi.WarehouseId == allG.WarehouseId && soi.RackId == allG.RackId && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered")).Sum(soi => (decimal?)soi.Qty) ?? 0) +
-                                      (_context.SaleReturnItems.Where(sri => sri.ProductId == allG.ProductId && sri.WarehouseId == allG.WarehouseId && sri.RackId == allG.RackId).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
-                                      (_context.PurchaseReturnItems.Where(pri => pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId).Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
-                        TotalReturned = _context.PurchaseReturnItems.Where(pri => pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId).Sum(pri => (decimal?)pri.ReturnQty) ?? 0,
-                        AvailableQty = allG.ReceivedQty - allG.RejectedQty - 
-                                      (_context.SaleOrderItems.Where(soi => soi.ProductId == allG.ProductId && soi.WarehouseId == allG.WarehouseId && soi.RackId == allG.RackId && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered")).Sum(soi => (decimal?)soi.Qty) ?? 0) +
-                                      (_context.SaleReturnItems.Where(sri => sri.ProductId == allG.ProductId && sri.WarehouseId == allG.WarehouseId && sri.RackId == allG.RackId).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
-                                      (_context.PurchaseReturnItems.Where(pri => pri.GrnRef == allG.GRNHeader.GRNNumber && pri.ProductId == allG.ProductId && pri.WarehouseId == allG.WarehouseId && pri.RackId == allG.RackId).Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
+                        WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
+                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
+                        AvailableQty = allG.ReceivedQty - allG.RejectedQty, // Initial before FIFO
+                        CurrentStock = item.AvailableStock, // Using overall item stock for context
+                        TotalReturned = totalPurchaseReturn,
                         BranchId = allG.BranchId,
-                        BranchName = allG.BranchId
-                    }).ToListAsync();
+                        BranchName = allG.BranchId // Replace with join if needed
+                    })
+                    .OrderBy(h => h.ReceivedDate)
+                    .ToListAsync();
+
+                // Apply FIFO distribution of TotalSold and TotalPurchaseReturn
+                decimal remainingSold = item.TotalSold;
+                decimal remainingReturn = totalPurchaseReturn;
+
+                foreach (var h in history)
+                {
+                    decimal netRecv = h.ReceivedQty - h.RejectedQty;
+                    
+                    // 1. Deduct Purchase Returns first (FIFO)
+                    if (remainingReturn > 0)
+                    {
+                        decimal toReturn = Math.Min(remainingReturn, netRecv);
+                        h.ReturnedQty = toReturn;
+                        netRecv -= toReturn;
+                        remainingReturn -= toReturn;
+                    }
+
+                    // 2. Deduct Sales (FIFO)
+                    if (remainingSold > 0 && netRecv > 0)
+                    {
+                        decimal toSold = Math.Min(remainingSold, netRecv);
+                        h.SoldQty = toSold;
+                        netRecv -= toSold;
+                        remainingSold -= toSold;
+                    }
+
+                    h.AvailableQty = netRecv;
+                }
+                item.History = history;
             }
 
             return new StockPagedResponseDto

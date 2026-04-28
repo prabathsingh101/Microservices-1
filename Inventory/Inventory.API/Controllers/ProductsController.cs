@@ -62,10 +62,18 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> Create(CreateProductCommand command)
         {
             var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
-            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
-                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
+                var branchIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
+                var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+                
+                var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                    ? branchIdHeader 
+                    : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? finalBranchId };
             }
 
             var id = await _mediator.Send(command);
@@ -80,10 +88,18 @@ namespace Inventory.API.Controllers
                 return BadRequest(ApiResponse<string>.Fail("Id mismatch"));
 
             var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
-            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
-                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? branchId };
+                var branchIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
+                var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+                
+                var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                    ? branchIdHeader 
+                    : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+                command = command with { CompanyId = companyId, BranchId = command.BranchId ?? finalBranchId };
             }
 
             var result = await _mediator.Send(command);
@@ -100,17 +116,26 @@ namespace Inventory.API.Controllers
 
         [HttpPost("upload-excel")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> UploadExcel(IFormFile file)
+        public async Task<IActionResult> UploadExcel([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
 
             var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
-            var branchId = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
-            if (!Guid.TryParse(companyIdClaim, out var companyId))
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (!Guid.TryParse(companyIdHeader, out var companyId) && !Guid.TryParse(companyIdClaim, out companyId))
             {
                 return BadRequest(ApiResponse<string>.Fail("Invalid or missing CompanyId in your session."));
             }
-            var result = await _productRepository.UploadProductsAsync(file, companyId, branchId);
+
+            var branchIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase))?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+            
+            var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+            var result = await _productRepository.UploadProductsAsync(file, companyId, finalBranchId);
             return Ok(new { message = $"{result.successCount} New Products saved and {result.updateCount} Products updated successfully.", errors = result.errors });
         }
 
@@ -121,7 +146,10 @@ namespace Inventory.API.Controllers
             if (string.IsNullOrWhiteSpace(name)) return Ok(new { exists = false });
             
             var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
-            if (!Guid.TryParse(companyIdClaim, out var companyId)) return BadRequest(ApiResponse<string>.Fail("Invalid session"));
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (!Guid.TryParse(companyIdHeader, out var companyId) && !Guid.TryParse(companyIdClaim, out companyId)) 
+                return BadRequest(ApiResponse<string>.Fail("Invalid session"));
 
             var exists = await _productRepository.ExistsByNameAsync(name, companyId, excludeId);
             return Ok(new { exists });

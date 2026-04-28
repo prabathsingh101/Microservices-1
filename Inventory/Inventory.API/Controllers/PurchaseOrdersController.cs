@@ -40,18 +40,22 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims (Header prioritised)
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
             var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
-
-            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 dto = dto with { CompanyId = companyId };
             }
 
-            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
             if (!string.IsNullOrEmpty(finalBranchId))
             {
                 dto = dto with { BranchId = finalBranchId };
@@ -131,18 +135,25 @@ namespace Inventory.API.Controllers
                 return BadRequest(new { message = "ID mismatch between URL and body." });
             }
 
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 dto.CompanyId = companyId;
             }
 
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                dto.BranchId = branchIdClaim;
+                dto.BranchId = finalBranchId;
             }
 
             // 2. Command Create karna
@@ -251,18 +262,22 @@ namespace Inventory.API.Controllers
             if (dto == null || string.IsNullOrEmpty(dto.Status))
                 return BadRequest("Data sahi nahi hai");
 
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims or Headers
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
             var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
-
-            if (Guid.TryParse(companyIdClaim ?? companyIdHeader, out var companyId))
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
             {
                 dto.CompanyId = companyId;
             }
 
-            string? finalBranchId = !string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : (!string.IsNullOrEmpty(branchIdHeader) ? branchIdHeader : null);
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+            string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
             if (!string.IsNullOrEmpty(finalBranchId))
             {
                 dto.BranchId = finalBranchId;

@@ -145,17 +145,18 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
                 var dataRows = rows.Skip(1); 
 
                 // 2. Pre-fetch ALL Categories for lookup (Case-insensitive) by Name
-                var categories = await _context.Categories
+                var categoriesList = await _context.Categories
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .AsNoTracking()
-                    .ToDictionaryAsync(c => (c.CategoryName ?? "").ToLower().Trim(), c => c.Id);
+                    .ToListAsync();
+                var categories = categoriesList.GroupBy(c => (c.CategoryName ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
 
                 // 3. Pre-fetch existing Subcategories for Upsert logic (Update if exists, Insert if new)
                 // We don't use AsNoTracking() so we can update existing entities
                 var dbSubcategories = await _context.Subcategories
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
-                var dbSubcatsByCode = dbSubcategories.ToDictionary(s => (s.SubcategoryCode ?? "").ToLower().Trim(), s => s);
+                var dbSubcatsByCode = dbSubcategories.GroupBy(s => (s.SubcategoryCode ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
                 
                 // Track by name (active only)
                 var dbSubcatsByName = new Dictionary<string, Subcategory>();
@@ -245,3 +246,4 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
         return await query.AnyAsync();
     }
 }
+

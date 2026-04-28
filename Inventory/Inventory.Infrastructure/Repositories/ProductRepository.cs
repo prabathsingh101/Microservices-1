@@ -402,14 +402,19 @@ public sealed class ProductRepository : IProductRepository
                 var dataRows = rows.Skip(1);
 
                 // 2. Pre-fetch dependencies for faster lookup
-                var categories = await _db.Categories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().ToDictionaryAsync(c => (c.CategoryName ?? "").ToLower().Trim(), c => c.Id);
+                var categoriesList = await _db.Categories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().ToListAsync();
+                var categories = categoriesList.GroupBy(c => (c.CategoryName ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
+                
                 var subcats = await _db.Subcategories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().Select(s => new { s.Id, s.SubcategoryName, s.CategoryId }).ToListAsync();
-                var warehouses = await _db.Warehouses.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().ToDictionaryAsync(w => (w.Name ?? "").ToLower().Trim(), w => w.Id);
+                
+                var warehousesList = await _db.Warehouses.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().ToListAsync();
+                var warehouses = warehousesList.GroupBy(w => (w.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
+                
                 var racks = await _db.Racks.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().Select(r => new { r.Id, r.Name, r.WarehouseId }).ToListAsync();
                 
                 // 3. Pre-fetch existing products for Upsert logic
                 var dbProducts = await _db.Products.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).ToListAsync();
-                var dbProductsByName = dbProducts.ToDictionary(p => (p.Name ?? "").ToLower().Trim(), p => p);
+                var dbProductsByName = dbProducts.GroupBy(p => (p.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
                 
                 // For SKU lookup
                 var dbProductsBySku = new Dictionary<string, Product>();

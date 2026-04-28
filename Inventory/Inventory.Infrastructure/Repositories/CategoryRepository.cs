@@ -142,7 +142,7 @@ public sealed class CategoryRepository : ICategoryRepository
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
 
-                var dbCatsByCode = dbCategories.ToDictionary(c => c.CategoryCode?.ToLower().Trim() ?? "", c => c);
+                var dbCatsByCode = dbCategories.GroupBy(c => c.CategoryCode?.ToLower().Trim() ?? "").ToDictionary(g => g.Key, g => g.First());
                 
                 // Track by name as well (only for active ones to match existing logic)
                 var dbCatsByName = new Dictionary<string, Category>();

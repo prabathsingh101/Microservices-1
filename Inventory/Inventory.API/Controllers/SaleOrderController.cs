@@ -26,18 +26,25 @@ public class SaleOrderController : ControllerBase
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
     public async Task<IActionResult> Save([FromBody] CreateSaleOrderDto dto)
     {
-        // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
+        // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-
-        if (Guid.TryParse(companyIdClaim, out var companyId))
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+        
+        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
             dto.CompanyId = companyId;
         }
 
-        if (!string.IsNullOrEmpty(branchIdClaim))
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+
+        string? finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+            ? branchIdHeader 
+            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+        if (!string.IsNullOrEmpty(finalBranchId))
         {
-            dto.BranchId = branchIdClaim;
+            dto.BranchId = finalBranchId;
         }
 
         // 1. Mediator ab pura object return karega (Id aur SONumber)

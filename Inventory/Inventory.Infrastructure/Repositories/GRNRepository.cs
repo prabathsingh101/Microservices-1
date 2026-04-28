@@ -135,6 +135,10 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         header.SupplierId = po.SupplierId;
                         header.IsQuick = po.IsQuick; // Sync flag from PO to GRN
+                        if (string.IsNullOrEmpty(header.BranchId))
+                        {
+                            header.BranchId = po.BranchId;
+                        }
                     }
 
                     var productIds = details.Select(d => d.ProductId).Distinct().ToList();
@@ -680,6 +684,7 @@ namespace Inventory.Infrastructure.Repositories
                         {
                             GRNNumber = newGrnNumber,
                             CompanyId = request.CompanyId ?? Guid.Empty,
+                            BranchId = string.IsNullOrEmpty(request.BranchId) ? poHeader.BranchId : request.BranchId,
                             PurchaseOrderId = poId,
                             SupplierId = poHeader.SupplierId,
                             // Date from UI + Current Time from UTC
