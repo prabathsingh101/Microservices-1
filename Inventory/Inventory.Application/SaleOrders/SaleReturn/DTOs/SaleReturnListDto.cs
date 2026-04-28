@@ -5,6 +5,8 @@ public class SaleReturnListDto
     public DateTime ReturnDate { get; set; } //
     public Guid CustomerId { get; set; } // To fetch name from Microservice
     public string CustomerName { get; set; } = string.Empty; // Will be mapped in Service
+    public string ProductName { get; set; } = string.Empty; // Added for UI scannability
+    public decimal TotalQty { get; set; } // Added to prevent multiple UI detail calls
     public string SoRef { get; set; } = string.Empty; // SONumber from SaleOrders
     public decimal TotalAmount { get; set; } //
     public string Status { get; set; } = string.Empty; //

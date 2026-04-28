@@ -123,16 +123,42 @@ namespace Inventory.Infrastructure.Repositories
             if (pagedData == null || !pagedData.Any())
                 return new SaleReturnPagedResponse { Items = new List<SaleReturnListDto>(), TotalCount = totalCount };
 
-            // 8. Bulk Customer Name Enrichment
+            // Fetch Item details (ProductName and TotalQty)
+            var pagedIds = pagedData.Select(x => x.SaleReturnHeaderId).ToList();
+            var returnItemsList = await (from ri in _context.SaleReturnItems.AsNoTracking()
+                                         join p in _context.Products.AsNoTracking() on ri.ProductId equals p.Id
+                                         where pagedIds.Contains(ri.SaleReturnHeaderId) && ri.CompanyId == companyId
+                                         select new { ri.SaleReturnHeaderId, ri.ReturnQty, ProductName = p.Name })
+                                         .ToListAsync();
+
+            var itemLookup = returnItemsList
+                .GroupBy(x => x.SaleReturnHeaderId)
+                .ToDictionary(g => g.Key, g => new {
+                    TotalQty = g.Sum(i => i.ReturnQty),
+                    ProductName = g.Count() == 1 ? g.First().ProductName : (g.Count() > 1 ? "Multiple Items" : "N/A")
+                });
+
+            // 8. Bulk Customer Name Enrichment & Item Mapping
             var customerIds = pagedData.Select(i => i.CustomerId).Distinct().ToList();
-            if (customerIds.Any())
+            var customerMap = customerIds.Any() ? await _customerClient.GetCustomerNamesAsync(customerIds) : new Dictionary<Guid, string>();
+
+            foreach (var item in pagedData)
             {
-                var customerMap = await _customerClient.GetCustomerNamesAsync(customerIds);
-                foreach (var item in pagedData)
+                // Customer Name
+                item.CustomerName = customerMap != null && customerMap.ContainsKey(item.CustomerId)
+                                    ? customerMap[item.CustomerId]
+                                    : "Unknown Customer";
+                
+                // Product Info
+                if (itemLookup.ContainsKey(item.SaleReturnHeaderId))
                 {
-                    item.CustomerName = customerMap != null && customerMap.ContainsKey(item.CustomerId)
-                                        ? customerMap[item.CustomerId]
-                                        : "Unknown Customer";
+                    item.ProductName = itemLookup[item.SaleReturnHeaderId].ProductName;
+                    item.TotalQty = itemLookup[item.SaleReturnHeaderId].TotalQty;
+                }
+                else
+                {
+                    item.ProductName = "N/A";
+                    item.TotalQty = 0;
                 }
             }
 

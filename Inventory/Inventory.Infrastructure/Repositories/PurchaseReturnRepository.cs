@@ -397,16 +397,19 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
         var pagedIds = pagedData.Select(x => x.Id).ToList();
         
-        var grnDetailsList = await _context.PurchaseReturnItems
-            .AsNoTracking()
-            .Where(ri => pagedIds.Contains(ri.PurchaseReturnId) && ri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId))
-            .Select(ri => new { ri.PurchaseReturnId, ri.GrnRef })
-            .Distinct()
-            .ToListAsync();
+        var returnItemsList = await (from ri in _context.PurchaseReturnItems.AsNoTracking()
+                                     join p in _context.Products.AsNoTracking() on ri.ProductId equals p.Id
+                                     where pagedIds.Contains(ri.PurchaseReturnId) && ri.CompanyId == companyId
+                                     select new { ri.PurchaseReturnId, ri.GrnRef, ri.ReturnQty, ProductName = p.Name })
+                                     .ToListAsync();
 
-        var grnLookup = grnDetailsList
+        var itemLookup = returnItemsList
             .GroupBy(x => x.PurchaseReturnId)
-            .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(i => i.GrnRef).Distinct()));
+            .ToDictionary(g => g.Key, g => new {
+                GrnRefs = string.Join(", ", g.Select(i => i.GrnRef).Distinct()),
+                TotalQty = g.Sum(i => i.ReturnQty),
+                ProductName = g.Count() == 1 ? g.First().ProductName : (g.Count() > 1 ? "Multiple Items" : "N/A")
+            });
 
         var items = pagedData.Select(x => new PurchaseReturnListDto
         {
@@ -414,7 +417,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             ReturnNumber = x.ReturnNumber,
             ReturnDate = x.ReturnDate,
             SupplierName = supplierNames.GetValueOrDefault(x.SupplierId, "Unknown"),
-            GrnRef = grnLookup.GetValueOrDefault(x.Id, "N/A"),
+            ProductName = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].ProductName : "N/A",
+            TotalQty = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].TotalQty : 0,
+            GrnRef = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].GrnRefs : "N/A",
             TotalAmount = x.GrandTotal,
             Status = "Completed",
             GatePassNo = x.GatePassNo,

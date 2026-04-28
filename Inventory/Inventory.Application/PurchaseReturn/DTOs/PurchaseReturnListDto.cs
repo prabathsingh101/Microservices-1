@@ -5,6 +5,8 @@ public class PurchaseReturnListDto
     public string ReturnNumber { get; set; } = string.Empty; // PR-20260204...
     public DateTime ReturnDate { get; set; }
     public string SupplierName { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty; // Added for UI scannability
+    public decimal TotalQty { get; set; } // Added to prevent multiple UI detail calls
     public string GrnRef { get; set; } = string.Empty; // Multiple references ho toh comma-separated
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Completed";
