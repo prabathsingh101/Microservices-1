@@ -120,6 +120,8 @@ namespace Inventory.Infrastructure.Repositories
                         ))
                     )) ? x.RejectedQty : 0),
                     AvailableStock = group.Sum(x => x.ReceivedQty - x.RejectedQty),
+                    IsAlreadyPurged = group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0,
+                    PurgedDate = (group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0) ? group.Max(x => x.ModifiedOn) : null,
                     LastRate = group.OrderByDescending(x => x.Id).Select(x => x.UnitRate).FirstOrDefault(),
                     LastPurchaseOrderId = group.OrderByDescending(x => x.Id).Select(x => x.GRNHeader.PurchaseOrderId).FirstOrDefault()
                 });
@@ -187,6 +189,15 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(pri => pri.CompanyId == companyId && pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
                     .SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
 
+                // 🚀 TRANSFER CALCULATION
+                var transferredOut = await _context.StockTransferDetails
+                    .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
+                    .SumAsync(td => (decimal?)td.Quantity) ?? 0;
+
+                var transferredIn = await _context.StockTransferDetails
+                    .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
+                    .SumAsync(td => (decimal?)td.Quantity) ?? 0;
+
                 var unlinkedSales = await salesQuery
                     .Where(si => (si.WarehouseId == null || si.RackId == null) && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed"))
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
@@ -200,7 +211,7 @@ namespace Inventory.Infrastructure.Repositories
 
                 item.TotalSold = grossSold + adjustment - totalSaleReturn;
                 item.TotalReturned = totalPurchaseReturn;
-                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalPurchaseReturn;
+                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalPurchaseReturn - transferredOut + transferredIn;
 
                 var earliestBatch = await grnQuery
                     .Where(g => g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
@@ -230,7 +241,28 @@ namespace Inventory.Infrastructure.Repositories
                         TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
                         ProductName = allG.Product.Name,
                         ReceivedQty = allG.ReceivedQty,
-                        RejectedQty = allG.RejectedQty,
+                        ExpiredQty = (allG.Rack != null && (
+                            allG.Rack.Name.ToLower().Contains("e1") || 
+                            allG.Rack.Name.ToLower().StartsWith("e -") || 
+                            allG.Rack.Name.ToLower().StartsWith("e-") ||
+                            (allG.Rack.Description != null && (
+                                allG.Rack.Description.ToLower().Contains("expired") || 
+                                allG.Rack.Description.ToLower().Contains("damaged") || 
+                                allG.Rack.Description.ToLower().Contains("rejected") ||
+                                allG.Rack.Description.ToLower().Contains("purged")
+                            ))
+                        )) ? allG.RejectedQty : 0,
+                        RejectedQty = (allG.Rack != null && (
+                            allG.Rack.Name.ToLower().Contains("e1") || 
+                            allG.Rack.Name.ToLower().StartsWith("e -") || 
+                            allG.Rack.Name.ToLower().StartsWith("e-") ||
+                            (allG.Rack.Description != null && (
+                                allG.Rack.Description.ToLower().Contains("expired") || 
+                                allG.Rack.Description.ToLower().Contains("damaged") || 
+                                allG.Rack.Description.ToLower().Contains("rejected") ||
+                                allG.Rack.Description.ToLower().Contains("purged")
+                            ))
+                        )) ? 0 : allG.RejectedQty,
                         ManufacturingDate = allG.MfgDate,
                         ExpiryDate = allG.ExpDate,
                         IsExpiryRequired = allG.Product.IsExpiryRequired,
@@ -240,7 +272,8 @@ namespace Inventory.Infrastructure.Repositories
                         CurrentStock = item.AvailableStock, // Using overall item stock for context
                         TotalReturned = totalPurchaseReturn,
                         BranchId = allG.BranchId,
-                        BranchName = allG.BranchId // Replace with join if needed
+                        BranchName = allG.BranchId, // Replace with join if needed
+                        IsAlreadyPurged = allG.ReceivedQty == 0 && allG.RejectedQty == 0
                     })
                     .OrderBy(h => h.ReceivedDate)
                     .ToListAsync();
@@ -285,7 +318,22 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<StockPagedResponseDto> GetDisposedStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize, DateTime? startDate, DateTime? endDate, Guid? warehouseId = null, Guid? rackId = null)
         {
-            return new StockPagedResponseDto { Items = new List<StockSummaryDto>(), TotalCount = 0 };
+            // Disposed stock is essentially current stock with showPurged=true
+            // but we filter it to only show items that have actual rejected or expired quantities
+            var stockData = await GetCurrentStockAsync(search, sortField, sortOrder, 0, 1000, startDate, endDate, warehouseId, rackId, true);
+            
+            var disposedItems = stockData.Items
+                .Where(x => x.TotalRejected > 0 || x.TotalExpired > 0)
+                .ToList();
+
+            var totalCount = disposedItems.Count;
+            var pagedItems = disposedItems.Skip(pageIndex * pageSize).Take(pageSize).ToList();
+
+            return new StockPagedResponseDto 
+            { 
+                Items = pagedItems, 
+                TotalCount = totalCount 
+            };
         }
 
         public async Task<byte[]> GenerateStockExcel(List<Guid> productIds)

@@ -42,5 +42,16 @@ namespace Inventory.Application.Common.Interfaces
             int pageSize,
             Guid? productId = null,
             Guid? warehouseId = null);
+
+        Task<StockPagedResponseDto> GetDisposedStockAsync(
+            string? search,
+            string? sortField,
+            string? sortOrder,
+            int pageIndex,
+            int pageSize,
+            DateTime? startDate,
+            DateTime? endDate,
+            Guid? warehouseId = null,
+            Guid? rackId = null);
     }
 }

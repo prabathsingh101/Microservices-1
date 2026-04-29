@@ -127,5 +127,22 @@ namespace Inventory.API.Controllers
             var result = await _stockRepo.GetWarehouseStockAsync(search, sortField, sortOrder, pageIndex, pageSize, productId, warehouseId);
             return Ok(result);
         }
+
+        [HttpGet("disposed-stock")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        public async Task<IActionResult> GetDisposedStock(
+           [FromQuery] string? search,
+           [FromQuery] string? sortField,
+           [FromQuery] string? sortOrder,
+           [FromQuery] DateTime? startDate,
+           [FromQuery] DateTime? endDate,
+           [FromQuery] Guid? warehouseId,
+           [FromQuery] Guid? rackId,
+           [FromQuery] int pageIndex = 0,
+           [FromQuery] int pageSize = 10)
+        {
+            var result = await _stockRepo.GetDisposedStockAsync(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId);
+            return Ok(result);
+        }
     }
 }
