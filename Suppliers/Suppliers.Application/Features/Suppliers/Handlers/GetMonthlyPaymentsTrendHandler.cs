@@ -19,7 +19,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
 
         public async Task<List<MonthlyTrendDto>> Handle(GetMonthlyPaymentsTrendQuery request, CancellationToken cancellationToken)
         {
-            return await _repository.GetMonthlyTrendAsync(request.Months);
+            return await _repository.GetMonthlyTrendAsync(request.Months, request.BranchId);
         }
     }
 }

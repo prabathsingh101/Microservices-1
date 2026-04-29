@@ -18,6 +18,7 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public DateTime? ToDate { get; set; }
 
         public bool IsQuick { get; set; }
+        public string? BranchId { get; set; }
         public List<FilterDto>? Filters { get; set; }
     }
 }

@@ -20,16 +20,19 @@ public class ExpenseEntriesController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> GetList([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetList([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50, [FromQuery] string search = "", [FromQuery] string? branchId = null)
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+        var branchIdClaim = User.FindFirst("BranchId")?.Value;
 
-        string? branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
-            ? branchIdHeader 
-            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+        // Priority: Query Param -> Header -> Claim
+        string? finalBranchId = !string.IsNullOrEmpty(branchId) 
+            ? branchId 
+            : (!string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null));
 
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
@@ -37,7 +40,7 @@ public class ExpenseEntriesController : ControllerBase
 
         if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
-            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            query = query.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(finalBranchId) || x.BranchId == finalBranchId));
         }
 
         if (!string.IsNullOrEmpty(search))
@@ -176,20 +179,29 @@ public class ExpenseEntriesController : ControllerBase
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
-
-        string? branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
-            ? branchIdHeader 
-            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+        
+        Guid companyId;
+        if (!Guid.TryParse(companyIdHeader, out companyId) && !Guid.TryParse(companyIdClaim, out companyId))
+        {
+            return BadRequest("CompanyId is required.");
+        }
 
         var query = _context.ExpenseEntries
             .Include(x => x.Category)
+            .Where(x => x.CompanyId == companyId)
             .AsQueryable();
 
-        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
+        // Priority: Filter -> Header -> Claim
+        string? branchId = filters.BranchId;
+        if (string.IsNullOrEmpty(branchId)) {
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+            branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" ? branchIdHeader : branchIdClaim;
+        }
+
+        if (!string.IsNullOrEmpty(branchId))
         {
-            query = query.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            query = query.Where(x => x.BranchId == branchId);
         }
 
         if (filters.StartDate.HasValue)
@@ -212,30 +224,32 @@ public class ExpenseEntriesController : ControllerBase
 
     [HttpGet("monthly-totals")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-    public async Task<IActionResult> GetMonthlyTotals([FromQuery] int months = 6)
+    public async Task<IActionResult> GetMonthlyTotals([FromQuery] int months = 6, [FromQuery] string? branchId = null)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
-        Guid? companyId = null;
-        if (Guid.TryParse(companyIdHeader, out var cidH)) companyId = cidH;
-        else if (Guid.TryParse(companyIdClaim, out var cidC)) companyId = cidC;
+        Guid companyId;
+        if (!Guid.TryParse(companyIdHeader, out companyId) && !Guid.TryParse(companyIdClaim, out companyId))
+        {
+             return BadRequest("CompanyId is required.");
+        }
 
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-        var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
-        string? branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
-            ? branchIdHeader 
-            : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+        if (string.IsNullOrEmpty(branchId)) {
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+            branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" ? branchIdHeader : branchIdClaim;
+        }
 
         var startDate = DateTime.Today.AddMonths(-(months - 1));
         startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
-        var expenseQuery = _context.ExpenseEntries.AsQueryable();
-        var purchaseQuery = _context.PurchaseOrders.AsQueryable();
+        var expenseQuery = _context.ExpenseEntries.Where(x => x.CompanyId == companyId).AsQueryable();
+        var purchaseQuery = _context.PurchaseOrders.Where(x => x.CompanyId == companyId).AsQueryable();
 
-        if (companyId.HasValue)
+        if (!string.IsNullOrEmpty(branchId))
         {
-            expenseQuery = expenseQuery.Where(x => x.CompanyId == companyId.Value && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
-            purchaseQuery = purchaseQuery.Where(x => x.CompanyId == companyId.Value && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            expenseQuery = expenseQuery.Where(x => x.BranchId == branchId);
+            purchaseQuery = purchaseQuery.Where(x => x.BranchId == branchId);
         }
 
         var expenseData = await expenseQuery
@@ -276,4 +290,5 @@ public class DashboardFilter
 {
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public string? BranchId { get; set; }
 }

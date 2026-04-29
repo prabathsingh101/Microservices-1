@@ -188,15 +188,30 @@ public class SaleOrderRepository : ISaleOrderRepository
      int pageSize,
      string sortBy,
      string sortOrder,
-     bool isQuick = false)
+     bool isQuick = false,
+     DateTime? startDate = null,
+     DateTime? endDate = null,
+     string? branchId = null)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
+        var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
+
         // 1. Optimized Base Query
         var query = _context.SaleOrders
             .AsNoTracking()
-            .Where(o => o.CompanyId == companyId && o.IsQuick == isQuick && (string.IsNullOrEmpty(branchId) || o.BranchId == branchId))
+            .Where(o => o.CompanyId == companyId && o.IsQuick == isQuick && (string.IsNullOrEmpty(finalBranchId) || o.BranchId == finalBranchId))
             .AsQueryable();
+
+        // 2. Date Range Filter
+        if (startDate.HasValue)
+        {
+            query = query.Where(o => o.SODate >= startDate.Value);
+        }
+        if (endDate.HasValue)
+        {
+            var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
+            query = query.Where(o => o.SODate <= endOfDay);
+        }
 
         // 2. Searching logic [cite: 2026-02-03]
         if (!string.IsNullOrEmpty(searchTerm))

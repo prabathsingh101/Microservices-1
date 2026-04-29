@@ -11,5 +11,6 @@ public record GetCurrentStockCommand(
     DateTime? EndDate,    // Added
     Guid? WarehouseId = null,
     Guid? RackId = null,
-    bool ShowPurged = false
+    bool ShowPurged = false,
+    string? BranchId = null
 ) : IRequest<StockPagedResponseDto>;

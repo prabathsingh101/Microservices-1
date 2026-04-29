@@ -12,7 +12,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
 
         public async Task<decimal> Handle(GetTotalPendingDuesQuery request, CancellationToken cancellationToken)
         {
-            return await _repository.GetTotalPendingDuesAsync();
+            return await _repository.GetTotalPendingDuesAsync(request.BranchId, request.CompanyId);
         }
     }
 }

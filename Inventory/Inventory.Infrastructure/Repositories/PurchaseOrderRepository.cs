@@ -132,7 +132,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     public async Task<(IEnumerable<PurchaseOrder> Data, int Total, decimal TotalAmount, int TodayCount, int MonthCount)> GetDateRangePagedOrdersAsync(GetPurchaseOrdersRequest request)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
+        var branchId = !string.IsNullOrEmpty(request.BranchId) ? request.BranchId : _currentUserService.BranchId;
+
         // STEP 1: Base Query - AsNoTracking use karein fast read ke liye
         var query = _context.PurchaseOrders
             .AsNoTracking()

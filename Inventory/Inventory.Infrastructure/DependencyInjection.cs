@@ -43,6 +43,7 @@ namespace Inventory.Infrastructure
             services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
             services.AddScoped<IGRNRepository, GRNRepository>();
             services.AddScoped<IStockRepository, StockRepository>();
+            services.AddScoped<IStockTransferRepository, StockTransferRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ISaleOrderRepository, SaleOrderRepository>();
 

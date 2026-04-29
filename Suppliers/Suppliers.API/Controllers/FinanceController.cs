@@ -89,15 +89,19 @@ namespace Suppliers.API.Controllers
 
         [HttpGet("pending-total")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetPendingTotal()
+        public async Task<IActionResult> GetPendingTotal([FromQuery] string? branchId = null, [FromQuery] string? companyId = null)
         {
-            var total = await _mediator.Send(new GetTotalPendingDuesQuery());
-            return Ok(new { TotalPending = total });
+            var result = await _mediator.Send(new GetTotalPendingDuesQuery(branchId, companyId));
+            return Ok(new { TotalPending = result });
         }
 
         [HttpPost("total-payments")]
         public async Task<IActionResult> GetTotalPayments([FromBody] DateRangeDto dateRange)
         {
+            // If branchId is not in body, try headers
+            if (string.IsNullOrEmpty(dateRange.BranchId)) {
+                dateRange.BranchId = Request.Headers["X-Branch-Id"].ToString();
+            }
             var totalPayments = await _mediator.Send(new GetTotalPaymentsQuery(dateRange));
             return Ok(new { TotalPayments = totalPayments });
         }
@@ -124,9 +128,9 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpGet("monthly-payments")]
-        public async Task<IActionResult> GetMonthlyPayments([FromQuery] int months = 6)
+        public async Task<IActionResult> GetMonthlyPayments([FromQuery] int months = 6, [FromQuery] string? branchId = null)
         {
-            var result = await _mediator.Send(new GetMonthlyPaymentsTrendQuery(months));
+            var result = await _mediator.Send(new GetMonthlyPaymentsTrendQuery(months, branchId));
             return Ok(result);
         }
     }

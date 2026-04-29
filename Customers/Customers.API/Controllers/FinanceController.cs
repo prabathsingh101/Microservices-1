@@ -68,34 +68,34 @@ namespace Customers.API.Controllers
         }
 
         [HttpGet("outstanding-total")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetOutstandingTotal()
+        public async Task<IActionResult> GetOutstandingTotal([FromQuery] string? branchId = null, [FromQuery] string? companyId = null)
         {
-            var total = await _mediator.Send(new GetTotalOutstandingQuery());
+            var total = await _mediator.Send(new GetTotalOutstandingQuery(branchId, companyId));
             return Ok(new { TotalOutstanding = total });
         }
 
         [HttpGet("pending-dues")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
-        public async Task<IActionResult> GetPendingDues()
+        public async Task<IActionResult> GetPendingDues([FromQuery] string? branchId = null)
         {
-            var result = await _mediator.Send(new GetPendingDuesQuery());
+            var result = await _mediator.Send(new GetPendingDuesQuery(branchId));
             return Ok(result);
         }
 
         // 4. Total Receipts (For P&L)
         [HttpPost("total-receipts")]
-        //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse")]
         public async Task<IActionResult> GetTotalReceipts([FromBody] DateRangeDto dateRange)
         {
+            if (string.IsNullOrEmpty(dateRange.BranchId)) {
+                dateRange.BranchId = Request.Headers["X-Branch-Id"].ToString();
+            }
             var total = await _mediator.Send(new GetTotalReceiptsQuery(dateRange));
             return Ok(new { TotalReceipts = total });
         }
 
         [HttpGet("monthly-receipts")]
-        public async Task<IActionResult> GetMonthlyReceipts([FromQuery] int months = 6)
+        public async Task<IActionResult> GetMonthlyReceipts([FromQuery] int months = 6, [FromQuery] string? branchId = null)
         {
-            var result = await _mediator.Send(new GetMonthlyReceiptsTrendQuery(months));
+            var result = await _mediator.Send(new GetMonthlyReceiptsTrendQuery(months, branchId));
             return Ok(result);
         }
 

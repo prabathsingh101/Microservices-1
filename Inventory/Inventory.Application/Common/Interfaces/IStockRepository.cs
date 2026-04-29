@@ -18,20 +18,10 @@ namespace Inventory.Application.Common.Interfaces
             DateTime? endDate,
             Guid? warehouseId = null,
             Guid? rackId = null,
-            bool showPurged = false
+            bool showPurged = false,
+            string? branchId = null
         );
 
-        Task<StockPagedResponseDto> GetDisposedStockAsync(
-            string? search,
-            string? sortField,
-            string? sortOrder,
-            int pageIndex,
-            int pageSize,
-            DateTime? startDate,
-            DateTime? endDate,
-            Guid? warehouseId = null,
-            Guid? rackId = null
-        );
 
         Task<StockRefillDetailsDto> GetRefillDetailsAsync(Guid productId);
 
@@ -49,6 +39,8 @@ namespace Inventory.Application.Common.Interfaces
             string? sortField,
             string? sortOrder,
             int pageIndex,
-            int pageSize);
+            int pageSize,
+            Guid? productId = null,
+            Guid? warehouseId = null);
     }
 }

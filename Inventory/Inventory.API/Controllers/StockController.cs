@@ -35,9 +35,10 @@ namespace Inventory.API.Controllers
            [FromQuery] Guid? rackId,
            [FromQuery] bool showPurged = false,
            [FromQuery] int pageIndex = 0,
-           [FromQuery] int pageSize = 10)
+           [FromQuery] int pageSize = 10,
+           [FromQuery] string? branchId = null)
         {
-            var command = new GetCurrentStockCommand(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId, showPurged);
+            var command = new GetCurrentStockCommand(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId, showPurged, branchId);
             var result = await _mediator.Send(command);
             return Ok(result);
         }
@@ -90,22 +91,6 @@ namespace Inventory.API.Controllers
             }
         }
 
-        [HttpGet("disposed-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetDisposedStock(
-           [FromQuery] string? search,
-           [FromQuery] string? sortField,
-           [FromQuery] string? sortOrder,
-           [FromQuery] DateTime? startDate,
-           [FromQuery] DateTime? endDate,
-           [FromQuery] Guid? warehouseId,
-           [FromQuery] Guid? rackId,
-           [FromQuery] int pageIndex = 0,
-           [FromQuery] int pageSize = 10)
-        {
-            var result = await _stockRepo.GetDisposedStockAsync(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId);
-            return Ok(result);
-        }
 
         [HttpGet("batch-history")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
@@ -135,9 +120,11 @@ namespace Inventory.API.Controllers
            [FromQuery] string? sortField,
            [FromQuery] string? sortOrder,
            [FromQuery] int pageIndex = 0,
-           [FromQuery] int pageSize = 10)
+           [FromQuery] int pageSize = 10,
+           [FromQuery] Guid? productId = null,
+           [FromQuery] Guid? warehouseId = null)
         {
-            var result = await _stockRepo.GetWarehouseStockAsync(search, sortField, sortOrder, pageIndex, pageSize);
+            var result = await _stockRepo.GetWarehouseStockAsync(search, sortField, sortOrder, pageIndex, pageSize, productId, warehouseId);
             return Ok(result);
         }
     }

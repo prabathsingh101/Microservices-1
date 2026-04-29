@@ -7,8 +7,8 @@ namespace Customers.Application.Features.Finance.Queries
     public record GetCustomerLedgerQuery(CustomerLedgerRequestDto Request) : IRequest<CustomerLedgerPagedResultDto>;
     public record GetOutstandingQuery(OutstandingRequestDto Request) : IRequest<OutstandingPagedResultDto>;
     public record GetTotalReceiptsQuery(DateRangeDto DateRange) : IRequest<decimal>;
-    public record GetTotalOutstandingQuery() : IRequest<decimal>;
-    public record GetPendingDuesQuery() : IRequest<List<OutstandingDto>>;
-    public record GetMonthlyReceiptsTrendQuery(int Months) : IRequest<List<MonthlyTrendDto>>;
+    public record GetTotalOutstandingQuery(string? BranchId = null, string? CompanyId = null) : IRequest<decimal>;
+    public record GetPendingDuesQuery(string? BranchId = null, string? CompanyId = null) : IRequest<List<OutstandingDto>>;
+    public record GetMonthlyReceiptsTrendQuery(int Months, string? BranchId = null, string? CompanyId = null) : IRequest<List<MonthlyTrendDto>>;
     public record GetReceiptsReportQuery(ReceiptReportRequestDto Request) : IRequest<PaginatedListDto<ReceiptReportDto>>;
 }

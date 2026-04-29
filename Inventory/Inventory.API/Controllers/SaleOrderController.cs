@@ -111,7 +111,10 @@ public class SaleOrderController : ControllerBase
      [FromQuery] int pageSize = 10,
      [FromQuery] string sortBy = "SODate",
      [FromQuery] string sortOrder = "desc",
-     [FromQuery] bool isQuick = false)
+     [FromQuery] bool isQuick = false,
+     [FromQuery] DateTime? startDate = null,
+     [FromQuery] DateTime? endDate = null,
+     [FromQuery] string? branchId = null)
     {
         // 1. Repository method call with parameters [cite: 2026-02-03]
         var (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount, todayCount, monthCount) = await _saleRepo.GetAllSaleOrdersAsync(
@@ -120,7 +123,10 @@ public class SaleOrderController : ControllerBase
             pageSize,
             sortBy,
             sortOrder,
-            isQuick
+            isQuick,
+            startDate,
+            endDate,
+            branchId
         );
 
         // 2. Return data along with total count and global stats for frontend

@@ -50,6 +50,8 @@ public sealed class InventoryDbContext : DbContext,
     public DbSet<Rack> Racks => Set<Rack>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
     public DbSet<WarehouseStock> WarehouseStocks => Set<WarehouseStock>();
+    public DbSet<StockTransferHeader> StockTransferHeaders => Set<StockTransferHeader>();
+    public DbSet<StockTransferDetail> StockTransferDetails => Set<StockTransferDetail>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -277,13 +279,16 @@ public sealed class InventoryDbContext : DbContext,
         if (entityName == "Warehouse" || entityName == "Rack")
         {
             modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-                e.CompanyId == _currentUserService.CompanyId);
+                e.CompanyId == _currentUserService.CompanyId &&
+                (_currentUserService.IsSuperAdmin || e.BranchId == null || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
         }
         else
         {
+            // 🚀 SUPER ADMIN BYPASS: If Super Admin, they see everything in the company
+            // Otherwise, they only see data for the selected branch (if a branch is selected)
             modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
                 e.CompanyId == _currentUserService.CompanyId &&
-                (e.BranchId == null || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+                (_currentUserService.IsSuperAdmin || e.BranchId == null || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
         }
     }
 

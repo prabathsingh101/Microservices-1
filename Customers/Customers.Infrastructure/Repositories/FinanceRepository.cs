@@ -206,43 +206,64 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<decimal> GetTotalReceiptsAsync(DateRangeDto dateRange)
         {
+            Guid? branchGuid = null;
+            if (Guid.TryParse(dateRange.BranchId, out var bg)) branchGuid = bg;
+            else branchGuid = _branchId;
+
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
+
             return await _context.CustomerReceipts
-                .Where(r => r.ReceiptDate >= dateRange.StartDate && r.ReceiptDate <= dateRange.EndDate && r.CompanyId == _companyId && (r.BranchId == null || !_branchId.HasValue || r.BranchId == _branchId))
+                .Where(r => r.ReceiptDate >= dateRange.StartDate && r.ReceiptDate <= dateRange.EndDate && r.CompanyId == finalCompanyId && (r.BranchId == null || !branchGuid.HasValue || r.BranchId == branchGuid))
                 .SumAsync(r => r.Amount);
         }
 
-        public async Task<decimal> GetTotalOutstandingAsync()
+        public async Task<decimal> GetTotalOutstandingAsync(string? branchId = null, string? companyId = null)
         {
+            Guid? finalBranchId = null;
+            if (Guid.TryParse(branchId, out var bg)) finalBranchId = bg;
+            else finalBranchId = _branchId;
+
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
+
             var internalAccountNames = new[] { 
                 "Proprietor (Self / Capital Account)", 
                 "Company Bank Account (Internal)" 
             };
             
             var customerBalances = await _context.CustomerLedgers
-                .Where(l => l.CompanyId == _companyId && (l.BranchId == null || !_branchId.HasValue || l.BranchId == _branchId))
+                .Where(l => l.CompanyId == finalCompanyId && (l.BranchId == null || !finalBranchId.HasValue || l.BranchId == finalBranchId))
                 .Where(l => l.CreatedOn == _context.CustomerLedgers
-                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == _companyId && (inner.BranchId == null || !_branchId.HasValue || inner.BranchId == _branchId))
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == finalCompanyId && (inner.BranchId == null || !finalBranchId.HasValue || inner.BranchId == finalBranchId))
                     .Max(inner => inner.CreatedOn))
                 .Join(_context.Customers, l => l.CustomerId, c => c.Id, (l, c) => new { l, c })
-                .Where(x => !internalAccountNames.Contains(x.c.CustomerName!) && x.c.CompanyId == _companyId && (x.c.BranchId == null || !_branchId.HasValue || x.c.BranchId == _branchId))
+                .Where(x => !internalAccountNames.Contains(x.c.CustomerName!) && x.c.CompanyId == finalCompanyId && (x.c.BranchId == null || !finalBranchId.HasValue || x.c.BranchId == finalBranchId))
                 .Select(x => x.l.Balance)
                 .ToListAsync();
 
             return customerBalances.Where(b => b > 0).Sum();
         }
 
-        public async Task<List<OutstandingDto>> GetPendingDuesAsync()
+        public async Task<List<OutstandingDto>> GetPendingDuesAsync(string? branchId = null, string? companyId = null)
         {
+            Guid? finalBranchId = null;
+            if (Guid.TryParse(branchId, out var bg)) finalBranchId = bg;
+            else finalBranchId = _branchId;
+
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
+
             var latestEntries = await _context.CustomerLedgers
-                .Where(l => l.CompanyId == _companyId && (l.BranchId == null || !_branchId.HasValue || l.BranchId == _branchId))
+                .Where(l => l.CompanyId == finalCompanyId && (l.BranchId == null || !finalBranchId.HasValue || l.BranchId == finalBranchId))
                 .Where(l => l.CreatedOn == _context.CustomerLedgers
-                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == _companyId && (inner.BranchId == null || !_branchId.HasValue || inner.BranchId == _branchId))
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == finalCompanyId && (inner.BranchId == null || !finalBranchId.HasValue || inner.BranchId == finalBranchId))
                     .Max(inner => inner.CreatedOn))
                 .Where(l => l.Balance > 0)
                 .ToListAsync();
 
             var customerIds = latestEntries.Select(d => d.CustomerId).ToList();
-            var customers = await _context.Customers.Where(c => customerIds.Contains(c.Id) && (c.BranchId == null || !_branchId.HasValue || c.BranchId == _branchId)).ToListAsync();
+            var customers = await _context.Customers.Where(c => customerIds.Contains(c.Id) && (c.BranchId == null || !finalBranchId.HasValue || c.BranchId == finalBranchId)).ToListAsync();
 
             return latestEntries.Select(l => {
                 var c = customers.FirstOrDefault(c => c.Id == l.CustomerId);
@@ -259,13 +280,20 @@ namespace Customers.Infrastructure.Repositories
             }).ToList();
         }
 
-        public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months)
+        public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null)
         {
+            Guid? finalBranchId = null;
+            if (Guid.TryParse(branchId, out var bg)) finalBranchId = bg;
+            else finalBranchId = _branchId;
+
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
+
             var startDate = DateTime.Now.AddMonths(-(months - 1));
             startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
             var receipts = await _context.CustomerReceipts
-                .Where(r => r.ReceiptDate >= startDate && r.CompanyId == _companyId && (r.BranchId == null || !_branchId.HasValue || r.BranchId == _branchId))
+                .Where(r => r.ReceiptDate >= startDate && r.CompanyId == finalCompanyId && (r.BranchId == null || !finalBranchId.HasValue || r.BranchId == finalBranchId))
                 .ToListAsync();
 
             return receipts
@@ -300,7 +328,11 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task<PaginatedListDto<ReceiptReportDto>> GetReceiptsReportAsync(ReceiptReportRequestDto request)
         {
-            var query = _context.CustomerReceipts.Where(r => r.CompanyId == _companyId && (r.BranchId == null || !_branchId.HasValue || r.BranchId == _branchId)).AsQueryable();
+            Guid? branchGuid = null;
+            if (Guid.TryParse(request.BranchId, out var bg)) branchGuid = bg;
+            else branchGuid = _branchId;
+
+            var query = _context.CustomerReceipts.Where(r => r.CompanyId == _companyId && (r.BranchId == null || !branchGuid.HasValue || r.BranchId == branchGuid)).AsQueryable();
 
             query = query.Where(r => r.ReceiptDate >= request.StartDate && r.ReceiptDate <= request.EndDate);
 

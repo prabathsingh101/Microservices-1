@@ -38,10 +38,9 @@ public class RackRepository : IRackRepository
     public async Task<List<Rack>> GetAllAsync()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _context.Racks
             .Include(r => r.Warehouse)
-            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+            .Where(x => x.CompanyId == companyId)
             .AsNoTracking()
             .ToListAsync();
     }
@@ -49,9 +48,8 @@ public class RackRepository : IRackRepository
     public async Task<List<Rack>> GetByWarehouseIdAsync(Guid warehouseId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _context.Racks
-            .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || r.BranchId == branchId || r.BranchId == null))
+            .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId)
             .AsNoTracking()
             .ToListAsync();
     }
@@ -59,9 +57,8 @@ public class RackRepository : IRackRepository
     public async Task<Rack?> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _context.Racks
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
     public async Task<(int successCount, List<string> errors)> UploadRacksAsync(IFormFile file, Guid companyId, string? branchId = null)

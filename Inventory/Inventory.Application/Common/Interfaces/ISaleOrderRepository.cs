@@ -32,7 +32,10 @@ namespace Inventory.Application.Common.Interfaces
             int pageSize,
             string sortBy,
             string sortOrder,
-            bool isQuick = false);
+            bool isQuick = false,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string? branchId = null);
 
         Task<bool> UpdateSaleOrderStatusAsync(Guid id, string status);
 

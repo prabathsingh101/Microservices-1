@@ -53,15 +53,15 @@ public class IdentityDbContext : DbContext
         modelBuilder.Entity<Identity.Domain.Roles.Role>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
         modelBuilder.Entity<RolePermission>().HasQueryFilter(e => e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
         
-        // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId (if present in context)
+        // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId (unless Super Admin)
         modelBuilder.Entity<Identity.Domain.User>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
             
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
             
         modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
 
         base.OnModelCreating(modelBuilder);
     }

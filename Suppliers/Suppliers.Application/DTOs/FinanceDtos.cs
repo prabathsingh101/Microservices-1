@@ -39,12 +39,15 @@ namespace Suppliers.Application.DTOs
         public string? Status { get; set; }
         public DateTime DueDate { get; set; }
         public string? LastReferenceId { get; set; }
+        public decimal TotalAmount { get; set; }
     }
 
     public class DateRangeDto
     {
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
+        public string? BranchId { get; set; }
+        public string? CompanyId { get; set; }
     }
 
     public class SupplierPurchaseDto
@@ -79,6 +82,7 @@ namespace Suppliers.Application.DTOs
         public DateTime EndDate { get; set; }
         public Guid? SupplierId { get; set; }
         public string? SearchTerm { get; set; }
+        public string? BranchId { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public string SortBy { get; set; } = "PaymentDate";

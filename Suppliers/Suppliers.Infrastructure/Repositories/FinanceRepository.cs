@@ -120,12 +120,14 @@ namespace Suppliers.Infrastructure.Repositories
             };
         }
 
-        public async Task<List<PendingDueDto>> GetPendingDuesAsync()
+        public async Task<List<PendingDueDto>> GetPendingDuesAsync(string? branchId = null, string? companyId = null)
         {
-            // Fetch all ledger entries with balance > 0 to calculate pending dues
-            // We'll process the grouping and latest entry in-memory to avoid LINQ translation issues
+            var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _branchId;
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
+
             var allLedgerEntries = await _context.SupplierLedgers
-                .Where(l => l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(_branchId) || l.BranchId == _branchId))
+                .Where(l => l.CompanyId == finalCompanyId && (string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
                 .OrderByDescending(l => l.TransactionDate)
                 .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
@@ -135,18 +137,17 @@ namespace Suppliers.Infrastructure.Repositories
             var latestEntries = allLedgerEntries
                 .GroupBy(l => l.SupplierId)
                 .Select(g => g.First())
-                .Where(x => x.Balance > 0)
+                .Where(l => l.Balance > 0)
                 .ToList();
 
-            if (!latestEntries.Any()) return new List<PendingDueDto>();
-
             var supplierIds = latestEntries.Select(d => d.SupplierId).ToList();
-            var suppliers = await _context.Suppliers.Where(s => supplierIds.Contains(s.Id) && s.CompanyId == _companyId && (s.BranchId == null || string.IsNullOrEmpty(_branchId) || s.BranchId == _branchId)).ToListAsync();
+            var suppliers = await _context.Suppliers.Where(s => supplierIds.Contains(s.Id) && s.CompanyId == finalCompanyId).ToListAsync();
 
             return latestEntries.Select(d => new PendingDueDto
             {
                 SupplierId = d.SupplierId,
                 PendingAmount = d.Balance,
+                TotalAmount = d.Balance,
                 SupplierName = suppliers.FirstOrDefault(s => s.Id == d.SupplierId)?.Name ?? "Unknown",
                 Status = (d.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
                 DueDate = d.TransactionDate.AddDays(15),
@@ -156,8 +157,12 @@ namespace Suppliers.Infrastructure.Repositories
 
         public async Task<decimal> GetTotalPaymentsAsync(DateRangeDto dateRange)
         {
+            var branchId = !string.IsNullOrEmpty(dateRange.BranchId) ? dateRange.BranchId : _branchId;
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
+
             return await _context.SupplierPayments
-                .Where(p => p.PaymentDate >= dateRange.StartDate && p.PaymentDate <= dateRange.EndDate && p.CompanyId == _companyId && (p.BranchId == null || string.IsNullOrEmpty(_branchId) || p.BranchId == _branchId))
+                .Where(p => p.PaymentDate >= dateRange.StartDate && p.PaymentDate <= dateRange.EndDate && p.CompanyId == finalCompanyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId))
                 .SumAsync(p => p.Amount);
         }
 
@@ -197,11 +202,13 @@ namespace Suppliers.Infrastructure.Repositories
 
         public async Task<PaginatedListDto<PaymentReportDto>> GetPaymentsReportAsync(PaymentReportRequestDto request)
         {
+            var branchId = !string.IsNullOrEmpty(request.BranchId) ? request.BranchId : _branchId;
+
             var query = from p in _context.SupplierPayments
                         join s in _context.Suppliers on p.SupplierId equals s.Id
                         where p.CompanyId == _companyId && s.CompanyId == _companyId && 
-                              (p.BranchId == null || string.IsNullOrEmpty(_branchId) || p.BranchId == _branchId) &&
-                              (s.BranchId == null || string.IsNullOrEmpty(_branchId) || s.BranchId == _branchId)
+                              (string.IsNullOrEmpty(branchId) || p.BranchId == branchId) &&
+                              (string.IsNullOrEmpty(branchId) || s.BranchId == branchId)
                         select new { p, s };
 
             query = query.Where(x => x.p.PaymentDate >= request.StartDate && x.p.PaymentDate <= request.EndDate);
@@ -260,10 +267,14 @@ namespace Suppliers.Infrastructure.Repositories
             };
         }
 
-        public async Task<decimal> GetTotalPendingDuesAsync()
+        public async Task<decimal> GetTotalPendingDuesAsync(string? branchId = null, string? companyId = null)
         {
+            var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _branchId;
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
+
             var allLedgerEntries = await _context.SupplierLedgers
-                .Where(l => l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(_branchId) || l.BranchId == _branchId))
+                .Where(l => l.CompanyId == finalCompanyId && (string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
                 .OrderByDescending(l => l.TransactionDate)
                 .ThenByDescending(l => l.CreatedOn)
                 .ToListAsync();
@@ -296,13 +307,17 @@ namespace Suppliers.Infrastructure.Repositories
                 );
         }
 
-        public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months)
+        public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null)
         {
+            var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _branchId;
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
+
             var startDate = DateTime.Now.AddMonths(-(months - 1));
             startDate = new DateTime(startDate.Year, startDate.Month, 1);
 
             var payments = await _context.SupplierPayments
-                .Where(p => p.PaymentDate >= startDate && p.CompanyId == _companyId && (p.BranchId == null || string.IsNullOrEmpty(_branchId) || p.BranchId == _branchId))
+                .Where(p => p.PaymentDate >= startDate && p.CompanyId == finalCompanyId && (string.IsNullOrEmpty(finalBranchId) || p.BranchId == finalBranchId))
                 .ToListAsync();
 
             return payments

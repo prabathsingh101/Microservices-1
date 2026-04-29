@@ -19,7 +19,8 @@ public class GetCurrentStockHandler : IRequestHandler<GetCurrentStockCommand, St
             request.EndDate,
             request.WarehouseId,
             request.RackId,
-            request.ShowPurged
+            request.ShowPurged,
+            request.BranchId
         );
     }
 }

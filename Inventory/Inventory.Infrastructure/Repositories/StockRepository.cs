@@ -37,19 +37,20 @@ namespace Inventory.Infrastructure.Repositories
             DateTime? endDate = null,
             Guid? warehouseId = null,
             Guid? rackId = null,
-            bool showPurged = false)
+            bool showPurged = false,
+            string? branchId = null)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
+            var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
 
             // STEP 1: Base Query - Filtering by Company and Branch
             var baseQuery = _context.GRNDetails.AsNoTracking()
                 .Where(x => x.CompanyId == companyId)
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(branchId))
+            if (!string.IsNullOrEmpty(finalBranchId))
             {
-                baseQuery = baseQuery.Where(x => x.BranchId == branchId);
+                baseQuery = baseQuery.Where(x => x.BranchId == finalBranchId);
             }
 
             if (startDate.HasValue)
@@ -59,6 +60,8 @@ namespace Inventory.Infrastructure.Repositories
 
             if (warehouseId.HasValue && warehouseId.Value != Guid.Empty)
                 baseQuery = baseQuery.Where(x => x.WarehouseId == warehouseId.Value);
+            if (rackId.HasValue && rackId.Value != Guid.Empty)
+                baseQuery = baseQuery.Where(x => x.RackId == rackId.Value);
             if (rackId.HasValue && rackId.Value != Guid.Empty)
                 baseQuery = baseQuery.Where(x => x.RackId == rackId.Value);
 
@@ -344,7 +347,8 @@ namespace Inventory.Infrastructure.Repositories
             }
         }
 
-        public async Task<object> GetWarehouseStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize)
+
+        public async Task<object> GetWarehouseStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize, Guid? productId = null, Guid? warehouseId = null)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var branchId = _currentUserService.BranchId;
@@ -354,6 +358,16 @@ namespace Inventory.Infrastructure.Repositories
                 .Include(ws => ws.Warehouse)
                 .Where(ws => ws.CompanyId == companyId)
                 .AsQueryable();
+
+            if (productId.HasValue && productId != Guid.Empty)
+            {
+                query = query.Where(ws => ws.ProductId == productId);
+            }
+
+            if (warehouseId.HasValue && warehouseId != Guid.Empty)
+            {
+                query = query.Where(ws => ws.WarehouseId == warehouseId);
+            }
 
             if (!string.IsNullOrEmpty(branchId))
             {

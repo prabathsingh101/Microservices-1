@@ -90,6 +90,8 @@ namespace Customers.Application.DTOs
     {
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
+        public string? BranchId { get; set; }
+        public string? CompanyId { get; set; }
     }
 
     public class CustomerSaleDto
@@ -128,6 +130,7 @@ namespace Customers.Application.DTOs
         public DateTime EndDate { get; set; }
         public Guid? CustomerId { get; set; }
         public string? SearchTerm { get; set; }
+        public string? BranchId { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public string SortBy { get; set; } = "ReceiptDate";

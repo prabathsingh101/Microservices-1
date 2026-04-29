@@ -17,7 +17,7 @@ namespace Customers.Application.Features.Finance.Handlers
 
         public async Task<decimal> Handle(GetTotalOutstandingQuery request, CancellationToken cancellationToken)
         {
-            return await _repository.GetTotalOutstandingAsync();
+            return await _repository.GetTotalOutstandingAsync(request.BranchId, request.CompanyId);
         }
     }
 }
