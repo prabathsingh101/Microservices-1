@@ -91,6 +91,10 @@ namespace Inventory.Infrastructure.Repositories
                     Sku = g.Product.Sku,
                     GstPercent = g.Product.DefaultGst ?? 0,
                     IsExpiryRequired = g.Product.IsExpiryRequired,
+                    MRP = g.Product.MRP,
+                    Discount = g.Product.Discount,
+                    SaleRate = g.Product.SaleRate ?? 0,
+                    BasePurchasePrice = g.Product.BasePurchasePrice,
                     BranchId = g.BranchId
                 })
                 .Select(group => new StockSummaryDto
@@ -106,6 +110,10 @@ namespace Inventory.Infrastructure.Repositories
                     Sku = group.Key.Sku,
                     GstPercent = group.Key.GstPercent,
                     IsExpiryRequired = group.Key.IsExpiryRequired,
+                    MRP = group.Key.MRP,
+                    Discount = group.Key.Discount,
+                    SaleRate = group.Key.SaleRate,
+                    BasePurchasePrice = group.Key.BasePurchasePrice,
                     BranchId = group.Key.BranchId,
                     TotalReceived = group.Sum(x => x.ReceivedQty),
                     TotalRejected = group.Sum(x => (x.GRN != null && x.GRN.Rack != null && (
@@ -199,6 +207,19 @@ namespace Inventory.Infrastructure.Repositories
                 var totalPurchaseReturn = await _context.PurchaseReturnItems
                     .Where(pri => pri.CompanyId == companyId && pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
                     .SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
+
+                var itemTransactions = await _context.InventoryTransactions
+                    .Where(tx => tx.CompanyId == companyId && tx.ProductId == item.ProductId && tx.WarehouseId == item.WarehouseId && tx.RackId == item.RackId)
+                    .ToListAsync();
+
+                var totalPurged = itemTransactions
+                    .Where(tx => tx.TransactionType == "StockPurge-OUT")
+                    .Sum(tx => tx.Quantity);
+
+                if (item.IsAlreadyPurged && totalPurged > 0)
+                {
+                    item.TotalExpired = totalPurged;
+                }
 
                 // 🚀 TRANSFER CALCULATION
                 var transferredOut = await _context.StockTransferDetails
@@ -307,7 +328,8 @@ namespace Inventory.Infrastructure.Repositories
                         WarehouseName = td.StockTransferHeader.FromWarehouse.Name, // 🎯 Source Warehouse
                         RackName = "Transferred In",
                         BranchId = td.StockTransferHeader.FromWarehouse.BranchId, // 🎯 Source Branch ID
-                        BranchName = td.StockTransferHeader.FromWarehouse.BranchId, // 🎯 Source Branch Name (assumed stored in BranchId)
+                        BranchName = td.StockTransferHeader.FromWarehouse.BranchId, // 🎯 Source Branch Name
+                        IsExpiryRequired = _context.Products.Where(p => p.Id == td.ProductId).Select(p => p.IsExpiryRequired).FirstOrDefault(),
                         ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
                         ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
                         CurrentStock = item.AvailableStock
@@ -366,6 +388,14 @@ namespace Inventory.Infrastructure.Repositories
                         h.SoldQty = toSold;
                         netRecv -= toSold;
                         remainingSold -= toSold;
+                    }
+
+                    if (h.IsAlreadyPurged)
+                    {
+                        var batchPurged = itemTransactions
+                            .Where(tx => tx.TransactionType == "StockPurge-OUT" && tx.ExpDate?.Date == h.ExpiryDate?.Date)
+                            .Sum(tx => tx.Quantity);
+                        h.ExpiredQty = batchPurged;
                     }
 
                     h.AvailableQty = netRecv;

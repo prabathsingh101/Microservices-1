@@ -466,7 +466,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.PriceListItems.AsNoTracking()
-            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || pi.BranchId == branchId))
+            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId)
             .Select(pi => new ProductPriceDto
             {
                 ProductId = pi.ProductId,
