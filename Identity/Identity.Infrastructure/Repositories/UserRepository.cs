@@ -32,9 +32,10 @@ public class UserRepository : IUserRepository
     // Overloads for more specific checks if needed
     public async Task<bool> ExistsByEmailAsync(string email, Guid? companyId, string? branchId)
     {
+        var branchIds = string.IsNullOrEmpty(branchId) ? new List<string>() : branchId.Split(',').Select(b => b.Trim()).ToList();
         return await _context.Users
             .IgnoreQueryFilters()
-            .AnyAsync(u => u.Email == email && u.CompanyId == companyId && u.BranchId == branchId);
+            .AnyAsync(u => u.Email == email && u.CompanyId == companyId && (u.BranchId != null && branchIds.Any(b => ("," + u.BranchId + ",").Contains("," + b + ","))));
     }
 
     public async Task AddAsync(User user)
@@ -116,10 +117,11 @@ public class UserRepository : IUserRepository
 
     public async Task<List<User>> GetByBranchAsync(Guid companyId, string branchId)
     {
+        var branchIds = string.IsNullOrEmpty(branchId) ? new List<string>() : branchId.Split(',').Select(b => b.Trim()).ToList();
         return await _context.Users
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
-            .Where(u => u.CompanyId == companyId && u.BranchId == branchId)
+            .Where(u => u.CompanyId == companyId && (u.BranchId != null && branchIds.Any(b => ("," + u.BranchId + ",").Contains("," + b + ","))))
             .OrderBy(u => u.UserName)
             .ToListAsync();
     }

@@ -17,6 +17,10 @@ public class IdentityDbContext : DbContext
         _currentUserService = currentUserService;
     }
 
+    private List<string> CurrentUserBranches => string.IsNullOrEmpty(_currentUserService.BranchId) 
+        ? new List<string>() 
+        : _currentUserService.BranchId.Split(',').Select(b => b.Trim()).ToList();
+
     public DbSet<Identity.Domain.User> Users => Set<Identity.Domain.User>();
     public DbSet<Identity.Domain.Roles.Role> Roles => Set<Identity.Domain.Roles.Role>();
     public DbSet<Menu> Menus => Set<Menu>();
@@ -55,13 +59,13 @@ public class IdentityDbContext : DbContext
         
         // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId (unless Super Admin)
         modelBuilder.Entity<Identity.Domain.User>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ",")))));
             
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ",")))));
             
         modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ",")))));
 
         base.OnModelCreating(modelBuilder);
     }

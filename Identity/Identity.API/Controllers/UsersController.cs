@@ -109,8 +109,9 @@ public class UsersController : ControllerBase
             
             if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin"))
             {
+                var branchIds = branchId.Split(',').Select(b => b.Trim()).ToList();
                 // Branch User: Only see users in their own branch
-                query = query.Where(u => u.CompanyId == companyId && u.BranchId == branchId);
+                query = query.Where(u => u.CompanyId == companyId && (u.BranchId != null && branchIds.Any(b => ("," + u.BranchId + ",").Contains("," + b + ","))));
             }
             else
             {

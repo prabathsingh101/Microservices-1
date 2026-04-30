@@ -33,9 +33,11 @@ public class RolePermissionRepository : IRolePermissionRepository
             .ToListAsync();
 
         // 1. Process Updates and Inserts
+        var incomingBranchIds = permissions.Select(p => p.BranchId).Distinct().ToList();
+
         foreach (var incoming in permissions)
         {
-            var existing = existingPermissions.FirstOrDefault(p => p.MenuId == incoming.MenuId);
+            var existing = existingPermissions.FirstOrDefault(p => p.MenuId == incoming.MenuId && p.BranchId == incoming.BranchId);
             if (existing != null)
             {
                 // Update existing record
@@ -52,9 +54,11 @@ public class RolePermissionRepository : IRolePermissionRepository
             }
         }
 
-        // 2. Process Deletions
-        var incomingMenuIds = permissions.Select(p => p.MenuId).ToList();
-        var toRemove = existingPermissions.Where(p => !incomingMenuIds.Contains(p.MenuId)).ToList();
+        // 2. Process Deletions (Only for the branches being updated)
+        var toRemove = existingPermissions.Where(p => 
+            incomingBranchIds.Contains(p.BranchId) && 
+            !permissions.Any(ip => ip.MenuId == p.MenuId && ip.BranchId == p.BranchId)).ToList();
+
         if (toRemove.Any())
         {
             _context.RolePermissions.RemoveRange(toRemove);
