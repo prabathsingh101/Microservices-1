@@ -54,18 +54,26 @@ public class IdentityDbContext : DbContext
         // --- 🔒 GLOBAL MULTI-TENANT FILTERS ---
         
         // Roles and Permissions are Company-wide (Global to all branches)
-        modelBuilder.Entity<Identity.Domain.Roles.Role>().HasQueryFilter(e => _currentUserService.IsSuperAdmin || e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
-        modelBuilder.Entity<RolePermission>().HasQueryFilter(e => _currentUserService.IsSuperAdmin || e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
+        // If Super Admin and Global View (BranchId empty), show all. Otherwise, respect the active CompanyId header.
+        modelBuilder.Entity<Identity.Domain.Roles.Role>().HasQueryFilter(e => 
+            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
+            
+        modelBuilder.Entity<RolePermission>().HasQueryFilter(e => 
+            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
         
-        // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId (unless Super Admin)
+        // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId
+        // If Super Admin and Global View (BranchId empty), show all. Otherwise, respect active CompanyId and BranchId headers.
         modelBuilder.Entity<Identity.Domain.User>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ",")))));
+            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || 
+            (e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ","))))));
             
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ",")))));
+            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || 
+            (e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ","))))));
             
         modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => 
-            e.CompanyId == _currentUserService.CompanyId && (_currentUserService.IsSuperAdmin || string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ",")))));
+            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || 
+            (e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ","))))));
 
         base.OnModelCreating(modelBuilder);
     }

@@ -16,12 +16,14 @@ public class UsersController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IMediator _mediator;
     private readonly Identity.Infrastructure.Persistence.IdentityDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UsersController(IUserRepository userRepository, IMediator mediator, Identity.Infrastructure.Persistence.IdentityDbContext context)
+    public UsersController(IUserRepository userRepository, IMediator mediator, Identity.Infrastructure.Persistence.IdentityDbContext context, ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _mediator = mediator;
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -29,38 +31,39 @@ public class UsersController : ControllerBase
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var branchIdClaim = User.FindFirst("BranchId")?.Value;
-        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
-
-        // 🚀 GLOBAL ADMIN BYPASS: Root Admin see EVERYTHING
-        bool isGlobalRoot = roles.Contains("Default Admin");
+        
+        bool isGlobalRoot = _currentUserService.IsSuperAdmin && string.IsNullOrEmpty(branchIdClaim);
 
         IEnumerable<User> users;
 
         if (isGlobalRoot)
         {
-            // Root Admin: See all users from all companies
+            // Root Admin: See all users from all companies (Global View)
             users = await _userRepository.GetAllUsersAsync();
         }
         else if (Guid.TryParse(companyIdClaim, out var companyId))
         {
-            // Tenant Admin: Filter by company and potentially branch
+            // Tenant Admin OR Super Admin with specific branch: Filter by company and potentially branch
             var branchId = branchIdClaim;
+            var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
             
-            if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin"))
+            if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin") && !roles.Contains("Default Admin") && !roles.Contains("Super Admin"))
             {
                 // Branch User: Only see users in their own branch
                 users = await _userRepository.GetByBranchAsync(companyId, branchId);
             }
             else
             {
-                // Company Admin: See all users in their company
-                users = await _userRepository.GetByCompanyAsync(companyId);
+                // Company Admin OR Super Admin with selected context: See all users in the selected company/branch context
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                     users = await _userRepository.GetByBranchAsync(companyId, branchId);
+                }
+                else 
+                {
+                     users = await _userRepository.GetByCompanyAsync(companyId);
+                }
             }
-        }
-        else if (roles.Any(r => r.Contains("Admin", StringComparison.OrdinalIgnoreCase)))
-        {
-            // System-wide admin without a specific company claim
-            users = await _userRepository.GetAllUsersAsync();
         }
         else 
         {
@@ -94,23 +97,26 @@ public class UsersController : ControllerBase
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var branchIdClaim = User.FindFirst("BranchId")?.Value;
-        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
-        bool isGlobalRoot = roles.Contains("Default Admin");
+        
+        bool isGlobalRoot = _currentUserService.IsSuperAdmin && string.IsNullOrEmpty(branchIdClaim);
 
         var query = _context.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .AsNoTracking();
 
-        // 1. Tenant & Branch Filtering
+        // 1. Tenant & Branch Filtering (Bypassed for Super Admin by Global Query Filter if branchId is empty, but we also do it here for clarity)
         if (!isGlobalRoot && Guid.TryParse(companyIdClaim, out var companyId))
         {
             var branchId = branchIdClaim;
+            var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
             
-            if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin"))
+            bool isAdmin = roles.Contains("Admin") || roles.Contains("Default Admin") || roles.Contains("Super Admin");
+
+            if (!string.IsNullOrEmpty(branchId))
             {
                 var branchIds = branchId.Split(',').Select(b => b.Trim()).ToList();
-                // Branch User: Only see users in their own branch
+                // If it's a specific branch selection, filter strictly by those branches
                 query = query.Where(u => u.CompanyId == companyId && (u.BranchId != null && branchIds.Any(b => ("," + u.BranchId + ",").Contains("," + b + ","))));
             }
             else
