@@ -59,7 +59,13 @@ namespace Company.Infrastructure.Services
                 var user = _httpContextAccessor.HttpContext?.User;
                 if (user == null) return false;
 
-                // 🚀 STRICT PLATFORM ADMIN CHECK
+                // 🚀 1. Role-based check (Most reliable)
+                if (user.IsInRole("Default Admin") || user.IsInRole("Super Admin"))
+                {
+                    return true;
+                }
+
+                // 🚀 2. STRICT PLATFORM ADMIN CHECK (Fallback for system level access)
                 var email = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
                 var companyName = user.Claims.FirstOrDefault(c => c.Type == "CompanyName")?.Value;
 

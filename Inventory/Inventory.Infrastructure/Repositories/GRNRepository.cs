@@ -216,9 +216,10 @@ namespace Inventory.Infrastructure.Repositories
                         // 🆕 Update PO Item via RAW SQL
                         if (po != null)
                         {
+                            // FIX: Use Gross ReceivedQty for PO tracking to correctly reflect pending balance
                             await _context.Database.ExecuteSqlRawAsync(
                                 "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty + {0} WHERE PurchaseOrderId = {1} AND ProductId = {2} AND CompanyId = {3}",
-                                item.ReceivedQty - item.RejectedQty, header.PurchaseOrderId, item.ProductId, header.CompanyId);
+                                item.ReceivedQty, header.PurchaseOrderId, item.ProductId, header.CompanyId);
                         }
                     }
 
@@ -378,24 +379,25 @@ namespace Inventory.Infrastructure.Repositories
                     foreach (var d in po.Items)
                     {
                         var pending = d.Qty - d.ReceivedQty;
-                        decimal proposedRecv = 0;
+                        decimal proposedRecv;
 
-                        if (!string.IsNullOrEmpty(gatePassNo))
+                        // 🎯 FIX: Prioritize replacement quantity (return items) even without a gate pass
+                        if (returnLookup.Any())
                         {
-                            if (returnLookup.Any())
-                            {
-                                proposedRecv = returnLookup.ContainsKey(d.ProductId) ? returnLookup[d.ProductId] : 0;
-                            }
-                            else
-                            {
-                                proposedRecv = pending;
-                            }
-                            if (proposedRecv > pending) proposedRecv = pending;
+                            // If this product has a pending replacement, use that quantity. 
+                            // If it doesn't, but OTHER items in this PO have replacements, default to 0 
+                            // because this is likely a replacement-only delivery.
+                            proposedRecv = returnLookup.ContainsKey(d.ProductId) ? returnLookup[d.ProductId] : 0;
                         }
                         else
                         {
+                            // Standard flow: Use full pending quantity
                             proposedRecv = pending > 0 ? pending : 0;
                         }
+
+                        // 🛡️ Final safeguard: Never propose more than technically pending
+                        if (proposedRecv > pending) proposedRecv = pending;
+                        if (proposedRecv < 0) proposedRecv = 0;
 
                         items.Add(new POItemForGRNDTO
                         {
@@ -762,8 +764,8 @@ namespace Inventory.Infrastructure.Repositories
 
                             grnTotalAmount += (qtyToReceiveNow - rejectedQty) * item.Rate * (1 + (item.GstPercent / 100));
 
-                            // Update ReceivedQty in PO Item
-                            item.ReceivedQty = item.ReceivedQty + (qtyToReceiveNow - rejectedQty);
+                            // Update ReceivedQty in PO Item (Gross Received for balance tracking)
+                            item.ReceivedQty = item.ReceivedQty + qtyToReceiveNow;
 
                             // ⚡ REDUNDANT: Products.CurrentStock removed.
 

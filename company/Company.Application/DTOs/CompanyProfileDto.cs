@@ -55,7 +55,8 @@ namespace Company.Application.DTOs
         string? Phone = null,
         string? ContactPerson = null,
         string? Gstin = null,
-        bool IsHeadOffice = false
+        bool IsHeadOffice = false,
+        Guid? CompanyProfileId = null
     );
 
     public record BankDetailDto(

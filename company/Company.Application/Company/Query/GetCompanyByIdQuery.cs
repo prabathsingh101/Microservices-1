@@ -54,7 +54,6 @@ namespace Company.Application.Company.Queries
                 data.PurchaseOrderStatusUpdateMessage,
                 data.SaleOrderCreationMessage,
                 data.SaleOrderConfirmationMessage,
-                // Nested Addresses List
                 data.Addresses.Select(addr => new AddressDto(
                     addr.Id,
                     addr.BranchName ?? "Head Office",
@@ -69,7 +68,8 @@ namespace Company.Application.Company.Queries
                     addr.Phone,
                     addr.ContactPerson,
                     addr.Gstin,
-                    addr.IsHeadOffice
+                    addr.IsHeadOffice,
+                    addr.CompanyProfileId
                 )).ToList(),
                 // Nested BankDetail Record
                 new BankDetailDto(

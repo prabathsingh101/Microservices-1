@@ -8,6 +8,8 @@ services:
       - MSSQL_SA_PASSWORD=Anand@raj12345
     ports:
       - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
 
   gateway.api:
     image: gatewayapi
@@ -116,3 +118,4 @@ services:
 
 volumes:
   company-uploads:
+  sql-data:

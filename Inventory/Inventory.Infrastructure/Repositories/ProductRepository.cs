@@ -41,9 +41,8 @@ public sealed class ProductRepository : IProductRepository
     public async Task<Product?> GetByIdAsync(Guid id)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _db.Products
-            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null));
+            .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
     public async Task<List<Product>> GetAllAsync()
@@ -53,7 +52,7 @@ public sealed class ProductRepository : IProductRepository
 
         var products = await _db.Products
             .AsNoTracking()
-            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+            .Where(x => x.CompanyId == companyId)
             .ToListAsync();
 
         // 🚀 SMART STOCK CALCULATION: Recalculate based on context (Branch or Global)
@@ -83,40 +82,28 @@ public sealed class ProductRepository : IProductRepository
     public async Task<List<Product>> GetByCategoryIdAsync(Guid categoryId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _db.Products
             .AsNoTracking()
-            .Where(x => x.CategoryId == categoryId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+            .Where(x => x.CategoryId == categoryId && x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public async Task<List<Product>> GetBySubcategoryIdAsync(Guid subcategoryId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _db.Products
             .AsNoTracking()
-            .Where(x => x.SubcategoryId == subcategoryId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+            .Where(x => x.SubcategoryId == subcategoryId && x.CompanyId == companyId)
             .ToListAsync();
     }
 
     public IQueryable<Product> Query()
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         
-        // Handle "null" string from frontend/currentUserService
-        if (branchId == "null") branchId = null;
-
-        var query = _db.Products.Where(x => x.CompanyId == companyId);
-        
-        if (!string.IsNullOrEmpty(branchId))
-        {
-            query = query.Where(x => x.BranchId == branchId || x.BranchId == null);
-        }
-        
-        return query.AsQueryable();
+        return _db.Products.Where(x => x.CompanyId == companyId);
     }
+
     public void DeleteRange(List<Product> products)
     {
         _db.Products.RemoveRange(products);
@@ -144,7 +131,7 @@ public sealed class ProductRepository : IProductRepository
 
         var products = await _db.Products
          .AsNoTracking()
-         .Where(p => p.CompanyId == companyId && p.IsActive && p.Name.Contains(term) && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId || p.BranchId == null))
+         .Where(p => p.CompanyId == companyId && p.IsActive && p.Name.Contains(term))
          .Take(20)
          .ToListAsync();
 

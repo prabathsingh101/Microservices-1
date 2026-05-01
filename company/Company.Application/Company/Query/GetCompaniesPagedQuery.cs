@@ -65,7 +65,8 @@ namespace Company.Application.Company.Queries
                     addr.Phone,
                     addr.ContactPerson,
                     addr.Gstin,
-                    addr.IsHeadOffice
+                    addr.IsHeadOffice,
+                    addr.CompanyProfileId
                 )).ToList(),
                 new BankDetailDto(
                     data.BankDetails.FirstOrDefault()?.Id,
