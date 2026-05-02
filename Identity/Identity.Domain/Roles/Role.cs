@@ -10,15 +10,17 @@ public class Role : AuditableEntity, IMultiTenant
     
     public Guid? CompanyId { get; set; }
     public string? BranchId { get; set; }
+    public string? Description { get; set; } // 🔥 Added Description
 
     private Role() { } // EF Core
 
-    public Role(string roleName, Guid? companyId = null, string? branchId = null)
+    public Role(string roleName, Guid? companyId = null, string? branchId = null, string? description = null)
     {
         Id = Guid.NewGuid();
         RoleName = roleName;
         CompanyId = companyId;
         BranchId = string.IsNullOrWhiteSpace(branchId) ? null : branchId;
+        Description = description;
     }
 
     // Navigation Properties

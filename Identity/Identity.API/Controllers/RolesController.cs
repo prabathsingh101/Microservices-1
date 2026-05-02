@@ -39,6 +39,7 @@ public class RolesController : ControllerBase
             r.CreatedDate,
             r.LastModifiedBy,
             r.LastModifiedDate,
+            r.Description, // 🔥 Return description
             CompanyName = r.CompanyId.HasValue && subscriptions.ContainsKey(r.CompanyId.Value) 
                           ? subscriptions[r.CompanyId.Value] 
                           : (r.CompanyId == null ? "System" : "Unknown")
@@ -243,7 +244,7 @@ public class RolesController : ControllerBase
 
     // --- Role Management CRUD ---
 
-    public record RoleRequest(string RoleName, Guid? CompanyId = null, string? BranchId = null);
+    public record RoleRequest(string RoleName, Guid? CompanyId = null, string? BranchId = null, string? Description = null);
 
     [HttpPost]
     public async Task<IActionResult> CreateRole([FromBody] RoleRequest request)
@@ -251,7 +252,10 @@ public class RolesController : ControllerBase
         Guid? targetCompanyId = request.CompanyId;
         string? targetBranchId = request.BranchId;
 
-        if (targetCompanyId == null)
+        // 🛡️ FIX: If it's a global root admin and they sent NULL, keep it NULL (System Role)
+        bool isGlobalRoot = User.IsInRole("Default Admin");
+
+        if (targetCompanyId == null && !isGlobalRoot)
         {
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             if (Guid.TryParse(companyIdClaim, out var companyId))
@@ -260,7 +264,7 @@ public class RolesController : ControllerBase
             }
         }
 
-        if (string.IsNullOrWhiteSpace(targetBranchId) || targetBranchId == "GLOBAL")
+        if ((string.IsNullOrWhiteSpace(targetBranchId) || targetBranchId == "GLOBAL") && !isGlobalRoot)
         {
             var headerBranch = Request.Headers["X-Branch-Id"].ToString();
             targetBranchId = !string.IsNullOrWhiteSpace(headerBranch) 
@@ -271,7 +275,7 @@ public class RolesController : ControllerBase
         // Final normalization
         if (string.IsNullOrWhiteSpace(targetBranchId) || targetBranchId == "GLOBAL") targetBranchId = null;
 
-        var role = new Role(request.RoleName, targetCompanyId, targetBranchId);
+        var role = new Role(request.RoleName, targetCompanyId, targetBranchId, request.Description);
         await _roleRepository.AddAsync(role);
         await _context.SaveChangesAsync();
 
@@ -285,6 +289,7 @@ public class RolesController : ControllerBase
         if (role == null) return NotFound();
 
         role.RoleName = request.RoleName;
+        role.Description = request.Description; // 🔥 Update description
         // 🛡️ Update BranchId: Map empty or 'GLOBAL' back to null
         role.BranchId = (string.IsNullOrWhiteSpace(request.BranchId) || request.BranchId == "GLOBAL") ? null : request.BranchId;
 

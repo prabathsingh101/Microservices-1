@@ -19,7 +19,7 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .IgnoreQueryFilters()
-            .AnyAsync(u => u.Email == email && u.CompanyId == companyId);
+            .AnyAsync(u => u.Email == email);
     }
 
     public async Task<bool> ExistsByUserNameAsync(string userName, Guid? companyId)
