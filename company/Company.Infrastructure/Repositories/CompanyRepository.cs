@@ -1,6 +1,7 @@
 using Company.Application.Common.Interfaces;
 using Company.Application.Common.Models;
 using Company.Domain.Entities;
+using Company.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
@@ -85,10 +86,19 @@ namespace Company.Infrastructure.Repositories
                 .Include(c => c.BankDetails)
                 .AsQueryable();
 
-            // 🚀 TENANT ISOLATION: If not Super Admin, only show own company
-            if (!_currentUserService.IsSuperAdmin && companyId != null && companyId != Guid.Empty)
+            // 🚀 TENANT ISOLATION: Only Platform Admin sees all companies.
+            // Standard Tenant Admins see only their own company profile.
+            if (!_currentUserService.IsPlatformAdmin)
             {
-                query = query.Where(c => c.Id == companyId);
+                if (companyId != null && companyId != Guid.Empty)
+                {
+                    query = query.Where(c => c.Id == companyId);
+                }
+                else
+                {
+                    // If somehow no companyId is present for a non-platform admin, return nothing
+                    query = query.Where(c => false);
+                }
             }
 
             // Search Filter

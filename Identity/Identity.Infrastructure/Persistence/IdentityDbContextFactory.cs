@@ -30,5 +30,6 @@ public class IdentityDbContextFactory
         public string? BranchId => null;
         public Guid? UserId => null;
         public bool IsSuperAdmin => false;
+        public bool IsPlatformAdmin => false;
     }
 }

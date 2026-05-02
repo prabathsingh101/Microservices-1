@@ -8,4 +8,5 @@ public interface ICurrentUserService
     string? BranchId { get; }
     Guid? UserId { get; }
     bool IsSuperAdmin { get; }
+    bool IsPlatformAdmin { get; }
 }

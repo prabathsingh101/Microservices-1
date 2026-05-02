@@ -10,20 +10,23 @@ namespace Identity.Application.Commands.EditUser;
 public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
 {
     private readonly IUserRepository _userRepository;
-    private readonly IRoleRepository _roleRepository; // Assuming this exists or needed for validation
+    private readonly IRoleRepository _roleRepository;
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
     public EditUserHandler(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         IPasswordHasher<User> passwordHasher,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Result<Guid>> Handle(EditUserCommand request, CancellationToken cancellationToken)
@@ -67,6 +70,10 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
              var hash = _passwordHasher.HashPassword(user, request.Password);
              user.SetPasswordHash(hash);
         }
+
+        // 🛡️ FAIL-SAFE: Manually set audit fields before saving
+        user.LastModifiedBy = _currentUserService.UserId?.ToString() ?? "System-Manual";
+        user.LastModifiedDate = DateTime.UtcNow;
 
         await _userRepository.UpdateAsync(user);
 

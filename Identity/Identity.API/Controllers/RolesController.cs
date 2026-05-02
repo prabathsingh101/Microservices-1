@@ -260,11 +260,16 @@ public class RolesController : ControllerBase
             }
         }
 
-        if (string.IsNullOrEmpty(targetBranchId))
+        if (string.IsNullOrWhiteSpace(targetBranchId) || targetBranchId == "GLOBAL")
         {
-            targetBranchId = Request.Headers["X-Branch-Id"].ToString();
-            if (string.IsNullOrEmpty(targetBranchId)) targetBranchId = User.FindFirst("BranchId")?.Value;
+            var headerBranch = Request.Headers["X-Branch-Id"].ToString();
+            targetBranchId = !string.IsNullOrWhiteSpace(headerBranch) 
+                ? headerBranch 
+                : User.FindFirst("BranchId")?.Value;
         }
+
+        // Final normalization
+        if (string.IsNullOrWhiteSpace(targetBranchId) || targetBranchId == "GLOBAL") targetBranchId = null;
 
         var role = new Role(request.RoleName, targetCompanyId, targetBranchId);
         await _roleRepository.AddAsync(role);
@@ -280,8 +285,8 @@ public class RolesController : ControllerBase
         if (role == null) return NotFound();
 
         role.RoleName = request.RoleName;
-        // 🛡️ Update BranchId: Map 'GLOBAL' back to null
-        role.BranchId = (request.BranchId == "GLOBAL") ? null : request.BranchId;
+        // 🛡️ Update BranchId: Map empty or 'GLOBAL' back to null
+        role.BranchId = (string.IsNullOrWhiteSpace(request.BranchId) || request.BranchId == "GLOBAL") ? null : request.BranchId;
 
         await _roleRepository.UpdateAsync(role);
         await _context.SaveChangesAsync();

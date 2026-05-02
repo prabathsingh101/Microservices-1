@@ -20,6 +20,7 @@ namespace Identity.Infrastructure.Repositories
         public async Task<Subscription?> GetByCompanyIdAsync(Guid companyId)
         {
             return await _context.Subscriptions
+                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(s => s.CompanyId == companyId);
         }
 
@@ -27,11 +28,14 @@ namespace Identity.Infrastructure.Repositories
         {
             var code = companyCode.ToLower().Trim();
             return await _context.Subscriptions
+                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(s => s.CompanyCode == code);
         }
 
         public async Task<List<Subscription>> GetAllAsync()
         {
+            // Usually we want all subscriptions in some admin views, but keep filter for others
+            // However, repositories should be the source of truth
             return await _context.Subscriptions.ToListAsync();
         }
 

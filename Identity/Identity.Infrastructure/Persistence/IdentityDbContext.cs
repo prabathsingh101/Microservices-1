@@ -1,147 +1,156 @@
-using Identity.Domain.Entities;
+using Identity.Domain;
+using Identity.Domain.Common;
+using Identity.Domain.Users;
+using Identity.Domain.Roles;
 using Identity.Domain.Menus;
 using Identity.Domain.Permissions;
-using Identity.Domain.Roles;
+using Identity.Domain.Entities;
+using Identity.Domain.PrintSettings;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
+using Identity.Application.Interfaces;
 
 namespace Identity.Infrastructure.Persistence;
 
 public class IdentityDbContext : DbContext
 {
-    private readonly Application.Interfaces.ICurrentUserService _currentUserService;
+    private readonly bool _isPlatformAdmin;
+    private readonly string? _currentBranchId;
+    private readonly Guid? _currentCompanyId;
+    private readonly string? _currentUserId;
 
-    public IdentityDbContext(DbContextOptions<IdentityDbContext> options, Application.Interfaces.ICurrentUserService currentUserService)
+    public IdentityDbContext(DbContextOptions<IdentityDbContext> options, ICurrentUserService currentUserService)
         : base(options)
     {
-        _currentUserService = currentUserService;
+        // 🛡️ CAPTURE values here for stable Global Query Filter evaluation
+        _isPlatformAdmin = currentUserService.IsPlatformAdmin;
+        _currentBranchId = currentUserService.BranchId;
+        _currentCompanyId = currentUserService.CompanyId;
+        _currentUserId = currentUserService.UserId?.ToString();
     }
 
-    private List<string> CurrentUserBranches => string.IsNullOrEmpty(_currentUserService.BranchId) 
-        ? new List<string>() 
-        : _currentUserService.BranchId.Split(',').Select(b => b.Trim()).ToList();
+    public DbSet<User> Users { get; set; }
+    public DbSet<Role> Roles { get; set; }
+    public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<Menu> Menus { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
+    public DbSet<Subscription> Subscriptions { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<RolePrintSetting> RolePrintSettings { get; set; }
 
-    public DbSet<Identity.Domain.User> Users => Set<Identity.Domain.User>();
-    public DbSet<Identity.Domain.Roles.Role> Roles => Set<Identity.Domain.Roles.Role>();
-    public DbSet<Menu> Menus => Set<Menu>();
-    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-    public DbSet<Identity.Domain.Users.UserRole> UserRoles => Set<Identity.Domain.Users.UserRole>();
-
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-    public DbSet<Subscription> Subscriptions => Set<Subscription>();
-    public DbSet<Domain.PrintSettings.RolePrintSetting> RolePrintSettings => Set<Domain.PrintSettings.RolePrintSetting>();
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        modelBuilder.Entity<Subscription>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.CompanyCode).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.PlanType).HasMaxLength(20).IsRequired();
-            entity.Property(e => e.PaymentTxnId).HasMaxLength(100);
+        base.OnModelCreating(builder);
 
-            entity.HasIndex(e => e.CompanyCode).IsUnique();
+        builder.Entity<User>(entity =>
+        {
+            entity.ToTable("Users");
+            entity.HasKey(u => u.Id);
+            entity.HasMany(u => u.UserRoles)
+                  .WithOne(ur => ur.User)
+                  .HasForeignKey(ur => ur.UserId)
+                  .IsRequired();
+
+            // 🛡️ FIX: Explicitly set backing field for private list
+            entity.Navigation(u => u.UserRoles).HasField("_userRoles").UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
-        modelBuilder.Entity<Menu>()
-        .HasMany(m => m.Children)
-        .WithOne(m => m.Parent)
-        .HasForeignKey(m => m.ParentId);
+        builder.Entity<Role>(entity =>
+        {
+            entity.ToTable("Roles");
+            entity.HasKey(r => r.Id);
+        });
 
-        modelBuilder.ApplyConfigurationsFromAssembly(
-        typeof(IdentityDbContext).Assembly);
+        builder.Entity<UserRole>(entity =>
+        {
+            entity.ToTable("UserRoles");
+            entity.HasKey(ur => ur.Id);
 
-        // --- 🔒 GLOBAL MULTI-TENANT FILTERS ---
-        
-        // Roles and Permissions are Company-wide (Global to all branches)
-        // If Super Admin and Global View (BranchId empty), show all. Otherwise, respect the active CompanyId header.
-        modelBuilder.Entity<Identity.Domain.Roles.Role>().HasQueryFilter(e => 
-            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
-            
-        modelBuilder.Entity<RolePermission>().HasQueryFilter(e => 
-            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || e.CompanyId == _currentUserService.CompanyId || e.CompanyId == null);
-        
-        // Users, RefreshTokens, and PrintSettings are isolated by CompanyId AND BranchId
-        // If Super Admin and Global View (BranchId empty), show all. Otherwise, respect active CompanyId and BranchId headers.
-        modelBuilder.Entity<Identity.Domain.User>().HasQueryFilter(e => 
-            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || 
-            (e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ","))))));
-            
-        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => 
-            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || 
-            (e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ","))))));
-            
-        modelBuilder.Entity<Identity.Domain.PrintSettings.RolePrintSetting>().HasQueryFilter(e => 
-            (_currentUserService.IsSuperAdmin && string.IsNullOrEmpty(_currentUserService.BranchId)) || 
-            (e.CompanyId == _currentUserService.CompanyId && (string.IsNullOrEmpty(_currentUserService.BranchId) || (e.BranchId != null && CurrentUserBranches.Any(b => ("," + e.BranchId + ",").Contains("," + b + ","))))));
+            // 🛡️ FIX: Define relationship with Role
+            entity.HasOne(ur => ur.Role)
+                  .WithMany()
+                  .HasForeignKey(ur => ur.RoleId);
+        });
 
-        base.OnModelCreating(modelBuilder);
-    }
+        builder.Entity<Menu>(entity =>
+        {
+            entity.ToTable("Menus");
+            entity.HasKey(m => m.Id);
+        });
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        ApplyTenantInfo();
-        return base.SaveChangesAsync(cancellationToken);
+        builder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable("RolePermissions");
+            entity.HasKey(rp => rp.Id);
+            entity.HasOne(rp => rp.Menu)
+                  .WithMany()
+                  .HasForeignKey(rp => rp.MenuId);
+        });
+
+        builder.Entity<Subscription>(entity =>
+        {
+            entity.ToTable("Subscriptions");
+            entity.HasKey(s => s.Id);
+        });
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(rt => rt.Id);
+        });
+
+        builder.Entity<RolePrintSetting>(entity =>
+        {
+            entity.ToTable("RolePrintSettings");
+            entity.HasKey(rs => rs.Id);
+        });
+
+        // 🛡️ MULTI-TENANT GLOBAL QUERY FILTER
+        builder.Entity<User>().HasQueryFilter(u =>
+            _isPlatformAdmin ? true : u.CompanyId == _currentCompanyId
+        );
+
+        builder.Entity<Subscription>().HasQueryFilter(s =>
+            (_isPlatformAdmin && (string.IsNullOrEmpty(_currentBranchId) || _currentBranchId == "All Branches"))
+            ? true
+            : s.CompanyId == _currentCompanyId
+        );
     }
 
     public override int SaveChanges()
     {
-        ApplyTenantInfo();
+        UpdateAuditFields();
         return base.SaveChanges();
     }
 
-    private void ApplyTenantInfo()
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var entries = ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+        UpdateAuditFields();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
 
-        var currentCompanyId = _currentUserService.CompanyId;
-        var currentBranchId = _currentUserService.BranchId;
-        var currentUserId = _currentUserService.UserId;
+    private void UpdateAuditFields()
+    {
+        var user = _currentUserId ?? "System-Audit";
+        var now = DateTime.UtcNow;
 
-        foreach (var entry in entries)
+        // Use raw Entries() and check base type for maximum reliability
+        foreach (var entry in ChangeTracker.Entries())
         {
-            // 1. 🕒 AUDIT LOGIC (for AuditableEntity)
-            if (entry.Entity is Domain.Common.AuditableEntity auditable)
+            if (entry.Entity is AuditableEntity auditable && 
+                (entry.State == EntityState.Added || entry.State == EntityState.Modified))
             {
                 if (entry.State == EntityState.Added)
                 {
-                    auditable.CreatedDate = DateTime.UtcNow;
-                    auditable.CreatedBy = currentUserId?.ToString();
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    auditable.LastModifiedDate = DateTime.UtcNow;
-                    auditable.LastModifiedBy = currentUserId?.ToString();
-                }
-            }
-
-            // 2. 🏢 TENANT LOGIC (for IMultiTenant)
-            if (entry.Entity is Domain.Common.IMultiTenant tenantEntity)
-            {
-                // Only set CompanyId if it's missing AND we have a context value
-                if ((tenantEntity.CompanyId == null || tenantEntity.CompanyId == Guid.Empty) && currentCompanyId.HasValue)
-                {
-                    tenantEntity.CompanyId = currentCompanyId;
+                    auditable.CreatedBy ??= user;
+                    auditable.CreatedDate = now;
                 }
 
-                var entityType = tenantEntity.GetType();
-                bool isBranchSpecific = typeof(Identity.Domain.User).IsAssignableFrom(entityType) || 
-                                       typeof(RefreshToken).IsAssignableFrom(entityType) || 
-                                       typeof(Domain.Roles.Role).IsAssignableFrom(entityType) ||
-                                       typeof(Domain.Permissions.RolePermission).IsAssignableFrom(entityType) ||
-                                       typeof(Domain.Users.UserRole).IsAssignableFrom(entityType) ||
-                                       typeof(Domain.Menus.Menu).IsAssignableFrom(entityType) ||
-                                       typeof(Domain.PrintSettings.RolePrintSetting).IsAssignableFrom(entityType);
-
-                if (isBranchSpecific)
-                {
-                    // Only set BranchId if it's missing AND we have a context value
-                    if (string.IsNullOrEmpty(tenantEntity.BranchId) && !string.IsNullOrEmpty(currentBranchId))
-                    {
-                        tenantEntity.BranchId = currentBranchId;
-                    }
-                }
+                auditable.LastModifiedBy = user;
+                auditable.LastModifiedDate = now;
+                
+                // 🚀 Explicitly mark as modified to ensure SQL UPDATE includes them
+                entry.Property("LastModifiedBy").IsModified = true;
+                entry.Property("LastModifiedDate").IsModified = true;
             }
         }
     }

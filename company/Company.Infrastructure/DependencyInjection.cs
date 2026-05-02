@@ -1,4 +1,5 @@
 using Company.Application.Common.Interfaces;
+using Company.Infrastructure.Persistence;
 using Company.Infrastructure.Repositories;
 using Company.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;

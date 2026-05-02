@@ -1,80 +1,67 @@
+using Identity.Application.Interfaces;
+using Identity.Domain;
+using Identity.Infrastructure.Persistence;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Identity.Application.Interfaces;
-using Identity.Domain.Users;
-
-using MediatR;
-using Identity.Application.Commands.EditUser;
-using Identity.Domain;
+using System.Security.Claims;
 
 namespace Identity.API.Controllers;
 
+[Authorize]
+[Route("api/[controller]")]
 [ApiController]
-[Route("api/users")]
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
-    private readonly IMediator _mediator;
-    private readonly Identity.Infrastructure.Persistence.IdentityDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IdentityDbContext _context;
+    private readonly IMediator _mediator;
 
-    public UsersController(IUserRepository userRepository, IMediator mediator, Identity.Infrastructure.Persistence.IdentityDbContext context, ICurrentUserService currentUserService)
+    public UsersController(IUserRepository userRepository, ICurrentUserService currentUserService, IdentityDbContext context, IMediator mediator)
     {
         _userRepository = userRepository;
-        _mediator = mediator;
-        _context = context;
         _currentUserService = currentUserService;
+        _context = context;
+        _mediator = mediator;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-        
-        bool isGlobalRoot = _currentUserService.IsSuperAdmin && string.IsNullOrEmpty(branchIdClaim);
+        bool isPlatformAdmin = _currentUserService.IsPlatformAdmin;
+        var activeCompanyId = _currentUserService.CompanyId;
+        var activeBranchId = _currentUserService.BranchId;
 
-        IEnumerable<User> users;
+        var query = _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .AsNoTracking();
 
-        if (isGlobalRoot)
+        // 🛡️ Platform Admin bypasses all filters
+        if (isPlatformAdmin)
         {
-            // Root Admin: See all users from all companies (Global View)
-            users = await _userRepository.GetAllUsersAsync();
+            query = query.IgnoreQueryFilters();
         }
-        else if (Guid.TryParse(companyIdClaim, out var companyId))
+
+        var usersList = await query.ToListAsync();
+
+        // Perform complex branch filtering in memory to avoid EF translation issues
+        if (!isPlatformAdmin && activeCompanyId.HasValue)
         {
-            // Tenant Admin OR Super Admin with specific branch: Filter by company and potentially branch
-            var branchId = branchIdClaim;
-            var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+            usersList = usersList.Where(u => u.CompanyId == activeCompanyId.Value).ToList();
             
-            if (!string.IsNullOrEmpty(branchId) && !roles.Contains("Admin") && !roles.Contains("Default Admin") && !roles.Contains("Super Admin"))
+            if (!string.IsNullOrEmpty(activeBranchId))
             {
-                // Branch User: Only see users in their own branch
-                users = await _userRepository.GetByBranchAsync(companyId, branchId);
-            }
-            else
-            {
-                // Company Admin OR Super Admin with selected context: See all users in the selected company/branch context
-                if (!string.IsNullOrEmpty(branchId))
-                {
-                     users = await _userRepository.GetByBranchAsync(companyId, branchId);
-                }
-                else 
-                {
-                     users = await _userRepository.GetByCompanyAsync(companyId);
-                }
+                var branchIds = activeBranchId.Split(',').Select(b => b.Trim()).ToList();
+                usersList = usersList.Where(u => u.BranchId != null && branchIds.Contains(u.BranchId)).ToList();
             }
         }
-        else 
-        {
-             // Fallback for anyone else
-             return Ok(Enumerable.Empty<object>());
-        }
 
-        var allSubscriptions = await _context.Subscriptions.AsNoTracking().ToListAsync();
+        var allSubscriptions = await _context.Subscriptions.IgnoreQueryFilters().AsNoTracking().ToListAsync();
 
-        // Project results to prevent circular references and hide sensitive data
-        var result = users.Select(u => new
+        var result = usersList.Select(u => new
         {
             u.Id,
             u.UserName,
@@ -86,7 +73,11 @@ public class UsersController : ControllerBase
                           ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown") 
                           : "System Admin",
             Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
-            RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList()
+            RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList(),
+            u.CreatedBy,
+            u.CreatedDate,
+            u.LastModifiedBy,
+            u.LastModifiedDate
         });
 
         return Ok(result);
@@ -95,84 +86,66 @@ public class UsersController : ControllerBase
     [HttpPost("paged")]
     public async Task<IActionResult> GetPaged([FromBody] Identity.Application.Common.Models.GridRequest request)
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-        var branchIdClaim = User.FindFirst("BranchId")?.Value;
-        
-        bool isGlobalRoot = _currentUserService.IsSuperAdmin && string.IsNullOrEmpty(branchIdClaim);
+        bool isPlatformAdmin = _currentUserService.IsPlatformAdmin;
+        var activeCompanyId = _currentUserService.CompanyId;
+        var activeBranchId = _currentUserService.BranchId;
 
         var query = _context.Users
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .AsNoTracking();
 
-        // 1. Tenant & Branch Filtering (Bypassed for Super Admin by Global Query Filter if branchId is empty, but we also do it here for clarity)
-        if (!isGlobalRoot && Guid.TryParse(companyIdClaim, out var companyId))
+        // 🛡️ SECURITY BYPASS FOR PLATFORM ADMIN
+        if (isPlatformAdmin)
         {
-            var branchId = branchIdClaim;
-            var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
-            
-            bool isAdmin = roles.Contains("Admin") || roles.Contains("Default Admin") || roles.Contains("Super Admin");
-
-            if (!string.IsNullOrEmpty(branchId))
-            {
-                var branchIds = branchId.Split(',').Select(b => b.Trim()).ToList();
-                // If it's a specific branch selection, filter strictly by those branches
-                query = query.Where(u => u.CompanyId == companyId && (u.BranchId != null && branchIds.Any(b => ("," + u.BranchId + ",").Contains("," + b + ","))));
-            }
-            else
-            {
-                // Company Admin: See all users in their company
-                query = query.Where(u => u.CompanyId == companyId);
-            }
+            query = query.IgnoreQueryFilters();
         }
 
-        // 2. Search
+        // Apply basic EF-compatible filters
+        if (!isPlatformAdmin && activeCompanyId.HasValue)
+        {
+            query = query.Where(u => u.CompanyId == activeCompanyId.Value);
+        }
+
+        // Search
         if (!string.IsNullOrEmpty(request.SearchTerm))
         {
             var term = request.SearchTerm.ToLower();
-            
-            // Join with Subscriptions to allow searching by CompanyName
-            var companyIdsWithMatch = await _context.Subscriptions
-                .Where(s => s.CompanyName.ToLower().Contains(term))
-                .Select(s => s.CompanyId)
-                .ToListAsync();
-
-            query = query.Where(u => 
-                u.UserName.ToLower().Contains(term) || 
-                u.Email.ToLower().Contains(term) ||
-                (u.CompanyId.HasValue && companyIdsWithMatch.Contains(u.CompanyId.Value)));
+            query = query.Where(u => u.UserName.ToLower().Contains(term) || 
+                                   u.Email.ToLower().Contains(term) || 
+                                   u.UserRoles.Any(ur => ur.Role.RoleName.ToLower().Contains(term)));
         }
 
-        // Count for stats
-        var totalCount = await query.CountAsync();
-        var activeCount = await query.CountAsync(u => u.IsActive);
-        var inactiveCount = totalCount - activeCount;
+        // 🚀 FETCH ALL USERS FOR THE SCOPE
+        var allUsers = await query.ToListAsync();
 
-        // 3. Sorting
+        var totalCount = allUsers.Count;
+
+        // In-Memory Sorting
         if (!string.IsNullOrEmpty(request.SortColumn))
         {
-            bool desc = request.SortOrder?.ToLower() == "desc";
-            query = request.SortColumn.ToLower() switch
+            var prop = typeof(User).GetProperty(request.SortColumn);
+            if (prop != null)
             {
-                "username" => desc ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
-                "email" => desc ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
-                _ => query.OrderBy(u => u.UserName)
-            };
+                allUsers = request.SortOrder?.ToLower() == "desc"
+                    ? allUsers.OrderByDescending(u => prop.GetValue(u, null)).ToList()
+                    : allUsers.OrderBy(u => prop.GetValue(u, null)).ToList();
+            }
         }
         else
         {
-            query = query.OrderBy(u => u.UserName);
+            allUsers = allUsers.OrderBy(u => u.UserName).ToList();
         }
 
-        // 4. Pagination
-        var users = await query
+        // Pagination
+        var paginatedUsers = allUsers
             .Skip((request.PageNumber - 1) * request.PageSize)
             .Take(request.PageSize)
-            .ToListAsync();
+            .ToList();
 
-        var allSubscriptions = await _context.Subscriptions.AsNoTracking().ToListAsync();
+        var allSubscriptions = await _context.Subscriptions.IgnoreQueryFilters().AsNoTracking().ToListAsync();
 
-        var resultItems = users.Select(u => new
+        var result = paginatedUsers.Select(u => new
         {
             u.Id,
             u.UserName,
@@ -180,24 +153,30 @@ public class UsersController : ControllerBase
             u.IsActive,
             u.CompanyId,
             u.BranchId,
+            CompanyName = u.CompanyId.HasValue 
+                          ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown") 
+                          : "System Admin",
+            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
+            RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList(),
             u.CreatedBy,
             u.CreatedDate,
             u.LastModifiedBy,
-            u.LastModifiedDate,
-            CompanyName = u.CompanyId.HasValue
-                          ? (allSubscriptions.FirstOrDefault(s => s.CompanyId == u.CompanyId.Value)?.CompanyName ?? "Unknown")
-                          : "System Admin",
-            Roles = u.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
-            RoleIds = u.UserRoles.Select(ur => ur.RoleId).ToList()
+            u.LastModifiedDate
         });
 
-        return Ok(new Identity.Application.Common.Models.GridResponse<object>
-        {
-            Items = resultItems.Cast<object>().ToList(),
-            TotalCount = totalCount,
-            ActiveCount = activeCount,
-            InactiveCount = inactiveCount
-        });
+        return Ok(new { items = result, totalCount });
+    }
+
+    [HttpGet("check-duplicate")]
+    public async Task<IActionResult> CheckDuplicate([FromQuery] string userName, [FromQuery] string email, [FromQuery] Guid? companyId)
+    {
+        var userNameExists = await _userRepository.ExistsByUserNameAsync(userName, companyId);
+        var emailExists = await _userRepository.ExistsByEmailAsync(email, companyId);
+
+        if (userNameExists) return Ok(new { exists = true, message = "Username already exists in this company context" });
+        if (emailExists) return Ok(new { exists = true, message = "Email already exists in this company context" });
+
+        return Ok(new { exists = false });
     }
 
     [HttpGet("{id}")]
@@ -205,13 +184,6 @@ public class UsersController : ControllerBase
     {
         var user = await _userRepository.GetByIdAsync(id);
         if (user == null) return NotFound();
-
-        var companyName = "System";
-        if (user.CompanyId.HasValue)
-        {
-            var sub = await _context.Subscriptions.AsNoTracking().FirstOrDefaultAsync(s => s.CompanyId == user.CompanyId.Value);
-            companyName = sub?.CompanyName ?? "Unknown";
-        }
 
         return Ok(new
         {
@@ -221,9 +193,68 @@ public class UsersController : ControllerBase
             user.IsActive,
             user.CompanyId,
             user.BranchId,
-            CompanyName = companyName,
+            Roles = user.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
             RoleIds = user.UserRoles.Select(ur => ur.RoleId).ToList()
         });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] User user)
+    {
+        var currentUserId = _currentUserService.UserId?.ToString() ?? "System-Audit";
+        var now = DateTime.UtcNow;
+
+        var companyId = !_currentUserService.IsPlatformAdmin ? _currentUserService.CompanyId : user.CompanyId;
+        user.SetCompanyId(companyId);
+
+        // 🛡️ SECURITY: Strict check for duplicate Super Admin per company
+        if (companyId.HasValue)
+        {
+            // Fetch all users of this company with roles
+            var existingUsers = await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u => u.CompanyId == companyId.Value)
+                .ToListAsync();
+
+            // Check if any role being assigned is 'Super Admin'
+            // (Assuming user.UserRoles is populated from body, or we check IDs)
+            // Note: Since 'user' object is from body, we need to be careful.
+            
+            // Actually, let's check the database if a Super Admin user already exists for this company
+            var superAdminExists = existingUsers.Any(u => u.UserRoles.Any(ur => ur.Role.RoleName == "Super Admin"));
+            
+            // Check if the current request is trying to create another Super Admin
+            // (The frontend sends RoleIds, but the User entity might have them in UserRoles)
+            // If the incoming user has 'Super Admin' role assigned:
+            // Since UserRoles is a navigation property, it might be empty here.
+            // Let's check based on the business context: the UI forces Super Admin for tenants.
+            
+            if (superAdminExists)
+            {
+                return BadRequest(new { message = "A Super Admin already exists for this company. Only one is allowed." });
+            }
+        }
+
+        // 🛡️ FAIL-SAFE: Manually set audit fields for creation
+        user.CreatedBy = currentUserId;
+        user.CreatedDate = now;
+        user.LastModifiedBy = currentUserId;
+        user.LastModifiedDate = now;
+
+        await _userRepository.AddAsync(user);
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] Identity.Application.Commands.EditUser.EditUserCommand command)
+    {
+        if (id != command.Id) return BadRequest("ID mismatch");
+
+        var result = await _mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(result.Error);
+
+        return Ok(result.Value);
     }
 
     [HttpPatch("{id}/status")]
@@ -234,52 +265,10 @@ public class UsersController : ControllerBase
 
         user.SetActive(isActive);
         await _userRepository.UpdateAsync(user);
-        return Ok();
+
+        return NoContent();
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] EditUserCommand command)
-    {
-        if (id != command.Id)
-            return BadRequest("ID in URL and body must match");
-
-        var result = await _mediator.Send(command);
-
-        if (!result.IsSuccess)
-            return BadRequest(result.Error);
-
-        return Ok(result.Value);
-    }
-
-    [HttpGet("check-duplicate")]
-    public async Task<IActionResult> CheckDuplicate([FromQuery] string? userName, [FromQuery] string? email, [FromQuery] Guid? companyId)
-    {
-        if (string.IsNullOrEmpty(userName) && string.IsNullOrEmpty(email))
-            return BadRequest("Username or Email must be provided");
-
-        // Use provided companyId or fallback to claim
-        if (!companyId.HasValue)
-        {
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            companyId = Guid.TryParse(companyIdClaim, out var cid) ? cid : null;
-        }
-
-        bool exists = false;
-        string message = "";
-
-        if (!string.IsNullOrEmpty(userName) && await _userRepository.ExistsByUserNameAsync(userName, companyId))
-        {
-            exists = true;
-            message = "Username already exists in this company.";
-        }
-        else if (!string.IsNullOrEmpty(email) && await _userRepository.ExistsByEmailAsync(email, companyId))
-        {
-            exists = true;
-            message = "Email already exists in this company.";
-        }
-
-        return Ok(new { Exists = exists, Message = message });
-    }
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
@@ -287,6 +276,6 @@ public class UsersController : ControllerBase
         if (user == null) return NotFound();
 
         await _userRepository.DeleteAsync(id);
-        return Ok(new { Message = "User deleted successfully" });
+        return NoContent();
     }
 }

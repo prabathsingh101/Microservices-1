@@ -44,8 +44,14 @@ namespace Inventory.Infrastructure.Repositories
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
 
             // STEP 1: Base Query - Start from Products to ensure all items are included
-            var baseQuery = _context.Products.AsNoTracking()
-                .Where(p => p.CompanyId == companyId)
+            var baseQuery = _context.Products.AsNoTracking().AsQueryable();
+
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                baseQuery = baseQuery.Where(p => p.CompanyId == companyId);
+            }
+
+            var joinedQuery = baseQuery
                 .GroupJoin(_context.GRNDetails.AsNoTracking(), p => p.Id, g => g.ProductId, (p, g) => new { p, g })
                 .SelectMany(x => x.g.DefaultIfEmpty(), (x, g) => new 
                 { 
@@ -61,23 +67,25 @@ namespace Inventory.Infrastructure.Repositories
                     GRNId = g != null ? (Guid?)g.Id : null
                 });
 
-            if (!string.IsNullOrEmpty(finalBranchId))
+            var finalQuery = joinedQuery;
+
+            if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
             {
-                baseQuery = baseQuery.Where(x => x.BranchId == finalBranchId || x.BranchId == null);
+                finalQuery = finalQuery.Where(x => x.BranchId == finalBranchId || x.BranchId == null);
             }
 
             if (startDate.HasValue)
-                baseQuery = baseQuery.Where(x => x.GRN != null && x.GRN.GRNHeader.ReceivedDate.Date >= startDate.Value.Date);
+                finalQuery = finalQuery.Where(x => x.GRN != null && x.GRN.GRNHeader.ReceivedDate.Date >= startDate.Value.Date);
             if (endDate.HasValue)
-                baseQuery = baseQuery.Where(x => x.GRN != null && x.GRN.GRNHeader.ReceivedDate.Date <= endDate.Value.Date);
+                finalQuery = finalQuery.Where(x => x.GRN != null && x.GRN.GRNHeader.ReceivedDate.Date <= endDate.Value.Date);
 
             if (warehouseId.HasValue && warehouseId.Value != Guid.Empty)
-                baseQuery = baseQuery.Where(x => x.WarehouseId == warehouseId.Value);
+                finalQuery = finalQuery.Where(x => x.WarehouseId == warehouseId.Value);
             if (rackId.HasValue && rackId.Value != Guid.Empty)
-                baseQuery = baseQuery.Where(x => x.RackId == rackId.Value);
+                finalQuery = finalQuery.Where(x => x.RackId == rackId.Value);
 
             // STEP 2: Grouping Logic
-            var groupedQuery = baseQuery
+            var groupedQuery = finalQuery
                 .GroupBy(g => new
                 {
                     g.ProductId,
@@ -185,11 +193,22 @@ namespace Inventory.Infrastructure.Repositories
             // STEP 4: Real-Time Stats (Net Sale Calculation)
             foreach (var item in items)
             {
-                var salesQuery = _context.SaleOrderItems.Where(si => si.CompanyId == companyId && si.ProductId == item.ProductId);
-                var returnsQuery = _context.SaleReturnItems.Where(sri => sri.CompanyId == companyId && sri.ProductId == item.ProductId);
-                var grnQuery = _context.GRNDetails.Where(g => g.CompanyId == companyId && g.ProductId == item.ProductId);
+                var salesQuery = _context.SaleOrderItems.AsQueryable();
+                var returnsQuery = _context.SaleReturnItems.AsQueryable();
+                var grnQuery = _context.GRNDetails.AsQueryable();
 
-                if (!string.IsNullOrEmpty(branchId))
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    salesQuery = salesQuery.Where(si => si.CompanyId == companyId);
+                    returnsQuery = returnsQuery.Where(sri => sri.CompanyId == companyId);
+                    grnQuery = grnQuery.Where(g => g.CompanyId == companyId);
+                }
+
+                salesQuery = salesQuery.Where(si => si.ProductId == item.ProductId);
+                returnsQuery = returnsQuery.Where(sri => sri.ProductId == item.ProductId);
+                grnQuery = grnQuery.Where(g => g.ProductId == item.ProductId);
+
+                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(branchId))
                 {
                     salesQuery = salesQuery.Where(si => si.BranchId == branchId);
                     returnsQuery = returnsQuery.Where(sri => sri.BranchId == branchId);
@@ -204,12 +223,24 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
-                var totalPurchaseReturn = await _context.PurchaseReturnItems
-                    .Where(pri => pri.CompanyId == companyId && pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
+                var prItemsQuery = _context.PurchaseReturnItems.AsQueryable();
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    prItemsQuery = prItemsQuery.Where(pri => pri.CompanyId == companyId);
+                }
+
+                var totalPurchaseReturn = await prItemsQuery
+                    .Where(pri => pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
                     .SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
 
-                var itemTransactions = await _context.InventoryTransactions
-                    .Where(tx => tx.CompanyId == companyId && tx.ProductId == item.ProductId && tx.WarehouseId == item.WarehouseId && tx.RackId == item.RackId)
+                var transactionsQuery = _context.InventoryTransactions.AsQueryable();
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    transactionsQuery = transactionsQuery.Where(tx => tx.CompanyId == companyId);
+                }
+
+                var itemTransactions = await transactionsQuery
+                    .Where(tx => tx.ProductId == item.ProductId && tx.WarehouseId == item.WarehouseId && tx.RackId == item.RackId)
                     .ToListAsync();
 
                 var totalPurged = itemTransactions
@@ -222,12 +253,24 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 // 🚀 TRANSFER CALCULATION
-                var transferredOut = await _context.StockTransferDetails
-                    .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
+                var transfersOutQuery = _context.StockTransferDetails.AsQueryable();
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    transfersOutQuery = transfersOutQuery.Where(td => td.CompanyId == companyId);
+                }
+
+                var transferredOut = await transfersOutQuery
+                    .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
                     .SumAsync(td => (decimal?)td.Quantity) ?? 0;
 
-                var transferredIn = await _context.StockTransferDetails
-                    .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
+                var transfersInQuery = _context.StockTransferDetails.AsQueryable();
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    transfersInQuery = transfersInQuery.Where(td => td.CompanyId == companyId);
+                }
+
+                var transferredIn = await transfersInQuery
+                    .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
                     .SumAsync(td => (decimal?)td.Quantity) ?? 0;
 
                 var unlinkedSales = await salesQuery
@@ -433,10 +476,17 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<byte[]> GenerateStockExcel(List<Guid> productIds)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var data = await _context.WarehouseStocks
+            var query = _context.WarehouseStocks
                 .Include(ws => ws.Product)
                 .Include(ws => ws.Warehouse)
-                .Where(ws => productIds.Contains(ws.ProductId) && ws.CompanyId == companyId)
+                .Where(ws => productIds.Contains(ws.ProductId));
+
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                query = query.Where(ws => ws.CompanyId == companyId);
+            }
+
+            var data = await query
                 .Select(ws => new
                 {
                     ws.Product.Name,
@@ -498,8 +548,12 @@ namespace Inventory.Infrastructure.Repositories
             var query = _context.WarehouseStocks
                 .Include(ws => ws.Product)
                 .Include(ws => ws.Warehouse)
-                .Where(ws => ws.CompanyId == companyId)
                 .AsQueryable();
+
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                query = query.Where(ws => ws.CompanyId == companyId);
+            }
 
             if (productId.HasValue && productId != Guid.Empty)
             {
@@ -511,7 +565,7 @@ namespace Inventory.Infrastructure.Repositories
                 query = query.Where(ws => ws.WarehouseId == warehouseId);
             }
 
-            if (!string.IsNullOrEmpty(branchId))
+            if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(branchId))
             {
                 query = query.Where(ws => ws.BranchId == branchId);
             }

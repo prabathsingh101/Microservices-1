@@ -52,6 +52,26 @@ namespace Company.Infrastructure.Services
             }
         }
 
+        public string? BranchId
+        {
+            get
+            {
+                var httpContext = _httpContextAccessor.HttpContext;
+                if (httpContext == null) return null;
+
+                // 1. Try Header (X-Branch-Id) FIRST
+                var headerValue = httpContext.Request.Headers["X-Branch-Id"].ToString();
+                if (!string.IsNullOrEmpty(headerValue) && headerValue != "null") return headerValue;
+
+                // 2. Fallback to JWT Claim
+                var claimValue = httpContext.User.Claims.FirstOrDefault(c =>
+                    c.Type.Equals("BranchId", StringComparison.OrdinalIgnoreCase) ||
+                    c.Type.Equals("branchid", StringComparison.OrdinalIgnoreCase))?.Value;
+
+                return claimValue;
+            }
+        }
+
         public bool IsSuperAdmin
         {
             get
@@ -59,13 +79,22 @@ namespace Company.Infrastructure.Services
                 var user = _httpContextAccessor.HttpContext?.User;
                 if (user == null) return false;
 
-                // 🚀 1. Role-based check (Most reliable)
-                if (user.IsInRole("Default Admin") || user.IsInRole("Super Admin"))
-                {
-                    return true;
-                }
+                return user.IsInRole("Super Admin") || 
+                       user.IsInRole("Default Admin") ||
+                       user.Claims.Any(c => c.Type == ClaimTypes.Role && 
+                           (c.Value.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
+                            c.Value.Equals("Default Admin", StringComparison.OrdinalIgnoreCase)));
+            }
+        }
 
-                // 🚀 2. STRICT PLATFORM ADMIN CHECK (Fallback for system level access)
+        public bool IsPlatformAdmin
+        {
+            get
+            {
+                var user = _httpContextAccessor.HttpContext?.User;
+                if (user == null) return false;
+
+                // Platform Admin is identified by specific Email or Company Name
                 var email = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
                 var companyName = user.Claims.FirstOrDefault(c => c.Type == "CompanyName")?.Value;
 

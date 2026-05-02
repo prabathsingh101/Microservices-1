@@ -79,21 +79,30 @@ public class CurrentUserService : ICurrentUserService
             var user = _httpContextAccessor.HttpContext?.User;
             if (user == null) return false;
 
-            // 1. System/Platform Admin check
+            // 1. Check Role - This includes both Platform Admin and Tenant Super Admin
+            return user.IsInRole("Super Admin") || 
+                   user.IsInRole("Default Admin") ||
+                   user.Claims.Any(c => c.Type == ClaimTypes.Role && 
+                       (c.Value.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
+                        c.Value.Equals("Default Admin", StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    public bool IsPlatformAdmin
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return false;
+
+            // Platform Admin is identified by specific Email or Company Name
             var email = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email || c.Type == "email")?.Value;
             var companyName = user.Claims.FirstOrDefault(c => c.Type == "CompanyName")?.Value;
 
             bool isPlatformEmail = email != null && email.Equals("Default_Admin@gmail.com", StringComparison.OrdinalIgnoreCase);
             bool isPlatformCompany = companyName != null && companyName.Equals("Admin Dashboard", StringComparison.OrdinalIgnoreCase);
 
-            // 2. "Super Admin" or "Default Admin" Role check
-            bool isSuperAdminRole = user.IsInRole("Super Admin") || 
-                                   user.IsInRole("Default Admin") ||
-                                   user.Claims.Any(c => c.Type == ClaimTypes.Role && 
-                                       (c.Value.Equals("Super Admin", StringComparison.OrdinalIgnoreCase) || 
-                                        c.Value.Equals("Default Admin", StringComparison.OrdinalIgnoreCase)));
-
-            return isPlatformEmail || isPlatformCompany || isSuperAdminRole;
+            return isPlatformEmail || isPlatformCompany;
         }
     }
 }

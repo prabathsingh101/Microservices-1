@@ -1,10 +1,20 @@
+using Company.Application.Common.Interfaces;
 using Company.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
+namespace Company.Infrastructure.Persistence;
+
 public class CompanyDbContext : DbContext
 {
-    public CompanyDbContext(DbContextOptions<CompanyDbContext> options) : base(options)
+    private readonly ICurrentUserService _currentUserService;
+    private readonly bool _isPlatformAdmin;
+    private readonly Guid? _currentCompanyId;
+
+    public CompanyDbContext(DbContextOptions<CompanyDbContext> options, ICurrentUserService currentUserService) : base(options)
     {
+        _currentUserService = currentUserService;
+        _isPlatformAdmin = currentUserService.IsPlatformAdmin;
+        _currentCompanyId = currentUserService.CompanyId;
     }
 
     // --- DbSets for Company Microservice Entities ---
@@ -16,6 +26,13 @@ public class CompanyDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // 🛡️ MULTI-TENANT GLOBAL QUERY FILTER
+        // Platform Admin: Sees all companies.
+        // Tenant Admin: Sees only their own company.
+        modelBuilder.Entity<CompanyProfile>().HasQueryFilter(c =>
+            _isPlatformAdmin ? true : c.Id == _currentCompanyId
+        );
 
         // --- Model Configuration ---
         modelBuilder.Entity<CompanyProfile>()

@@ -18,7 +18,7 @@ public class Role : AuditableEntity, IMultiTenant
         Id = Guid.NewGuid();
         RoleName = roleName;
         CompanyId = companyId;
-        BranchId = branchId;
+        BranchId = string.IsNullOrWhiteSpace(branchId) ? null : branchId;
     }
 
     // Navigation Properties

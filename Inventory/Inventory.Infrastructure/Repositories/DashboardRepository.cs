@@ -27,29 +27,31 @@ namespace Inventory.Infrastructure.Repositories
             var branchId = _currentUserService.BranchId;
 
             // Base queries with BranchId filtering
-            var purchaseOrders = _context.PurchaseOrders.AsNoTracking()
-                .Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
-            
-            var products = _context.Products.AsNoTracking()
-                .Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
-            
-            var saleOrders = _context.SaleOrders.AsNoTracking()
-                .Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            var purchaseOrders = _context.PurchaseOrders.AsNoTracking().AsQueryable();
+            var products = _context.Products.AsNoTracking().AsQueryable();
+            var saleOrders = _context.SaleOrders.AsNoTracking().AsQueryable();
+
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                purchaseOrders = purchaseOrders.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+                products = products.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+                saleOrders = saleOrders.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            }
 
             return new DashboardSummaryDto
             {
                 TotalSales = await saleOrders.SumAsync(x => x.GrandTotal),
                 PendingPurchaseOrders = await purchaseOrders.CountAsync(x => x.Status == "Submitted"),
                 TotalStockItems = (int)(await _context.WarehouseStocks
-                    .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                    .Where(ws => (_currentUserService.IsPlatformAdmin || (ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))))
                     .SumAsync(x => (decimal?)x.Quantity) ?? 0),
                 LowStockAlertCount = await _context.Products
-                    .Where(p => p.CompanyId == companyId && p.IsActive && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId || p.BranchId == null))
+                    .Where(p => (_currentUserService.IsPlatformAdmin || (p.CompanyId == companyId && p.IsActive && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId || p.BranchId == null))))
                     .CountAsync(p => (_context.WarehouseStocks
-                        .Where(ws => ws.ProductId == p.Id && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                        .Where(ws => ws.ProductId == p.Id && (_currentUserService.IsPlatformAdmin || (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)))
                         .Sum(ws => (decimal?)ws.Quantity) ?? 0) <= p.MinStock),
                 TotalStockValue = await _context.WarehouseStocks
-                    .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                    .Where(ws => (_currentUserService.IsPlatformAdmin || (ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))))
                     .SumAsync(ws => ws.Quantity * ws.Product.BasePurchasePrice)
             };
         }
@@ -60,16 +62,22 @@ namespace Inventory.Infrastructure.Repositories
             var branchId = _currentUserService.BranchId;
             var currentYear = DateTime.Now.Year;
 
-            var salesTrends = await _context.SaleOrders
-                .AsNoTracking()
-                .Where(x => x.SODate.Year == currentYear && x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            var salesTrendsQuery = _context.SaleOrders.AsNoTracking().Where(x => x.SODate.Year == currentYear);
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                salesTrendsQuery = salesTrendsQuery.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            }
+            var salesTrends = await salesTrendsQuery
                 .GroupBy(x => x.SODate.Month)
                 .Select(g => new { Month = g.Key, Total = g.Sum(x => x.GrandTotal) })
                 .ToListAsync();
 
-            var purchaseTrends = await _context.PurchaseOrders
-                .AsNoTracking()
-                .Where(x => x.PoDate.Year == currentYear && x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            var purchaseTrendsQuery = _context.PurchaseOrders.AsNoTracking().Where(x => x.PoDate.Year == currentYear);
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                purchaseTrendsQuery = purchaseTrendsQuery.Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+            }
+            var purchaseTrends = await purchaseTrendsQuery
                 .GroupBy(x => x.PoDate.Month)
                 .Select(g => new { Month = g.Key, Total = g.Sum(x => x.GrandTotal) })
                 .ToListAsync();
@@ -104,9 +112,13 @@ namespace Inventory.Infrastructure.Repositories
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var branchId = _currentUserService.BranchId;
 
-            var sales = await _context.SaleOrderItems
-                .AsNoTracking()
-                .Where(x => x.CompanyId == companyId && (x.SaleOrder.BranchId == null || string.IsNullOrEmpty(branchId) || x.SaleOrder.BranchId == branchId))
+            var salesQuery = _context.SaleOrderItems.AsNoTracking();
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                salesQuery = salesQuery.Where(x => x.CompanyId == companyId && (x.SaleOrder.BranchId == null || string.IsNullOrEmpty(branchId) || x.SaleOrder.BranchId == branchId));
+            }
+
+            var sales = await salesQuery
                 .OrderByDescending(x => x.SaleOrder.SODate)
                 .Take(5)
                 .Select(x => new RecentActivityDto
@@ -118,9 +130,13 @@ namespace Inventory.Infrastructure.Repositories
                     Status = x.SaleOrder.Status
                 }).ToListAsync();
 
-            var purchases = await _context.PurchaseOrderItems
-                .AsNoTracking()
-                .Where(x => x.CompanyId == companyId && (x.PurchaseOrder.BranchId == null || string.IsNullOrEmpty(branchId) || x.PurchaseOrder.BranchId == branchId))
+            var purchasesQuery = _context.PurchaseOrderItems.AsNoTracking();
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                purchasesQuery = purchasesQuery.Where(x => x.CompanyId == companyId && (x.PurchaseOrder.BranchId == null || string.IsNullOrEmpty(branchId) || x.PurchaseOrder.BranchId == branchId));
+            }
+
+            var purchases = await purchasesQuery
                 .OrderByDescending(x => x.PurchaseOrder.PoDate)
                 .Take(5)
                 .Select(x => new RecentActivityDto
