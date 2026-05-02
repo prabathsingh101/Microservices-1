@@ -21,7 +21,7 @@ public class PriceListConfiguration : IEntityTypeConfiguration<PriceList>
             .HasMaxLength(50);
 
         builder.HasMany(x => x.PriceListItems)
-            .WithOne()
+            .WithOne(x => x.PriceList)
             .HasForeignKey(x => x.PriceListId)
             .OnDelete(DeleteBehavior.Cascade);
     }

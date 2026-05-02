@@ -24,5 +24,9 @@ public class PriceListItemConfiguration : IEntityTypeConfiguration<PriceListItem
 
         builder.Property(x => x.MaxQty);
 
+        builder.HasOne(x => x.Product)
+            .WithMany()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

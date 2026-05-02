@@ -347,277 +347,325 @@ public sealed class ProductRepository : IProductRepository
         int successCount = 0;
         int updateCount = 0;
 
-        using (var stream = new MemoryStream())
+        try
         {
-            await file.CopyToAsync(stream);
-            using (var workbook = new XLWorkbook(stream))
+            using (var stream = new MemoryStream())
             {
-                var worksheet = workbook.Worksheet(1);
-                var rows = worksheet.RangeUsed().RowsUsed();
+                await file.CopyToAsync(stream);
+                stream.Position = 0; // 🚀 Reset stream position
 
-                // 1. Header Validation
-                var headerRow = rows.FirstOrDefault();
-                if (headerRow == null)
+                using (var workbook = new XLWorkbook(stream))
                 {
-                    errors.Add("Invalid Template: File is empty.");
-                    return (0, 0, errors);
-                }
-
-                var expectedHeaders = new List<string> { 
-                    "Category", "Subcategory", "ProductName", "SKU", "Brand", "Unit", 
-                    "BasePrice", "MRP", "Discount", "SaleRate", "GST%", "HSNCode", "MinStock", 
-                    "DamagedStock", "ProductType", "TrackInventory", "RequiresExpiry", "Active", 
-                    "DefaultWarehouse", "DefaultRack", "Description" 
-                };
-                
-                var actualHeaders = new List<string>();
-                for (int i = 1; i <= expectedHeaders.Count; i++)
-                {
-                    var val = headerRow.Cell(i).GetValue<string>().Replace("\"", "").Trim();
-                    if (!string.IsNullOrEmpty(val)) actualHeaders.Add(val);
-                }
-
-                bool headersMatch = expectedHeaders.All(eh =>
-                    actualHeaders.Any(ah => string.Equals(ah, eh, StringComparison.OrdinalIgnoreCase)));
-
-                if (!headersMatch)
-                {
-                    errors.Add($"Invalid Template: Headers mismatch. Expected: {string.Join(", ", expectedHeaders)}");
-                    return (0, 0, errors);
-                }
-
-                var dataRows = rows.Skip(1);
-
-                // 2. Pre-fetch dependencies for faster lookup
-                var categoriesList = await _db.Categories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().ToListAsync();
-                var categories = categoriesList.GroupBy(c => (c.CategoryName ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
-                
-                var subcats = await _db.Subcategories.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().Select(s => new { s.Id, s.SubcategoryName, s.CategoryId }).ToListAsync();
-                
-                var warehousesList = await _db.Warehouses.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().ToListAsync();
-                var warehouses = warehousesList.GroupBy(w => (w.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
-                
-                var racks = await _db.Racks.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsNoTracking().Select(r => new { r.Id, r.Name, r.WarehouseId }).ToListAsync();
-                
-                // 3. Pre-fetch existing products for Upsert logic
-                var dbProducts = await _db.Products.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).ToListAsync();
-                var dbProductsByName = dbProducts.GroupBy(p => (p.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
-                
-                // For SKU lookup
-                var dbProductsBySku = new Dictionary<string, Product>();
-                foreach(var p in dbProducts.Where(p => !string.IsNullOrEmpty(p.Sku)))
-                {
-                    var skuKey = (p.Sku ?? "").ToLower().Trim();
-                    if (!dbProductsBySku.ContainsKey(skuKey)) dbProductsBySku.Add(skuKey, p);
-                }
-
-                // In-file duplicate tracking
-                var fileNames = new HashSet<string>();
-                var fileSkus = new HashSet<string>();
-
-                // 4. PROCESS ROWS
-                foreach (var row in dataRows)
-                {
-                    int rowNum = row.RowNumber();
-                    try
+                    var worksheet = workbook.Worksheet(1);
+                    if (worksheet == null)
                     {
-                        var catName = row.Cell(1).GetValue<string>()?.Trim();
-                        var subName = row.Cell(2).GetValue<string>()?.Trim();
-                        var name = row.Cell(3).GetValue<string>()?.Trim();
-                        var sku = row.Cell(4).GetValue<string>()?.Trim();
-                        var brand = row.Cell(5).GetValue<string>()?.Trim();
-                        var unit = row.Cell(6).GetValue<string>()?.Trim();
-                        var basePriceVal = row.Cell(7).Value;
-                        var mrpVal = row.Cell(8).Value;
-                        var discountVal = row.Cell(9).Value;
-                        var saleRateVal = row.Cell(10).Value;
-                        var gstVal = row.Cell(11).Value;
-                        var hsn = row.Cell(12).GetValue<string>()?.Trim();
-                        var minStockVal = row.Cell(13).Value;
-                        var damagedStockVal = row.Cell(14).Value;
-                        var pType = row.Cell(15).GetValue<string>()?.Trim();
-                        
-                        var trackInvRaw = row.Cell(16).GetValue<string>()?.Trim().ToLower();
-                        var trackInv = trackInvRaw == "true" || trackInvRaw == "yes" || trackInvRaw == "1";
-                        
-                        var reqExpiryRaw = row.Cell(17).GetValue<string>()?.Trim().ToLower();
-                        var reqExpiry = reqExpiryRaw == "true" || reqExpiryRaw == "yes" || reqExpiryRaw == "1";
-                        
-                        var activeRaw = row.Cell(18).GetValue<string>()?.Trim().ToLower();
-                        var active = string.IsNullOrWhiteSpace(activeRaw) || activeRaw == "true" || activeRaw == "yes" || activeRaw == "1" || activeRaw == "active";
+                        errors.Add("Invalid Template: No worksheet found.");
+                        return (0, 0, errors);
+                    }
 
-                        var whName = row.Cell(19).GetValue<string>()?.Trim();
-                        var rackName = row.Cell(20).GetValue<string>()?.Trim();
-                        var desc = row.Cell(21).GetValue<string>()?.Trim();
+                    var rows = worksheet.RangeUsed()?.RowsUsed();
+                    if (rows == null)
+                    {
+                        errors.Add("Invalid Template: File is empty or has no data.");
+                        return (0, 0, errors);
+                    }
 
-                        // Skip Empty Rows
-                        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(catName)) continue;
+                    // 1. Header Validation
+                    var headerRow = rows.FirstOrDefault();
+                    if (headerRow == null)
+                    {
+                        errors.Add("Invalid Template: Header row missing.");
+                        return (0, 0, errors);
+                    }
 
-                        // Validation
-                        if (string.IsNullOrWhiteSpace(name)) { errors.Add($"Row {rowNum}: ProductName is required."); continue; }
-                        if (string.IsNullOrWhiteSpace(catName)) { errors.Add($"Row {rowNum}: Category is required."); continue; }
-                        if (string.IsNullOrWhiteSpace(subName)) { errors.Add($"Row {rowNum}: Subcategory is required."); continue; }
-                        if (string.IsNullOrWhiteSpace(unit)) { errors.Add($"Row {rowNum}: Unit is required."); continue; }
-
-                        // Category Lookup
-                        if (!categories.TryGetValue((catName ?? "").ToLower().Trim(), out var catId))
+                    var expectedHeaders = new List<string> { 
+                        "Category", "Subcategory", "ProductName", "SKU", "Brand", "Unit", 
+                        "BasePrice", "MRP", "Discount", "SaleRate", "GST%", "HSNCode", "MinStock", 
+                        "DamagedStock", "ProductType", "TrackInventory", "RequiresExpiry", "Active", 
+                        "DefaultWarehouse", "DefaultRack", "Description" 
+                    };
+                    
+                    var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    var lastCol = headerRow.LastCellUsed()?.Address.ColumnNumber ?? expectedHeaders.Count + 10;
+                    
+                    for (int i = 1; i <= lastCol; i++)
+                    {
+                        var cellVal = headerRow.Cell(i).GetValue<string>()?.Replace("\"", "").Trim();
+                        if (!string.IsNullOrEmpty(cellVal))
                         {
-                            var dbCat = await _db.Categories.FirstOrDefaultAsync(x => x.CompanyId == companyId && ((x.CategoryName ?? "").ToLower().Trim() == (catName ?? "").ToLower().Trim() || (x.CategoryCode ?? "").ToLower().Trim() == (catName ?? "").ToLower().Trim()));
-                            if (dbCat != null) catId = dbCat.Id;
-                            else { errors.Add($"Row {rowNum}: Category '{catName}' not found."); continue; }
+                            headerMap[cellVal] = i;
                         }
+                    }
 
-                        // Subcategory Lookup
-                        var subInfo = subcats.FirstOrDefault(s => (s.SubcategoryName ?? "").ToLower().Trim() == (subName ?? "").ToLower().Trim() && s.CategoryId == catId);
-                        if (subInfo == null)
+                    // Check if all required headers exist
+                    var missingHeaders = expectedHeaders.Where(eh => !headerMap.ContainsKey(eh)).ToList();
+                    if (missingHeaders.Any())
+                    {
+                        errors.Add($"Invalid Template: Missing headers: {string.Join(", ", missingHeaders)}");
+                        return (0, 0, errors);
+                    }
+
+                    // Helper to get value by header name
+                    string? GetVal(IXLRangeRow r, string header) => headerMap.TryGetValue(header, out var idx) ? r.Cell(idx).GetValue<string>()?.Trim() : null;
+                    object GetRaw(IXLRangeRow r, string header) => headerMap.TryGetValue(header, out var idx) ? r.Cell(idx).Value : Blank.Value;
+
+                    var dataRows = rows.Skip(1).ToList();
+                    if (!dataRows.Any())
+                    {
+                        errors.Add("No valid data rows found in the file.");
+                        return (0, 0, errors);
+                    }
+
+                    // 2. Pre-fetch dependencies
+                    var categoriesList = await _db.Categories
+                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .AsNoTracking().ToListAsync();
+                    
+                    var categories = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+                    foreach(var c in categoriesList)
+                    {
+                        if (!string.IsNullOrEmpty(c.CategoryName)) categories[c.CategoryName.Trim()] = c.Id;
+                        if (!string.IsNullOrEmpty(c.CategoryCode)) categories[c.CategoryCode.Trim()] = c.Id;
+                    }
+                    
+                    var subcategoriesList = await _db.Subcategories
+                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .AsNoTracking().ToListAsync();
+                    
+                    var warehousesList = await _db.Warehouses
+                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .AsNoTracking().ToListAsync();
+                    var warehouses = warehousesList.GroupBy(w => (w.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
+                    
+                    var racks = await _db.Racks
+                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .AsNoTracking().Select(r => new { r.Id, r.Name, r.WarehouseId }).ToListAsync();
+                    
+                    // 3. Pre-fetch existing products
+                    var dbProducts = await _db.Products
+                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .ToListAsync();
+                    var dbProductsByName = dbProducts.GroupBy(p => (p.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
+                    
+                    var dbProductsBySku = new Dictionary<string, Product>(StringComparer.OrdinalIgnoreCase);
+                    foreach(var p in dbProducts.Where(p => !string.IsNullOrEmpty(p.Sku)))
+                    {
+                        dbProductsBySku[p.Sku!.Trim()] = p;
+                    }
+
+                    var fileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var fileSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    // 4. PROCESS ROWS
+                    foreach (var row in dataRows)
+                    {
+                        int rowNum = row.RowNumber();
+                        try
                         {
-                            var dbSub = await _db.Subcategories.FirstOrDefaultAsync(x => x.CompanyId == companyId && x.CategoryId == catId && ((x.SubcategoryName ?? "").ToLower().Trim() == (subName ?? "").ToLower().Trim() || (x.SubcategoryCode ?? "").ToLower().Trim() == (subName ?? "").ToLower().Trim()));
-                            if (dbSub != null) subInfo = new { dbSub.Id, dbSub.SubcategoryName, dbSub.CategoryId };
-                            else { errors.Add($"Row {rowNum}: Subcategory '{subName}' not found."); continue; }
-                        }
+                            var catName = GetVal(row, "Category");
+                            var subName = GetVal(row, "Subcategory");
+                            var name = GetVal(row, "ProductName");
+                            var sku = GetVal(row, "SKU");
+                            var brand = GetVal(row, "Brand");
+                            var unit = GetVal(row, "Unit");
+                            
+                            var basePriceVal = GetRaw(row, "BasePrice");
+                            var mrpVal = GetRaw(row, "MRP");
+                            var discountVal = GetRaw(row, "Discount");
+                            var saleRateVal = GetRaw(row, "SaleRate");
+                            var gstVal = GetRaw(row, "GST%");
+                            var hsn = GetVal(row, "HSNCode");
+                            
+                            var minStockVal = GetRaw(row, "MinStock");
+                            var damagedStockVal = GetRaw(row, "DamagedStock");
+                            var pType = GetVal(row, "ProductType");
+                            
+                            var trackInvRaw = GetVal(row, "TrackInventory")?.ToLower();
+                            var trackInv = trackInvRaw == "true" || trackInvRaw == "yes" || trackInvRaw == "1";
+                            
+                            var reqExpiryRaw = GetVal(row, "RequiresExpiry")?.ToLower();
+                            var reqExpiry = reqExpiryRaw == "true" || reqExpiryRaw == "yes" || reqExpiryRaw == "1";
+                            
+                            var activeRaw = GetVal(row, "Active")?.ToLower();
+                            var active = string.IsNullOrWhiteSpace(activeRaw) || activeRaw == "true" || activeRaw == "yes" || activeRaw == "1" || activeRaw == "active";
 
-                        // Warehouse Lookup
-                        Guid? warehouseId = null;
-                        if (!string.IsNullOrWhiteSpace(whName))
-                        {
-                            if (warehouses.TryGetValue(whName?.ToLower().Trim() ?? "", out var wId)) warehouseId = wId;
-                            else errors.Add($"Row {rowNum}: Warning - Warehouse '{whName}' not found.");
-                        }
+                            var whName = GetVal(row, "DefaultWarehouse");
+                            var rackName = GetVal(row, "DefaultRack");
+                            var desc = GetVal(row, "Description");
 
-                        // Rack Lookup (if warehouse found)
-                        Guid? rackId = null;
-                        if (!string.IsNullOrWhiteSpace(rackName) && warehouseId.HasValue)
-                        {
-                            var rInfo = racks.FirstOrDefault(r => (r.Name ?? "").ToLower().Trim() == rackName?.ToLower().Trim() && r.WarehouseId == warehouseId);
-                            if (rInfo != null) rackId = rInfo.Id;
-                            else errors.Add($"Row {rowNum}: Warning - Rack '{rackName}' not found in Warehouse '{whName}'.");
-                        }
+                            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(catName)) continue;
 
-                        // In-file duplicate checking
-                        if (fileNames.Contains(name?.ToLower().Trim() ?? "")) { errors.Add($"Row {rowNum}: Duplicate Product Name '{name}' in file."); continue; }
-                        if (!string.IsNullOrEmpty(sku) && fileSkus.Contains(sku?.ToLower().Trim() ?? "")) { errors.Add($"Row {rowNum}: Duplicate SKU '{sku}' in file."); continue; }
-                        
-                        fileNames.Add(name?.ToLower().Trim() ?? "");
-                        if (!string.IsNullOrEmpty(sku)) fileSkus.Add(sku?.ToLower().Trim() ?? "");
+                            if (string.IsNullOrWhiteSpace(name)) { errors.Add($"Row {rowNum}: ProductName is required."); continue; }
+                            if (string.IsNullOrWhiteSpace(catName)) { errors.Add($"Row {rowNum}: Category is required."); continue; }
+                            if (string.IsNullOrWhiteSpace(subName)) { errors.Add($"Row {rowNum}: Subcategory is required."); continue; }
+                            if (string.IsNullOrWhiteSpace(unit)) { errors.Add($"Row {rowNum}: Unit is required."); continue; }
+                            if (string.IsNullOrWhiteSpace(hsn)) { errors.Add($"Row {rowNum}: HSN Code is required."); continue; }
 
-                        // Parsing
-                        decimal basePrice = 0, mrp = 0, discount = 0, saleRate = 0, gst = 0, damagedStock = 0;
-                        int minStock = 0;
+                            if (!categories.TryGetValue(catName.Trim(), out var catId))
+                            {
+                                errors.Add($"Row {rowNum}: Category '{catName}' not found."); continue;
+                            }
 
-                        if (!basePriceVal.IsBlank) decimal.TryParse(basePriceVal.ToString(), out basePrice);
-                        if (!mrpVal.IsBlank) decimal.TryParse(mrpVal.ToString(), out mrp);
-                        if (!discountVal.IsBlank) decimal.TryParse(discountVal.ToString(), out discount);
-                        if (!saleRateVal.IsBlank) decimal.TryParse(saleRateVal.ToString(), out saleRate);
-                        if (!gstVal.IsBlank)
-                        {
-                            var gstStr = gstVal.ToString().Replace("%", "").Trim();
+                            var subInfo = subcategoriesList.FirstOrDefault(s => 
+                                ((s.SubcategoryName ?? "").Equals(subName, StringComparison.OrdinalIgnoreCase) || 
+                                 (s.SubcategoryCode ?? "").Equals(subName, StringComparison.OrdinalIgnoreCase)) 
+                                && s.CategoryId == catId);
+
+                            if (subInfo == null)
+                            {
+                                errors.Add($"Row {rowNum}: Subcategory '{subName}' not found in category '{catName}'."); continue;
+                            }
+
+                            Guid? warehouseId = null;
+                            if (!string.IsNullOrWhiteSpace(whName))
+                            {
+                                if (warehouses.TryGetValue(whName.Trim().ToLower(), out var wId)) warehouseId = wId;
+                                else errors.Add($"Row {rowNum}: Warning - Warehouse '{whName}' not found.");
+                            }
+
+                            Guid? rackId = null;
+                            if (!string.IsNullOrWhiteSpace(rackName) && warehouseId.HasValue)
+                            {
+                                var rInfo = racks.FirstOrDefault(r => (r.Name ?? "").Equals(rackName, StringComparison.OrdinalIgnoreCase) && r.WarehouseId == warehouseId);
+                                if (rInfo != null) rackId = rInfo.Id;
+                                else errors.Add($"Row {rowNum}: Warning - Rack '{rackName}' not found in Warehouse '{whName}'.");
+                            }
+
+                            if (fileNames.Contains(name.Trim())) { errors.Add($"Row {rowNum}: Duplicate Product Name '{name}' in file."); continue; }
+                            if (!string.IsNullOrEmpty(sku) && fileSkus.Contains(sku.Trim())) { errors.Add($"Row {rowNum}: Duplicate SKU '{sku}' in file."); continue; }
+                            
+                            fileNames.Add(name.Trim());
+                            if (!string.IsNullOrEmpty(sku)) fileSkus.Add(sku.Trim());
+
+                            decimal basePrice = 0, mrp = 0, discount = 0, saleRate = 0, gst = 0, damagedStock = 0;
+                            int minStock = 0;
+
+                            decimal.TryParse(basePriceVal.ToString()?.Replace(",", ""), out basePrice);
+                            decimal.TryParse(mrpVal.ToString()?.Replace(",", ""), out mrp);
+                            decimal.TryParse(discountVal.ToString()?.Replace(",", ""), out discount);
+                            decimal.TryParse(saleRateVal.ToString()?.Replace(",", ""), out saleRate);
+                            
+                            var gstStr = gstVal.ToString()?.Replace("%", "").Trim();
                             decimal.TryParse(gstStr, out gst);
-                        }
-                        if (!damagedStockVal.IsBlank) decimal.TryParse(damagedStockVal.ToString(), out damagedStock);
-                        if (!minStockVal.IsBlank) int.TryParse(minStockVal.ToString(), out minStock);
+                            
+                            decimal.TryParse(damagedStockVal.ToString()?.Replace(",", ""), out damagedStock);
+                            
+                            if (decimal.TryParse(minStockVal.ToString(), out var minStockDec))
+                            {
+                                minStock = (int)Math.Round(minStockDec);
+                            }
 
-                        // Product Type Mapping
-                        string mappedType = pType?.ToLower() switch
-                        {
-                            "finished" => "1",
-                            "goods" => "2",
-                            "raw material" => "3",
-                            _ => "1"
-                        };
+                            string mappedType = pType?.ToLower() switch
+                            {
+                                "finished" => "1",
+                                "goods" => "2",
+                                "raw material" => "3",
+                                _ => "1"
+                            };
 
-                        // 4. UPSERT LOGIC
-                        Product? existingProduct = null;
-                        
-                        if (!string.IsNullOrEmpty(sku) && dbProductsBySku.TryGetValue(sku?.ToLower().Trim() ?? "", out var pBySku))
-                        {
-                            existingProduct = pBySku;
-                        }
-                        else if (dbProductsByName.TryGetValue(name?.ToLower().Trim() ?? "", out var pByName))
-                        {
-                            existingProduct = pByName;
-                        }
+                            Product? existingProduct = null;
+                            if (!string.IsNullOrEmpty(sku) && dbProductsBySku.TryGetValue(sku.Trim(), out var pBySku))
+                            {
+                                existingProduct = pBySku;
+                            }
+                            else if (dbProductsByName.TryGetValue(name.Trim().ToLower(), out var pByName))
+                            {
+                                existingProduct = pByName;
+                            }
 
-                        if (existingProduct != null)
-                        {
-                            existingProduct.Update(
-                                categoryid: catId,
-                                subcategoryid: subInfo.Id,
-                                name: name,
-                                sku: sku ?? "",
-                                saleRate: saleRate,
-                                discount: discount,
-                                brand: brand ?? "",
-                                unit: unit,
-                                hsncode: hsn ?? "",
-                                basepurchaseprice: basePrice,
-                                mrp: mrp,
-                                defaultGst: gst,
-                                minstock: minStock,
-                                trackinventory: trackInv,
-                                isactive: active,
-                                description: desc,
-                                ModifiedBy: "BulkUpload",
-                                productType: mappedType,
-                                damagedStock: damagedStock,
-                                defaultWarehouseId: warehouseId,
-                                defaultRackId: rackId,
-                                isExpiryRequired: reqExpiry,
-                                modifiedon: DateTime.UtcNow,
-                                companyId: companyId,
-                                branchId: branchId
-                            );
-                            updateCount++;
+                            if (existingProduct != null)
+                            {
+                                existingProduct.Update(
+                                    categoryid: catId,
+                                    subcategoryid: subInfo.Id,
+                                    name: name,
+                                    sku: sku ?? "",
+                                    saleRate: saleRate,
+                                    discount: discount,
+                                    brand: brand ?? "",
+                                    unit: unit,
+                                    hsncode: hsn ?? "",
+                                    basepurchaseprice: basePrice,
+                                    mrp: mrp,
+                                    defaultGst: gst,
+                                    minstock: minStock,
+                                    trackinventory: trackInv,
+                                    isactive: active,
+                                    description: desc,
+                                    ModifiedBy: "BulkUpload",
+                                    productType: mappedType,
+                                    damagedStock: damagedStock,
+                                    defaultWarehouseId: warehouseId,
+                                    defaultRackId: rackId,
+                                    isExpiryRequired: reqExpiry,
+                                    modifiedon: DateTime.UtcNow,
+                                    companyId: companyId,
+                                    branchId: branchId
+                                );
+                                updateCount++;
+                            }
+                            else
+                            {
+                                var product = new Product(
+                                    categoryid: catId,
+                                    subcategoryid: subInfo.Id,
+                                    productname: name,
+                                    sku: sku ?? "",
+                                    brand: brand ?? "",
+                                    unit: unit,
+                                    hsncode: hsn ?? "",
+                                    basepurchaseprice: basePrice,
+                                    mrp: mrp,
+                                    discount: discount,
+                                    defaultgst: gst,
+                                    minstock: minStock,
+                                    trackinventory: trackInv,
+                                    isactive: active,
+                                    description: desc ?? "",
+                                    createdby: "BulkUpload",
+                                    saleRate: saleRate,
+                                    productType: mappedType,
+                                    damagedStock: damagedStock,
+                                    defaultWarehouseId: warehouseId,
+                                    defaultRackId: rackId,
+                                    isExpiryRequired: reqExpiry,
+                                    imageUrl: null,
+                                    companyId: companyId,
+                                    branchId: branchId
+                                );
+                                await _db.Products.AddAsync(product);
+                                successCount++;
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            var product = new Product(
-                                categoryid: catId,
-                                subcategoryid: subInfo.Id,
-                                productname: name,
-                                sku: sku ?? "",
-                                brand: brand ?? "",
-                                unit: unit,
-                                hsncode: hsn ?? "",
-                                basepurchaseprice: basePrice,
-                                mrp: mrp,
-                                discount: discount,
-                                defaultgst: gst,
-                                minstock: minStock,
-                                trackinventory: trackInv,
-                                isactive: active,
-                                description: desc ?? "",
-                                createdby: "BulkUpload",
-                                saleRate: saleRate,
-                                productType: mappedType,
-                                damagedStock: damagedStock,
-                                defaultWarehouseId: warehouseId,
-                                defaultRackId: rackId,
-                                isExpiryRequired: reqExpiry,
-                                imageUrl: null,
-                                companyId: companyId,
-                                branchId: branchId
-                            );
-                            await _db.Products.AddAsync(product);
-                            successCount++;
+                            errors.Add($"Row {rowNum}: Error - {ex.Message}");
                         }
                     }
-                    catch (Exception ex)
+
+                    if (successCount > 0 || updateCount > 0)
                     {
-                        errors.Add($"Row {rowNum}: Fatal Error - {ex.Message}");
+                        try
+                        {
+                            await _db.SaveChangesAsync();
+                        }
+                        catch (Exception dbEx)
+                        {
+                            successCount = 0;
+                            updateCount = 0;
+                            errors.Add($"Database Save Error: {dbEx.InnerException?.Message ?? dbEx.Message}");
+                        }
                     }
-                }
-
-                if (successCount > 0 || updateCount > 0)
-                {
-                    await _db.SaveChangesAsync();
-                }
-
-                if (successCount == 0 && !errors.Any())
-                {
-                    errors.Add("No valid rows found in the file.");
                 }
             }
         }
+        catch (Exception ex)
+        {
+            successCount = 0;
+            updateCount = 0;
+            errors.Add($"Fatal Error: {ex.Message}. Make sure you are using a valid .xlsx file.");
+        }
+
         return (successCount, updateCount, errors);
     }
 

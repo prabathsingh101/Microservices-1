@@ -38,7 +38,7 @@ public sealed class ProductConfiguration
                .HasPrecision(18, 2);
 
         builder.Property(x => x.DefaultGst)
-               .HasPrecision(5, 2)
+               .HasPrecision(18, 2)
                .IsRequired(false);
 
         builder.Property(x => x.DamagedStock)
