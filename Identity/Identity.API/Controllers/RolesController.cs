@@ -89,6 +89,7 @@ public class RolesController : ControllerBase
                 r.CreatedDate,
                 r.LastModifiedBy,
                 r.LastModifiedDate,
+                r.Description,
                 CompanyName = r.CompanyId == null ? "System" : (subscriptions.ContainsKey(cid) ? subscriptions[cid] : "Unknown")
             }).ToList();
 
