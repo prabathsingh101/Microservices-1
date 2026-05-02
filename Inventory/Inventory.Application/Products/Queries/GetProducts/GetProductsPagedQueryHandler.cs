@@ -112,44 +112,16 @@ internal sealed class GetProductsPagedQueryHandler
         var companyIdClaim = _currentUserService.CompanyId;
         var branchId = _currentUserService.BranchId;
 
-        var receivedStock = await _context.GRNDetails
+        var stockLookup = await _context.WarehouseStocks
             .IgnoreQueryFilters()
-            .Where(gd => gd.CompanyId == companyIdClaim && productIds.Contains(gd.ProductId))
-            .Where(gd => string.IsNullOrEmpty(branchId) || gd.BranchId == branchId)
-            .GroupBy(gd => gd.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReceivedQty - x.RejectedQty) })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
-
-        var soldStock = await _context.SaleOrderItems
-            .IgnoreQueryFilters()
-            .Where(soi => soi.CompanyId == companyIdClaim && productIds.Contains(soi.ProductId) && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered"))
-            .Where(soi => string.IsNullOrEmpty(branchId) || soi.BranchId == branchId)
-            .GroupBy(soi => soi.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0 })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
-
-        var purchaseReturnedStock = await _context.PurchaseReturnItems
-            .IgnoreQueryFilters()
-            .Where(pri => pri.CompanyId == companyIdClaim && productIds.Contains(pri.ProductId))
-            .Where(pri => string.IsNullOrEmpty(branchId) || pri.BranchId == branchId)
-            .GroupBy(pri => pri.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0 })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
-
-        var saleReturnedStock = await _context.SaleReturnItems
-            .IgnoreQueryFilters()
-            .Where(sri => sri.CompanyId == companyIdClaim && productIds.Contains(sri.ProductId))
-            .Where(sri => string.IsNullOrEmpty(branchId) || sri.BranchId == branchId)
-            .GroupBy(sri => sri.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0 })
+            .Where(ws => ws.CompanyId == companyIdClaim && productIds.Contains(ws.ProductId))
+            .Where(ws => string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)
+            .GroupBy(ws => ws.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
 
         var items = itemsData.Select(p => {
-            var received = receivedStock.GetValueOrDefault(p.Id, 0);
-            var sold = soldStock.GetValueOrDefault(p.Id, 0);
-            var purReturned = purchaseReturnedStock.GetValueOrDefault(p.Id, 0);
-            var saleReturned = saleReturnedStock.GetValueOrDefault(p.Id, 0);
-            var actualStock = received - sold - purReturned + saleReturned;
+            var actualStock = stockLookup.GetValueOrDefault(p.Id, 0);
 
             return new ProductDto
             {

@@ -138,45 +138,17 @@ public sealed class ProductRepository : IProductRepository
         // 🚀 SMART TRANSACTION-BASED STOCK CALCULATION
         var productIds = products.Select(p => p.Id).ToList();
 
-        var receivedStock = await _db.GRNDetails.AsNoTracking()
+        var stockLookup = await _db.WarehouseStocks
             .IgnoreQueryFilters()
-            .Where(gd => gd.CompanyId == companyId && productIds.Contains(gd.ProductId))
-            .Where(gd => string.IsNullOrEmpty(branchId) || gd.BranchId == branchId)
-            .GroupBy(gd => gd.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReceivedQty - x.RejectedQty) })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
-
-        var soldStock = await _db.SaleOrderItems.AsNoTracking()
-            .IgnoreQueryFilters()
-            .Where(soi => soi.CompanyId == companyId && productIds.Contains(soi.ProductId) && (soi.SaleOrder.Status == "Confirmed" || soi.SaleOrder.Status == "Delivered"))
-            .Where(soi => string.IsNullOrEmpty(branchId) || soi.BranchId == branchId)
-            .GroupBy(soi => soi.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0 })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
-
-        var purchaseReturnedStock = await _db.PurchaseReturnItems.AsNoTracking()
-            .IgnoreQueryFilters()
-            .Where(pri => pri.CompanyId == companyId && productIds.Contains(pri.ProductId))
-            .Where(pri => string.IsNullOrEmpty(branchId) || pri.BranchId == branchId)
-            .GroupBy(pri => pri.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0 })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
-
-        var saleReturnedStock = await _db.SaleReturnItems.AsNoTracking()
-            .IgnoreQueryFilters()
-            .Where(sri => sri.CompanyId == companyId && productIds.Contains(sri.ProductId))
-            .Where(sri => string.IsNullOrEmpty(branchId) || sri.BranchId == branchId)
-            .GroupBy(sri => sri.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0 })
+            .Where(ws => ws.CompanyId == companyId && productIds.Contains(ws.ProductId))
+            .Where(ws => string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)
+            .GroupBy(ws => ws.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
 
         foreach (var p in products)
         {
-            var received = receivedStock.GetValueOrDefault(p.Id, 0);
-            var sold = soldStock.GetValueOrDefault(p.Id, 0);
-            var purReturned = purchaseReturnedStock.GetValueOrDefault(p.Id, 0);
-            var saleReturned = saleReturnedStock.GetValueOrDefault(p.Id, 0);
-            p.CurrentStock = received - sold - purReturned + saleReturned;
+            p.CurrentStock = stockLookup.GetValueOrDefault(p.Id, 0);
         }
 
         return products;

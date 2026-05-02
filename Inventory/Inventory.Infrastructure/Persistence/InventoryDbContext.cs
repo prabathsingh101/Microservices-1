@@ -12,6 +12,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     private readonly Guid? _currentCompanyId;
     private readonly string? _currentBranchId;
     private readonly bool _isSuperAdmin;
+    private readonly string? _currentUserEmail;
 
     public InventoryDbContext(
         DbContextOptions<InventoryDbContext> options,
@@ -23,6 +24,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
         _isSuperAdmin = currentUserService.IsSuperAdmin;
         _currentCompanyId = currentUserService.CompanyId;
         _currentBranchId = currentUserService.BranchId;
+        _currentUserEmail = currentUserService.Email;
     }
 
     public DbSet<Category> Categories => Set<Category>();
@@ -99,11 +101,26 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
 
     private void ApplyAuditAndTenantInfo()
     {
+        var now = DateTime.UtcNow;
         var entries = ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
 
         foreach (var entry in entries)
         {
+            // 1. Audit Fields (CreatedOn, CreatedBy, etc.)
+            if (entry.Entity is Inventory.Domain.Common.BaseAuditableEntity auditableEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    auditableEntity.CreatedOn = now;
+                    auditableEntity.CreatedBy = _currentUserEmail;
+                }
+                
+                auditableEntity.ModifiedOn = now;
+                auditableEntity.ModifiedBy = _currentUserEmail;
+            }
+
+            // 2. Tenant Fields (CompanyId, BranchId)
             if (entry.Entity is Inventory.Domain.Common.IMultiTenant tenantEntity)
             {
                 if (tenantEntity.CompanyId == Guid.Empty)

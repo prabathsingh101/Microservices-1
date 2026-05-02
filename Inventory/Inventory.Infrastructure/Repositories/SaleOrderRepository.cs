@@ -595,9 +595,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                 WarehouseName = x.Warehouse != null ? x.Warehouse.Name : null,
                 RackId = x.RackId,
                 RackName = x.Rack != null ? x.Rack.Name : null,
-                CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
-                               (_context.SaleOrderItems.Where(si => si.ProductId == x.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Completed")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
+                CurrentStock = _context.WarehouseStocks
+                    .Where(ws => ws.ProductId == x.ProductId && ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+                    .Sum(ws => (decimal?)ws.Quantity) ?? 0,
 
                 // Dynamic Policy Calculation
                 IsReturnable = x.SaleOrder.SODate >= limitDate,
