@@ -229,9 +229,25 @@ namespace Inventory.Infrastructure.Repositories
                     prItemsQuery = prItemsQuery.Where(pri => pri.CompanyId == companyId);
                 }
 
-                var totalPurchaseReturn = await prItemsQuery
+                var purchaseReturns = await prItemsQuery
                     .Where(pri => pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
-                    .SumAsync(pri => (decimal?)pri.ReturnQty) ?? 0;
+                    .Select(pri => new { pri.ReturnQty, pri.GrnRef })
+                    .ToListAsync();
+
+                decimal totalPurchaseReturn = 0;
+                decimal totalDeductibleReturn = 0;
+
+                foreach(var pr in purchaseReturns)
+                {
+                    totalPurchaseReturn += (decimal)pr.ReturnQty;
+                    
+                    // Find the original GRN to check if this was a rejected item
+                    var gd = await grnQuery.FirstOrDefaultAsync(g => g.GRNHeader.GRNNumber == pr.GrnRef);
+                    decimal rejected = gd?.RejectedQty ?? 0;
+                    
+                    // Only deduct from stock if the returned quantity exceeds the rejected quantity
+                    totalDeductibleReturn += Math.Max(0, (decimal)pr.ReturnQty - rejected);
+                }
 
                 var transactionsQuery = _context.InventoryTransactions.AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
@@ -243,13 +259,14 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(tx => tx.ProductId == item.ProductId && tx.WarehouseId == item.WarehouseId && tx.RackId == item.RackId)
                     .ToListAsync();
 
-                var totalPurged = itemTransactions
+                var totalPurged = Math.Abs(itemTransactions
                     .Where(tx => tx.TransactionType == "StockPurge-OUT")
-                    .Sum(tx => tx.Quantity);
+                    .Sum(tx => tx.Quantity));
 
-                if (item.IsAlreadyPurged && totalPurged > 0)
+                if (totalPurged > 0)
                 {
-                    item.TotalExpired = totalPurged;
+                    if (item.IsAlreadyPurged) item.TotalExpired = totalPurged;
+                    else item.TotalExpired += totalPurged;
                 }
 
                 // 🚀 TRANSFER CALCULATION
@@ -286,7 +303,7 @@ namespace Inventory.Infrastructure.Repositories
 
                 item.TotalSold = grossSold + adjustment - totalSaleReturn;
                 item.TotalReturned = totalPurchaseReturn;
-                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalPurchaseReturn - transferredOut + transferredIn;
+                item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalDeductibleReturn - transferredOut + transferredIn - totalPurged;
 
                 var earliestBatch = await grnQuery
                     .Where(g => g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
@@ -409,7 +426,7 @@ namespace Inventory.Infrastructure.Repositories
 
                 // Apply FIFO distribution of TotalSold and TotalPurchaseReturn
                 decimal remainingSold = item.TotalSold;
-                decimal remainingReturn = totalPurchaseReturn;
+                decimal remainingReturn = totalDeductibleReturn;
 
                 foreach (var h in history)
                 {

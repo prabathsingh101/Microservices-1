@@ -19,5 +19,14 @@ public class PurchaseOrderItem : BaseAuditableEntity
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
 
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal RejectedQty { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal ReturnedQty { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal AcceptedQty => ReceivedQty - (RejectedQty - ReturnedQty);
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal PendingQty => Qty - AcceptedQty;
+
     public virtual PurchaseOrder PurchaseOrder { get; set; } = null!;
 }

@@ -204,9 +204,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     // If no PO, use DTO/Item values for calculation
                     if (poItem != null)
                     {
-                        poItem.ReceivedQty -= item.ReturnQty;
-                        if (poItem.ReceivedQty < 0) poItem.ReceivedQty = 0;
-                        _context.PurchaseOrderItems.Update(poItem);
+                        // ✅ DO NOT modify ReceivedQty - it is a historical record of physical gate entry.
+                        // Returns are tracked separately in PurchaseReturnItems table.
+                        // PendingQty = Ordered - (ReceivedQty - RejectedQty) handles this correctly:
+                        //   e.g. Ordered=2, Received=2, Rejected=1, Returned=1
+                        //   Net Accepted = 2 - 1 = 1, Pending = 2 - 1 = 1 (need 1 replacement) ✅
 
                         item.GstPercent = poItem.GstPercent;
                         item.DiscountPercent = poItem.DiscountPercent;
@@ -232,51 +234,58 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     
                     // _context.GRNDetails.Update(grnDetail); // Removed to keep history intact
 
-                    decimal deductionFromCurrentStock = Math.Max(0, qtyToReturn - initialRejectedQty);
+                    // 🚀 STOCK UPDATE: Only deduct stock for ACCEPTED items being returned.
+                    // Rejected items are NOT added to WarehouseStocks during GRN (only net accepted is added),
+                    // so returning a purely rejected item should NOT reduce WarehouseStocks.
+                    // Formula: deduction = max(0, returnQty - rejectedQty)
+                    // e.g. return 1 item that was rejected → deduction = max(0, 1-1) = 0 (correct)
+                    // e.g. return 1 item that was accepted → deduction = max(0, 1-0) = 1 (correct)
+                    decimal deductionFromCurrentStock = Math.Max(0, item.ReturnQty - initialRejectedQty);
+
+                    var wsWarehouseId = item.WarehouseId ?? grnDetail.WarehouseId;
+                    var wsRackId = item.RackId ?? grnDetail.RackId;
 
                     if (deductionFromCurrentStock > 0)
                     {
-                         var wsWarehouseId = item.WarehouseId ?? grnDetail.WarehouseId;
-                             var wsRackId = item.RackId ?? grnDetail.RackId;
-                             
-                             var warehouseStock = await _context.WarehouseStocks
-                                 .IgnoreQueryFilters()
-                                 .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
-                                                      && ws.WarehouseId == wsWarehouseId
-                                                      && ws.CompanyId == companyId);
-                                                     
-                             if (warehouseStock != null)
-                             {
-                                 warehouseStock.Quantity -= deductionFromCurrentStock;
-                                 if (warehouseStock.Quantity < 0) warehouseStock.Quantity = 0;
-                                 _context.WarehouseStocks.Update(warehouseStock);
-                             }
-                             else if (wsWarehouseId.HasValue)
-                             {
-                                 await _context.WarehouseStocks.AddAsync(new WarehouseStock
-                                 {
-                                     ProductId = item.ProductId,
-                                     WarehouseId = wsWarehouseId.Value,
-                                     Quantity = -deductionFromCurrentStock,
-                                     CompanyId = companyId,
-                                     BranchId = branchId
-                                 });
-                             }
-                             
-                             var returnTx = new InventoryTransaction(
-                                 item.ProductId,
-                                 -item.ReturnQty,
-                                 returnData.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn",
-                                 returnData.ReturnNumber,
-                                 wsWarehouseId,
-                                 item.RackId ?? grnDetail.RackId,
-                                 item.MfgDate,
-                                 item.ExpDate,
-                                 companyId,
-                                 branchId
-                             );
-                             await _context.InventoryTransactions.AddAsync(returnTx);
+                        var warehouseStock = await _context.WarehouseStocks
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                 && ws.WarehouseId == wsWarehouseId
+                                                 && ws.CompanyId == companyId);
+                                                
+                        if (warehouseStock != null)
+                        {
+                            warehouseStock.Quantity -= deductionFromCurrentStock;
+                            if (warehouseStock.Quantity < 0) warehouseStock.Quantity = 0;
+                            _context.WarehouseStocks.Update(warehouseStock);
+                        }
+                        else if (wsWarehouseId.HasValue)
+                        {
+                            await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                            {
+                                ProductId = item.ProductId,
+                                WarehouseId = wsWarehouseId.Value,
+                                Quantity = -deductionFromCurrentStock,
+                                CompanyId = companyId,
+                                BranchId = branchId
+                            });
+                        }
                     }
+
+                    // Always record inventory transaction for audit trail
+                    var returnTx = new InventoryTransaction(
+                        item.ProductId,
+                        -item.ReturnQty,
+                        returnData.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn",
+                        returnData.ReturnNumber,
+                        wsWarehouseId,
+                        item.RackId ?? grnDetail.RackId,
+                        item.MfgDate,
+                        item.ExpDate,
+                        companyId,
+                        branchId
+                    );
+                    await _context.InventoryTransactions.AddAsync(returnTx);
                 }
 
                 returnData.SubTotal = totalHeaderSubTotal;
@@ -284,6 +293,32 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 returnData.GrandTotal = totalHeaderSubTotal + totalHeaderTax;
 
                 _context.PurchaseReturns.Add(returnData);
+
+                // 🎯 OPTION B (Strict): Reset PO Dispatch status for replacements
+                // If a return is processed, the supplier must "Confirm Dispatch" again for replacements.
+                var poIds = new List<Guid>();
+                
+                // Search PO via GRN Ref to identify which POs need a dispatch reset
+                foreach (var item in returnData.Items)
+                {
+                    var poId = await _context.GRNDetails
+                        .Include(gd => gd.GRNHeader)
+                        .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.GRNNumber == item.GrnRef)
+                        .Select(gd => gd.GRNHeader.PurchaseOrderId)
+                        .FirstOrDefaultAsync();
+                    if (poId != Guid.Empty && !poIds.Contains(poId)) poIds.Add(poId);
+                }
+
+                foreach (var poId in poIds)
+                {
+                    var po = await _context.PurchaseOrders.FindAsync(poId);
+                    if (po != null)
+                    {
+                        po.IsDispatched = false; // Reset to false to force re-dispatch confirmation
+                        _context.PurchaseOrders.Update(po);
+                    }
+                }
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 

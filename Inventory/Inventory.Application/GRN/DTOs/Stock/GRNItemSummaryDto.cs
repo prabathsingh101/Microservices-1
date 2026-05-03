@@ -17,5 +17,6 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public decimal UnitRate { get; set; }
         public string? RackName { get; set; }
         public bool IsExpired { get; set; }
+        public decimal ReturnedQty { get; set; } // NAYA: Truck hide karne ke liye
     }
 }

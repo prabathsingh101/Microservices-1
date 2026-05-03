@@ -224,12 +224,29 @@ namespace Inventory.Infrastructure.Repositories
                     }
 
                     // 5. Update PO Status via RAW SQL
+                    // FIX: Use Net Accepted Qty (ReceivedQty - RejectedQty) to determine if truly fully received
                     if (po != null)
                     {
-                        await _context.Database.ExecuteSqlRawAsync(
-                            @"UPDATE PurchaseOrders SET Status = 'Received', CompanyId = COALESCE(CompanyId, {0}) 
-                              WHERE Id = {1} AND CompanyId = {0} AND NOT EXISTS (SELECT 1 FROM PurchaseOrderItems WHERE PurchaseOrderId = {1} AND ReceivedQty < Qty AND CompanyId = {0})",
-                            header.CompanyId, header.PurchaseOrderId);
+                        // First check if there are any rejections
+                        var hasRejections = details.Any(d => d.RejectedQty > 0);
+                        
+                        if (hasRejections)
+                        {
+                            // With rejections: mark as Partially Received + reset isDispatched
+                            // Supplier must dispatch again for replacements (strict workflow)
+                            await _context.Database.ExecuteSqlRawAsync(
+                                @"UPDATE PurchaseOrders SET Status = 'Partially Received', IsDispatched = 0
+                                  WHERE Id = {0} AND CompanyId = {1}",
+                                header.PurchaseOrderId, header.CompanyId);
+                        }
+                        else
+                        {
+                            // No rejections: update to Received only if all items fully received
+                            await _context.Database.ExecuteSqlRawAsync(
+                                @"UPDATE PurchaseOrders SET Status = 'Received', CompanyId = COALESCE(CompanyId, {0}) 
+                                  WHERE Id = {1} AND CompanyId = {0} AND NOT EXISTS (SELECT 1 FROM PurchaseOrderItems WHERE PurchaseOrderId = {1} AND ReceivedQty < Qty AND CompanyId = {0})",
+                                header.CompanyId, header.PurchaseOrderId);
+                        }
                     }
 
                     // 6. Update Gate Pass Status
@@ -378,7 +395,9 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     foreach (var d in po.Items)
                     {
-                        var pending = d.Qty - d.ReceivedQty;
+                        var returnedQty = returnLookup.ContainsKey(d.ProductId) ? returnLookup[d.ProductId] : 0;
+                        // Pending = (Ordered - Physically Received) + Returned (need replacement)
+                        var pending = (d.Qty - d.ReceivedQty) + returnedQty;
                         decimal proposedRecv;
 
                         // 🎯 FIX: Prioritize replacement quantity (return items) even without a gate pass
@@ -387,7 +406,7 @@ namespace Inventory.Infrastructure.Repositories
                             // If this product has a pending replacement, use that quantity. 
                             // If it doesn't, but OTHER items in this PO have replacements, default to 0 
                             // because this is likely a replacement-only delivery.
-                            proposedRecv = returnLookup.ContainsKey(d.ProductId) ? returnLookup[d.ProductId] : 0;
+                            proposedRecv = returnedQty;
                         }
                         else
                         {
@@ -467,27 +486,24 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     ProductName = d.Product.Name,
                     OrderedQty = d.OrderedQty,
-                    ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == g.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                    AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == g.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
 
                     // FIX: Pending calculation for historical view
                     // Hum PO Item ki cumulative 'ReceivedQty' ke bajaye transaction level logic use karenge
-                    // Pending = Total Ordered - Jo is GRN tak total receive ho chuka tha
-                    // FIX: Pending logic should only apply to actual PO items (OrderedQty > 0)
+                    // Pending = Total Ordered - Jo is GRN tak total 'Net Accepted' ho chuka tha
+                    // Net Accepted = Total Received - Total Rejected
                     PendingQty = d.OrderedQty > 0 ? (d.OrderedQty - (
                         _context.GRNDetails
                             .Where(prev => prev.ProductId == d.ProductId &&
                                            prev.GRNHeader.PurchaseOrderId == g.PurchaseOrderId &&
                                            prev.GRNHeader.CreatedOn <= g.CreatedOn &&
                                            prev.CompanyId == companyId)
-                            .Sum(prev => prev.ReceivedQty - prev.RejectedQty) -
-                        (_context.PurchaseReturnItems
-                            .Where(ri => ri.ProductId == d.ProductId && ri.CompanyId == companyId)
-                            .Join(_context.GRNDetails.Where(gd => gd.GRNHeader.PurchaseOrderId == g.PurchaseOrderId && gd.GRNHeader.CreatedOn <= g.CreatedOn), ri => ri.GrnRef, gd => gd.GRNHeader.GRNNumber, (ri, gd) => (decimal?)ri.ReturnQty)
-                            .Sum() ?? 0)
-                    )) : 0,
+                            .Sum(prev => (decimal?)prev.ReceivedQty - (decimal?)prev.RejectedQty) ?? 0)
+                    ) : 0,
 
-                    RejectedQty = d.RejectedQty,
+                    RejectedQty = d.RejectedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    ReturnedQty = _context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0,
                     ActualRejectedQty = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected")))) ? 0 : d.RejectedQty,
                     ExpiredQty = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected")))) ? d.RejectedQty : 0,
                     UnitRate = d.UnitRate,

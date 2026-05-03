@@ -30,6 +30,15 @@ public class PurchaseOrder : Inventory.Domain.Common.BaseAuditableEntity
     public bool IsDispatched { get; set; } = false; // Flag for In-Transit tracking
     public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     public virtual ICollection<GRNHeader> GrnHeaders { get; set; } = new List<GRNHeader>();
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal TotalRejected { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal TotalReturned { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal TotalAccepted => Items.Sum(x => x.ReceivedQty) - (TotalRejected - TotalReturned);
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal TotalPending => TotalQuantity - TotalAccepted;
     public bool CanBeDeleted()
     {
         // 1. Status Check: Sirf 'Draft' ya 'Pending' status wale PO delete hone chahiye

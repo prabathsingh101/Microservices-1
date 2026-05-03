@@ -40,8 +40,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
 
-                    // Dynamic calculation (Received - Rejected - Returned) handles returns and original rejections accurately
-                    var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty) - totalReturned;
+                    // Dynamic calculation: Accepted = Received - Rejected (Returns are tracked separately and shouldn't reduce accepted if they were already rejected)
+                    var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty);
                     var totalRejected = grnSummary.Sum(s => s.RejectedQty);
                     if (totalAccepted < 0) totalAccepted = 0;
 
@@ -57,8 +57,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         GstPercent = item.GstPercent,
                         ProductName = item.Product != null ? item.Product.Name : "N/A",
 
-                        // Use the field from PurchaseOrderItems table (which is net-updated by repo)
-                        ReceivedQty = item.ReceivedQty,
+                        // Use the field from PurchaseOrderItems table (which is net-updated by repo) minus returns
+                        ReceivedQty = item.ReceivedQty - totalReturned,
                         AcceptedQty = totalAccepted,
                         RejectedQty = totalRejected,
                         ReturnQty = totalReturned,

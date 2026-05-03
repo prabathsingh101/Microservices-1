@@ -226,8 +226,50 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 .ThenInclude(i => i.Product)
             .Include(x => x.GrnHeaders)
                 .ThenInclude(h => h.GRNItems)
-            .AsSplitQuery() // Split queries for better multi-include performance
+            .AsSplitQuery() 
             .ToListAsync();
+
+        // 🎯 STEP 4: Post-process to calculate totals for UI logic
+        var poGrnNumbers = data.SelectMany(x => x.GrnHeaders).Select(h => h.GRNNumber).Distinct().ToList();
+        
+        // Fetch all return items for these GRNs in one go
+        var poGrnNumbersLower = poGrnNumbers.Select(n => n.Trim().ToLower()).ToList();
+        var allReturnItems = await _context.PurchaseReturnItems
+            .Where(ri => ri.CompanyId == companyId)
+            .ToListAsync();
+        
+        // Filter in-memory for robust matching
+        allReturnItems = allReturnItems.Where(ri => poGrnNumbersLower.Contains(ri.GrnRef.Trim().ToLower())).ToList();
+
+        foreach (var po in data)
+        {
+            var poGrnsLower = po.GrnHeaders.Select(h => h.GRNNumber.Trim().ToLower()).ToList();
+            var poReturnItems = allReturnItems.Where(ri => poGrnsLower.Contains(ri.GrnRef.Trim().ToLower())).ToList();
+
+            po.TotalRejected = po.GrnHeaders.SelectMany(h => h.GRNItems ?? new List<GRNDetail>()).Sum(d => d.RejectedQty);
+            po.TotalReturned = poReturnItems.Sum(ri => ri.ReturnQty);
+
+            // 🎯 BUSINESS RULE: If there are unresolved rejections, PO cannot be "Received"
+            // Override DB status dynamically to ensure UI always reflects true state
+            var netRejected = po.TotalRejected - po.TotalReturned;
+            if (netRejected > 0 && po.Status == "Received")
+            {
+                po.Status = "Partially Received";
+            }
+
+            // 🎯 STEP 5: Populate child items with Rejection/Return info
+            foreach (var item in po.Items)
+            {
+                item.RejectedQty = po.GrnHeaders
+                    .SelectMany(h => h.GRNItems ?? new List<GRNDetail>())
+                    .Where(gd => gd.ProductId == item.ProductId)
+                    .Sum(gd => gd.RejectedQty);
+
+                item.ReturnedQty = poReturnItems
+                    .Where(ri => ri.ProductId == item.ProductId)
+                    .Sum(ri => ri.ReturnQty);
+            }
+        }
 
         return (data, total, totalAmount, todayCount, monthCount);
     }
