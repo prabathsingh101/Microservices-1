@@ -220,6 +220,26 @@ namespace Inventory.Infrastructure.Repositories
                             await _context.Database.ExecuteSqlRawAsync(
                                 "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty + {0} WHERE PurchaseOrderId = {1} AND ProductId = {2} AND CompanyId = {3}",
                                 item.ReceivedQty, header.PurchaseOrderId, item.ProductId, header.CompanyId);
+
+                            // 🎯 SETTLE ORIGINAL REJECTION: If this is a replacement, find and settle the rejection [cite: 2026-05-04]
+                            if (item.IsReplacement)
+                            {
+                                var originalRejection = await _context.GRNDetails
+                                    .Include(gd => gd.GRNHeader)
+                                    .Where(gd => gd.GRNHeader.PurchaseOrderId == header.PurchaseOrderId 
+                                                 && gd.ProductId == item.ProductId 
+                                                 && gd.RejectedQty > 0 
+                                                 && !gd.IsSettled
+                                                 && gd.CompanyId == header.CompanyId)
+                                    .OrderBy(gd => gd.CreatedOn)
+                                    .FirstOrDefaultAsync();
+
+                                if (originalRejection != null)
+                                {
+                                    originalRejection.IsSettled = true;
+                                    _context.GRNDetails.Update(originalRejection);
+                                }
+                            }
                         }
                     }
 

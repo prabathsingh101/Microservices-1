@@ -63,6 +63,7 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             MfgDate = i.ManufacturingDate,
             ExpDate = i.ExpiryDate,
             BranchId = dto.BranchId,
+            IsReplacement = i.IsReplacement,
             ModifiedOn = DateTime.Now
         }).ToList();
 

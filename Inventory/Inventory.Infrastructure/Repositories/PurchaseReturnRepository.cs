@@ -62,7 +62,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         RackId = gd.RackId,
                         MfgDate = gd.MfgDate,
                         ExpDate = gd.ExpDate,
-                        BranchId = gh.BranchId
+                        BranchId = gh.BranchId,
+                        IsSettled = gd.IsSettled
                     };
 
         return await query.ToListAsync();
@@ -286,6 +287,13 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         branchId
                     );
                     await _context.InventoryTransactions.AddAsync(returnTx);
+
+                    // 🎯 SETTLE THE REJECTION: Mark the original GRNDetail as settled [cite: 2026-05-04]
+                    if (grnDetail.RejectedQty > 0)
+                    {
+                        grnDetail.IsSettled = true;
+                        _context.GRNDetails.Update(grnDetail);
+                    }
                 }
 
                 returnData.SubTotal = totalHeaderSubTotal;

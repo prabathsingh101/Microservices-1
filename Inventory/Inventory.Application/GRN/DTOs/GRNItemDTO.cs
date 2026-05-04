@@ -21,5 +21,6 @@ namespace Inventory.Application.GRN.DTOs
         public Guid? RackId { get; set; }
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public bool IsReplacement { get; set; }
     }
 }
