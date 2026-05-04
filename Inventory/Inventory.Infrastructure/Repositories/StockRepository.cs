@@ -44,7 +44,7 @@ namespace Inventory.Infrastructure.Repositories
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
 
             // STEP 1: Base Query - Start from Products to ensure all items are included
-            var baseQuery = _context.Products.AsNoTracking().AsQueryable();
+            var baseQuery = _context.Products.Include(p => p.Category).AsNoTracking().AsQueryable();
 
             if (!_currentUserService.IsPlatformAdmin)
             {
@@ -52,7 +52,7 @@ namespace Inventory.Infrastructure.Repositories
             }
 
             var joinedQuery = baseQuery
-                .GroupJoin(_context.GRNDetails.AsNoTracking(), p => p.Id, g => g.ProductId, (p, g) => new { p, g })
+                .GroupJoin(_context.GRNDetails.Include(g => g.Warehouse).Include(g => g.Rack).AsNoTracking(), p => p.Id, g => g.ProductId, (p, g) => new { p, g })
                 .SelectMany(x => x.g.DefaultIfEmpty(), (x, g) => new 
                 { 
                     Product = x.p, 
@@ -90,6 +90,7 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     g.ProductId,
                     ProductName = g.Product.Name,
+                    CategoryName = g.Product.Category != null ? g.Product.Category.CategoryName : "N/A",
                     UnitName = g.Product.Unit,
                     MinStock = g.Product.MinStock,
                     g.WarehouseId,
@@ -109,6 +110,7 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     ProductId = group.Key.ProductId,
                     ProductName = group.Key.ProductName,
+                    CategoryName = group.Key.CategoryName,
                     Unit = group.Key.UnitName,
                     MinStockLevel = group.Key.MinStock,
                     WarehouseId = group.Key.WarehouseId,

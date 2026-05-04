@@ -120,6 +120,18 @@ internal sealed class GetProductsPagedQueryHandler
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
 
+        // 🚀 SMART BATCH DATE LOOKUP (For Earliest Batch)
+        var batchLookup = await _context.GRNDetails
+            .Where(g => productIds.Contains(g.ProductId))
+            .GroupBy(g => g.ProductId)
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                MfgDate = g.OrderBy(x => x.ExpDate ?? DateTime.MaxValue).ThenBy(x => x.GRNHeader.ReceivedDate).Select(x => x.MfgDate).FirstOrDefault(),
+                ExpDate = g.OrderBy(x => x.ExpDate ?? DateTime.MaxValue).ThenBy(x => x.GRNHeader.ReceivedDate).Select(x => x.ExpDate).FirstOrDefault()
+            })
+            .ToDictionaryAsync(x => x.ProductId, x => new { x.MfgDate, x.ExpDate }, cancellationToken);
+
         var items = itemsData.Select(p => {
             var actualStock = stockLookup.GetValueOrDefault(p.Id, 0);
 
@@ -152,7 +164,9 @@ internal sealed class GetProductsPagedQueryHandler
                 defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
                 imageUrl = p.ImageUrl,
                 createdOn = p.CreatedOn,
-                modifiedOn = p.ModifiedOn
+                modifiedOn = p.ModifiedOn,
+                manufacturingDate = batchLookup.TryGetValue(p.Id, out var batch) ? batch.MfgDate : null,
+                expiryDate = batchLookup.TryGetValue(p.Id, out var b) ? b.ExpDate : null
             };
         }).ToList();
 

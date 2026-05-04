@@ -9,6 +9,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public Guid? LastSupplierId { get; set; }
         public Guid? LastPurchaseOrderId { get; set; }
         public string? ProductName { get; set; }
+        public string? CategoryName { get; set; }
         public decimal TotalReceived { get; set; }
         public string? Unit { get; set; }
         public decimal LastRate { get; set; }
