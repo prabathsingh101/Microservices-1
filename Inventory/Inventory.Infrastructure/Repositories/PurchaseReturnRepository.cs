@@ -125,29 +125,36 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
                     select new { gd, gh }).ToListAsync();
 
-        var result = rawList.Select(x => new ReceivedStockDto
-        {
-            ProductId = x.gd.ProductId,
-            ProductName = (x.gd.Product != null && !string.IsNullOrEmpty(x.gd.Product.Name)) ? x.gd.Product.Name : "Product-" + x.gd.ProductId.ToString().Substring(0, 8),
-            GrnRef = x.gh.GRNNumber,
-            AvailableQty = x.gd.ReceivedQty - x.gd.RejectedQty,
-            Rate = x.gd.UnitRate,
-            GstPercent = x.gd.GstPercent,
-            DiscountPercent = x.gd.DiscountPercent,
-            ReceivedDate = x.gh.ReceivedDate,
-            CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.gd.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
-                           (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                           (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
-            WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : "N/A",
-            RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
-            MfgDate = x.gd.MfgDate,
-            ExpDate = x.gd.ExpDate,
-            WarehouseId = x.gd.WarehouseId,
-            RackId = x.gd.RackId,
-            BranchId = x.gh.BranchId,
-            IsReturnable = x.gh.ReceivedDate >= limitDate,
-            RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours)
-        })
+        var result = rawList.Select(x => {
+            // Calculate already returned quantity for this specific Product and GRN [cite: 2026-05-04]
+            var returnedQty = _context.PurchaseReturnItems
+                .Where(pri => pri.ProductId == x.gd.ProductId && pri.GrnRef == x.gh.GRNNumber && pri.CompanyId == companyId)
+                .Sum(pri => (decimal?)pri.ReturnQty) ?? 0;
+
+            return new ReceivedStockDto
+            {
+                ProductId = x.gd.ProductId,
+                ProductName = (x.gd.Product != null && !string.IsNullOrEmpty(x.gd.Product.Name)) ? x.gd.Product.Name : "Product-" + x.gd.ProductId.ToString().Substring(0, 8),
+                GrnRef = x.gh.GRNNumber,
+                AvailableQty = x.gd.ReceivedQty - x.gd.RejectedQty - returnedQty, // Subtracted returnedQty
+                Rate = x.gd.UnitRate,
+                GstPercent = x.gd.GstPercent,
+                DiscountPercent = x.gd.DiscountPercent,
+                ReceivedDate = x.gh.ReceivedDate,
+                CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.gd.ProductId && g.CompanyId == companyId).Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
+                               (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0),
+                WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : "N/A",
+                RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
+                MfgDate = x.gd.MfgDate,
+                ExpDate = x.gd.ExpDate,
+                WarehouseId = x.gd.WarehouseId,
+                RackId = x.gd.RackId,
+                BranchId = x.gh.BranchId,
+                IsReturnable = x.gh.ReceivedDate >= limitDate,
+                RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours)
+            };
+        }).Where(x => x.AvailableQty > 0)
         .OrderByDescending(x => x.ReceivedDate)
         .ThenByDescending(x => x.GrnRef)
         .ToList();
@@ -300,13 +307,34 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 returnData.TotalTax = totalHeaderTax;
                 returnData.GrandTotal = totalHeaderSubTotal + totalHeaderTax;
 
-                _context.PurchaseReturns.Add(returnData);
+                // 🎯 FIX: Calculate Financial Total for Ledger (Exclude Rejected Items)
+                decimal totalFinancialGrandTotal = 0;
+                foreach (var item in returnData.Items)
+                {
+                    var gd = await _context.GRNDetails
+                        .IgnoreQueryFilters()
+                        .Include(x => x.GRNHeader)
+                        .FirstOrDefaultAsync(x => x.ProductId == item.ProductId && x.GRNHeader.GRNNumber == item.GrnRef && x.CompanyId == returnData.CompanyId);
+                    
+                    if (gd != null)
+                    {
+                        // Sirf un units ka paisa ledger me jayega jo pehle 'Accepted' thi
+                        decimal financialQty = Math.Max(0, item.ReturnQty - gd.RejectedQty);
+                        if (financialQty > 0)
+                        {
+                            decimal fBase = financialQty * item.Rate;
+                            decimal fDisc = fBase * (item.DiscountPercent / 100);
+                            decimal fTaxable = fBase - fDisc;
+                            decimal fTax = fTaxable * (item.GstPercent / 100);
+                            totalFinancialGrandTotal += (fTaxable + fTax);
+                        }
+                    }
+                }
 
-                // 🎯 OPTION B (Strict): Reset PO Dispatch status for replacements
-                // If a return is processed, the supplier must "Confirm Dispatch" again for replacements.
-                var poIds = new List<Guid>();
+                _context.PurchaseReturns.Add(returnData);
                 
-                // Search PO via GRN Ref to identify which POs need a dispatch reset
+                // ... (rest of the code for PO dispatch reset remains the same)
+                var poIds = new List<Guid>();
                 foreach (var item in returnData.Items)
                 {
                     var poId = await _context.GRNDetails
@@ -322,7 +350,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     var po = await _context.PurchaseOrders.FindAsync(poId);
                     if (po != null)
                     {
-                        po.IsDispatched = false; // Reset to false to force re-dispatch confirmation
+                        po.IsDispatched = false; 
                         _context.PurchaseOrders.Update(po);
                     }
                 }
@@ -332,15 +360,22 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
                 try 
                 {
+                   var sNameDict = await GetSupplierNamesFromMicroservice(new List<Guid> { returnData.SupplierId });
+                   string sName = sNameDict.ContainsKey(returnData.SupplierId) ? sNameDict[returnData.SupplierId] : "Unknown";
+
+                   // 🎯 BINGO: Use totalFinancialGrandTotal instead of GrandTotal
                    await _supplierClient.RecordPurchaseReturnAsync(
                        returnData.SupplierId, 
-                       returnData.GrandTotal, 
+                       totalFinancialGrandTotal, 
                        returnData.ReturnNumber, 
-                       $"Purchase Return: {returnData.ReturnNumber}", 
-                       "System"
+                       $"Purchase Return: {returnData.ReturnNumber} ({sName})", 
+                       _currentUserService.Email ?? "System"
                    );
                 }
-                catch { }
+                catch (Exception ex) 
+                { 
+                    Console.WriteLine($"[PurchaseReturnRepository] Ledger sync failed: {ex.Message}");
+                }
 
                 return true;
             }

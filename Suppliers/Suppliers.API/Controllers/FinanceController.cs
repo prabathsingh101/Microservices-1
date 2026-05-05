@@ -80,6 +80,29 @@ namespace Suppliers.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("purchase-return-entry")]
+        public async Task<IActionResult> RecordPurchaseReturn([FromBody] SupplierPurchaseDto purchaseReturn)
+        {
+            // 🚀 SMART INJECTION: Same as purchase
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            if (Guid.TryParse(companyIdClaim, out var companyId))
+            {
+                purchaseReturn.CompanyId = companyId;
+            }
+            if (!string.IsNullOrEmpty(branchIdClaim))
+            {
+                purchaseReturn.BranchId = branchIdClaim;
+            }
+
+            // Force TransactionType to DebitNote for this endpoint
+            purchaseReturn.TransactionType = "DebitNote";
+
+            var command = new RecordSupplierPurchaseCommand(purchaseReturn);
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+
         [HttpGet("pending-dues")]
         public async Task<IActionResult> GetPendingDues()
         {

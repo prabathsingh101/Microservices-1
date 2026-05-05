@@ -16,5 +16,6 @@ namespace Inventory.Application.Common.Interfaces
         Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber);
 
         Task<bool> CreateBulkGrnFromPoAsync(BulkGrnRequestDto request);
+        Task<List<GrnRejectionHistoryDto>> GetGrnRejectionHistoryAsync(string grnNumber);
     }
 }

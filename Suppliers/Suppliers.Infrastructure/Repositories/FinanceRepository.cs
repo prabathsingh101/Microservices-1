@@ -38,7 +38,11 @@ namespace Suppliers.Infrastructure.Repositories
 
         public async Task AddLedgerEntryAsync(SupplierLedger ledgerEntry)
         {
-            ledgerEntry.CompanyId = _companyId;
+            if (ledgerEntry.CompanyId == Guid.Empty)
+            {
+                ledgerEntry.CompanyId = _companyId;
+            }
+            
             if (string.IsNullOrEmpty(ledgerEntry.BranchId))
             {
                 ledgerEntry.BranchId = _branchId;
@@ -171,6 +175,9 @@ namespace Suppliers.Infrastructure.Repositories
             if (grnNumbers == null || !grnNumbers.Any()) return new Dictionary<string, decimal>();
 
             var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+
+            // 🔍 DEBUG LOGGING
+            Console.WriteLine($"[Suppliers Debug] Fetching Payment Statuses. CompanyId: {_companyId}, BranchId: {_branchId}, GRN Count: {grnNumbers?.Count}");
 
             // Fetch all payments for this supplier (relevant to the search terms)
             var relevantPayments = await _context.SupplierLedgers

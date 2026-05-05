@@ -74,8 +74,18 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             // 💰 1. Record Purchase in Supplier Ledger (CRITICAL - MUST BE SYNC)
             try
             {
-                var supplierClient = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ISupplierClient>();
-                string description = $"GRN: {grnNumber} for PO: {(dto.POHeaderId != Guid.Empty ? dto.POHeaderId : "Quick")}";
+                using var scope = _scopeFactory.CreateScope();
+                var supplierClient = scope.ServiceProvider.GetRequiredService<ISupplierClient>();
+                var poRepo = scope.ServiceProvider.GetRequiredService<IPurchaseOrderRepository>();
+
+                // 🎯 BIND PO Number and Supplier Name for meaningful ledger tracking
+                var po = (dto.POHeaderId != Guid.Empty) ? await poRepo.GetByIdAsync(dto.POHeaderId) : null;
+                var supplier = await supplierClient.GetSupplierByIdAsync(dto.SupplierId);
+
+                string poDisplay = po?.PoNumber ?? "Quick";
+                string supplierDisplay = supplier?.Name ?? "N/A";
+                string description = $"GRN: {grnNumber} for PO: {poDisplay} ({supplierDisplay})";
+
                 await supplierClient.RecordPurchaseAsync(dto.SupplierId, dto.TotalAmount, grnNumber, description, dto.CreatedBy);
                 Console.WriteLine($"[CreateGRNHandler] Purchase recorded for {grnNumber}");
             }

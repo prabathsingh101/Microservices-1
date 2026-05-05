@@ -133,6 +133,14 @@ namespace Inventory.API.Controllers
 
             return StatusCode(500, "Error processing bulk GRNs.");
         }
+
+        [HttpGet("rejection-history/{grnNumber}")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        public async Task<IActionResult> GetRejectionHistory([FromRoute] string grnNumber)
+        {
+            var result = await _grnRepository.GetGrnRejectionHistoryAsync(grnNumber);
+            return Ok(result);
+        }
     }
 
 }

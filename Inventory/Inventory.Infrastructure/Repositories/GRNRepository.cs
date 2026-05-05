@@ -597,9 +597,24 @@ namespace Inventory.Infrastructure.Repositories
                             ? supplierBalances[item.SupplierId] 
                             : 999999; // Default to high positive to avoid accidental Paid unlock
 
-                        // Logic (SOLID): Trust the specific paid amount matched to this GRN number.
-                        // We use a small epsilon (0.01) to handle potential rounding issues.
-                        if (totalPaidAmount >= (item.TotalAmount - 0.01m))
+                        // 💰 SMART PAYMENT LOGIC:
+                        // Calculate the actual amount that SHOULD be paid (Net Total)
+                        // Net Total = Original GRN Total - (Value of Items currently in Rejected Rack) - (Value of Items returned to supplier)
+                        
+                        // We calculate this dynamically based on the current items (which already account for returns)
+                        decimal rejectionValue = item.Items.Sum(i => i.ActualRejectedQty * i.UnitRate);
+                        decimal returnedValue = item.Items.Sum(i => i.ReturnedQty * i.UnitRate);
+                        
+                        decimal netPayableAmount = item.TotalAmount - rejectionValue - returnedValue;
+                        
+                        // Handle potential negative net total if everything is returned/rejected
+                        if (netPayableAmount < 0) netPayableAmount = 0;
+
+                        // 🔍 DEBUG LOGGING
+                        Console.WriteLine($"[GRN Payment Status] GRN: {item.GRNNo}, Total: {item.TotalAmount}, Paid: {totalPaidAmount}, RejectedVal: {rejectionValue}, ReturnVal: {returnedValue}, NetPayable: {netPayableAmount}");
+
+                        // We use a small epsilon (0.10) to handle potential rounding issues.
+                        if (totalPaidAmount >= (netPayableAmount - 0.10m))
                         {
                             item.PaymentStatus = "Paid";
                         }
@@ -609,7 +624,8 @@ namespace Inventory.Infrastructure.Repositories
                         }
                         else 
                         {
-                            item.PaymentStatus = "Unpaid";
+                            // If net payable is 0 (everything returned/rejected), it's effectively Paid/Settled
+                            item.PaymentStatus = netPayableAmount <= 0.01m ? "Paid" : "Unpaid";
                         }
 
                         item.PaidAmount = totalPaidAmount;
@@ -892,6 +908,77 @@ namespace Inventory.Infrastructure.Repositories
                     return false;
                 }
             });
+        }
+
+        public async Task<List<GrnRejectionHistoryDto>> GetGrnRejectionHistoryAsync(string grnNumber)
+        {
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+
+            // 1. Get the original rejections from the GRN
+            var rejections = await (from gd in _context.GRNDetails
+                                    join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
+                                    where gh.GRNNumber == grnNumber && gd.RejectedQty > 0 && gd.CompanyId == companyId
+                                    select new { gd, gh }).ToListAsync();
+
+            if (!rejections.Any()) return new List<GrnRejectionHistoryDto>();
+
+            var history = new List<GrnRejectionHistoryDto>();
+
+            foreach (var rej in rejections)
+            {
+                var item = new GrnRejectionHistoryDto
+                {
+                    ProductId = rej.gd.ProductId,
+                    ProductName = _context.Products.Where(p => p.Id == rej.gd.ProductId).Select(p => p.Name).FirstOrDefault() ?? "Unknown",
+                    RejectedQty = rej.gd.RejectedQty,
+                    IsSettled = rej.gd.IsSettled,
+                    Status = rej.gd.IsSettled ? "Settled" : "Pending"
+                };
+
+                // 2. Look for replacements
+                // A replacement is a GRNDetail with IsReplacement = true for the same PO and Product
+                var replacement = await (from gd in _context.GRNDetails
+                                         join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
+                                         where gh.PurchaseOrderId == rej.gh.PurchaseOrderId 
+                                               && gd.ProductId == rej.gd.ProductId 
+                                               && gd.IsReplacement == true
+                                               && gd.CompanyId == companyId
+                                         orderby gh.CreatedOn ascending
+                                         select gh.GRNNumber).FirstOrDefaultAsync();
+
+                if (replacement != null)
+                {
+                    item.Resolution = $"Replaced in {replacement}";
+                    item.ResolutionGrn = replacement;
+                    item.Status = "Settled";
+                    item.IsSettled = true;
+                }
+                else
+                {
+                    // 3. Look for Returns (Debit Note)
+                    var returnRef = await _context.PurchaseReturnItems
+                        .Where(ri => ri.GrnRef == grnNumber && ri.ProductId == rej.gd.ProductId && ri.CompanyId == companyId)
+                        .Select(ri => ri.PurchaseReturn.ReturnNumber)
+                        .FirstOrDefaultAsync();
+
+                    if (returnRef != null)
+                    {
+                        item.Resolution = $"Returned in {returnRef}";
+                        item.Status = "Settled";
+                        item.IsSettled = true;
+                    }
+                    else
+                    {
+                        item.Resolution = "Pending / Replacement Awaited";
+                        item.Status = "Pending";
+                        item.IsSettled = false;
+                    }
+                }
+
+                history.Add(item);
+            }
+
+            return history;
         }
     }
 }
