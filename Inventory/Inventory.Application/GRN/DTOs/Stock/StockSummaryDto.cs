@@ -73,5 +73,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public bool IsAlreadyPurged { get; set; }
         public string? BranchId { get; set; }
         public string? BranchName { get; set; }
+        public string? BatchNumber { get; set; }
+        public string? ReferenceNumber { get; set; }
     }
 }

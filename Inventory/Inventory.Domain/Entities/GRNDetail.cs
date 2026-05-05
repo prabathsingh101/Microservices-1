@@ -28,6 +28,8 @@ namespace Inventory.Domain.Entities
         public Rack? Rack { get; set; }
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public string? BatchNumber { get; set; }
+        public string? ReferenceNumber { get; set; }
         public bool IsSettled { get; set; } = false;
         public bool IsReplacement { get; set; } = false;
     }

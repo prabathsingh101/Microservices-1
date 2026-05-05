@@ -99,9 +99,10 @@ namespace Inventory.API.Controllers
             [FromQuery] Guid warehouseId,
             [FromQuery] Guid rackId,
             [FromQuery] DateTime? mfgDate,
-            [FromQuery] DateTime? expDate)
+            [FromQuery] DateTime? expDate,
+            [FromQuery] string? branchId = null)
         {
-            var result = await _stockRepo.GetBatchTransactionsAsync(productId, warehouseId, rackId, mfgDate, expDate);
+            var result = await _stockRepo.GetBatchTransactionsAsync(productId, warehouseId, rackId, mfgDate, expDate, branchId);
             return Ok(result);
         }
 
@@ -122,9 +123,10 @@ namespace Inventory.API.Controllers
            [FromQuery] int pageIndex = 0,
            [FromQuery] int pageSize = 10,
            [FromQuery] Guid? productId = null,
-           [FromQuery] Guid? warehouseId = null)
+           [FromQuery] Guid? warehouseId = null,
+           [FromQuery] string? branchId = null)
         {
-            var result = await _stockRepo.GetWarehouseStockAsync(search, sortField, sortOrder, pageIndex, pageSize, productId, warehouseId);
+            var result = await _stockRepo.GetWarehouseStockAsync(search, sortField, sortOrder, pageIndex, pageSize, productId, warehouseId, branchId);
             return Ok(result);
         }
 
@@ -139,9 +141,10 @@ namespace Inventory.API.Controllers
            [FromQuery] Guid? warehouseId,
            [FromQuery] Guid? rackId,
            [FromQuery] int pageIndex = 0,
-           [FromQuery] int pageSize = 10)
+           [FromQuery] int pageSize = 10,
+           [FromQuery] string? branchId = null)
         {
-            var result = await _stockRepo.GetDisposedStockAsync(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId);
+            var result = await _stockRepo.GetDisposedStockAsync(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId, branchId);
             return Ok(result);
         }
     }

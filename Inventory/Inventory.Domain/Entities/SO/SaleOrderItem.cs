@@ -64,5 +64,8 @@ namespace Inventory.Domain.Entities.SO
         public Guid? RackId { get; set; }
         [ForeignKey("RackId")]
         public virtual Rack? Rack { get; set; }
+
+        public string? BatchNumber { get; set; }
+        public string? ReferenceNumber { get; set; } // Link to source Purchase/GRN
     }
 }

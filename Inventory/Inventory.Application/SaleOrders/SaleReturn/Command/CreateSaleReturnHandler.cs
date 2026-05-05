@@ -60,6 +60,8 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     ExpDate = i.ExpDate,
                     WarehouseId = i.WarehouseId,
                     RackId = i.RackId,
+                    BatchNumber = i.BatchNumber,
+                    ReferenceNumber = i.ReferenceNumber,
                     CreatedOn = DateTime.Now,
                     CreatedBy = i.CreatedBy ?? dto.CreatedBy,
                     ModifiedBy = i.ModifiedBy ?? dto.ModifiedBy,

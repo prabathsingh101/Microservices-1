@@ -34,4 +34,6 @@ public class SaleReturnItem : BaseAuditableEntity
 
     public Guid? WarehouseId { get; set; }
     public Guid? RackId { get; set; }
+    public string? BatchNumber { get; set; }
+    public string? ReferenceNumber { get; set; }
 }

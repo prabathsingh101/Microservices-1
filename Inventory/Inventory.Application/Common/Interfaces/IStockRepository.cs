@@ -32,7 +32,8 @@ namespace Inventory.Application.Common.Interfaces
             Guid warehouseId,
             Guid rackId,
             DateTime? mfgDate,
-            DateTime? expDate);
+            DateTime? expDate,
+            string? branchId = null);
 
         Task<object> GetWarehouseStockAsync(
             string? search,
@@ -41,7 +42,8 @@ namespace Inventory.Application.Common.Interfaces
             int pageIndex,
             int pageSize,
             Guid? productId = null,
-            Guid? warehouseId = null);
+            Guid? warehouseId = null,
+            string? branchId = null);
 
         Task<StockPagedResponseDto> GetDisposedStockAsync(
             string? search,
@@ -52,6 +54,7 @@ namespace Inventory.Application.Common.Interfaces
             DateTime? startDate,
             DateTime? endDate,
             Guid? warehouseId = null,
-            Guid? rackId = null);
+            Guid? rackId = null,
+            string? branchId = null);
     }
 }

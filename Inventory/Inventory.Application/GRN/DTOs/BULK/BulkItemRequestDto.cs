@@ -13,5 +13,6 @@ namespace Inventory.Application.GRN.DTOs.BULK
         public Guid? RackId { get; set; }
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public string? BatchNumber { get; set; }
     }
 }

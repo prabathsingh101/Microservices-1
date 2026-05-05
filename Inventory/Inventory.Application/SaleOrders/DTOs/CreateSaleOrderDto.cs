@@ -50,5 +50,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public string? RackName { get; set; }
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public string? BatchNumber { get; set; }
+        public string? ReferenceNumber { get; set; }
     }
 }

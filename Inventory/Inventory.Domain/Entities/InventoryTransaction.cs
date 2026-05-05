@@ -13,9 +13,17 @@ namespace Inventory.Domain.Entities
         public string ReferenceId { get; private set; } = null!;
         public Guid? WarehouseId { get; private set; }
         public Guid? RackId { get; private set; }
+        public string? ReferenceNumber { get; private set; }
+        public string? BatchNumber { get; private set; }
 
         public DateTime? MfgDate { get; private set; }
         public DateTime? ExpDate { get; private set; }
+        public DateTime TransactionDate { get; private set; }
+        
+        // Navigation Properties
+        public virtual Product Product { get; set; } = null!;
+        public virtual Warehouse? Warehouse { get; set; }
+        public virtual Rack? Rack { get; set; }
 
         protected InventoryTransaction() { }
 
@@ -29,7 +37,9 @@ namespace Inventory.Domain.Entities
             DateTime? mfgDate = null,
             DateTime? expDate = null,
             Guid? companyId = null,
-            string? branchId = null)
+            string? branchId = null,
+            string? referenceNumber = null,
+            string? batchNumber = null)
         {
             Id = Guid.NewGuid();
             ProductId = productId;
@@ -42,6 +52,9 @@ namespace Inventory.Domain.Entities
             ExpDate = expDate;
             CompanyId = companyId ?? Guid.Empty;
             BranchId = branchId;
+            ReferenceNumber = referenceNumber;
+            BatchNumber = batchNumber;
+            TransactionDate = DateTime.Now;
         }
     }
 }

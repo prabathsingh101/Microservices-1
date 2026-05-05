@@ -152,7 +152,8 @@ namespace Inventory.Infrastructure.Repositories
                     IsAlreadyPurged = group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0,
                     PurgedDate = (group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0) ? group.Max(x => x.ModifiedOn) : null,
                     LastRate = group.OrderByDescending(x => x.GRNId).Select(x => x.GRN != null ? x.GRN.UnitRate : 0).FirstOrDefault(),
-                    LastPurchaseOrderId = group.OrderByDescending(x => x.GRNId).Select(x => (x.GRN != null && x.GRN.GRNHeader != null) ? x.GRN.GRNHeader.PurchaseOrderId : (Guid?)null).FirstOrDefault()
+                    LastPurchaseOrderId = group.OrderByDescending(x => x.GRNId).Select(x => (x.GRN != null && x.GRN.GRNHeader != null) ? x.GRN.GRNHeader.PurchaseOrderId : (Guid?)null).FirstOrDefault(),
+                    BatchNumber = group.OrderByDescending(x => x.GRNId).Select(x => x.GRN != null ? x.GRN.BatchNumber : null).FirstOrDefault()
                 });
 
             if (!showPurged)
@@ -176,7 +177,7 @@ namespace Inventory.Infrastructure.Repositories
                 }
                 else
                 {
-                    groupedQuery = groupedQuery.Where(x => x.ProductName.Contains(search));
+                    groupedQuery = groupedQuery.Where(x => x.ProductName.Contains(search) || (x.Sku != null && x.Sku.Contains(search)));
                 }
             }
 
@@ -210,11 +211,11 @@ namespace Inventory.Infrastructure.Repositories
                 returnsQuery = returnsQuery.Where(sri => sri.ProductId == item.ProductId);
                 grnQuery = grnQuery.Where(g => g.ProductId == item.ProductId);
 
-                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(branchId))
+                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
                 {
-                    salesQuery = salesQuery.Where(si => si.BranchId == branchId);
-                    returnsQuery = returnsQuery.Where(sri => sri.BranchId == branchId);
-                    grnQuery = grnQuery.Where(g => g.BranchId == branchId);
+                    salesQuery = salesQuery.Where(si => si.BranchId == finalBranchId);
+                    returnsQuery = returnsQuery.Where(sri => sri.BranchId == finalBranchId);
+                    grnQuery = grnQuery.Where(g => g.BranchId == finalBranchId);
                 }
 
                 var grossSold = await salesQuery
@@ -368,6 +369,8 @@ namespace Inventory.Infrastructure.Repositories
                         TotalReturned = totalPurchaseReturn,
                         BranchId = allG.BranchId,
                         BranchName = allG.BranchId,
+                        BatchNumber = allG.BatchNumber,
+                        ReferenceNumber = allG.ReferenceNumber ?? allG.GRNHeader.PurchaseOrder.PoNumber,
                         IsAlreadyPurged = allG.ReceivedQty == 0 && allG.RejectedQty == 0
                     })
                     .ToListAsync();
@@ -394,6 +397,8 @@ namespace Inventory.Infrastructure.Repositories
                         IsExpiryRequired = _context.Products.Where(p => p.Id == td.ProductId).Select(p => p.IsExpiryRequired).FirstOrDefault(),
                         ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
                         ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
+                        BatchNumber = td.BatchNumber,
+                        ReferenceNumber = td.StockTransferHeader.TransferNumber,
                         CurrentStock = item.AvailableStock
                     })
                     .ToListAsync();
@@ -418,6 +423,8 @@ namespace Inventory.Infrastructure.Repositories
                         BranchId = td.BranchId ?? td.StockTransferHeader.FromWarehouse.BranchId, // Fallback to warehouse branch
                         ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
                         ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
+                        BatchNumber = td.BatchNumber,
+                        ReferenceNumber = td.StockTransferHeader.TransferNumber,
                         CurrentStock = item.AvailableStock
                     })
                     .ToListAsync();
@@ -472,11 +479,11 @@ namespace Inventory.Infrastructure.Repositories
             };
         }
 
-        public async Task<StockPagedResponseDto> GetDisposedStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize, DateTime? startDate, DateTime? endDate, Guid? warehouseId = null, Guid? rackId = null)
+        public async Task<StockPagedResponseDto> GetDisposedStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize, DateTime? startDate, DateTime? endDate, Guid? warehouseId = null, Guid? rackId = null, string? branchId = null)
         {
             // Disposed stock is essentially current stock with showPurged=true
             // but we filter it to only show items that have actual rejected or expired quantities
-            var stockData = await GetCurrentStockAsync(search, sortField, sortOrder, 0, 1000, startDate, endDate, warehouseId, rackId, true);
+            var stockData = await GetCurrentStockAsync(search, sortField, sortOrder, 0, 1000, startDate, endDate, warehouseId, rackId, true, branchId);
             
             var disposedItems = stockData.Items
                 .Where(x => x.TotalRejected > 0 || x.TotalExpired > 0)
@@ -559,10 +566,10 @@ namespace Inventory.Infrastructure.Repositories
         }
 
 
-        public async Task<object> GetWarehouseStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize, Guid? productId = null, Guid? warehouseId = null)
+        public async Task<object> GetWarehouseStockAsync(string? search, string? sortField, string? sortOrder, int pageIndex, int pageSize, Guid? productId = null, Guid? warehouseId = null, string? branchId = null)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
+            var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
 
             var query = _context.WarehouseStocks
                 .Include(ws => ws.Product)
@@ -584,9 +591,9 @@ namespace Inventory.Infrastructure.Repositories
                 query = query.Where(ws => ws.WarehouseId == warehouseId);
             }
 
-            if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(branchId))
+            if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
             {
-                query = query.Where(ws => ws.BranchId == branchId);
+                query = query.Where(ws => ws.BranchId == finalBranchId);
             }
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -638,10 +645,46 @@ namespace Inventory.Infrastructure.Repositories
             return new { items, totalCount };
         }
 
-        public async Task<List<BatchTransactionDto>> GetBatchTransactionsAsync(Guid productId, Guid warehouseId, Guid rackId, DateTime? mfgDate, DateTime? expDate)
+        public async Task<List<BatchTransactionDto>> GetBatchTransactionsAsync(Guid productId, Guid warehouseId, Guid rackId, DateTime? mfgDate, DateTime? expDate, string? branchId = null)
         {
-            // Placeholder - Implement if needed for details view
-            return new List<BatchTransactionDto>();
+            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
+
+            var query = _context.InventoryTransactions
+                .Include(tx => tx.Product)
+                .Include(tx => tx.Warehouse)
+                .Include(tx => tx.Rack)
+                .Where(tx => tx.ProductId == productId && tx.WarehouseId == warehouseId && tx.RackId == rackId);
+
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                query = query.Where(tx => tx.CompanyId == companyId);
+                if (!string.IsNullOrEmpty(finalBranchId))
+                {
+                    query = query.Where(tx => tx.BranchId == finalBranchId);
+                }
+            }
+
+            if (mfgDate.HasValue) query = query.Where(tx => tx.MfgDate.HasValue && tx.MfgDate.Value.Date == mfgDate.Value.Date);
+            if (expDate.HasValue) query = query.Where(tx => tx.ExpDate.HasValue && tx.ExpDate.Value.Date == expDate.Value.Date);
+
+            return await query
+                .OrderByDescending(tx => tx.TransactionDate)
+                .Select(tx => new BatchTransactionDto
+                {
+                    TransactionDate = tx.TransactionDate,
+                    TransactionType = tx.TransactionType,
+                    Quantity = tx.Quantity,
+                    RemainingStock = 0, // Placeholder
+                    ReferenceNumber = tx.ReferenceNumber,
+                    BatchNumber = tx.BatchNumber,
+                    ManufacturingDate = tx.MfgDate,
+                    ExpiryDate = tx.ExpDate,
+                    WarehouseName = tx.Warehouse.Name,
+                    RackName = tx.Rack.Name,
+                    BranchId = tx.BranchId
+                })
+                .ToListAsync();
         }
     }
 }

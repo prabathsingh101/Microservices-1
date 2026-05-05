@@ -29,5 +29,6 @@ namespace Inventory.Application.GRN.DTOs
         // Dates from the PO items / saved GRN details
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public string? BatchNumber { get; set; }
     }
 }

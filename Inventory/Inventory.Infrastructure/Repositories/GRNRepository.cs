@@ -169,6 +169,11 @@ namespace Inventory.Infrastructure.Repositories
                         item.ModifiedOn = DateTime.Now;
                         
                         header.GRNItems ??= new List<GRNDetail>();
+                        
+                        // 🆕 Set Batch and Reference on the Detail entity itself
+                        item.BatchNumber = string.IsNullOrWhiteSpace(item.BatchNumber) ? header.GRNNumber : item.BatchNumber;
+                        item.ReferenceNumber = po?.PoNumber;
+                        
                         header.GRNItems.Add(item);
 
                         // ⚡ REDUNDANT: Products.CurrentStock is no longer used for displays.
@@ -209,7 +214,9 @@ namespace Inventory.Infrastructure.Repositories
                             item.MfgDate,
                             item.ExpDate,
                             header.CompanyId,
-                            header.BranchId
+                            header.BranchId,
+                            po?.PoNumber, // ReferenceNumber (Original PO)
+                            string.IsNullOrWhiteSpace(item.BatchNumber) ? header.GRNNumber : item.BatchNumber // BatchNumber
                         );
                         await _context.InventoryTransactions.AddAsync(transactionRecord);
 
@@ -800,7 +807,9 @@ namespace Inventory.Infrastructure.Repositories
                                 WarehouseId = reqItem?.WarehouseId ?? item.Product?.DefaultWarehouseId,
                                 RackId = reqItem?.RackId ?? item.Product?.DefaultRackId,
                                 CreatedBy = request.CreatedBy,
-                                CreatedOn = utcNow
+                                CreatedOn = utcNow,
+                                BatchNumber = string.IsNullOrWhiteSpace(reqItem?.BatchNumber) ? newGrnNumber : reqItem.BatchNumber,
+                                ReferenceNumber = poHeader.PoNumber
                             };
                             _context.GRNDetails.Add(grnDetail);
 
@@ -817,7 +826,9 @@ namespace Inventory.Infrastructure.Repositories
                                     reqItem?.MfgDate,
                                     reqItem?.ExpDate,
                                     grnHeader.CompanyId,
-                                    grnHeader.BranchId
+                                    grnHeader.BranchId,
+                                    poHeader.PoNumber,
+                                    string.IsNullOrWhiteSpace(reqItem?.BatchNumber) ? newGrnNumber : reqItem.BatchNumber
                                 );
                                 await _context.InventoryTransactions.AddAsync(transactionRecord);
                             }

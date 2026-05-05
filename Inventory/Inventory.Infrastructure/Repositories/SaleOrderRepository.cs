@@ -401,7 +401,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                         item.MfgDate,
                         item.ExpDate,
                         order.CompanyId,
-                        order.BranchId
+                        order.BranchId,
+                        item.ReferenceNumber, // Link back to source PO
+                        item.BatchNumber     // Specific Batch
                     );
                     await _context.InventoryTransactions.AddAsync(saleTx);
                 }
@@ -439,7 +441,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                         item.MfgDate,
                         item.ExpDate,
                         order.CompanyId,
-                        order.BranchId
+                        order.BranchId,
+                        item.ReferenceNumber,
+                        item.BatchNumber
                     );
                     await _context.InventoryTransactions.AddAsync(reversalTx);
                 }

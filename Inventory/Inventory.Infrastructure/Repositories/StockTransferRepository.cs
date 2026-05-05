@@ -88,7 +88,9 @@ namespace Inventory.Infrastructure.Repositories
                             null, // Rack support can be added later
                             null, null,
                             companyId,
-                            header.FromBranchId
+                            header.FromBranchId,
+                            null, // ReferenceNumber not applicable here (Transfer)
+                            item.BatchNumber
                         ));
 
                         // IN to Destination
@@ -101,7 +103,9 @@ namespace Inventory.Infrastructure.Repositories
                             null,
                             null, null,
                             companyId,
-                            header.ToBranchId
+                            header.ToBranchId,
+                            null,
+                            item.BatchNumber
                         ));
                     }
 

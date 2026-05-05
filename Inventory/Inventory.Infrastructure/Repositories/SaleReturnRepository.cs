@@ -241,7 +241,9 @@ namespace Inventory.Infrastructure.Repositories
                                 item.MfgDate,
                                 item.ExpDate,
                                 companyId,
-                                branchId
+                                branchId,
+                                item.ReferenceNumber,
+                                item.BatchNumber
                             );
                             await _context.InventoryTransactions.AddAsync(returnTx);
                         }
