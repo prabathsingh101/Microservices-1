@@ -546,8 +546,16 @@ namespace Inventory.Infrastructure.Repositories
                 "refpo" => isDesc ? projectedQuery.OrderByDescending(x => x.RefPO) : projectedQuery.OrderBy(x => x.RefPO),
                 "suppliername" => isDesc ? projectedQuery.OrderByDescending(x => x.SupplierName) : projectedQuery.OrderBy(x => x.SupplierName),
                 "receiveddate" => isDesc ? projectedQuery.OrderByDescending(x => x.ReceivedDate) : projectedQuery.OrderBy(x => x.ReceivedDate),
-                _ => isDesc ? projectedQuery.OrderByDescending(x => x.Id) : projectedQuery.OrderByDescending(x => x.Id)
+                "totalamount" or "amount" => isDesc ? projectedQuery.OrderByDescending(x => x.TotalAmount) : projectedQuery.OrderBy(x => x.TotalAmount),
+                "status" => isDesc ? projectedQuery.OrderByDescending(x => x.Status) : projectedQuery.OrderBy(x => x.Status),
+                _ => isDesc ? projectedQuery.OrderByDescending(x => x.Id).ThenByDescending(x => x.ReceivedDate) : projectedQuery.OrderBy(x => x.Id).ThenBy(x => x.ReceivedDate)
             };
+            
+            // 🎯 NEW DEFAULT: If sorting by ID (random Guid) or fallback, always prioritize latest records
+            if (string.IsNullOrEmpty(field) || field == "id")
+            {
+                projectedQuery = projectedQuery.OrderByDescending(x => x.ReceivedDate);
+            }
 
             // 4. Final Execution
             var totalCount = await projectedQuery.CountAsync();

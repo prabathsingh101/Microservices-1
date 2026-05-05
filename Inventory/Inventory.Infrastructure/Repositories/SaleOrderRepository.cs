@@ -251,20 +251,27 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         // 4. Enhanced Sorting Logic
         bool isDesc = sortOrder?.ToLower() == "desc" || string.IsNullOrEmpty(sortOrder);
-        string sortProperty = (sortBy ?? "").ToLower() switch
+        string sortProperty = (sortBy ?? "").ToLower().Trim() switch
         {
             "sonumber" => "SONumber",
-            "sodate" => "SODate",
+            "sodate" or "date" => "SODate",
             "status" => "Status",
-            "grandtotal" => "GrandTotal",
-            "createdon" => "CreatedOn",
+            "grandtotal" or "amount" => "GrandTotal",
+            "createdon" or "createddate" => "CreatedOn",
+            "id" => "Id",
             _ => "CreatedOn" // Default order by CreatedOn desc
         };
 
         if (isDesc)
-            query = query.OrderByDescending(o => EF.Property<object>(o, sortProperty));
+            query = query.OrderByDescending(o => EF.Property<object>(o, sortProperty)).ThenByDescending(o => o.SODate);
         else
-            query = query.OrderBy(o => EF.Property<object>(o, sortProperty));
+            query = query.OrderBy(o => EF.Property<object>(o, sortProperty)).ThenBy(o => o.SODate);
+
+        // 🎯 NEW DEFAULT: If sorting by ID (random Guid) or fallback, always prioritize latest records
+        if (string.IsNullOrEmpty(sortBy) || sortBy.ToLower() == "id")
+        {
+            query = query.OrderByDescending(x => x.CreatedOn).ThenByDescending(x => x.SODate);
+        }
 
         // 5. Pagination and Lightweight Data Fetch
         var orders = await query

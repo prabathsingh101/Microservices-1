@@ -200,7 +200,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
         // 4. DYNAMIC SORTING FIX (Considering 'Received' status and all columns)
         bool isDesc = request.SortOrder?.ToLower() == "desc";
-        string sortField = request.SortOrder != null ? request.SortField?.ToLower().Trim() : "podate";
+        string sortField = request.SortField?.ToLower().Trim();
 
         query = sortField switch
         {
@@ -209,14 +209,20 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                 : query.OrderBy(x => x.GrnHeaders.Any() ? "Received" : x.Status),
             "ponumber" => isDesc ? query.OrderByDescending(x => x.PoNumber) : query.OrderBy(x => x.PoNumber),
             "suppliername" => isDesc ? query.OrderByDescending(x => x.SupplierName) : query.OrderBy(x => x.SupplierName),
-            "grandtotal" => isDesc ? query.OrderByDescending(x => x.GrandTotal) : query.OrderBy(x => x.GrandTotal),
-            "podate" => isDesc ? query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn) : query.OrderBy(x => x.PoDate).ThenByDescending(x => x.CreatedOn),
+            "grandtotal" or "amount" or "totalamount" => isDesc ? query.OrderByDescending(x => x.GrandTotal) : query.OrderBy(x => x.GrandTotal),
+            "podate" or "date" => isDesc ? query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn) : query.OrderBy(x => x.PoDate).ThenByDescending(x => x.CreatedOn),
             "expecteddeliverydate" => isDesc ? query.OrderByDescending(x => x.ExpectedDeliveryDate) : query.OrderBy(x => x.ExpectedDeliveryDate),
-            "id" => isDesc ? query.OrderByDescending(x => x.Id) : query.OrderBy(x => x.Id),
             "createdby" => isDesc ? query.OrderByDescending(x => x.CreatedBy) : query.OrderBy(x => x.CreatedBy),
-            "CreatedOn" => isDesc ? query.OrderByDescending(x => x.CreatedOn) : query.OrderBy(x => x.CreatedOn),
+            "createdon" or "createddate" => isDesc ? query.OrderByDescending(x => x.CreatedOn) : query.OrderBy(x => x.CreatedOn),
+            "id" => isDesc ? query.OrderByDescending(x => x.Id).ThenByDescending(x => x.PoDate) : query.OrderBy(x => x.Id).ThenBy(x => x.PoDate),
             _ => query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn)
         };
+
+        // 🎯 NEW DEFAULT: If sorting by ID (random Guid) or fallback, always prioritize latest records
+        if (string.IsNullOrEmpty(sortField) || sortField == "id")
+        {
+            query = query.OrderByDescending(x => x.PoDate).ThenByDescending(x => x.CreatedOn);
+        }
 
         // STEP 3: Optimized Data Fetch (Fetch only required items)
         var data = await query

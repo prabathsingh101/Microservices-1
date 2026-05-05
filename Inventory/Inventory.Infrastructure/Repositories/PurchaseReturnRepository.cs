@@ -458,9 +458,15 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         };
 
         if (isDesc)
-            query = query.OrderByDescending(x => EF.Property<object>(x, effectiveSortField));
+            query = query.OrderByDescending(x => EF.Property<object>(x, effectiveSortField)).ThenByDescending(x => x.ReturnDate);
         else
-            query = query.OrderBy(x => EF.Property<object>(x, effectiveSortField));
+            query = query.OrderBy(x => EF.Property<object>(x, effectiveSortField)).ThenBy(x => x.ReturnDate);
+
+        // 🎯 NEW DEFAULT: If sorting by ID (random Guid) or fallback, always prioritize latest records
+        if (string.IsNullOrEmpty(sortField) || sortField.ToLower() == "id")
+        {
+            query = query.OrderByDescending(x => x.ReturnDate);
+        }
 
         var pagedData = await query
             .Skip(pageIndex * pageSize)

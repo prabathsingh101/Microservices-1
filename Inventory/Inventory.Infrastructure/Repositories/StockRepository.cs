@@ -629,7 +629,9 @@ namespace Inventory.Infrastructure.Repositories
                     WarehouseName = ws.Warehouse.Name,
                     ws.Quantity,
                     ws.MinStock,
-                    IsLowStock = ws.Quantity <= ws.MinStock
+                    IsLowStock = ws.Quantity <= ws.MinStock,
+                    BranchId = ws.BranchId,
+                    CompanyId = ws.CompanyId
                 })
                 .ToListAsync();
 
