@@ -198,7 +198,7 @@ namespace Inventory.Infrastructure.Repositories
                         }
                         if (string.IsNullOrEmpty(item.BranchId)) item.BranchId = branchId;
 
-                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId));
+                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId);
                         if (product != null)
                         {
                             // ⚡ REDUNDANT: Products.CurrentStock removed.
@@ -209,7 +209,7 @@ namespace Inventory.Infrastructure.Repositories
                             if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                             {
                                 var whStock = await _context.WarehouseStocks
-                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId));
+                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
 
                                 if (whStock != null)
                                 {

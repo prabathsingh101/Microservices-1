@@ -326,18 +326,31 @@ public class SaleOrderRepository : ISaleOrderRepository
         if (orders == null || !orders.Any())
             return (new List<SaleOrderListDto>(), 0, 0, 0, 0, 0, 0);
 
-        // 6. External Service Mapping (Batched)
+        // 6. External Service Mapping (Batched) & Return Status Check
+        var orderIds = orders.Select(o => o.Id).ToList();
+        var returnedQuantities = await _context.SaleReturnItems
+            .Where(ri => orderIds.Contains(ri.SaleReturnHeader.SaleOrderId) && 
+                         (ri.SaleReturnHeader.Status == "Confirmed" || ri.SaleReturnHeader.Status == "INWARDED"))
+            .GroupBy(ri => ri.SaleReturnHeader.SaleOrderId)
+            .Select(g => new { SaleOrderId = g.Key, TotalReturned = g.Sum(ri => ri.ReturnQty) })
+            .ToDictionaryAsync(x => x.SaleOrderId, x => x.TotalReturned);
+
         var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
         var customerDictionary = await _customerClient.GetCustomerNamesAsync(customerIds);
 
         foreach (var order in orders)
         {
+            // Customer Name
             if (customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId, out var name))
                 order.CustomerName = name;
             else if (order.CustomerId == Guid.Empty)
                 order.CustomerName = "Cash Customer";
             else
                 order.CustomerName = "Unknown Customer";
+
+            // Returnable Check: Disable if everything is already returned
+            var returnedQty = returnedQuantities.ContainsKey(order.Id) ? returnedQuantities[order.Id] : 0;
+            order.IsReturnable = returnedQty < order.TotalQty;
         }
 
         return (orders, totalCount, totalSalesAmount, pendingDispatchCount, unpaidOrdersCount, todayCount, monthCount);
@@ -606,9 +619,10 @@ public class SaleOrderRepository : ISaleOrderRepository
                 WarehouseName = x.Warehouse != null ? x.Warehouse.Name : null,
                 RackId = x.RackId,
                 RackName = x.Rack != null ? x.Rack.Name : null,
-                CurrentStock = _context.WarehouseStocks
-                    .Where(ws => ws.ProductId == x.ProductId && ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
-                    .Sum(ws => (decimal?)ws.Quantity) ?? 0,
+                CurrentStock = _context.InventoryTransactions
+                    .AsNoTracking()
+                    .Where(tx => tx.ProductId == x.ProductId && tx.CompanyId == companyId)
+                    .Sum(tx => (decimal?)tx.Quantity) ?? 0,
 
                 // Dynamic Policy Calculation
                 IsReturnable = x.SaleOrder.SODate >= limitDate,

@@ -27,6 +27,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal TotalQty { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
+        public bool IsReturnable { get; set; } = true;
         public List<SaleOrderItemDto> Items { get; set; } = new();
     }
 }
