@@ -83,7 +83,8 @@ namespace Customers.Infrastructure.Repositories
                 .Select(c => new CustomerLookupDto
                 {
                     Id = c.Id,
-                    Name = c.CustomerName ?? string.Empty
+                    Name = c.CustomerName ?? string.Empty,
+                    Phone = c.Phone
                 })
                 .ToListAsync();
         }
