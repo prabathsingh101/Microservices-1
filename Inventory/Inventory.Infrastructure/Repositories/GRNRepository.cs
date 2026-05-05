@@ -920,73 +920,99 @@ namespace Inventory.Infrastructure.Repositories
 
         public async Task<List<GrnRejectionHistoryDto>> GetGrnRejectionHistoryAsync(string grnNumber)
         {
+            Console.WriteLine($"[GRNRepository] Fetching rejection history for: {grnNumber}");
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
 
-            // 1. Get the original rejections from the GRN
-            var rejections = await (from gd in _context.GRNDetails
-                                    join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
-                                    where gh.GRNNumber == grnNumber && gd.RejectedQty > 0 && gd.CompanyId == companyId
-                                    select new { gd, gh }).ToListAsync();
-
-            if (!rejections.Any()) return new List<GrnRejectionHistoryDto>();
-
-            var history = new List<GrnRejectionHistoryDto>();
-
-            foreach (var rej in rejections)
+            try 
             {
-                var item = new GrnRejectionHistoryDto
-                {
-                    ProductId = rej.gd.ProductId,
-                    ProductName = _context.Products.Where(p => p.Id == rej.gd.ProductId).Select(p => p.Name).FirstOrDefault() ?? "Unknown",
-                    RejectedQty = rej.gd.RejectedQty,
-                    IsSettled = rej.gd.IsSettled,
-                    Status = rej.gd.IsSettled ? "Settled" : "Pending"
-                };
+                // 1. Fetch rejections with product names in a single query
+                var rejections = await (from gd in _context.GRNDetails
+                                        join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
+                                        join p in _context.Products on gd.ProductId equals p.Id
+                                        where gh.GRNNumber == grnNumber && gd.RejectedQty > 0 && gd.CompanyId == companyId
+                                        select new 
+                                        { 
+                                            gd.ProductId, 
+                                            ProductName = p.Name, 
+                                            gd.RejectedQty, 
+                                            gd.IsSettled,
+                                            gh.PurchaseOrderId,
+                                            gd.Id
+                                        }).ToListAsync();
 
-                // 2. Look for replacements
-                // A replacement is a GRNDetail with IsReplacement = true for the same PO and Product
-                var replacement = await (from gd in _context.GRNDetails
-                                         join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
-                                         where gh.PurchaseOrderId == rej.gh.PurchaseOrderId 
-                                               && gd.ProductId == rej.gd.ProductId 
-                                               && gd.IsReplacement == true
-                                               && gd.CompanyId == companyId
-                                         orderby gh.CreatedOn ascending
-                                         select gh.GRNNumber).FirstOrDefaultAsync();
+                Console.WriteLine($"[GRNRepository] Found {rejections.Count} rejections for {grnNumber}");
+                if (!rejections.Any()) return new List<GrnRejectionHistoryDto>();
 
-                if (replacement != null)
-                {
-                    item.Resolution = $"Replaced in {replacement}";
-                    item.ResolutionGrn = replacement;
-                    item.Status = "Settled";
-                    item.IsSettled = true;
-                }
-                else
-                {
-                    // 3. Look for Returns (Debit Note)
-                    var returnRef = await _context.PurchaseReturnItems
-                        .Where(ri => ri.GrnRef == grnNumber && ri.ProductId == rej.gd.ProductId && ri.CompanyId == companyId)
-                        .Select(ri => ri.PurchaseReturn.ReturnNumber)
-                        .FirstOrDefaultAsync();
+                var history = new List<GrnRejectionHistoryDto>();
 
-                    if (returnRef != null)
+                foreach (var rej in rejections)
+                {
+                    Console.WriteLine($"[GRNRepository] Processing rejection for Product: {rej.ProductName}");
+                    var item = new GrnRejectionHistoryDto
                     {
-                        item.Resolution = $"Returned in {returnRef}";
+                        ProductId = rej.ProductId,
+                        ProductName = rej.ProductName ?? "Unknown",
+                        RejectedQty = rej.RejectedQty,
+                        IsSettled = rej.IsSettled,
+                        Status = rej.IsSettled ? "Settled" : "Pending"
+                    };
+
+                    // 2. Look for replacements
+                    Console.WriteLine($"[GRNRepository] Checking replacements for Product: {rej.ProductId} in PO: {rej.PurchaseOrderId}");
+                    var replacement = await (from gd in _context.GRNDetails
+                                             join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
+                                             where gh.PurchaseOrderId == rej.PurchaseOrderId 
+                                                   && gd.ProductId == rej.ProductId 
+                                                   && gd.IsReplacement == true
+                                                   && gd.CompanyId == companyId
+                                             orderby gh.CreatedOn ascending
+                                             select gh.GRNNumber).FirstOrDefaultAsync();
+
+                    if (replacement != null)
+                    {
+                        Console.WriteLine($"[GRNRepository] Found replacement in {replacement}");
+                        item.Resolution = $"Replaced in {replacement}";
+                        item.ResolutionGrn = replacement;
                         item.Status = "Settled";
                         item.IsSettled = true;
                     }
                     else
                     {
-                        item.Resolution = "Pending / Replacement Awaited";
-                        item.Status = "Pending";
-                        item.IsSettled = false;
+                        // 3. Look for Returns (Debit Note)
+                        Console.WriteLine($"[GRNRepository] Checking returns for Product: {rej.ProductId}");
+                        var returnRef = await _context.PurchaseReturnItems
+                            .Where(ri => ri.GrnRef == grnNumber && ri.ProductId == rej.ProductId && ri.CompanyId == companyId)
+                            .Select(ri => ri.PurchaseReturn.ReturnNumber)
+                            .FirstOrDefaultAsync();
+
+                        if (returnRef != null)
+                        {
+                            Console.WriteLine($"[GRNRepository] Found return in {returnRef}");
+                            item.Resolution = $"Returned in {returnRef}";
+                            item.Status = "Settled";
+                            item.IsSettled = true;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[GRNRepository] No resolution found for Product: {rej.ProductId}");
+                            item.Resolution = "Pending / Replacement Awaited";
+                            item.Status = "Pending";
+                            item.IsSettled = false;
+                        }
                     }
+
+                    history.Add(item);
                 }
 
-                history.Add(item);
+                Console.WriteLine($"[GRNRepository] Returning {history.Count} history items");
+                return history;
             }
-
-            return history;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GRNRepository] ERROR in GetGrnRejectionHistoryAsync: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                throw;
+            }
         }
     }
 }
