@@ -31,12 +31,14 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 }
 
                 var lastLedger = await _repository.GetLastLedgerEntryAsync(paymentDto.SupplierId);
-                decimal currentBalance = (lastLedger?.Balance ?? 0) - paymentDto.Amount;
+                decimal roundedAmount = Math.Round(paymentDto.Amount, 2, MidpointRounding.AwayFromZero);
+                decimal currentBalance = (lastLedger?.Balance ?? 0) - roundedAmount;
+                currentBalance = Math.Round(currentBalance, 2, MidpointRounding.AwayFromZero);
 
                 var supplierPayment = new SupplierPayment
                 {
                     SupplierId = paymentDto.SupplierId,
-                    Amount = paymentDto.Amount,
+                    Amount = roundedAmount,
                     PaymentDate = paymentDto.PaymentDate,
                     PaymentMode = paymentDto.PaymentMode ?? "Other",
                     ReferenceNumber = paymentDto.ReferenceNumber,
@@ -53,7 +55,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                     SupplierId = paymentDto.SupplierId,
                     TransactionType = "Payment",
                     ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : "PAY-" + Guid.NewGuid().ToString().Substring(0, 8),
-                    Debit = paymentDto.Amount,
+                    Debit = roundedAmount,
                     Credit = 0,
                     Balance = currentBalance,
                     TransactionDate = paymentDto.PaymentDate,

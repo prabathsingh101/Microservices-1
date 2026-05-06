@@ -19,15 +19,17 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
             var isDebitNote = dto.TransactionType == "DebitNote";
 
             var lastLedger = await _repository.GetLastLedgerEntryAsync(dto.SupplierId);
-            decimal currentBalance = (lastLedger?.Balance ?? 0) + (isDebitNote ? -dto.Amount : dto.Amount);
+            decimal roundedAmount = Math.Round(dto.Amount, 2, MidpointRounding.AwayFromZero);
+            decimal currentBalance = (lastLedger?.Balance ?? 0) + (isDebitNote ? -roundedAmount : roundedAmount);
+            currentBalance = Math.Round(currentBalance, 2, MidpointRounding.AwayFromZero);
 
             var supplierLedger = new SupplierLedger
             {
                 SupplierId = dto.SupplierId,
                 TransactionType = isDebitNote ? "Debit Note" : "Purchase",
                 ReferenceId = dto.ReferenceId ?? string.Empty,
-                Debit = isDebitNote ? dto.Amount : 0,
-                Credit = isDebitNote ? 0 : dto.Amount,
+                Debit = isDebitNote ? roundedAmount : 0,
+                Credit = isDebitNote ? 0 : roundedAmount,
                 Balance = currentBalance,
                 TransactionDate = dto.TransactionDate,
                 Description = dto.Description ?? (isDebitNote ? "Purchase Return: " : "Purchase via GRN: ") + dto.ReferenceId,

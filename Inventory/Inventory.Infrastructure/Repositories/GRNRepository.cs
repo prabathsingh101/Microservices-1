@@ -357,6 +357,26 @@ namespace Inventory.Infrastructure.Repositories
 
             if (!pos.Any()) return null;
 
+            // 🎯 AUTOMATIC DISPATCH: Mark loaded POs as Dispatched if creating a new GRN
+            if (grnHeaderId == null)
+            {
+                bool anyUpdated = false;
+                foreach (var po in pos)
+                {
+                    if (!po.IsDispatched)
+                    {
+                        po.IsDispatched = true;
+                        po.ModifiedOn = DateTime.Now;
+                        _context.PurchaseOrders.Update(po);
+                        anyUpdated = true;
+                    }
+                }
+                if (anyUpdated)
+                {
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             // If single PO, keep original behavior for DTO fields
             var firstPO = pos.First();
             var allSupplierIds = pos.Select(p => p.SupplierId).Distinct().ToList();
@@ -582,17 +602,28 @@ namespace Inventory.Infrastructure.Repositories
                     
                     var paidAmountsTask = _supplierClient.GetGRNPaymentStatusesAsync(searchTerms);
 
-                    // Fetch Supplier Balances
+                    // Fetch Supplier Balances & Names
                     var supplierIds = items.Select(x => x.SupplierId).Distinct().ToList();
                     var supplierBalancesTask = _supplierClient.GetSupplierBalancesAsync(supplierIds);
+                    var suppliersTask = _supplierClient.GetSuppliersByIdsAsync(supplierIds);
 
-                    await Task.WhenAll(paidAmountsTask, supplierBalancesTask);
+                    await Task.WhenAll(paidAmountsTask, supplierBalancesTask, suppliersTask);
 
                     var paidAmounts = paidAmountsTask.Result;
                     var supplierBalances = supplierBalancesTask.Result;
+                    var suppliers = suppliersTask.Result;
+                    var supplierMap = suppliers?.ToDictionary(s => s.Id, s => s.Name ?? "") ?? new Dictionary<Guid, string>();
 
                     foreach (var item in items)
                     {
+                        if (string.IsNullOrEmpty(item.SupplierName) || item.SupplierName == "Unknown" || item.SupplierName == "N/A" || item.SupplierName == "Multiple Suppliers")
+                        {
+                            if (supplierMap.TryGetValue(item.SupplierId, out var sName) && !string.IsNullOrEmpty(sName))
+                            {
+                                item.SupplierName = sName;
+                            }
+                        }
+
                         decimal totalPaidAmount = 0;
                         
                         // 🔥 HIGH PRIORITY: Exact GRN Number Match
