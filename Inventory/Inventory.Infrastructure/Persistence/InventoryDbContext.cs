@@ -66,12 +66,33 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
         {
             if (typeof(Inventory.Domain.Common.IMultiTenant).IsAssignableFrom(entityType.ClrType))
             {
-                var method = typeof(InventoryDbContext)
-                    .GetMethod(nameof(SetGlobalQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                    ?.MakeGenericMethod(entityType.ClrType);
-                method?.Invoke(this, new object[] { modelBuilder });
+                if (entityType.ClrType == typeof(PriceList) || entityType.ClrType == typeof(PriceListItem))
+                {
+                    var method = typeof(InventoryDbContext)
+                        .GetMethod(nameof(SetCompanyOnlyQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                        ?.MakeGenericMethod(entityType.ClrType);
+                    method?.Invoke(this, new object[] { modelBuilder });
+                }
+                else
+                {
+                    var method = typeof(InventoryDbContext)
+                        .GetMethod(nameof(SetGlobalQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                        ?.MakeGenericMethod(entityType.ClrType);
+                    method?.Invoke(this, new object[] { modelBuilder });
+                }
             }
         }
+    }
+
+    private void SetCompanyOnlyQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, Inventory.Domain.Common.IMultiTenant
+    {
+        // 🚀 COMPANY-ONLY FILTER FOR GLOBAL PRICELISTS
+        // Price lists are company-wide and should be shared across all branches.
+        modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+            _isPlatformAdmin 
+            ? true 
+            : e.CompanyId == _currentCompanyId
+        );
     }
 
     private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, Inventory.Domain.Common.IMultiTenant
