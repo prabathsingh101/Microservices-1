@@ -69,21 +69,39 @@ public class RolePermissionRepository : IRolePermissionRepository
 
     public async Task<IEnumerable<Application.DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds)
     {
-        return await _context.RolePermissions
+        var dbPermissions = await _context.RolePermissions
             .IgnoreQueryFilters()
             .Include(rp => rp.Menu)
             .Where(rp => roleIds.Contains(rp.RoleId))
-            .GroupBy(rp => rp.MenuId)
-            .Select(g => new Application.DTOs.UserPermissionDto
-            {
-                MenuName = g.First().Menu!.Title,
-                ActionCode = g.First().Menu!.Url, 
-                CanView = g.Any(x => x.CanView),
-                CanAdd = g.Any(x => x.CanAdd),
-                CanEdit = g.Any(x => x.CanEdit),
-                CanDelete = g.Any(x => x.CanDelete)
-            })
             .ToListAsync();
+
+        return dbPermissions
+            .GroupBy(rp => rp.MenuId)
+            .Select(g => {
+                var first = g.First();
+                
+                // Aggregate distinct actions from all roles
+                var actions = g
+                    .Where(x => !string.IsNullOrEmpty(x.AdditionalActions))
+                    .SelectMany(x => x.AdditionalActions!.Split(','))
+                    .Select(a => a.Trim())
+                    .Distinct()
+                    .ToList();
+
+                var additionalActionsStr = actions.Any() ? string.Join(",", actions) : null;
+
+                return new Application.DTOs.UserPermissionDto
+                {
+                    MenuName = first.Menu!.Title,
+                    ActionCode = first.Menu!.Url ?? string.Empty, 
+                    CanView = g.Any(x => x.CanView),
+                    CanAdd = g.Any(x => x.CanAdd),
+                    CanEdit = g.Any(x => x.CanEdit),
+                    CanDelete = g.Any(x => x.CanDelete),
+                    AdditionalActions = additionalActionsStr
+                };
+            })
+            .ToList();
     }
 
     public async Task AddAsync(RolePermission permission)
