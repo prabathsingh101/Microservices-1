@@ -180,8 +180,11 @@ namespace Suppliers.Infrastructure.Repositories
             Console.WriteLine($"[Suppliers Debug] Fetching Payment Statuses. CompanyId: {_companyId}, BranchId: {_branchId}, GRN Count: {grnNumbers?.Count}");
 
             // Fetch all payments for this supplier (relevant to the search terms)
+            // 🛡️ MULTI-BRANCH CONTEXT ENHANCEMENT: Ignore branch-level query filters for unique GRN/PO checks
+            // GRNs/POs are unique across the entire company, so matching payments must be resolved company-wide.
             var relevantPayments = await _context.SupplierLedgers
-                .Where(l => l.TransactionType == "Payment" && l.Description != null && l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(_branchId) || l.BranchId == _branchId))
+                .IgnoreQueryFilters()
+                .Where(l => l.TransactionType == "Payment" && l.Description != null && l.CompanyId == _companyId)
                 .Select(l => new { l.Description, l.ReferenceId, l.Debit })
                 .ToListAsync();
 
