@@ -37,6 +37,7 @@ public class RolePrintSettingRepository : IRolePrintSettingRepository
             }
             else
             {
+                setting.Id = Guid.NewGuid(); // 🛡️ Ensure unique primary key for new or cloned settings
                 setting.RoleId = roleId; 
                 setting.CompanyId = companyId;
                 setting.BranchId = branchId;
