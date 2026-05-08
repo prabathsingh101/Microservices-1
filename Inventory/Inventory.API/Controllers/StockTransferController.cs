@@ -70,6 +70,26 @@ namespace Inventory.API.Controllers
             if (data == null) return NotFound();
             return Ok(data);
         }
+
+        [HttpPost("receive")]
+        public async Task<IActionResult> ReceiveTransfer([FromBody] ReceiveTransferRequest request)
+        {
+            try
+            {
+                var success = await _repository.ReceiveTransferAsync(request.TransferId, request.Remarks);
+                return Ok(new { success });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+    }
+
+    public class ReceiveTransferRequest
+    {
+        public Guid TransferId { get; set; }
+        public string? Remarks { get; set; }
     }
 
     public class StockTransferRequest

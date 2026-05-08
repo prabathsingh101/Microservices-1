@@ -10,5 +10,6 @@ namespace Inventory.Application.Common.Interfaces
         Task<string> CreateTransferAsync(StockTransferHeader header, List<StockTransferDetail> details);
         Task<IEnumerable<StockTransferHeader>> GetTransferListAsync();
         Task<StockTransferHeader?> GetTransferByIdAsync(Guid id);
+        Task<bool> ReceiveTransferAsync(Guid id, string? remarks);
     }
 }

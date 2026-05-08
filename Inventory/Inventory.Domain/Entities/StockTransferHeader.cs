@@ -19,8 +19,8 @@ namespace Inventory.Domain.Entities
         public string? FromBranchId { get; private set; }
         public string? ToBranchId { get; private set; }
 
-        public string Status { get; internal set; } = "Completed"; // Draft, Completed, Cancelled
-        public string? Remarks { get; internal set; }
+        public string Status { get; private set; } = "Dispatched"; // Draft, Dispatched, Completed, Cancelled
+        public string? Remarks { get; private set; }
 
         public virtual ICollection<StockTransferDetail> Items { get; internal set; } = new List<StockTransferDetail>();
 
@@ -29,6 +29,21 @@ namespace Inventory.Domain.Entities
         public void SetTransferNumber(string number)
         {
             TransferNumber = number;
+        }
+
+        public void ReceiveTransfer(string? remarks)
+        {
+            if (Status != "Dispatched")
+            {
+                throw new Exception($"Stock transfer cannot be received because its current status is '{Status}'.");
+            }
+            Status = "Completed";
+            if (!string.IsNullOrEmpty(remarks))
+            {
+                Remarks = string.IsNullOrEmpty(Remarks) 
+                    ? $"Received Remarks: {remarks}" 
+                    : $"{Remarks} | Received Remarks: {remarks}";
+            }
         }
 
         public StockTransferHeader(
@@ -50,7 +65,7 @@ namespace Inventory.Domain.Entities
             ToBranchId = toBranchId;
             CompanyId = companyId;
             Remarks = remarks;
-            Status = "Completed";
+            Status = "Dispatched";
             CreatedOn = DateTime.UtcNow;
         }
     }

@@ -51,23 +51,80 @@ namespace Inventory.Infrastructure.Repositories
                 baseQuery = baseQuery.Where(p => p.CompanyId == companyId);
             }
 
-            var joinedQuery = baseQuery
-                .GroupJoin(_context.GRNDetails.IgnoreQueryFilters().Include(g => g.Warehouse).Include(g => g.Rack).AsNoTracking(), p => p.Id, g => g.ProductId, (p, g) => new { p, g })
-                .SelectMany(x => x.g.DefaultIfEmpty(), (x, g) => new 
-                { 
-                    Product = x.p, 
-                    GRN = g,
-                    ProductId = x.p.Id,
-                    WarehouseId = g != null ? (Guid?)g.WarehouseId : null,
-                    RackId = g != null ? (Guid?)g.RackId : null,
-                    BranchId = g != null ? g.BranchId : x.p.BranchId,
-                    ReceivedQty = g != null ? g.ReceivedQty : 0,
-                    RejectedQty = g != null ? g.RejectedQty : 0,
-                    ModifiedOn = g != null ? g.ModifiedOn : x.p.CreatedOn,
-                    GRNId = g != null ? (Guid?)g.Id : null
+            var rawGrns = _context.GRNDetails.IgnoreQueryFilters().AsNoTracking()
+                .Select(g => new
+                {
+                    ProductId = g.ProductId,
+                    WarehouseId = (Guid?)g.WarehouseId,
+                    RackId = (Guid?)g.RackId,
+                    BranchId = g.BranchId,
+                    ReceivedQty = g.ReceivedQty,
+                    RejectedQty = g.RejectedQty,
+                    ModifiedOn = g.ModifiedOn,
+                    GRNId = (Guid?)g.Id,
+                    IsTransfer = false,
+                    GrnRackName = g.Rack != null ? g.Rack.Name : null,
+                    GrnRackDescription = g.Rack != null ? g.Rack.Description : null,
+                    GrnUnitRate = g.UnitRate,
+                    GrnPurchaseOrderId = g.GRNHeader != null ? (Guid?)g.GRNHeader.PurchaseOrderId : null,
+                    GrnBatchNumber = g.BatchNumber
                 });
 
-            var finalQuery = joinedQuery;
+            var rawTransfers = _context.StockTransferDetails.IgnoreQueryFilters().AsNoTracking()
+                .Where(td => td.StockTransferHeader.Status == "Completed")
+                .Select(td => new
+                {
+                    ProductId = td.ProductId,
+                    WarehouseId = (Guid?)td.StockTransferHeader.ToWarehouseId,
+                    RackId = (Guid?)null,
+                    BranchId = td.StockTransferHeader.ToBranchId,
+                    ReceivedQty = 0M,
+                    RejectedQty = 0M,
+                    ModifiedOn = td.StockTransferHeader.ModifiedOn ?? td.StockTransferHeader.CreatedOn,
+                    GRNId = (Guid?)null,
+                    IsTransfer = true,
+                    GrnRackName = (string?)null,
+                    GrnRackDescription = (string?)null,
+                    GrnUnitRate = 0M,
+                    GrnPurchaseOrderId = (Guid?)null,
+                    GrnBatchNumber = (string?)null
+                });
+
+            var rawInputs = rawGrns.Concat(rawTransfers);
+
+            var finalQuery = rawInputs
+                .Join(_context.Products.IgnoreQueryFilters().Include(p => p.Category).AsNoTracking(), 
+                    ri => ri.ProductId, p => p.Id, (ri, p) => new { ri, p })
+                .Select(x => new
+                {
+                    ProductId = x.p.Id,
+                    ProductName = x.p.Name,
+                    CategoryName = x.p.Category != null ? x.p.Category.CategoryName : "N/A",
+                    UnitName = x.p.Unit,
+                    MinStock = x.p.MinStock,
+                    WarehouseId = x.ri.WarehouseId,
+                    WarehouseName = _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == x.ri.WarehouseId).Select(w => w.Name).FirstOrDefault() ?? "N/A",
+                    RackId = x.ri.RackId,
+                    RackName = _context.Racks.IgnoreQueryFilters().Where(r => r.Id == x.ri.RackId).Select(r => r.Name).FirstOrDefault() ?? "N/A",
+                    Sku = x.p.Sku,
+                    GstPercent = x.p.DefaultGst ?? 0M,
+                    IsExpiryRequired = x.p.IsExpiryRequired,
+                    MRP = x.p.MRP,
+                    Discount = x.p.Discount,
+                    SaleRate = x.p.SaleRate ?? 0M,
+                    BasePurchasePrice = x.p.BasePurchasePrice,
+                    BranchId = x.ri.BranchId,
+                    ReceivedQty = x.ri.ReceivedQty,
+                    RejectedQty = x.ri.RejectedQty,
+                    ModifiedOn = (DateTime?)x.ri.ModifiedOn,
+                    IsTransfer = x.ri.IsTransfer,
+                    GRNId = x.ri.GRNId,
+                    GrnRackName = x.ri.GrnRackName,
+                    GrnRackDescription = x.ri.GrnRackDescription,
+                    GrnUnitRate = x.ri.GrnUnitRate,
+                    GrnPurchaseOrderId = x.ri.GrnPurchaseOrderId,
+                    GrnBatchNumber = x.ri.GrnBatchNumber
+                });
 
             if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
             {
@@ -75,9 +132,9 @@ namespace Inventory.Infrastructure.Repositories
             }
 
             if (startDate.HasValue)
-                finalQuery = finalQuery.Where(x => x.GRN != null && x.GRN.GRNHeader.ReceivedDate.Date >= startDate.Value.Date);
+                finalQuery = finalQuery.Where(x => x.ModifiedOn != null && x.ModifiedOn.Value.Date >= startDate.Value.Date);
             if (endDate.HasValue)
-                finalQuery = finalQuery.Where(x => x.GRN != null && x.GRN.GRNHeader.ReceivedDate.Date <= endDate.Value.Date);
+                finalQuery = finalQuery.Where(x => x.ModifiedOn != null && x.ModifiedOn.Value.Date <= endDate.Value.Date);
 
             if (warehouseId.HasValue && warehouseId.Value != Guid.Empty)
                 finalQuery = finalQuery.Where(x => x.WarehouseId == warehouseId.Value);
@@ -89,21 +146,21 @@ namespace Inventory.Infrastructure.Repositories
                 .GroupBy(g => new
                 {
                     g.ProductId,
-                    ProductName = g.Product.Name,
-                    CategoryName = g.Product.Category != null ? g.Product.Category.CategoryName : "N/A",
-                    UnitName = g.Product.Unit,
-                    MinStock = g.Product.MinStock,
+                    ProductName = g.ProductName,
+                    CategoryName = g.CategoryName,
+                    UnitName = g.UnitName,
+                    MinStock = g.MinStock,
                     g.WarehouseId,
-                    WarehouseName = (g.GRN != null && g.GRN.Warehouse != null) ? g.GRN.Warehouse.Name : "N/A",
+                    WarehouseName = g.WarehouseName,
                     g.RackId,
-                    RackName = (g.GRN != null && g.GRN.Rack != null) ? g.GRN.Rack.Name : "N/A",
-                    Sku = g.Product.Sku,
-                    GstPercent = g.Product.DefaultGst ?? 0,
-                    IsExpiryRequired = g.Product.IsExpiryRequired,
-                    MRP = g.Product.MRP,
-                    Discount = g.Product.Discount,
-                    SaleRate = g.Product.SaleRate ?? 0,
-                    BasePurchasePrice = g.Product.BasePurchasePrice,
+                    RackName = g.RackName,
+                    Sku = g.Sku,
+                    GstPercent = g.GstPercent,
+                    g.IsExpiryRequired,
+                    g.MRP,
+                    g.Discount,
+                    g.SaleRate,
+                    g.BasePurchasePrice,
                     BranchId = g.BranchId
                 })
                 .Select(group => new StockSummaryDto
@@ -126,45 +183,47 @@ namespace Inventory.Infrastructure.Repositories
                     BasePurchasePrice = group.Key.BasePurchasePrice,
                     BranchId = group.Key.BranchId,
                     TotalReceived = group.Sum(x => x.ReceivedQty),
-                    TotalRejected = group.Sum(x => (x.GRN != null && x.GRN.Rack != null && (
-                        x.GRN.Rack.Name.ToLower().Contains("e1") || 
-                        x.GRN.Rack.Name.ToLower().StartsWith("e -") || 
-                        x.GRN.Rack.Name.ToLower().StartsWith("e-") ||
-                        (x.GRN.Rack.Description != null && (
-                            x.GRN.Rack.Description.ToLower().Contains("expired") || 
-                            x.GRN.Rack.Description.ToLower().Contains("damaged") || 
-                            x.GRN.Rack.Description.ToLower().Contains("rejected") ||
-                            x.GRN.Rack.Description.ToLower().Contains("purged")
+                    TotalRejected = group.Sum(x => (x.GrnRackName != null && (
+                        x.GrnRackName.ToLower().Contains("e1") || 
+                        x.GrnRackName.ToLower().StartsWith("e -") || 
+                        x.GrnRackName.ToLower().StartsWith("e-") ||
+                        (x.GrnRackDescription != null && (
+                            x.GrnRackDescription.ToLower().Contains("expired") || 
+                            x.GrnRackDescription.ToLower().Contains("damaged") || 
+                            x.GrnRackDescription.ToLower().Contains("rejected") ||
+                            x.GrnRackDescription.ToLower().Contains("purged")
                         ))
                     )) ? 0 : x.RejectedQty),
-                    TotalExpired = group.Sum(x => (x.GRN != null && x.GRN.Rack != null && (
-                        x.GRN.Rack.Name.ToLower().Contains("e1") || 
-                        x.GRN.Rack.Name.ToLower().StartsWith("e -") || 
-                        x.GRN.Rack.Name.ToLower().StartsWith("e-") ||
-                        (x.GRN.Rack.Description != null && (
-                            x.GRN.Rack.Description.ToLower().Contains("expired") || 
-                            x.GRN.Rack.Description.ToLower().Contains("damaged") || 
-                            x.GRN.Rack.Description.ToLower().Contains("rejected") ||
-                            x.GRN.Rack.Description.ToLower().Contains("purged")
+                    TotalExpired = group.Sum(x => (x.GrnRackName != null && (
+                        x.GrnRackName.ToLower().Contains("e1") || 
+                        x.GrnRackName.ToLower().StartsWith("e -") || 
+                        x.GrnRackName.ToLower().StartsWith("e-") ||
+                        (x.GrnRackDescription != null && (
+                            x.GrnRackDescription.ToLower().Contains("expired") || 
+                            x.GrnRackDescription.ToLower().Contains("damaged") || 
+                            x.GrnRackDescription.ToLower().Contains("rejected") ||
+                            x.GrnRackDescription.ToLower().Contains("purged")
                         ))
                     )) ? x.RejectedQty : 0),
                     AvailableStock = group.Sum(x => x.ReceivedQty - x.RejectedQty),
-                    IsAlreadyPurged = group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0,
-                    PurgedDate = (group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0) ? group.Max(x => x.ModifiedOn) : null,
-                    LastRate = group.OrderByDescending(x => x.GRNId).Select(x => x.GRN != null ? x.GRN.UnitRate : 0).FirstOrDefault(),
-                    LastPurchaseOrderId = group.OrderByDescending(x => x.GRNId).Select(x => (x.GRN != null && x.GRN.GRNHeader != null) ? x.GRN.GRNHeader.PurchaseOrderId : (Guid?)null).FirstOrDefault(),
-                    BatchNumber = group.OrderByDescending(x => x.GRNId).Select(x => x.GRN != null ? x.GRN.BatchNumber : null).FirstOrDefault()
+                    IsAlreadyPurged = !group.Any(x => x.IsTransfer) && group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0,
+                    IsTransferInput = group.Any(x => x.IsTransfer),
+                    PurgedDate = (!group.Any(x => x.IsTransfer) && group.Sum(x => x.ReceivedQty) == 0 && group.Sum(x => x.RejectedQty) == 0) ? group.Max(x => x.ModifiedOn) : null,
+                    LastRate = group.OrderByDescending(x => x.GRNId).Select(x => x.GrnUnitRate).FirstOrDefault(),
+                    LastPurchaseOrderId = group.OrderByDescending(x => x.GRNId).Select(x => x.GrnPurchaseOrderId).FirstOrDefault(),
+                    BatchNumber = group.OrderByDescending(x => x.GRNId).Select(x => x.GrnBatchNumber).FirstOrDefault()
                 });
 
             if (!showPurged)
             {
-                groupedQuery = groupedQuery.Where(x => x.TotalReceived > 0 || x.TotalRejected > 0);
+                groupedQuery = groupedQuery.Where(x => x.TotalReceived > 0 || x.TotalRejected > 0 || x.IsTransferInput);
             }
             else
             {
                 groupedQuery = groupedQuery.Where(x => 
                     x.TotalReceived > 0 || 
                     x.TotalRejected > 0 || 
+                    x.IsTransferInput ||
                     (x.RackName.ToLower().Contains("e1") || x.RackName.ToLower().StartsWith("e -") || x.RackName.ToLower().StartsWith("e-") || (x.RackName != null && x.RackName.ToLower().Contains("expired")))
                 );
             }
@@ -281,6 +340,26 @@ namespace Inventory.Infrastructure.Repositories
 
                 var transferredOut = await transfersOutQuery
                     .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
+                    .Where(td => 
+                        _context.GRNDetails.IgnoreQueryFilters().Any(g => 
+                            g.ProductId == td.ProductId && 
+                            g.WarehouseId == item.WarehouseId && 
+                            g.RackId == item.RackId && 
+                            (g.GRNHeader.GRNNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber)
+                        ) ||
+                        (item.RackId == null && 
+                         !_context.GRNDetails.IgnoreQueryFilters().Any(g => 
+                             g.ProductId == td.ProductId && 
+                             g.WarehouseId == item.WarehouseId && 
+                             (g.GRNHeader.GRNNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber)
+                         ) &&
+                         _context.StockTransferDetails.IgnoreQueryFilters().Any(tin =>
+                             tin.ProductId == td.ProductId &&
+                             tin.StockTransferHeader.ToWarehouseId == item.WarehouseId &&
+                             tin.StockTransferHeader.Status == "Completed" &&
+                             tin.BatchNumber == td.BatchNumber
+                         ))
+                    )
                     .SumAsync(td => (decimal?)td.Quantity) ?? 0;
 
                 var transfersInQuery = _context.StockTransferDetails.IgnoreQueryFilters().AsQueryable();
@@ -289,9 +368,9 @@ namespace Inventory.Infrastructure.Repositories
                     transfersInQuery = transfersInQuery.Where(td => td.CompanyId == companyId);
                 }
 
-                var transferredIn = await transfersInQuery
+                var transferredIn = (item.RackId == null) ? (await transfersInQuery
                     .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
-                    .SumAsync(td => (decimal?)td.Quantity) ?? 0;
+                    .SumAsync(td => (decimal?)td.Quantity) ?? 0) : 0;
 
                 var unlinkedSales = await salesQuery
                     .Where(si => (si.WarehouseId == null || si.RackId == null) && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed"))
@@ -306,7 +385,26 @@ namespace Inventory.Infrastructure.Repositories
 
                 item.TotalSold = grossSold + adjustment - totalSaleReturn;
                 item.TotalReturned = totalPurchaseReturn;
+                item.TotalTransferredOut = transferredOut;
+                item.TotalTransferredIn = transferredIn;
+                if (transferredOut > 0)
+                {
+                    item.TransferredBranchId = await transfersOutQuery
+                        .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
+                        .Select(td => td.StockTransferHeader.ToBranchId)
+                        .FirstOrDefaultAsync();
+                }
                 item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalDeductibleReturn - transferredOut + transferredIn - totalPurged;
+
+                if (item.TotalReceived == 0 && transferredIn > 0)
+                {
+                    item.TotalReceived = transferredIn;
+                }
+
+                if ((string.IsNullOrEmpty(item.RackName) || item.RackName == "N/A") && transferredIn > 0)
+                {
+                    item.RackName = "Transferred In";
+                }
 
                 var earliestBatch = await grnQuery
                     .Where(g => g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
@@ -321,6 +419,31 @@ namespace Inventory.Infrastructure.Repositories
                     item.ExpiryDate = earliestBatch.ExpDate;
                     item.ReceivedDate = earliestBatch.ReceivedDate;
                     item.BatchNumber = earliestBatch.BatchNumber; // Use GRN/Batch number
+                }
+                else if (transferredIn > 0)
+                {
+                    // Find the earliest active transfer-in detail to populate dates
+                    var earliestTransfer = await transfersInQuery
+                        .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
+                        .OrderBy(td => td.StockTransferHeader.TransferDate)
+                        .Select(td => new { td.BatchNumber, td.StockTransferHeader.TransferDate })
+                        .FirstOrDefaultAsync();
+
+                    if (earliestTransfer != null)
+                    {
+                        var originalBatch = await _context.GRNDetails.IgnoreQueryFilters()
+                            .Where(g => g.ProductId == item.ProductId && (g.GRNHeader.GRNNumber == earliestTransfer.BatchNumber || g.BatchNumber == earliestTransfer.BatchNumber))
+                            .Select(g => new { g.MfgDate, g.ExpDate })
+                            .FirstOrDefaultAsync();
+
+                        if (originalBatch != null)
+                        {
+                            item.ManufacturingDate = originalBatch.MfgDate;
+                            item.ExpiryDate = originalBatch.ExpDate;
+                        }
+                        item.ReceivedDate = earliestTransfer.TransferDate;
+                        item.BatchNumber = earliestTransfer.BatchNumber;
+                    }
                 }
 
                 var grnHistory = await grnQuery
@@ -376,7 +499,7 @@ namespace Inventory.Infrastructure.Repositories
                     .ToListAsync();
 
                 // 🚀 ADD TRANSFERS TO HISTORY
-                var transferInHistory = await _context.StockTransferDetails
+                var transferInHistory = item.RackId == null ? await _context.StockTransferDetails.IgnoreQueryFilters()
                     .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
                     .Select(td => new StockHistoryDto
                     {
@@ -389,6 +512,7 @@ namespace Inventory.Infrastructure.Repositories
                         TransactionType = "Transfer",
                         ProductName = item.ProductName,
                         ReceivedQty = td.Quantity,
+                        TransferredQty = td.Quantity,
                         AvailableQty = td.Quantity,
                         WarehouseName = td.StockTransferHeader.FromWarehouse.Name, // 🎯 Source Warehouse
                         RackName = "Transferred In",
@@ -401,10 +525,16 @@ namespace Inventory.Infrastructure.Repositories
                         ReferenceNumber = td.StockTransferHeader.TransferNumber,
                         CurrentStock = item.AvailableStock
                     })
-                    .ToListAsync();
+                    .ToListAsync() : new List<StockHistoryDto>();
 
-                var transferOutHistory = await _context.StockTransferDetails
+                var transferOutHistory = await _context.StockTransferDetails.IgnoreQueryFilters()
                     .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
+                    .Where(td => _context.GRNDetails.IgnoreQueryFilters().Any(g => 
+                        g.ProductId == td.ProductId && 
+                        g.WarehouseId == item.WarehouseId && 
+                        g.RackId == item.RackId && 
+                        (g.GRNHeader.GRNNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber)
+                    ))
                     .Select(td => new StockHistoryDto
                     {
                         ProductId = td.ProductId,
@@ -416,7 +546,8 @@ namespace Inventory.Infrastructure.Repositories
                         TransactionType = "Transfer",
                         ProductName = item.ProductName,
                         ReceivedQty = 0,
-                        SoldQty = td.Quantity, 
+                        SoldQty = 0, 
+                        TransferredQty = td.Quantity,
                         AvailableQty = -td.Quantity,
                         WarehouseName = item.WarehouseName,
                         RackName = item.RackName,
@@ -433,9 +564,10 @@ namespace Inventory.Infrastructure.Repositories
                     .OrderBy(h => h.ReceivedDate)
                     .ToList();
 
-                // Apply FIFO distribution of TotalSold and TotalPurchaseReturn
+                // Apply FIFO distribution of TotalSold, TotalPurchaseReturn and TotalTransferredOut
                 decimal remainingSold = item.TotalSold;
                 decimal remainingReturn = totalDeductibleReturn;
+                decimal remainingTransfer = item.TotalTransferredOut;
 
                 foreach (var h in history)
                 {
@@ -457,6 +589,15 @@ namespace Inventory.Infrastructure.Repositories
                         h.SoldQty = toSold;
                         netRecv -= toSold;
                         remainingSold -= toSold;
+                    }
+
+                    // 3. Deduct Stock Transfers (FIFO)
+                    if (remainingTransfer > 0 && netRecv > 0)
+                    {
+                        decimal toTransfer = Math.Min(remainingTransfer, netRecv);
+                        h.TransferredQty = toTransfer;
+                        netRecv -= toTransfer;
+                        remainingTransfer -= toTransfer;
                     }
 
                     if (h.IsAlreadyPurged)
