@@ -39,6 +39,7 @@ public class WarehouseRepository : IWarehouseRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Warehouses
+            .IgnoreQueryFilters()
             .Where(x => x.CompanyId == companyId)
             .AsNoTracking()
             .ToListAsync();
@@ -48,6 +49,7 @@ public class WarehouseRepository : IWarehouseRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Warehouses
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
@@ -66,6 +68,7 @@ public class WarehouseRepository : IWarehouseRepository
 
                 // Pre-fetch for Upsert
                 var dbWarehouses = await _context.Warehouses
+                    .IgnoreQueryFilters()
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
                 var dbWarehousesByName = dbWarehouses.GroupBy(w => w.Name.ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());

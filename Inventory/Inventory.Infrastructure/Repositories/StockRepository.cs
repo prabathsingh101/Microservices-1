@@ -44,7 +44,7 @@ namespace Inventory.Infrastructure.Repositories
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
 
             // STEP 1: Base Query - Start from Products to ensure all items are included
-            var baseQuery = _context.Products.Include(p => p.Category).AsNoTracking().AsQueryable();
+            var baseQuery = _context.Products.IgnoreQueryFilters().Include(p => p.Category).AsNoTracking().AsQueryable();
 
             if (!_currentUserService.IsPlatformAdmin)
             {
@@ -52,7 +52,7 @@ namespace Inventory.Infrastructure.Repositories
             }
 
             var joinedQuery = baseQuery
-                .GroupJoin(_context.GRNDetails.Include(g => g.Warehouse).Include(g => g.Rack).AsNoTracking(), p => p.Id, g => g.ProductId, (p, g) => new { p, g })
+                .GroupJoin(_context.GRNDetails.IgnoreQueryFilters().Include(g => g.Warehouse).Include(g => g.Rack).AsNoTracking(), p => p.Id, g => g.ProductId, (p, g) => new { p, g })
                 .SelectMany(x => x.g.DefaultIfEmpty(), (x, g) => new 
                 { 
                     Product = x.p, 
@@ -196,9 +196,9 @@ namespace Inventory.Infrastructure.Repositories
             // STEP 4: Real-Time Stats (Net Sale Calculation)
             foreach (var item in items)
             {
-                var salesQuery = _context.SaleOrderItems.AsQueryable();
-                var returnsQuery = _context.SaleReturnItems.AsQueryable();
-                var grnQuery = _context.GRNDetails.AsQueryable();
+                var salesQuery = _context.SaleOrderItems.IgnoreQueryFilters().AsQueryable();
+                var returnsQuery = _context.SaleReturnItems.IgnoreQueryFilters().AsQueryable();
+                var grnQuery = _context.GRNDetails.IgnoreQueryFilters().AsQueryable();
 
                 if (!_currentUserService.IsPlatformAdmin)
                 {
@@ -226,7 +226,7 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
-                var prItemsQuery = _context.PurchaseReturnItems.AsQueryable();
+                var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters().AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     prItemsQuery = prItemsQuery.Where(pri => pri.CompanyId == companyId);
@@ -252,7 +252,7 @@ namespace Inventory.Infrastructure.Repositories
                     totalDeductibleReturn += Math.Max(0, (decimal)pr.ReturnQty - rejected);
                 }
 
-                var transactionsQuery = _context.InventoryTransactions.AsQueryable();
+                var transactionsQuery = _context.InventoryTransactions.IgnoreQueryFilters().AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     transactionsQuery = transactionsQuery.Where(tx => tx.CompanyId == companyId);
@@ -273,7 +273,7 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 // 🚀 TRANSFER CALCULATION
-                var transfersOutQuery = _context.StockTransferDetails.AsQueryable();
+                var transfersOutQuery = _context.StockTransferDetails.IgnoreQueryFilters().AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     transfersOutQuery = transfersOutQuery.Where(td => td.CompanyId == companyId);
@@ -283,7 +283,7 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
                     .SumAsync(td => (decimal?)td.Quantity) ?? 0;
 
-                var transfersInQuery = _context.StockTransferDetails.AsQueryable();
+                var transfersInQuery = _context.StockTransferDetails.IgnoreQueryFilters().AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     transfersInQuery = transfersInQuery.Where(td => td.CompanyId == companyId);
@@ -572,6 +572,7 @@ namespace Inventory.Infrastructure.Repositories
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
 
             var query = _context.WarehouseStocks
+                .IgnoreQueryFilters()
                 .Include(ws => ws.Product)
                 .Include(ws => ws.Warehouse)
                 .AsQueryable();

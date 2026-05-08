@@ -33,7 +33,7 @@ namespace Inventory.Infrastructure.Repositories
                     // 1. Generate Transfer Number if not provided
                     if (string.IsNullOrEmpty(header.TransferNumber))
                     {
-                        var count = await _context.StockTransferHeaders.CountAsync(x => x.CompanyId == companyId);
+                        var count = await _context.StockTransferHeaders.IgnoreQueryFilters().CountAsync(x => x.CompanyId == companyId);
                         header.SetTransferNumber($"TRF-{DateTime.Now.Year}-{(count + 1001)}");
                     }
 
@@ -49,6 +49,7 @@ namespace Inventory.Infrastructure.Repositories
                         
                         // A. Deduct from Source Warehouse
                         var sourceStock = await _context.WarehouseStocks
+                            .IgnoreQueryFilters()
                             .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == header.FromWarehouseId && ws.CompanyId == companyId);
                         
                         if (sourceStock == null || sourceStock.Quantity < item.Quantity)
@@ -59,6 +60,7 @@ namespace Inventory.Infrastructure.Repositories
 
                         // B. Add to Destination Warehouse
                         var destStock = await _context.WarehouseStocks
+                            .IgnoreQueryFilters()
                             .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == header.ToWarehouseId && ws.CompanyId == companyId);
                         
                         if (destStock != null)
@@ -125,6 +127,7 @@ namespace Inventory.Infrastructure.Repositories
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             return await _context.StockTransferHeaders
+                .IgnoreQueryFilters()
                 .Include(h => h.FromWarehouse)
                 .Include(h => h.ToWarehouse)
                 .Where(h => h.CompanyId == companyId)
@@ -135,6 +138,7 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<StockTransferHeader?> GetTransferByIdAsync(Guid id)
         {
             return await _context.StockTransferHeaders
+                .IgnoreQueryFilters()
                 .Include(h => h.FromWarehouse)
                 .Include(h => h.ToWarehouse)
                 .Include(h => h.Items)

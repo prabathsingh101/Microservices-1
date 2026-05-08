@@ -39,6 +39,7 @@ public class RackRepository : IRackRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Racks
+            .IgnoreQueryFilters()
             .Include(r => r.Warehouse)
             .Where(x => x.CompanyId == companyId)
             .AsNoTracking()
@@ -49,6 +50,7 @@ public class RackRepository : IRackRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Racks
+            .IgnoreQueryFilters()
             .Where(r => r.WarehouseId == warehouseId && r.CompanyId == companyId)
             .AsNoTracking()
             .ToListAsync();
@@ -58,6 +60,7 @@ public class RackRepository : IRackRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         return await _context.Racks
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId);
     }
 
@@ -76,11 +79,13 @@ public class RackRepository : IRackRepository
 
                 // Pre-fetch for mapping & upsert
                 var warehousesList = await _context.Warehouses
+                    .IgnoreQueryFilters()
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
                 var warehouses = warehousesList.GroupBy(w => w.Name.ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
 
                 var dbRacks = await _context.Racks
+                    .IgnoreQueryFilters()
                     .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
                     .ToListAsync();
 
