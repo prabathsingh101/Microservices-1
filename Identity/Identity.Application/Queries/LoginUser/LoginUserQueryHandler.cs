@@ -152,9 +152,14 @@ public class LoginUserQueryHandler
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();
 
-        // 8. Add Refresh Token (Domain method handles Audit & Tenant context)
+        // 8. Add Refresh Token directly via repository to avoid untracked entity tracking issues
         Console.WriteLine("[DEBUG-HANDLER] Adding refresh token...");
-        user.AddRefreshToken(auth.RefreshToken, DateTime.UtcNow.AddDays(7));
+        var refreshToken = new RefreshToken(user.Id, auth.RefreshToken, DateTime.UtcNow.AddDays(7), user.CompanyId, user.BranchId)
+        {
+            CreatedBy = user.Email,
+            CreatedDate = DateTime.UtcNow
+        };
+        await _tokens.AddAsync(refreshToken);
 
         Console.WriteLine("[DEBUG-HANDLER] Saving changes...");
         await _uow.SaveChangesAsync(ct);

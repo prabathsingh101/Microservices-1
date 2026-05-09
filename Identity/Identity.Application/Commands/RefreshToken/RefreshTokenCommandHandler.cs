@@ -12,17 +12,23 @@ public class RefreshTokenCommandHandler
     private readonly IJwtService _jwtService;
     private readonly IUnitOfWork _uow;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IRolePermissionRepository _rolePermissionRepository;
+    private readonly ISubscriptionRepository _subscriptionRepository;
 
     public RefreshTokenCommandHandler(
         IUserRepository userRepository,
         IJwtService jwtService,
         IUnitOfWork uow,
-        IRefreshTokenRepository refreshTokenRepository)
+        IRefreshTokenRepository refreshTokenRepository,
+        IRolePermissionRepository rolePermissionRepository,
+        ISubscriptionRepository subscriptionRepository)
     {
         _userRepository = userRepository;
         _jwtService = jwtService;
         _uow = uow;
         _refreshTokenRepository = refreshTokenRepository;
+        _rolePermissionRepository = rolePermissionRepository;
+        _subscriptionRepository = subscriptionRepository;
     }
 
     public async Task<Result<AuthResponse>> Handle(
@@ -44,17 +50,74 @@ public class RefreshTokenCommandHandler
         await _refreshTokenRepository.RevokeAllAsync(token.UserId, user.Email);
 
         // 4. Role Fetching Logic (Safe way)
-        // Ensure karein ki r.Role aur r.Role.RoleName null na ho
+        var roleIds = user.UserRoles?
+            .Select(r => r.RoleId)
+            .ToList() ?? new List<Guid>();
+
         var roles = user.UserRoles?
             .Where(r => r.Role != null)
             .Select(r => r.Role.RoleName)
             .ToList() ?? new List<string>();
 
-        // 5. Naya Access Token generate karein (Naye roles ke saath)
-        var auth = _jwtService.Generate(user, roles);
+        // 4.5. Company Subscription Check
+        string? companyName = null;
+        string? companyTagline = null;
+        bool isExpired = false;
+        string subStatus = "Active";
 
-        // 6. Naya Refresh Token Domain method se add karein (Audit aur Tenant fields handle honge)
-        user.AddRefreshToken(auth.RefreshToken, DateTime.UtcNow.AddDays(7));
+        if (user.CompanyId.HasValue)
+        {
+            var subscription = await _subscriptionRepository.GetByCompanyIdAsync(user.CompanyId.Value);
+            if (subscription != null)
+            {
+                companyName = subscription.CompanyName;
+                companyTagline = subscription.CompanyTagline ?? subscription.CompanyName;
+                if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
+                {
+                    isExpired = true;
+                    subStatus = "Expired";
+                }
+                else
+                {
+                    subStatus = subscription.PlanType;
+                }
+            }
+        }
+        else
+        {
+            var allSubs = await _subscriptionRepository.GetAllAsync();
+            var systemSub = allSubs.OrderBy(s => s.CreatedAt).FirstOrDefault();
+            
+            if (systemSub != null)
+            {
+                companyName = systemSub.CompanyName;
+                companyTagline = systemSub.CompanyTagline ?? systemSub.CompanyName; 
+            }
+            else
+            {
+                companyName = "Electric Inventory";
+                companyTagline = "Inventory Management System";
+            }
+        }
+
+        // 5. Naya Access Token generate karein (Naye roles ke saath)
+        var auth = _jwtService.Generate(user, roles, companyName);
+
+        auth.CompanyTagline = companyTagline;
+        auth.IsSubscriptionExpired = isExpired;
+        auth.SubscriptionStatus = subStatus;
+
+        // Fetch aggregated permissions
+        var aggregatedPermissions = await _rolePermissionRepository.GetAggregatedPermissionsAsync(roleIds);
+        auth.Permissions = aggregatedPermissions.ToList();
+
+        // 6. Naya Refresh Token directly via repository to avoid concurrency tracking conflicts
+        var newRefreshToken = new Identity.Domain.Entities.RefreshToken(user.Id, auth.RefreshToken, DateTime.UtcNow.AddDays(7), user.CompanyId, user.BranchId)
+        {
+            CreatedBy = user.Email,
+            CreatedDate = DateTime.UtcNow
+        };
+        await _refreshTokenRepository.AddAsync(newRefreshToken);
 
         // 7. Transaction Save karein
         await _uow.SaveChangesAsync(ct);
