@@ -63,8 +63,8 @@ namespace Inventory.API.Controllers
 
             var result = await _mediator.Send(new CreatePurchaseOrderCommand(dto));
 
-            if (result)
-                return Ok(new { success = true, message = "Purchase Order Draft saved successfully!" });
+            if (result.Success)
+                return Ok(new { success = true, id = result.Id, poNumber = result.PoNumber, message = "Purchase Order Draft saved successfully!" });
 
             return BadRequest(new { success = false, message = "Failed to save PO." });
         }

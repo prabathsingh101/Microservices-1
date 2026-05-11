@@ -6,7 +6,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseOrderCommand, bool>
+public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseOrderCommand, CreatePOResponse>
 {
     private readonly IInventoryDbContext _context;
     private readonly IPurchaseOrderRepository _repo;
@@ -25,10 +25,11 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
         _scopeFactory = scopeFactory;
     }
 
-    public async Task<bool> Handle(CreatePurchaseOrderCommand request, CancellationToken ct)
+    public async Task<CreatePOResponse> Handle(CreatePurchaseOrderCommand request, CancellationToken ct)
     {
         var strategy = _context.Database.CreateExecutionStrategy();
         string? finalPoNumber = null;
+        Guid poId = Guid.Empty;
 
         var result = await strategy.ExecuteAsync(async () =>
         {
@@ -86,6 +87,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 await _context.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
                 finalPoNumber = generatedPoNumber;
+                poId = po.Id;
                 return true;
             }
             catch
@@ -94,6 +96,12 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 throw;
             }
         });
-        return result;
+
+        return new CreatePOResponse
+        {
+            Success = result,
+            Id = poId,
+            PoNumber = finalPoNumber ?? ""
+        };
     }
 }
