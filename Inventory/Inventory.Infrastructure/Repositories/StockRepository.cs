@@ -395,6 +395,10 @@ namespace Inventory.Infrastructure.Repositories
                         .FirstOrDefaultAsync();
                 }
                 item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalDeductibleReturn - transferredOut + transferredIn - totalPurged;
+                if (item.AvailableStock < 0)
+                {
+                    item.AvailableStock = 0;
+                }
 
                 if (item.TotalReceived == 0 && transferredIn > 0)
                 {
