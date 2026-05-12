@@ -87,8 +87,18 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.SaleOrderConfirmationMessage = cmd.Request.SaleOrderConfirmationMessage;
 
             // 2. Branch Update (Multi-location sync)
-            foreach (var addrDto in cmd.Request.Addresses)
+            if (cmd.Request.Addresses != null)
             {
+                // Remove addresses (branches) not present in the request
+                var requestAddrIds = cmd.Request.Addresses
+                    .Select(a => int.TryParse(a.Id?.ToString(), out var aid) ? aid : 0)
+                    .Where(id => id > 0)
+                    .ToList();
+                var addressesToRemove = profile.Addresses.Where(a => !requestAddrIds.Contains(a.Id)).ToList();
+                foreach (var a in addressesToRemove) profile.Addresses.Remove(a);
+
+                foreach (var addrDto in cmd.Request.Addresses)
+                {
                 int.TryParse(addrDto.Id?.ToString(), out var addrId);
                 var existingAddr = profile.Addresses.FirstOrDefault(a => a.Id == addrId && addrId != 0);
 
@@ -128,8 +138,9 @@ namespace Company.Application.Company.Commands.Update.Handler
                     });
                 }
             }
+        }
 
-            // 3. Bank Information Update
+        // 3. Bank Information Update
             var bank = profile.BankDetails.FirstOrDefault();
             if (bank != null)
             {
