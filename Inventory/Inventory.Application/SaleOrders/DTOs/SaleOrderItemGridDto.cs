@@ -7,6 +7,7 @@ public class SaleOrderItemGridDto
     public decimal SoldQty { get; set; } // Table "Sold Qty" column
     public decimal Rate { get; set; } // Table "Rate" column
     public decimal DiscountPercent { get; set; } // Table "Disc %" column
+    public decimal DiscountAmount { get; set; } // Table "Disc (Amt)" column
     public decimal TaxPercentage { get; set; } // Table "Tax %" column
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }

@@ -36,8 +36,8 @@ public class SaleReturnService : ISaleReturnService
         // Item level calculations pehle kar lete hain
         var returnItems = dto.Items.Where(i => i.ReturnQty > 0).Select(i =>
         {
-            var subTotal = i.ReturnQty * i.UnitPrice;
-            var taxAmount = subTotal * (i.TaxPercentage / 100);
+            var totalAmount = i.TotalAmount; // from frontend
+            var taxAmount = totalAmount - (totalAmount * 100m / (100m + i.TaxPercentage));
 
             return new SaleReturnItem
             {
@@ -46,7 +46,7 @@ public class SaleReturnService : ISaleReturnService
                 UnitPrice = i.UnitPrice,
                 TaxPercentage = i.TaxPercentage,
                 TaxAmount = taxAmount,
-                TotalAmount = subTotal + taxAmount,
+                TotalAmount = totalAmount,
                 Reason = i.Reason,
                 ItemCondition = i.ItemCondition
             };
@@ -62,7 +62,7 @@ public class SaleReturnService : ISaleReturnService
             Status = "Confirmed",
 
             // Header Level Calculations
-            SubTotal = returnItems.Sum(x => x.ReturnQty * x.UnitPrice),
+            SubTotal = returnItems.Sum(x => x.TotalAmount - x.TaxAmount),
             TaxAmount = returnItems.Sum(x => x.TaxAmount),
             TotalAmount = returnItems.Sum(x => x.TotalAmount), // Final Amount
 
@@ -103,6 +103,7 @@ public class SaleReturnService : ISaleReturnService
                     Qty = i.ReturnQty,
                     Rate = i.UnitPrice,
                     DiscountPercent = i.DiscountPercent,
+                    DiscountAmount = i.DiscountAmount,
                     TaxPercent = i.TaxPercentage,
                     Total = i.TotalAmount,
                     MfgDate = i.MfgDate,

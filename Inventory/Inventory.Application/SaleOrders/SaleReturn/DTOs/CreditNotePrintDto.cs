@@ -21,6 +21,7 @@ public class ReturnItemPrintDto
     public decimal Qty { get; set; }
     public decimal Rate { get; set; }
     public decimal DiscountPercent { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal TaxPercent { get; set; }
     public decimal Total { get; set; }
     public DateTime? MfgDate { get; set; }

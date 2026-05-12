@@ -612,6 +612,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 ProductName = x.ProductName,
                 Rate = x.Rate,
                 DiscountPercent = x.DiscountPercent,
+                DiscountAmount = x.DiscountAmount,
                 TaxPercentage = x.GSTPercent,
                 MfgDate = x.MfgDate,
                 ExpDate = x.ExpDate,

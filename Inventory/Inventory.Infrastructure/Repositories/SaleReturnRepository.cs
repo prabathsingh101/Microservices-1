@@ -249,26 +249,15 @@ namespace Inventory.Infrastructure.Repositories
                         }
 
 
-                        // Repository shouldn't recalculate if Handler already did, but if it does, it MUST be correct.
-                        // Assuming Handler passed correct DiscountAmount.
-                        decimal itemGrossTotal = item.ReturnQty * item.UnitPrice;
-                        decimal taxableAmount = itemGrossTotal - item.DiscountAmount;
-                        decimal itemTax = taxableAmount * (item.TaxPercentage / 100m);
-
-                        item.TaxAmount = itemTax;
-                        item.TotalAmount = taxableAmount + itemTax;
-                        item.CreatedOn = DateTime.Now;
-
-                        calculatedSubTotal += itemGrossTotal;
-                        calculatedTaxAmount += itemTax;
+                        // Remove tax-exclusive recalculations because Handler has already calculated everything using the proper tax-inclusive formula from the frontend.
+                        calculatedSubTotal += (item.TotalAmount - item.TaxAmount);
+                        calculatedTaxAmount += item.TaxAmount;
                     }
 
                     // 3. Header table columns update
                     header.SubTotal = calculatedSubTotal;
                     header.TaxAmount = calculatedTaxAmount;
-                    // header.DiscountAmount is already set by handler? Yes.
-                    // TotalAmount final sync
-                    header.TotalAmount = calculatedSubTotal - header.DiscountAmount + calculatedTaxAmount;
+                    header.TotalAmount = header.ReturnItems.Sum(i => i.TotalAmount); // Final sync
                     header.CreatedOn = DateTime.Now;
 
                     // 4. Save Sale Return

@@ -35,12 +35,12 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
 
             var items = dto.Items.Select(i =>
             {
-                var taxableAmount = (i.ReturnQty * i.UnitPrice) - i.DiscountAmount;
-                var taxAmount = taxableAmount * (i.TaxPercentage / 100m);
-                var totalAmount = taxableAmount + taxAmount;
+                // Fix: TotalAmount comes correctly from the frontend. We reverse-calculate tax using inclusive formula.
+                var totalAmount = i.TotalAmount;
+                var taxAmount = totalAmount - (totalAmount * 100m / (100m + i.TaxPercentage));
 
                 Console.WriteLine($"[CreateReturn] Item: {i.ProductId} | Qty: {i.ReturnQty} | Rate: {i.UnitPrice} | Disc: {i.DiscountAmount}");
-                Console.WriteLine($"[CreateReturn] Taxable: {taxableAmount} | Tax: {taxAmount} | Total: {totalAmount}");
+                Console.WriteLine($"[CreateReturn] Tax: {taxAmount} | Total: {totalAmount}");
                 
                 return new SaleReturnItem
                 {
@@ -53,7 +53,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     DiscountAmount = i.DiscountAmount,
                     TaxPercentage = i.TaxPercentage,
                     TaxAmount = taxAmount,
-                    TotalAmount = totalAmount, // Backend Calculation
+                    TotalAmount = totalAmount,
                     Reason = i.Reason,
                     ItemCondition = i.ItemCondition,
                     MfgDate = i.MfgDate,
@@ -86,7 +86,7 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 ModifiedOn = DateTime.Now,
                 
                 // Header Level Aggregations
-                SubTotal = items.Sum(x => x.ReturnQty * x.UnitPrice),
+                SubTotal = items.Sum(x => x.TotalAmount - x.TaxAmount),
                 DiscountAmount = items.Sum(x => x.DiscountAmount),
                 TaxAmount = items.Sum(x => x.TaxAmount),
                 TotalAmount = items.Sum(x => x.TotalAmount),
