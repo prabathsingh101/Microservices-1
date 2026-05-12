@@ -57,7 +57,7 @@ namespace Inventory.Application.Services
             }
         }
 
-        public async Task SendSoEmailAsync(CompanyProfileDto company, string customerEmail, string soNumber, decimal amount)
+        public async Task SendSoEmailAsync(CompanyProfileDto company, string customerEmail, string soNumber, decimal amount, byte[] pdfAttachmentBytes = null)
         {
             if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
             {
@@ -78,7 +78,7 @@ namespace Inventory.Application.Services
                 var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
                 var toAddress = new MailAddress(customerEmail);
                 string subject = $"Sale Order Confirmation: {soNumber} - {company.Name}";
-                string body = $@"<html><body><h2>Dear Customer,</h2><p>Thank you for your order!</p><p><strong>Order Number:</strong> {soNumber}</p><p><strong>Total Amount:</strong> {amount}</p><p>We are processing your order and will notify you once it's shipped.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+                string body = $@"<html><body><h2>Dear Customer,</h2><p>Thank you for your order!</p><p><strong>Order Number:</strong> {soNumber}</p><p><strong>Total Amount:</strong> {amount}</p><p>We are processing your order and will notify you once it's shipped. Please find your tax invoice attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
 
                 using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
                 {
@@ -95,7 +95,19 @@ namespace Inventory.Application.Services
                         IsBodyHtml = true
                     })
                     {
-                        await smtp.SendMailAsync(message);
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"Invoice_{soNumber}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
                     }
                 }
                 Console.WriteLine($"[EmailService] SO Email sent to {customerEmail}");

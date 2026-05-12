@@ -18,7 +18,7 @@ namespace Inventory.Application.Queries.GetNextPoNumber
         {
             // 1. Database se last PO Number nikalein
             var lastPoNumber = await _context.PurchaseOrders
-                .OrderByDescending(p => p.Id)
+                .OrderByDescending(p => p.CreatedOn)
                 .Select(p => p.PoNumber)
                 .FirstOrDefaultAsync(cancellationToken);
 

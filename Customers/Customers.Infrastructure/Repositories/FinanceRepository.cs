@@ -320,6 +320,12 @@ namespace Customers.Infrastructure.Repositories
             bool existsInReceipts = await _context.CustomerReceipts.AnyAsync(r => r.ReferenceNumber == referenceNumber && r.CompanyId == _companyId && (r.BranchId == null || !_branchId.HasValue || r.BranchId == _branchId));
             if (existsInReceipts) return (false, "Receipts");
 
+            // Allow payments to reference the Sales Order (SO-XXXX) that has been recorded in the Customer Ledger.
+            if (referenceNumber.StartsWith("SO-", StringComparison.OrdinalIgnoreCase) || referenceNumber.StartsWith("SO-Q-", StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, string.Empty);
+            }
+
             bool existsInLedger = await _context.CustomerLedgers.AnyAsync(l => l.ReferenceId == referenceNumber && l.CompanyId == _companyId && (l.BranchId == null || !_branchId.HasValue || l.BranchId == _branchId));
             if (existsInLedger) return (false, "Customer Ledgers");
 

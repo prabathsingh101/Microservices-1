@@ -24,12 +24,14 @@ namespace Inventory.Application.Stock.Commands
             
             // Step 1: Get all transactions grouped by Product and Warehouse
             var grnStock = await _context.GRNDetails
+                .IgnoreQueryFilters()
                 .Where(g => g.CompanyId == companyId && g.WarehouseId != null)
                 .GroupBy(g => new { g.ProductId, g.WarehouseId })
                 .Select(g => new { ProductId = (Guid)g.Key.ProductId, WarehouseId = (Guid)g.Key.WarehouseId.Value, Qty = g.Sum(x => x.ReceivedQty - x.RejectedQty) })
                 .ToListAsync(ct);
 
             var saleStock = await _context.SaleOrderItems
+                .IgnoreQueryFilters()
                 .Where(s => s.CompanyId == companyId && s.WarehouseId != null && 
                             s.SaleOrder.Status != "Draft" && s.SaleOrder.Status != "Cancelled")
                 .GroupBy(s => new { s.ProductId, s.WarehouseId })
@@ -37,15 +39,32 @@ namespace Inventory.Application.Stock.Commands
                 .ToListAsync(ct);
 
             var saleReturnStock = await _context.SaleReturnItems
-                .Where(sr => sr.CompanyId == companyId && sr.WarehouseId != null)
+                .IgnoreQueryFilters()
+                .Where(sr => sr.CompanyId == companyId && sr.WarehouseId != null
+                    && (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED"))
                 .GroupBy(sr => new { sr.ProductId, sr.WarehouseId })
                 .Select(sr => new { ProductId = (Guid)sr.Key.ProductId, WarehouseId = (Guid)sr.Key.WarehouseId.Value, Qty = sr.Sum(x => x.ReturnQty) })
                 .ToListAsync(ct);
 
             var purchaseReturnStock = await _context.PurchaseReturnItems
+                .IgnoreQueryFilters()
                 .Where(pr => pr.CompanyId == companyId && pr.WarehouseId != null)
                 .GroupBy(pr => new { pr.ProductId, pr.WarehouseId })
                 .Select(pr => new { ProductId = (Guid)pr.Key.ProductId, WarehouseId = (Guid)pr.Key.WarehouseId.Value, Qty = pr.Sum(x => x.ReturnQty) })
+                .ToListAsync(ct);
+
+            var transferOutStock = await _context.StockTransferDetails
+                .IgnoreQueryFilters()
+                .Where(t => t.CompanyId == companyId && t.StockTransferHeader.Status == "Completed" && t.StockTransferHeader.FromWarehouseId != null)
+                .GroupBy(t => new { t.ProductId, WarehouseId = t.StockTransferHeader.FromWarehouseId })
+                .Select(t => new { ProductId = t.Key.ProductId, WarehouseId = t.Key.WarehouseId, Qty = t.Sum(x => x.Quantity) })
+                .ToListAsync(ct);
+
+            var transferInStock = await _context.StockTransferDetails
+                .IgnoreQueryFilters()
+                .Where(t => t.CompanyId == companyId && t.StockTransferHeader.Status == "Completed" && t.StockTransferHeader.ToWarehouseId != null)
+                .GroupBy(t => new { t.ProductId, WarehouseId = t.StockTransferHeader.ToWarehouseId })
+                .Select(t => new { ProductId = t.Key.ProductId, WarehouseId = t.Key.WarehouseId, Qty = t.Sum(x => x.Quantity) })
                 .ToListAsync(ct);
 
             // Step 2: Combine all into a dictionary for processing
@@ -75,8 +94,22 @@ namespace Inventory.Application.Stock.Commands
                 else stockMap[key] = -item.Qty;
             }
 
+            foreach (var item in transferOutStock)
+            {
+                var key = $"{item.ProductId}_{item.WarehouseId}";
+                if (stockMap.ContainsKey(key)) stockMap[key] -= item.Qty;
+                else stockMap[key] = -item.Qty;
+            }
+
+            foreach (var item in transferInStock)
+            {
+                var key = $"{item.ProductId}_{item.WarehouseId}";
+                if (stockMap.ContainsKey(key)) stockMap[key] += item.Qty;
+                else stockMap[key] = item.Qty;
+            }
+
             // Step 3: Update WarehouseStocks Table
-            var existingWhStocks = await _context.WarehouseStocks.Where(ws => ws.CompanyId == companyId).ToListAsync(ct);
+            var existingWhStocks = await _context.WarehouseStocks.IgnoreQueryFilters().Where(ws => ws.CompanyId == companyId).ToListAsync(ct);
             
             foreach (var entry in stockMap)
             {
@@ -93,7 +126,7 @@ namespace Inventory.Application.Stock.Commands
                 else
                 {
                     // Fetch branchId from Warehouse table to keep data consistent
-                    var warehouse = await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == warehouseId);
+                    var warehouse = await _context.Warehouses.IgnoreQueryFilters().AsNoTracking().FirstOrDefaultAsync(w => w.Id == warehouseId);
                     
                     await _context.WarehouseStocks.AddAsync(new Inventory.Domain.Entities.WarehouseStock
                     {

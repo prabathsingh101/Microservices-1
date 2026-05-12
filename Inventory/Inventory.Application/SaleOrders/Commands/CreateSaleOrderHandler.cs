@@ -1,3 +1,4 @@
+using System.Text;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Application.SaleOrders.Commands;
 using Inventory.Application.Clients;
@@ -293,6 +294,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 var whatsAppService = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
                 var companyClient = scope.ServiceProvider.GetRequiredService<ICompanyClient>();
                 var customerClient = scope.ServiceProvider.GetRequiredService<ICustomerClient>();
+                var pdfService = scope.ServiceProvider.GetRequiredService<IPdfService>();
 
                 try
                 {
@@ -301,9 +303,20 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
 
                     if (company != null && customer != null)
                     {
+                        byte[] pdfBytes = null;
+                        try
+                        {
+                            string invoiceHtml = GenerateInvoiceHtml(company, customer, saleOrder);
+                            pdfBytes = pdfService.Convert(invoiceHtml);
+                        }
+                        catch (Exception pdfEx)
+                        {
+                            Console.WriteLine($"[CreateSaleOrderHandler] PDF generation failed: {pdfEx.Message}");
+                        }
+
                         if (!string.IsNullOrEmpty(customer.Email))
                         {
-                            await emailService.SendSoEmailAsync(company, customer.Email, finalSONo, saleOrder.GrandTotal);
+                            await emailService.SendSoEmailAsync(company, customer.Email, finalSONo, saleOrder.GrandTotal, pdfBytes);
                         }
                         if (!string.IsNullOrEmpty(customer.Phone))
                         {
@@ -320,5 +333,129 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
         }
 
         return result;
+    }
+
+    private static string GenerateInvoiceHtml(Inventory.Application.Clients.DTOs.CompanyProfileDto company, CustomerLookupDto customer, SaleOrder saleOrder)
+    {
+        var sb = new StringBuilder();
+        var address = company.Address != null 
+            ? $"{company.Address.AddressLine1}, {company.Address.City}, {company.Address.State} - {company.Address.PinCode}" 
+            : "";
+
+        sb.Append($@"
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 15px; color: #333; }}
+            .invoice-box {{ max-width: 800px; margin: auto; padding: 10px; font-size: 14px; line-height: 24px; }}
+            .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+            .header-table td {{ vertical-align: top; }}
+            .logo-container {{ font-size: 28px; font-weight: bold; color: #2563eb; }}
+            .invoice-title {{ font-size: 24px; font-weight: bold; text-align: right; color: #1e293b; }}
+            .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 25px; }}
+            .info-table td {{ width: 50%; vertical-align: top; font-size: 13px; }}
+            .items-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+            .items-table th {{ background-color: #2563eb; color: #ffffff; font-weight: 600; text-align: left; padding: 10px 8px; font-size: 13px; }}
+            .items-table td {{ padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }}
+            .text-right {{ text-align: right; }}
+            .total-section {{ float: right; width: 320px; margin-top: 20px; background-color: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; }}
+            .total-section table {{ width: 100%; border-collapse: collapse; }}
+            .total-section td {{ padding: 4px 0; font-size: 13px; }}
+            .total-row {{ font-weight: bold; font-size: 16px; color: #1e293b; border-top: 2px solid #e2e8f0; padding-top: 8px; }}
+            .footer {{ text-align: center; margin-top: 100px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px; }}
+        </style>
+    </head>
+    <body>
+        <div class='invoice-box'>
+            <table class='header-table'>
+                <tr>
+                    <td class='logo-container'>
+                        {company.Name}
+                        <div style='font-size:12px; font-weight:normal; color:#64748b; margin-top:2px;'>{company.Tagline}</div>
+                    </td>
+                    <td class='invoice-title'>
+                        TAX INVOICE
+                        <div style='font-size:14px; font-weight:normal; color:#475569; margin-top:4px;'>Invoice No: {saleOrder.SONumber}</div>
+                        <div style='font-size:14px; font-weight:normal; color:#475569;'>Date: {saleOrder.SODate.ToShortDateString()}</div>
+                    </td>
+                </tr>
+            </table>
+
+            <hr style='border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;' />
+
+            <table class='info-table'>
+                <tr>
+                    <td>
+                        <strong style='color: #1e293b; font-size: 14px;'>Billed From:</strong><br/>
+                        <strong>{company.Name}</strong><br/>
+                        {address}<br/>
+                        GSTIN: {company.Gstin}<br/>
+                        Phone: {company.PrimaryPhone}<br/>
+                        Email: {company.PrimaryEmail}
+                    </td>
+                    <td style='text-align: right;'>
+                        <strong style='color: #1e293b; font-size: 14px;'>Billed To:</strong><br/>
+                        <strong>{customer?.CustomerName}</strong><br/>
+                        Phone: {customer?.Phone}<br/>
+                        Email: {customer?.Email}
+                    </td>
+                </tr>
+            </table>
+
+            <table class='items-table'>
+                <thead>
+                    <tr>
+                        <th>Item Description</th>
+                        <th>Qty</th>
+                        <th class='text-right'>Rate</th>
+                        <th class='text-right'>Tax%</th>
+                        <th class='text-right'>Total</th>
+                    </tr>
+                </thead>
+                <tbody>");
+
+        foreach (var item in saleOrder.Items)
+        {
+            sb.Append($@"
+                    <tr>
+                        <td>{item.ProductName}</td>
+                        <td>{item.Qty}</td>
+                        <td class='text-right'>₹{item.Rate:N2}</td>
+                        <td class='text-right'>{item.GSTPercent}%</td>
+                        <td class='text-right'>₹{item.Total:N2}</td>
+                    </tr>");
+        }
+
+        sb.Append($@"
+                </tbody>
+            </table>
+
+            <div class='total-section'>
+                <table>
+                    <tr>
+                        <td>Subtotal</td>
+                        <td class='text-right'>₹{saleOrder.SubTotal:N2}</td>
+                    </tr>
+                    <tr>
+                        <td>Tax</td>
+                        <td class='text-right'>₹{saleOrder.TotalTax:N2}</td>
+                    </tr>
+                    <tr class='total-row'>
+                        <td style='padding-top: 8px;'>Grand Total</td>
+                        <td class='text-right' style='padding-top: 8px;'>₹{saleOrder.GrandTotal:N2}</td>
+                    </tr>
+                </table>
+            </div>
+            <div style='clear: both;'></div>
+
+            <div class='footer'>
+                Thank you for shopping with us! If you have any questions, please contact us at {company.PrimaryEmail}.<br/>
+                <em>Regd. office: {address}</em>
+            </div>
+        </div>
+    </body>
+    </html>");
+
+        return sb.ToString();
     }
 }

@@ -25,7 +25,14 @@ public class GetCustomersHandler
         {
             Id = x.Id,
             CustomerName = x.CustomerName,
-            Phone = x.Phone
+            CustomerType = x.CustomerType,
+            Phone = x.Phone,
+            Email = x.Email,
+            GstNumber = x.GstNumber,
+            CreditLimit = x.CreditLimit,
+            BillingAddressLine = x.BillingAddress != null ? x.BillingAddress.AddressLine : null,
+            ShippingAddressLine = x.ShippingAddress != null ? x.ShippingAddress.AddressLine : null,
+            Status = x.Status
         }).ToList();
     }
 }

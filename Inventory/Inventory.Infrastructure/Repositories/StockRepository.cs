@@ -278,7 +278,8 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 var grossSold = await salesQuery
-                    .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed"))
+                    .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId 
+                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled")
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
                 var totalSaleReturn = await returnsQuery
@@ -373,7 +374,8 @@ namespace Inventory.Infrastructure.Repositories
                     .SumAsync(td => (decimal?)td.Quantity) ?? 0) : 0;
 
                 var unlinkedSales = await salesQuery
-                    .Where(si => (si.WarehouseId == null || si.RackId == null) && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Delivered" || si.SaleOrder.Status == "Completed"))
+                    .Where(si => (si.WarehouseId == null || si.RackId == null) 
+                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled")
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
                 var isOldest = await grnQuery

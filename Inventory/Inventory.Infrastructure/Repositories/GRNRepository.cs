@@ -437,6 +437,23 @@ namespace Inventory.Infrastructure.Repositories
                     .GroupBy(x => x.ri.ProductId)
                     .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ri.ReturnQty) })
                     .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
+                // 🎯 Fetch last GRN warehouse/rack per product (for auto-fill)
+                var productIdsInPos = pos.SelectMany(p => p.Items.Select(i => i.ProductId)).Distinct().ToList();
+                var lastLocationLookup = new Dictionary<Guid, (Guid? WarehouseId, Guid? RackId)>();
+                
+                foreach (var prodId in productIdsInPos)
+                {
+                    var lastGrn = await _context.GRNDetails
+                        .Where(gd => gd.CompanyId == companyId && gd.ProductId == prodId && gd.WarehouseId != null && gd.WarehouseId != Guid.Empty && gd.RackId != null && gd.RackId != Guid.Empty)
+                        .OrderByDescending(gd => gd.CreatedOn)
+                        .Select(gd => new { gd.WarehouseId, gd.RackId })
+                        .FirstOrDefaultAsync();
+                        
+                    if (lastGrn != null)
+                    {
+                        lastLocationLookup[prodId] = (lastGrn.WarehouseId, lastGrn.RackId);
+                    }
+                }
 
                 foreach (var po in pos)
                 {
@@ -465,6 +482,14 @@ namespace Inventory.Infrastructure.Repositories
                         if (proposedRecv > pending) proposedRecv = pending;
                         if (proposedRecv < 0) proposedRecv = 0;
 
+                        Guid? lastWhId = null;
+                        Guid? lastRackId = null;
+                        if (lastLocationLookup.ContainsKey(d.ProductId))
+                        {
+                            lastWhId = lastLocationLookup[d.ProductId].WarehouseId;
+                            lastRackId = lastLocationLookup[d.ProductId].RackId;
+                        }
+
                         items.Add(new POItemForGRNDTO
                         {
                             ProductId = d.ProductId,
@@ -483,8 +508,8 @@ namespace Inventory.Infrastructure.Repositories
                             POId = po.Id,
                             SupplierId = po.SupplierId,
                             SupplierName = po.SupplierName,
-                            WarehouseId = d.Product?.DefaultWarehouseId,
-                            RackId = d.Product?.DefaultRackId,
+                            WarehouseId = lastWhId ?? d.Product?.DefaultWarehouseId,
+                            RackId = lastRackId ?? d.Product?.DefaultRackId,
                             MfgDate = d.MfgDate,
                             ExpDate = d.ExpDate
                         });
