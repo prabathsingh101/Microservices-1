@@ -10,7 +10,7 @@ public class RolePermission : AuditableEntity, IMultiTenant
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid RoleId { get; set; }
+    public Guid? RoleId { get; set; }
     public Guid MenuId { get; set; }
     public Guid? CompanyId { get; set; } // Added for Multi-Tenancy
     public string? BranchId { get; set; }
@@ -19,11 +19,12 @@ public class RolePermission : AuditableEntity, IMultiTenant
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }
     public string? AdditionalActions { get; set; } // Added to support custom buttons like BULK_ADD
+    public Guid? UserId { get; set; }
 
     public Role? Role { get; private set; }
     public Menu? Menu { get; private set; }
 
-    public RolePermission(Guid roleId, Guid menuId, bool canView, bool canAdd, bool canEdit, bool canDelete, string? additionalActions = null, Guid? companyId = null)
+    public RolePermission(Guid? roleId, Guid menuId, bool canView, bool canAdd, bool canEdit, bool canDelete, string? additionalActions = null, Guid? companyId = null, Guid? userId = null)
     {
         Id = Guid.NewGuid();
         RoleId = roleId;
@@ -34,6 +35,7 @@ public class RolePermission : AuditableEntity, IMultiTenant
         CanDelete = canDelete;
         AdditionalActions = additionalActions;
         CompanyId = companyId;
+        UserId = userId;
     }
 
     public RolePermission() { }

@@ -14,7 +14,7 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
 
         // Configure foreign keys
         builder.Property(rp => rp.RoleId)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(rp => rp.MenuId)
             .IsRequired();
@@ -24,7 +24,8 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
         builder.HasOne(rp => rp.Role)
             .WithMany(r => r.RolePermissions)
             .HasForeignKey(rp => rp.RoleId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(false);
 
         builder.HasOne(rp => rp.Menu)
             .WithMany()
@@ -44,5 +45,8 @@ public class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermissi
 
         builder.Property(rp => rp.CanDelete)
             .IsRequired();
+
+        builder.Property(rp => rp.UserId)
+            .IsRequired(false);
     }
 }

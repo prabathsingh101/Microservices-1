@@ -100,9 +100,9 @@ public class RolesController : ControllerBase
     }
 
     [HttpGet("{roleId}/permissions")]
-    public async Task<IActionResult> GetPermissions(Guid roleId)
+    public async Task<IActionResult> GetPermissions(Guid roleId, [FromQuery] Guid? userId = null)
     {
-        var perms = await _permissionRepository.GetPermissionsByRoleIdAsync(roleId);
+        var perms = await _permissionRepository.GetPermissionsByRoleIdAsync(roleId, userId);
         return Ok(perms);
     }
 

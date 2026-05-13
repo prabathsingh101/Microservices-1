@@ -131,7 +131,7 @@ public class LoginUserQueryHandler
         var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
         Console.WriteLine($"[DEBUG-HANDLER] Role IDs count: {roleIds.Count}");
         
-        var aggregatedPermissions = await _permissionRepository.GetAggregatedPermissionsAsync(roleIds);
+        var aggregatedPermissions = await _permissionRepository.GetAggregatedPermissionsAsync(roleIds, user.Id);
         Console.WriteLine($"[DEBUG-HANDLER] Aggregated permissions count: {aggregatedPermissions.Count()}");
 
         // 5. Revoke old tokens
