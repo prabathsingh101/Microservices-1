@@ -9,6 +9,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Company.API.Controllers
 {
     [Route("api/[controller]")]
@@ -17,11 +19,13 @@ namespace Company.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly IWebHostEnvironment _environment;
+        private readonly Company.Infrastructure.Persistence.CompanyDbContext _dbContext;
 
-        public CompanyController(IMediator mediator, IWebHostEnvironment environment)
+        public CompanyController(IMediator mediator, IWebHostEnvironment environment, Company.Infrastructure.Persistence.CompanyDbContext dbContext)
         {
             _mediator = mediator;
             _environment = environment;
+            _dbContext = dbContext;
         }
 
         [HttpPost("create")]
@@ -96,6 +100,53 @@ namespace Company.API.Controllers
             var success = await _mediator.Send(new UploadLogoCommand(id, logoUrl));
 
             return success ? Ok(new { logoUrl }) : BadRequest("Could not update logo URL.");
+        }
+
+        [HttpGet("pincode/{pincode}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPincodeDetails(string pincode)
+        {
+            using (var client = new System.Net.Http.HttpClient())
+            {
+                client.Timeout = TimeSpan.FromSeconds(5);
+                try
+                {
+                    var response = await client.GetAsync($"https://api.postalpincode.in/pincode/{pincode}");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        return Content(content, "application/json");
+                    }
+                    return StatusCode((int)response.StatusCode);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(ex.Message);
+                }
+            }
+        }
+
+        [HttpGet("states")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStates()
+        {
+            try
+            {
+                var states = await _dbContext.States
+                    .OrderBy(s => s.Name)
+                    .Select(s => new {
+                        s.Name,
+                        s.Code,
+                        DefaultCity = s.DefaultCity,
+                        DefaultPinCode = s.DefaultPinCode
+                    })
+                    .ToListAsync();
+                return Ok(states);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

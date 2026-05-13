@@ -22,6 +22,7 @@ public class CompanyDbContext : DbContext
     public DbSet<Address> Addresses { get; set; }
     public DbSet<BankDetail> BankDetails { get; set; }
     public DbSet<AuthorizedSignatory> AuthorizedSignatories { get; set; }
+    public DbSet<State> States { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
