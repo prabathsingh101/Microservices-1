@@ -17,7 +17,8 @@ public sealed class ProductConfiguration
             .IsRequired()
             .HasMaxLength(50);
 
-        builder.HasIndex(x => x.Sku)
+        builder.HasIndex(x => new { x.CompanyId, x.Sku })
+               .HasDatabaseName("IX_Products_CompanyId_Sku")
                .IsUnique();
 
         builder.Property(x => x.Name)

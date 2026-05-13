@@ -402,20 +402,20 @@ public sealed class ProductRepository : IProductRepository
                     
                     var subcategoriesList = await _db.Subcategories
                         .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
-                        .AsNoTracking().ToListAsync();
+                        .ToListAsync();
                     
                     var warehousesList = await _db.Warehouses
                         .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
-                        .AsNoTracking().ToListAsync();
-                    var warehouses = warehousesList.GroupBy(w => (w.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First().Id);
+                        .ToListAsync();
                     
                     var racks = await _db.Racks
                         .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
-                        .AsNoTracking().Select(r => new { r.Id, r.Name, r.WarehouseId }).ToListAsync();
+                        .ToListAsync();
                     
-                    // 3. Pre-fetch existing products
+                    // 3. Pre-fetch existing products (company-wide, bypassing branch restrictions)
                     var dbProducts = await _db.Products
-                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .IgnoreQueryFilters()
+                        .Where(x => x.CompanyId == companyId)
                         .ToListAsync();
                     var dbProductsByName = dbProducts.GroupBy(p => (p.Name ?? "").ToLower().Trim()).ToDictionary(g => g.Key, g => g.First());
                     
@@ -485,22 +485,79 @@ public sealed class ProductRepository : IProductRepository
 
                             if (subInfo == null)
                             {
-                                errors.Add($"Row {rowNum}: Subcategory '{subName}' not found in category '{catName}'."); continue;
+                                decimal defaultGst = 18;
+                                if (gstVal != null)
+                                {
+                                    var subGstStr = gstVal.ToString()?.Replace("%", "").Trim();
+                                    decimal.TryParse(subGstStr, out defaultGst);
+                                }
+
+                                var subCode = subName.Trim().ToUpper().Replace(" ", "");
+                                if (subCode.Length > 20) subCode = subCode.Substring(0, 20);
+
+                                subInfo = new Subcategory(
+                                    categoryid: catId,
+                                    code: subCode,
+                                    name: subName.Trim(),
+                                    defaultGst: defaultGst,
+                                    description: "Auto-created during bulk upload",
+                                    isactive: true,
+                                    companyId: companyId,
+                                    branchId: branchId
+                                );
+
+                                _db.Subcategories.Add(subInfo);
+                                subcategoriesList.Add(subInfo);
                             }
 
                             Guid? warehouseId = null;
                             if (!string.IsNullOrWhiteSpace(whName))
                             {
-                                if (warehouses.TryGetValue(whName.Trim().ToLower(), out var wId)) warehouseId = wId;
-                                else errors.Add($"Row {rowNum}: Warning - Warehouse '{whName}' not found.");
+                                var whInfo = warehousesList.FirstOrDefault(w => (w.Name ?? "").Equals(whName.Trim(), StringComparison.OrdinalIgnoreCase));
+                                if (whInfo != null)
+                                {
+                                    warehouseId = whInfo.Id;
+                                }
+                                else
+                                {
+                                    var newWh = new Warehouse(
+                                        name: whName.Trim(),
+                                        city: "Auto-created",
+                                        description: "Auto-created during bulk upload",
+                                        isActive: true,
+                                        companyId: companyId,
+                                        branchId: branchId
+                                    );
+
+                                    _db.Warehouses.Add(newWh);
+                                    warehousesList.Add(newWh);
+                                    warehouseId = newWh.Id;
+                                }
                             }
 
                             Guid? rackId = null;
                             if (!string.IsNullOrWhiteSpace(rackName) && warehouseId.HasValue)
                             {
                                 var rInfo = racks.FirstOrDefault(r => (r.Name ?? "").Equals(rackName, StringComparison.OrdinalIgnoreCase) && r.WarehouseId == warehouseId);
-                                if (rInfo != null) rackId = rInfo.Id;
-                                else errors.Add($"Row {rowNum}: Warning - Rack '{rackName}' not found in Warehouse '{whName}'.");
+                                if (rInfo != null)
+                                {
+                                    rackId = rInfo.Id;
+                                }
+                                else
+                                {
+                                    var newRack = new Rack(
+                                        warehouseId: warehouseId.Value,
+                                        name: rackName.Trim(),
+                                        description: "Auto-created during bulk upload",
+                                        isActive: true,
+                                        companyId: companyId,
+                                        branchId: branchId
+                                    );
+                                    
+                                    _db.Racks.Add(newRack);
+                                    racks.Add(newRack);
+                                    rackId = newRack.Id;
+                                }
                             }
 
                             if (fileNames.Contains(name.Trim())) { errors.Add($"Row {rowNum}: Duplicate Product Name '{name}' in file."); continue; }
@@ -545,6 +602,15 @@ public sealed class ProductRepository : IProductRepository
                                 existingProduct = pByName;
                             }
 
+                            if (existingProduct != null && !string.IsNullOrEmpty(sku) && !sku.Equals(existingProduct.Sku, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (dbProductsBySku.TryGetValue(sku.Trim(), out var otherProductWithSameSku) && otherProductWithSameSku.Id != existingProduct.Id)
+                                {
+                                    errors.Add($"Row {rowNum}: Cannot update product '{name}' to SKU '{sku}' because SKU '{sku}' is already assigned to another product '{otherProductWithSameSku.Name}'.");
+                                    continue;
+                                }
+                            }
+
                             if (existingProduct != null)
                             {
                                 existingProduct.Update(
@@ -572,7 +638,7 @@ public sealed class ProductRepository : IProductRepository
                                     isExpiryRequired: reqExpiry,
                                     modifiedon: DateTime.UtcNow,
                                     companyId: companyId,
-                                    branchId: branchId
+                                    branchId: existingProduct.BranchId ?? branchId
                                 );
                                 updateCount++;
                             }
