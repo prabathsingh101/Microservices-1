@@ -75,9 +75,6 @@ public class RegisterUserHandler
         if (await _users.ExistsByEmailAsync(request.Email, targetCompanyId))
             throw new InvalidOperationException("Email already exists in this company context");
 
-        if (await _users.ExistsByUserNameAsync(request.UserName, targetCompanyId))
-            throw new InvalidOperationException("Username already exists in this company context");
-
         var user = new User(request.UserName, request.Email);
         if (targetCompanyId.HasValue) user.SetCompanyId(targetCompanyId.Value);
         if (!string.IsNullOrEmpty(targetBranchId)) user.SetBranchId(targetBranchId);

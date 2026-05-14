@@ -170,10 +170,8 @@ public class UsersController : ControllerBase
     [HttpGet("check-duplicate")]
     public async Task<IActionResult> CheckDuplicate([FromQuery] string userName, [FromQuery] string email, [FromQuery] Guid? companyId)
     {
-        var userNameExists = await _userRepository.ExistsByUserNameAsync(userName, companyId);
         var emailExists = await _userRepository.ExistsByEmailAsync(email, companyId);
 
-        if (userNameExists) return Ok(new { exists = true, message = "Username already exists in this company context" });
         if (emailExists) return Ok(new { exists = true, message = "Email already exists in this company context" });
 
         return Ok(new { exists = false });
