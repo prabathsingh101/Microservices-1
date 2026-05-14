@@ -93,8 +93,7 @@ app.MapHealthChecks("/health");
 app.UseAuthentication();
 app.UseAuthorization();
 
-/* 
-// Safe Database Initialization - Disabled for Manual Schema Management
+// Safe Database Initialization / Index Management
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -103,21 +102,16 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<IdentityDbContext>();
         if (context.Database.CanConnect())
         {
-            Log.Information("Identity Database connected.");
-            // context.Database.Migrate(); // Disabled
-        }
-        else
-        {
-            Log.Warning("Identity Database not found.");
-            // context.Database.EnsureCreated(); // Disabled
+            Log.Information("Identity Database connected. Ensuring deprecated unique index on UserName is removed...");
+            context.Database.ExecuteSqlRaw("DROP INDEX IF EXISTS [IX_Users_UserName_CompanyId] ON [Users];");
+            Log.Information("Deprecated index check completed successfully.");
         }
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "An error occurred while initializing the Identity database.");
+        Log.Error(ex, "An error occurred while managing database indexes.");
     }
 }
-*/
 
 app.MapControllers();
 

@@ -1,4 +1,4 @@
-﻿CREATE TABLE [Menus] (
+CREATE TABLE [Menus] (
     [Id] uniqueidentifier NOT NULL,
     [Title] nvarchar(max) NOT NULL,
     [Url] nvarchar(max) NOT NULL,
@@ -198,7 +198,6 @@ CREATE UNIQUE INDEX [IX_Users_Email_CompanyId] ON [Users] ([Email], [CompanyId])
 GO
 
 
-CREATE UNIQUE INDEX [IX_Users_UserName_CompanyId] ON [Users] ([UserName], [CompanyId]) WHERE [CompanyId] IS NOT NULL;
-GO
+
 
 
