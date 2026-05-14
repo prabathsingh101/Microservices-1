@@ -108,7 +108,7 @@ services:
   electric-ui:
     image: electricui
     build:
-      context: ../../ElectricApps
+      context: ../ElectricApps
       dockerfile: Dockerfile
     ports:
       - "4201:80"
