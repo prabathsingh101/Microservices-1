@@ -52,10 +52,10 @@ public class UsersController : ControllerBase
         {
             usersList = usersList.Where(u => u.CompanyId == activeCompanyId.Value).ToList();
             
-            if (!string.IsNullOrEmpty(activeBranchId))
+            if (!string.IsNullOrEmpty(activeBranchId) && !_currentUserService.IsSuperAdmin)
             {
                 var branchIds = activeBranchId.Split(',').Select(b => b.Trim()).ToList();
-                usersList = usersList.Where(u => u.BranchId != null && branchIds.Contains(u.BranchId)).ToList();
+                usersList = usersList.Where(u => u.BranchId != null && branchIds.Any(b => ("," + u.BranchId + ",").Contains("," + b + ","))).ToList();
             }
         }
 
