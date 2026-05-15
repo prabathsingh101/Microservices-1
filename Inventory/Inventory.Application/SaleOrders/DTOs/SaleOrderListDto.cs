@@ -11,6 +11,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public DateTime SoDate { get; set; }
         public Guid CustomerId { get; set; } // Mapping ke liye zaroori hai
         public string CustomerName { get; set; } = string.Empty;
+        public string? GuestName { get; set; }
+        public string? GuestPhone { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? GatePassNo { get; set; }
         public decimal GrandTotal { get; set; }

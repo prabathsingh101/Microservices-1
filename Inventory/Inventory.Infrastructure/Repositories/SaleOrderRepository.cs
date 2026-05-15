@@ -137,6 +137,8 @@ public class SaleOrderRepository : ISaleOrderRepository
             existingOrder.IgstAmount = order.IgstAmount;
             existingOrder.CgstAmount = order.CgstAmount;
             existingOrder.SgstAmount = order.SgstAmount;
+            existingOrder.GuestName = order.GuestName;
+            existingOrder.GuestPhone = order.GuestPhone;
 
             // Remove old items and add new ones (Sync)
             _context.SaleOrderItems.RemoveRange(existingOrder.Items);
@@ -296,6 +298,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 IgstAmount = o.IgstAmount,
                 CgstAmount = o.CgstAmount,
                 SgstAmount = o.SgstAmount,
+                GuestName = o.GuestName,
+                GuestPhone = o.GuestPhone,
                 TotalQty = o.Items.Sum(i => i.Qty),
                 CreatedBy = o.CreatedBy,
                 Remarks = o.Remarks,
@@ -343,6 +347,8 @@ public class SaleOrderRepository : ISaleOrderRepository
             // Customer Name
             if (customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId, out var name))
                 order.CustomerName = name;
+            else if (!string.IsNullOrEmpty(order.GuestName))
+                order.CustomerName = order.GuestName;
             else if (order.CustomerId == Guid.Empty)
                 order.CustomerName = "Cash Customer";
             else
@@ -522,6 +528,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 IgstAmount = o.IgstAmount,
                 CgstAmount = o.CgstAmount,
                 SgstAmount = o.SgstAmount,
+                GuestName = o.GuestName,
+                GuestPhone = o.GuestPhone,
                 Remarks = o.Remarks,
                 ExpectedDeliveryDate = o.ExpectedDeliveryDate,
                 BranchId = o.BranchId,
@@ -557,7 +565,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         try
         {
             var customer = await _customerClient.GetCustomerByIdAsync(order.CustomerId);
-            order.CustomerName = customer?.CustomerName ?? (order.CustomerId == Guid.Empty ? "Cash Customer" : "Unknown Customer");
+            order.CustomerName = customer?.CustomerName ?? (!string.IsNullOrEmpty(order.GuestName) ? order.GuestName : (order.CustomerId == Guid.Empty ? "Cash Customer" : "Unknown Customer"));
         }
         catch
         {

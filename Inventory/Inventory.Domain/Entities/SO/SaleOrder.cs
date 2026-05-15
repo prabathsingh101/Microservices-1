@@ -58,6 +58,8 @@ namespace Inventory.Domain.Entities.SO
         public string? GatePassNo { get; set; }
 
         public bool IsQuick { get; set; } // Flag for Quick vs Standard Sale
+        public string? GuestName { get; set; }
+        public string? GuestPhone { get; set; }
 
         // Relationship: One SaleOrder has many SaleOrderItems
         public virtual ICollection<SaleOrderItem> Items { get; set; }

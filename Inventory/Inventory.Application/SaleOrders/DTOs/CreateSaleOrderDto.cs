@@ -28,6 +28,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public string Status { get; set; } = "Confirmed";
         public string CreatedBy { get; set; }
         public bool IsQuick { get; set; } = false;
+        public string? GuestName { get; set; }
+        public string? GuestPhone { get; set; }
         public List<SaleOrderItemDto> Items { get; set; }
     }
 

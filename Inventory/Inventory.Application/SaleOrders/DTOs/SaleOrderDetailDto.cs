@@ -11,6 +11,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public DateTime SoDate { get; set; }
         public Guid CustomerId { get; set; }
         public string CustomerName { get; set; } = "Loading..."; // Placeholder for Microservice data
+        public string? GuestName { get; set; }
+        public string? GuestPhone { get; set; }
         public string Status { get; set; } = string.Empty;
         public decimal GrandTotal { get; set; }
         public decimal SubTotal { get; set; }
