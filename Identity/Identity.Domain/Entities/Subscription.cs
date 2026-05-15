@@ -16,6 +16,7 @@ namespace Identity.Domain.Entities
         public DateTime EndDate { get; private set; }
         public bool IsActive { get; private set; } = true;
         public string? PaymentTxnId { get; private set; }
+        public string PaymentStatus { get; private set; } = "Pending";
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
         private Subscription() { }
@@ -30,6 +31,7 @@ namespace Identity.Domain.Entities
             StartDate = DateTime.UtcNow;
             EndDate = StartDate.AddDays(durationDays);
             IsActive = true;
+            PaymentStatus = planType == "Trial" ? "Trial" : "Pending";
         }
 
         public void UpgradeToPremium(string planType, int durationDays, string txnId)
@@ -38,6 +40,7 @@ namespace Identity.Domain.Entities
             StartDate = DateTime.UtcNow;
             EndDate = StartDate.AddDays(durationDays);
             PaymentTxnId = txnId;
+            PaymentStatus = "Success";
             IsActive = true;
         }
 

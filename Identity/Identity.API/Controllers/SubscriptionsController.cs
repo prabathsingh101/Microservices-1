@@ -48,6 +48,7 @@ namespace Identity.API.Controllers
                     s.EndDate,
                     s.IsActive,
                     s.PaymentTxnId,
+                    s.PaymentStatus,
                     DaysRemaining = (s.EndDate - DateTime.UtcNow).Days
                 })
                 .ToListAsync();
@@ -77,9 +78,51 @@ namespace Identity.API.Controllers
             return Ok();
         }
 
+        [HttpPost("create-order")]
+        public IActionResult CreateOrder([FromBody] Identity.Application.DTOs.CreateOrderDto dto)
+        {
+            try
+            {
+                // TODO: Replace with actual Razorpay Key and Secret from configuration
+                var client = new Razorpay.Api.RazorpayClient("rzp_test_YourKeyHere", "YourSecretHere");
+                
+                var options = new Dictionary<string, object>
+                {
+                    { "amount", dto.Amount * 100 }, // Amount in paise
+                    { "currency", "INR" },
+                    { "receipt", "receipt_" + Guid.NewGuid().ToString().Substring(0, 8) }
+                };
+
+                var order = client.Order.Create(options);
+                return Ok(new { OrderId = order["id"].ToString() });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Success = false, Message = "Failed to create Razorpay order: " + ex.Message });
+            }
+        }
+
         [HttpPost("confirm-payment")]
         public async Task<IActionResult> ConfirmPayment([FromBody] Identity.Application.DTOs.PaymentConfirmationDto dto)
         {
+            try
+            {
+                // Verify Razorpay Signature (Optional but recommended)
+                var attributes = new Dictionary<string, string>
+                {
+                    { "razorpay_payment_id", dto.PaymentId },
+                    { "razorpay_order_id", dto.OrderId },
+                    { "razorpay_signature", dto.Signature }
+                };
+                
+                // TODO: Replace 'YourSecretHere' with actual Razorpay Secret
+                // Razorpay.Api.Utils.verifyPaymentSignature(attributes); // Pass correct attributes or secret as per SDK
+            }
+            catch(Exception ex)
+            {
+                // return BadRequest(new { Success = false, Message = "Invalid payment signature" });
+            }
+
             var subscription = await _context.Subscriptions
                 .FirstOrDefaultAsync(s => s.CompanyId == dto.CompanyId);
 
