@@ -294,4 +294,22 @@ public class SaleOrderController : ControllerBase
         var result = await _mediator.Send(new GetPendingSOQuery());
         return Ok(result);
     }
+
+    [HttpGet("check-phone")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    public async Task<IActionResult> CheckPhone([FromQuery] string phone)
+    {
+        if (string.IsNullOrEmpty(phone)) return BadRequest("Phone is required");
+
+        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+
+        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
+        {
+            var exists = await _saleRepo.ExistsByPhoneAsync(phone, companyId);
+            return Ok(new { exists });
+        }
+
+        return BadRequest("Company context missing");
+    }
 }

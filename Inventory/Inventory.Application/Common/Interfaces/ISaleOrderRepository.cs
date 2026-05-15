@@ -46,5 +46,6 @@ namespace Inventory.Application.Common.Interfaces
         Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(Guid saleOrderId);
         Task<bool> DeleteAsync(Guid id);
         Task<List<PendingSODto>> GetPendingSaleOrdersAsync();
+        Task<bool> ExistsByPhoneAsync(string phone, Guid companyId);
     }
 }
