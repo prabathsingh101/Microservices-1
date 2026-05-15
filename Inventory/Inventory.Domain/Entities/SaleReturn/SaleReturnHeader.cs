@@ -19,8 +19,9 @@ public class SaleReturnHeader : BaseAuditableEntity // Agar aap BaseAuditableEnt
     public Guid SaleOrderId { get; set; }
     public virtual SaleOrder SaleOrder { get; set; } = null!;
 
-    [Required]
-    public Guid CustomerId { get; set; } // Direct reference for easy reporting
+    public Guid? CustomerId { get; set; } // Direct reference for easy reporting
+    public string? GuestName { get; set; }
+    public string? GuestPhone { get; set; }
 
     public decimal SubTotal { get; set; }
     public decimal TaxAmount { get; set; }

@@ -122,16 +122,24 @@ public class SaleReturnService : ISaleReturnService
         }
 
         // 2. Customer Name laane ke liye Helper Method (Dictionary Logic)
-        var customerIds = new List<Guid> { data.CustomerId };
-        var customerNames = await _customerHttpService.GetCustomerNamesAsync(customerIds);
-
-        if (customerNames != null && customerNames.ContainsKey(data.CustomerId))
+        if (data.CustomerId.HasValue && data.CustomerId.Value != Guid.Empty)
         {
-            data.CustomerName = customerNames[data.CustomerId];
+            var customerIds = new List<Guid> { data.CustomerId.Value };
+            var customerNames = await _customerHttpService.GetCustomerNamesAsync(customerIds);
+
+            if (customerNames != null && customerNames.ContainsKey(data.CustomerId.Value))
+            {
+                data.CustomerName = customerNames[data.CustomerId.Value];
+            }
+            else
+            {
+                data.CustomerName = "Unknown Customer";
+            }
         }
         else
         {
-            data.CustomerName = "Unknown Customer";
+            // Walking customer logical mapping from header or default
+            data.CustomerName = "Cash Customer";
         }
 
         // 3. Company Info fetch karein [New Feature]

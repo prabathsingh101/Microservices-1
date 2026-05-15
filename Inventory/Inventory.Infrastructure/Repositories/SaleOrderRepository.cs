@@ -233,7 +233,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 (o.GatePassNo != null && o.GatePassNo.ToLower().Contains(searchTerm)) ||
                 o.Status.ToLower().Contains(searchTerm) ||
                 o.GrandTotal.ToString().Contains(searchTerm) ||
-                matchingCustomerIds.Contains(o.CustomerId));
+                (o.CustomerId.HasValue && matchingCustomerIds.Contains(o.CustomerId.Value)));
         }
 
         // 🎯 3. Calculate Global Stats (Before Pagination)
@@ -339,17 +339,23 @@ public class SaleOrderRepository : ISaleOrderRepository
             .Select(g => new { SaleOrderId = g.Key, TotalReturned = g.Sum(ri => ri.ReturnQty) })
             .ToDictionaryAsync(x => x.SaleOrderId, x => x.TotalReturned);
 
-        var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
+        var customerIds = orders
+            .Select(o => o.CustomerId)
+            .Where(id => id.HasValue && id.Value != Guid.Empty)
+            .Cast<Guid>()
+            .Distinct()
+            .ToList();
+        
         var customerDictionary = await _customerClient.GetCustomerNamesAsync(customerIds);
 
         foreach (var order in orders)
         {
             // Customer Name
-            if (customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId, out var name))
+            if (order.CustomerId.HasValue && customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId.Value, out var name))
                 order.CustomerName = name;
             else if (!string.IsNullOrEmpty(order.GuestName))
                 order.CustomerName = order.GuestName;
-            else if (order.CustomerId == Guid.Empty)
+            else if (!order.CustomerId.HasValue || order.CustomerId.Value == Guid.Empty)
                 order.CustomerName = "Cash Customer";
             else
                 order.CustomerName = "Unknown Customer";
@@ -476,19 +482,26 @@ public class SaleOrderRepository : ISaleOrderRepository
 
             if (saved && status == "Confirmed")
             {
-                try
+                if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty)
                 {
-                    await _customerClient.RecordSaleAsync(
-                        order.CustomerId,
-                        order.GrandTotal,
-                        order.SONumber,
-                        $"Sale Invoice generated: {order.SONumber}",
-                        "System"
-                    );
+                    try
+                    {
+                        await _customerClient.RecordSaleAsync(
+                            order.CustomerId.Value,
+                            order.GrandTotal,
+                            order.SONumber,
+                            $"Sale Invoice generated: {order.SONumber}",
+                            "System"
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Customer Ledger sync error: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine($"Customer Ledger sync error: {ex.Message}");
+                    Console.WriteLine($"[UpdateSaleOrderStatus] Skipping ledger sync for Walking Customer: {order.GuestName}");
                 }
             }
 
@@ -564,8 +577,15 @@ public class SaleOrderRepository : ISaleOrderRepository
         // 2. Customer Name fetch karein Microservice se
         try
         {
-            var customer = await _customerClient.GetCustomerByIdAsync(order.CustomerId);
-            order.CustomerName = customer?.CustomerName ?? (!string.IsNullOrEmpty(order.GuestName) ? order.GuestName : (order.CustomerId == Guid.Empty ? "Cash Customer" : "Unknown Customer"));
+            if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty)
+            {
+                var customer = await _customerClient.GetCustomerByIdAsync(order.CustomerId.Value);
+                order.CustomerName = customer?.CustomerName ?? "Unknown Customer";
+            }
+            else
+            {
+                order.CustomerName = !string.IsNullOrEmpty(order.GuestName) ? order.GuestName : "Cash Customer";
+            }
         }
         catch
         {
@@ -698,14 +718,20 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         if (orders == null || !orders.Any()) return new List<PendingSODto>();
 
-        var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
+        var customerIds = orders
+            .Select(o => o.CustomerId)
+            .Where(id => id.HasValue && id.Value != Guid.Empty)
+            .Cast<Guid>()
+            .Distinct()
+            .ToList();
+            
         var customerDictionary = await _customerClient.GetCustomerNamesAsync(customerIds);
 
         foreach (var order in orders)
         {
-            if (customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId, out var name))
+            if (order.CustomerId.HasValue && customerDictionary != null && customerDictionary.TryGetValue(order.CustomerId.Value, out var name))
                 order.CustomerName = name;
-            else if (order.CustomerId == Guid.Empty)
+            else if (!order.CustomerId.HasValue || order.CustomerId.Value == Guid.Empty)
                 order.CustomerName = "Cash Customer";
             else
                 order.CustomerName = "Unknown Customer";

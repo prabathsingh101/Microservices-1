@@ -1,4 +1,4 @@
-﻿CREATE TABLE [AppNotifications] (
+CREATE TABLE [AppNotifications] (
     [Id] uniqueidentifier NOT NULL,
     [Title] nvarchar(max) NOT NULL,
     [Message] nvarchar(max) NOT NULL,
@@ -153,7 +153,7 @@ GO
 CREATE TABLE [SaleOrders] (
     [Id] uniqueidentifier NOT NULL,
     [SONumber] nvarchar(50) NOT NULL,
-    [CustomerId] uniqueidentifier NOT NULL,
+    [CustomerId] uniqueidentifier NULL,
     [SODate] datetime2 NOT NULL,
     [ExpectedDeliveryDate] datetime2 NULL,
     [SubTotal] decimal(18,2) NOT NULL,
@@ -324,7 +324,7 @@ CREATE TABLE [SaleReturnHeaders] (
     [ReturnNumber] nvarchar(20) NOT NULL,
     [ReturnDate] datetime2 NOT NULL,
     [SaleOrderId] uniqueidentifier NOT NULL,
-    [CustomerId] uniqueidentifier NOT NULL,
+    [CustomerId] uniqueidentifier NULL,
     [SubTotal] decimal(18,2) NOT NULL,
     [TaxAmount] decimal(18,2) NOT NULL,
     [DiscountAmount] decimal(18,2) NOT NULL,

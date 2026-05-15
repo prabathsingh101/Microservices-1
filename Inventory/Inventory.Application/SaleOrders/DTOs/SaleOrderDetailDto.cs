@@ -9,7 +9,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public Guid Id { get; set; }
         public string SoNumber { get; set; } = string.Empty;
         public DateTime SoDate { get; set; }
-        public Guid CustomerId { get; set; }
+        public Guid? CustomerId { get; set; }
         public string CustomerName { get; set; } = "Loading..."; // Placeholder for Microservice data
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }

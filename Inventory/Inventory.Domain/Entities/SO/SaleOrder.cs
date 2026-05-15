@@ -16,8 +16,7 @@ namespace Inventory.Domain.Entities.SO
         [StringLength(50)]
         public string SONumber { get; set; } = string.Empty; // Unique Order Number [cite: 3]
 
-        [Required]
-        public Guid CustomerId { get; set; } // Customer table se linked [cite: 3]
+        public Guid? CustomerId { get; set; } // Customer table se linked [cite: 3]
 
         [Required]
         public DateTime SODate { get; set; } // Order date [cite: 3]

@@ -171,17 +171,20 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         }
 
                         // Optional: Record reversal for OLD amount before recording NEW
-                        try
+                        if (existingWithItems.CustomerId.HasValue && existingWithItems.CustomerId.Value != Guid.Empty)
                         {
-                            await _customerClient.RecordSaleAsync(
-                                existingWithItems.CustomerId,
-                                -existingWithItems.GrandTotal,
-                                existingWithItems.SONumber,
-                                $"Sale Order Adjustment (Old Reversal): {existingWithItems.SONumber}",
-                                "System"
-                            );
+                            try
+                            {
+                                await _customerClient.RecordSaleAsync(
+                                    existingWithItems.CustomerId.Value,
+                                    -existingWithItems.GrandTotal,
+                                    existingWithItems.SONumber,
+                                    $"Sale Order Adjustment (Old Reversal): {existingWithItems.SONumber}",
+                                    "System"
+                                );
+                            }
+                            catch (Exception ex) { Console.WriteLine($"Old Ledger reversal failed: {ex.Message}"); }
                         }
-                        catch (Exception ex) { Console.WriteLine($"Old Ledger reversal failed: {ex.Message}"); }
                     }
                 }
 
@@ -205,7 +208,6 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                     {
                         throw new Exception($"Insufficient stock for {item.ProductName}. Available: {availableStock}");
                     }
-                        // await _repo.UpdateProductStockAsync(item.ProductId, -item.Qty); // REMOVED
 
                     // 🆕 Record Inventory Transaction
                     var saleTx = new InventoryTransaction(
@@ -253,19 +255,26 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 await _context.SaveChangesAsync();
 
                 // 3. Record New Ledger
-                try
+                if (saleOrder.CustomerId.HasValue && saleOrder.CustomerId.Value != Guid.Empty)
                 {
-                    await _customerClient.RecordSaleAsync(
-                        saleOrder.CustomerId,
-                        saleOrder.GrandTotal,
-                        saleOrder.SONumber,
-                        $"Sale Invoice generated: {saleOrder.SONumber}",
-                        saleOrder.CreatedBy ?? "System"
-                    );
+                    try
+                    {
+                        await _customerClient.RecordSaleAsync(
+                            saleOrder.CustomerId.Value,
+                            saleOrder.GrandTotal,
+                            saleOrder.SONumber,
+                            $"Sale Invoice generated: {saleOrder.SONumber}",
+                            saleOrder.CreatedBy ?? "System"
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ledger sync failed: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine($"Ledger sync failed: {ex.Message}");
+                    Console.WriteLine($"[CreateSaleOrderHandler] Skipping ledger sync for Walking Customer: {saleOrder.GuestName}");
                 }
 
                 result = new { Id = savedId, SONumber = finalSONo };
@@ -301,7 +310,21 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 try
                 {
                     var company = await companyClient.GetCompanyProfileAsync();
-                    var customer = await customerClient.GetCustomerByIdAsync(saleOrder.CustomerId);
+                    
+                    CustomerLookupDto? customer = null;
+                    if (saleOrder.CustomerId.HasValue && saleOrder.CustomerId.Value != Guid.Empty)
+                    {
+                        customer = await customerClient.GetCustomerByIdAsync(saleOrder.CustomerId.Value);
+                    }
+                    else if (!string.IsNullOrEmpty(saleOrder.GuestName))
+                    {
+                        customer = new CustomerLookupDto 
+                        { 
+                            CustomerName = saleOrder.GuestName,
+                            Phone = saleOrder.GuestPhone,
+                            Email = "" // Guest typically doesn't have email in this simplified flow
+                        };
+                    }
 
                     if (company != null && customer != null)
                     {

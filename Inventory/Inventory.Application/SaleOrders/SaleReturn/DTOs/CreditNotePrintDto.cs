@@ -4,7 +4,7 @@ public class CreditNotePrintDto
 {
     public string ReturnNumber { get; set; } // SR-202602061900
     public DateTime ReturnDate { get; set; }
-    public Guid CustomerId { get; set; }
+    public Guid? CustomerId { get; set; }
     public string CustomerName { get; set; } // tttyyty
     public string SONumber { get; set; } // SO-2026-0005
     public decimal SubTotal { get; set; } // 405.00

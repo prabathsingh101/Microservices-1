@@ -77,7 +77,7 @@ namespace Inventory.Infrastructure.Repositories
                 query = query.Where(x => 
                     x.ReturnNumber.ToLower().Contains(s) ||
                     (x.SaleOrder != null && x.SaleOrder.SONumber.ToLower().Contains(s)) ||
-                    (matchingCustomerIds != null && matchingCustomerIds.Contains(x.CustomerId)));
+                    (x.CustomerId.HasValue && matchingCustomerIds != null && matchingCustomerIds.Contains(x.CustomerId.Value)));
             }
 
             // 5. SERVER-SIDE SORTING (Default: CreatedOn DESC)
@@ -117,7 +117,9 @@ namespace Inventory.Infrastructure.Repositories
                     TotalAmount = x.TotalAmount,
                     Status = x.Status,
                     GatePassNo = x.GatePassNo,
-                    IsQuick = x.IsQuick
+                    IsQuick = x.IsQuick,
+                    GuestName = x.GuestName,
+                    GuestPhone = x.GuestPhone
                 }).ToListAsync();
 
             if (pagedData == null || !pagedData.Any())
@@ -139,15 +141,26 @@ namespace Inventory.Infrastructure.Repositories
                 });
 
             // 8. Bulk Customer Name Enrichment & Item Mapping
-            var customerIds = pagedData.Select(i => i.CustomerId).Distinct().ToList();
+            var customerIds = pagedData
+                .Select(i => i.CustomerId)
+                .Where(id => id.HasValue && id.Value != Guid.Empty)
+                .Cast<Guid>()
+                .Distinct()
+                .ToList();
+
             var customerMap = customerIds.Any() ? await _customerClient.GetCustomerNamesAsync(customerIds) : new Dictionary<Guid, string>();
 
             foreach (var item in pagedData)
             {
                 // Customer Name
-                item.CustomerName = customerMap != null && customerMap.ContainsKey(item.CustomerId)
-                                    ? customerMap[item.CustomerId]
-                                    : "Unknown Customer";
+                if (item.CustomerId.HasValue && customerMap != null && customerMap.TryGetValue(item.CustomerId.Value, out var name))
+                    item.CustomerName = name;
+                else if (!string.IsNullOrEmpty(item.GuestName))
+                    item.CustomerName = item.GuestName;
+                else if (!item.CustomerId.HasValue || item.CustomerId.Value == Guid.Empty)
+                    item.CustomerName = "Cash Customer";
+                else
+                    item.CustomerName = "Unknown Customer";
                 
                 // Product Info
                 if (itemLookup.ContainsKey(item.SaleReturnHeaderId))
@@ -396,15 +409,21 @@ namespace Inventory.Infrastructure.Repositories
                 .Select(x => new { x.Id, x.CustomerId })
                 .ToListAsync();
 
-            var customerIds = detailedReturns.Select(x => x.CustomerId).Distinct().ToList();
+            var customerIds = detailedReturns
+                .Select(x => x.CustomerId)
+                .Where(id => id.HasValue && id.Value != Guid.Empty)
+                .Cast<Guid>()
+                .Distinct()
+                .ToList();
+
             var customerMap = await _customerClient.GetCustomerNamesAsync(customerIds);
 
             foreach (var r in returns)
             {
                 var original = detailedReturns.First(x => x.Id == r.Id);
-                r.CustomerName = customerMap != null && customerMap.ContainsKey(original.CustomerId) 
-                                 ? customerMap[original.CustomerId] 
-                                 : "Unknown Customer";
+                r.CustomerName = original.CustomerId.HasValue && customerMap != null && customerMap.TryGetValue(original.CustomerId.Value, out var name)
+                                 ? name 
+                                 : (!string.IsNullOrEmpty(r.CustomerName) ? r.CustomerName : "Cash Customer");
             }
 
             return returns;

@@ -66,22 +66,29 @@ namespace Inventory.Application.SaleOrders.Commands
                     }
 
                     // 2. Ledger Sync (Reverse Sale)
-                    try
+                    if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty)
                     {
-                        // Recording a negative sale to offset the original entry
-                        await _customerClient.RecordSaleAsync(
-                            order.CustomerId,
-                            -order.GrandTotal, // Negative amount
-                            order.SoNumber,
-                            $"Sale Order Deleted/Cancelled: {order.SoNumber}",
-                            "System"
-                        );
+                        try
+                        {
+                            // Recording a negative sale to offset the original entry
+                            await _customerClient.RecordSaleAsync(
+                                order.CustomerId.Value,
+                                -order.GrandTotal, // Negative amount
+                                order.SoNumber,
+                                $"Sale Order Deleted/Cancelled: {order.SoNumber}",
+                                "System"
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Ledger reversion failed: {ex.Message}");
+                            // Note: Microservice failures are often logged but might not rollback the whole DB transaction 
+                            // depending on business requirements. Here we continue to delete.
+                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Console.WriteLine($"Ledger reversion failed: {ex.Message}");
-                        // Note: Microservice failures are often logged but might not rollback the whole DB transaction 
-                        // depending on business requirements. Here we continue to delete.
+                        Console.WriteLine($"[DeleteSaleOrder] Skipping ledger sync for Walking Customer: {order.GuestName}");
                     }
                 }
 

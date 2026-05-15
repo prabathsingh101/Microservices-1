@@ -9,7 +9,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public Guid Id { get; set; }
         public string SoNumber { get; set; } = string.Empty;
         public DateTime SoDate { get; set; }
-        public Guid CustomerId { get; set; } // Mapping ke liye zaroori hai
+        public Guid? CustomerId { get; set; } // Mapping ke liye zaroori hai
         public string CustomerName { get; set; } = string.Empty;
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
