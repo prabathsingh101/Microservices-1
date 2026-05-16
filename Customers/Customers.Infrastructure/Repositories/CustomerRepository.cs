@@ -22,15 +22,15 @@ namespace Customers.Infrastructure.Repositories
         }
 
         private Guid _companyId => _currentUserService.CompanyId ?? Guid.Empty;
-        private Guid? _branchId => _currentUserService.BranchId;
+        private string? _branchId => _currentUserService.BranchId;
 
         public IQueryable<Customer> Query() => _context.Customers.AsNoTracking()
-            .Where(x => x.CompanyId == _companyId && (_branchId == null || x.BranchId == _branchId));
+            .Where(x => x.CompanyId == _companyId);
 
         public async Task AddAsync(Customer customer)
         {
             customer.CompanyId = _companyId;
-            if (customer.BranchId == null || customer.BranchId == Guid.Empty)
+            if (string.IsNullOrEmpty(customer.BranchId))
             {
                 customer.BranchId = _branchId;
             }
@@ -63,16 +63,16 @@ namespace Customers.Infrastructure.Repositories
 
             var distinctIds = ids.Distinct().ToList();
 
-            return await Query()
-                .Where(c => distinctIds.Contains(c.Id))
+            return await _context.Customers.AsNoTracking()
+                .Where(c => c.CompanyId == _companyId && distinctIds.Contains(c.Id))
                 .Select(c => new { c.Id, c.CustomerName }) 
                 .ToDictionaryAsync(x => x.Id, x => x.CustomerName ?? string.Empty);
         }
 
         public async Task<string?> GetCustomerNameByIdAsync(Guid id)
         {
-            return await Query()
-                .Where(c => c.Id == id)
+            return await _context.Customers.AsNoTracking()
+                .Where(c => c.CompanyId == _companyId && c.Id == id)
                 .Select(c => c.CustomerName)
                 .FirstOrDefaultAsync();
         }

@@ -104,7 +104,7 @@ namespace Customers.Application.DTOs
         public DateTime TransactionDate { get; set; }
         public string? CreatedBy { get; set; }
         public Guid? CompanyId { get; set; }
-        public Guid? BranchId { get; set; }
+        public string? BranchId { get; set; }
     }
 
     public class MonthlyTrendDto

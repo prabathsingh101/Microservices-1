@@ -73,8 +73,7 @@ namespace Customers.Infrastructure.Persistence
         {
             modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
                 _currentUserService != null && 
-                e.CompanyId == _currentUserService.CompanyId &&
-                (e.BranchId == null || !_currentUserService.BranchId.HasValue || e.BranchId == _currentUserService.BranchId));
+                e.CompanyId == _currentUserService.CompanyId);
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -103,7 +102,7 @@ namespace Customers.Infrastructure.Persistence
                             {
                                 auditableEntity.CompanyId = _currentUserService?.CompanyId ?? Guid.Empty;
                             }
-                            if (auditableEntity.BranchId == null || auditableEntity.BranchId == Guid.Empty)
+                            if (string.IsNullOrEmpty(auditableEntity.BranchId))
                             {
                                 auditableEntity.BranchId = _currentUserService?.BranchId;
                             }
@@ -115,7 +114,7 @@ namespace Customers.Infrastructure.Persistence
                             {
                                 auditableEntity.CompanyId = _currentUserService?.CompanyId ?? Guid.Empty;
                             }
-                            if (auditableEntity.BranchId == null || auditableEntity.BranchId == Guid.Empty)
+                            if (string.IsNullOrEmpty(auditableEntity.BranchId))
                             {
                                 auditableEntity.BranchId = _currentUserService?.BranchId;
                             }

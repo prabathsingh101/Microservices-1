@@ -38,19 +38,6 @@ namespace Customers.Application.Features.Finance.Handlers
                     }
                 }
 
-                Guid? branchGuid = null;
-                if (!string.IsNullOrEmpty(receiptDto.BranchId))
-                {
-                    if (Guid.TryParse(receiptDto.BranchId, out var parsedGuid))
-                    {
-                        branchGuid = parsedGuid;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Invalid BranchId format: {BranchId}. Proceeding with null BranchId.", receiptDto.BranchId);
-                    }
-                }
-
                 var customerReceipt = new CustomerReceipt
                 {
                     CustomerId = receiptDto.CustomerId,
@@ -61,7 +48,7 @@ namespace Customers.Application.Features.Finance.Handlers
                     Remarks = receiptDto.Remarks,
                     CreatedBy = receiptDto.CreatedBy,
                     CompanyId = _currentUserService.CompanyId,
-                    BranchId = branchGuid
+                    BranchId = receiptDto.BranchId
                 };
 
                 await _repository.AddReceiptAsync(customerReceipt);
@@ -86,7 +73,7 @@ namespace Customers.Application.Features.Finance.Handlers
                         Description = "Receipt Received: " + receiptDto.ReceiptMode,
                         CreatedBy = receiptDto.CreatedBy,
                         CompanyId = _currentUserService.CompanyId,
-                        BranchId = string.IsNullOrEmpty(receiptDto.BranchId) ? _currentUserService.BranchId : Guid.Parse(receiptDto.BranchId)
+                        BranchId = string.IsNullOrEmpty(receiptDto.BranchId) ? _currentUserService.BranchId : receiptDto.BranchId
                     };
 
                     await _repository.AddLedgerEntryAsync(ledgerEntry);
