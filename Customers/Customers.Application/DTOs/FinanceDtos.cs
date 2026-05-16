@@ -43,7 +43,7 @@ namespace Customers.Application.DTOs
 
     public class CustomerReceiptDto
     {
-        public Guid CustomerId { get; set; }
+        public Guid? CustomerId { get; set; }
         public decimal Amount { get; set; }
 
         [JsonPropertyName("paymentDate")]
@@ -59,7 +59,7 @@ namespace Customers.Application.DTOs
 
     public class OutstandingDto
     {
-        public Guid CustomerId { get; set; }
+        public Guid? CustomerId { get; set; }
         public decimal PendingAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public string? CustomerName { get; set; }
@@ -96,7 +96,7 @@ namespace Customers.Application.DTOs
 
     public class CustomerSaleDto
     {
-        public Guid CustomerId { get; set; }
+        public Guid? CustomerId { get; set; }
         public decimal Amount { get; set; }
         public string? ReferenceId { get; set; } // Invoice/Sale Order Number
         public string? Description { get; set; }
@@ -114,7 +114,7 @@ namespace Customers.Application.DTOs
     public class ReceiptReportDto
     {
         public Guid Id { get; set; }
-        public Guid CustomerId { get; set; }
+        public Guid? CustomerId { get; set; }
         public string? CustomerName { get; set; }
         public decimal Amount { get; set; }
         public DateTime ReceiptDate { get; set; }

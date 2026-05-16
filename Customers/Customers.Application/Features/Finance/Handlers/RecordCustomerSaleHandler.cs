@@ -24,13 +24,18 @@ namespace Customers.Application.Features.Finance.Handlers
         {
             var sale = request.SaleDto;
 
-            var lastEntry = await _financeRepository.GetLastLedgerEntryAsync(sale.CustomerId);
+            if (sale.CustomerId == null || sale.CustomerId == Guid.Empty)
+            {
+                return Guid.Empty; // Placeholder for walking customers
+            }
+
+            var lastEntry = await _financeRepository.GetLastLedgerEntryAsync(sale.CustomerId.Value);
             decimal currentBalance = lastEntry?.Balance ?? 0;
             decimal newBalance = currentBalance + sale.Amount;
 
             var entry = new CustomerLedger
             {
-                CustomerId = sale.CustomerId,
+                CustomerId = sale.CustomerId.Value,
                 TransactionDate = sale.TransactionDate,
                 TransactionType = "Sale",
                 ReferenceId = sale.ReferenceId ?? string.Empty,

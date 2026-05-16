@@ -35,8 +35,10 @@ namespace Customers.Infrastructure.Repositories
             await _context.CustomerReceipts.AddAsync(receipt);
         }
 
-        public async Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid customerId)
+        public async Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid? customerId)
         {
+            if (customerId == null || customerId == Guid.Empty) return null;
+
             return await _context.CustomerLedgers
                 .Where(l => l.CustomerId == customerId && l.CompanyId == _companyId && (l.BranchId == null || !_branchId.HasValue || l.BranchId == _branchId))
                 .OrderByDescending(l => l.CreatedOn)
@@ -269,7 +271,7 @@ namespace Customers.Infrastructure.Repositories
                 var c = customers.FirstOrDefault(c => c.Id == l.CustomerId);
                 return new OutstandingDto
                 {
-                    CustomerId = l.CustomerId,
+                    CustomerId = l.CustomerId ?? Guid.Empty,
                     CustomerName = c?.CustomerName,
                     Phone = c?.Phone,
                     PendingAmount = l.Balance,
@@ -367,8 +369,8 @@ namespace Customers.Infrastructure.Repositories
             var items = pagedResults.Select(r => new ReceiptReportDto
             {
                 Id = r.Id,
-                CustomerId = r.CustomerId,
-                CustomerName = customers.GetValueOrDefault(r.CustomerId) ?? "Unknown",
+                CustomerId = r.CustomerId ?? Guid.Empty,
+                CustomerName = (r.CustomerId.HasValue && customers.ContainsKey(r.CustomerId.Value)) ? customers[r.CustomerId.Value] : "Walking Customer",
                 Amount = r.Amount,
                 ReceiptDate = r.ReceiptDate,
                 ReceiptMode = r.ReceiptMode,

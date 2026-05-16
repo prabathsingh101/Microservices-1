@@ -30,10 +30,15 @@ namespace Customers.Application.Features.Finance.Handlers
 
             foreach (var customerGroup in receiptsByCustomer)
             {
-                Guid customerId = customerGroup.Key;
+                Guid? customerId = customerGroup.Key;
+                bool shouldRecordLedger = customerId.HasValue && customerId.Value != Guid.Empty;
                 
-                var lastLedger = await _repository.GetLastLedgerEntryAsync(customerId);
-                decimal currentBalance = lastLedger?.Balance ?? 0;
+                decimal currentBalance = 0;
+                if (shouldRecordLedger)
+                {
+                    var lastLedger = await _repository.GetLastLedgerEntryAsync(customerId.Value);
+                    currentBalance = lastLedger?.Balance ?? 0;
+                }
 
                 foreach (var receiptDto in customerGroup)
                 {
@@ -51,25 +56,28 @@ namespace Customers.Application.Features.Finance.Handlers
 
                     await _repository.AddReceiptAsync(customerReceipt);
 
-                    currentBalance -= receiptDto.Amount;
-
-                    var ledgerEntry = new CustomerLedger
+                    if (shouldRecordLedger)
                     {
-                        CustomerId = customerId,
-                        TransactionType = "Receipt",
-                        ReferenceId = string.IsNullOrWhiteSpace(receiptDto.ReferenceNumber) 
-                            ? "REC-" + Guid.NewGuid().ToString().Substring(0, 8) 
-                            : receiptDto.ReferenceNumber,
-                        Debit = 0,
-                        Credit = receiptDto.Amount,
-                        Balance = currentBalance,
-                        TransactionDate = receiptDto.ReceiptDate,
-                        Description = "Receipt Received: " + receiptDto.ReceiptMode,
-                        CreatedBy = receiptDto.CreatedBy ?? "System",
-                        CompanyId = _currentUserService.CompanyId
-                    };
+                        currentBalance -= receiptDto.Amount;
 
-                    await _repository.AddLedgerEntryAsync(ledgerEntry);
+                        var ledgerEntry = new CustomerLedger
+                        {
+                            CustomerId = customerId.Value,
+                            TransactionType = "Receipt",
+                            ReferenceId = string.IsNullOrWhiteSpace(receiptDto.ReferenceNumber)
+                                ? "REC-" + Guid.NewGuid().ToString().Substring(0, 8)
+                                : receiptDto.ReferenceNumber,
+                            Debit = 0,
+                            Credit = receiptDto.Amount,
+                            Balance = currentBalance,
+                            TransactionDate = receiptDto.ReceiptDate,
+                            Description = "Receipt Received: " + receiptDto.ReceiptMode,
+                            CreatedBy = receiptDto.CreatedBy ?? "System",
+                            CompanyId = _currentUserService.CompanyId
+                        };
+
+                        await _repository.AddLedgerEntryAsync(ledgerEntry);
+                    }
                 }
             }
 
