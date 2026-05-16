@@ -44,6 +44,7 @@ namespace Customers.Application.DTOs
     public class CustomerReceiptDto
     {
         public Guid? CustomerId { get; set; }
+        public Guid? BranchId { get; set; }
         public decimal Amount { get; set; }
 
         [JsonPropertyName("paymentDate")]

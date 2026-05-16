@@ -1,5 +1,6 @@
 $sourcePath = "C:\Projects\ElectricApps"
-$zipPath = "C:\Projects\Decode\ElectricApps.zip"
+$zipPath = "C:\Projects\ElectricApps\ElectricApps.zip"
+
 
 # 1. Clean existing zip if exists
 if (Test-Path $zipPath) { Remove-Item $zipPath }

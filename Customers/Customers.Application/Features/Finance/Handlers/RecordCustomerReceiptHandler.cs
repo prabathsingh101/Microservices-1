@@ -42,7 +42,8 @@ namespace Customers.Application.Features.Finance.Handlers
                 ReferenceNumber = receiptDto.ReferenceNumber,
                 Remarks = receiptDto.Remarks,
                 CreatedBy = receiptDto.CreatedBy,
-                CompanyId = _currentUserService.CompanyId
+                CompanyId = _currentUserService.CompanyId,
+                BranchId = receiptDto.BranchId
             };
 
             await _repository.AddReceiptAsync(customerReceipt);
