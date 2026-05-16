@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Suppliers.Infrastructure.Persistence;
 using Suppliers.Application.Features.Suppliers.Handlers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -20,7 +21,20 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState);
+            var errors = string.Join("; ", problemDetails.Errors.SelectMany(x => x.Value));
+            
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<ExceptionMiddleware>>();
+            logger.LogError("Model validation failed on {Path}: {Errors}", context.HttpContext.Request.Path, errors);
+            
+            return new BadRequestObjectResult(problemDetails);
+        };
+    });
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

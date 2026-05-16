@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Company.Infrastructure;
 using Company.Application;
 using Company.API.Middlewares;
@@ -26,6 +27,19 @@ builder.Services.AddControllers()
         // Frontend (Angular) ke liye CamelCase naming policy zaroori hai
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles; // Circular reference se bachne ke liye
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState);
+            var errors = string.Join("; ", problemDetails.Errors.SelectMany(x => x.Value));
+            
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<ExceptionMiddleware>>();
+            logger.LogError("Model validation failed on {Path}: {Errors}", context.HttpContext.Request.Path, errors);
+            
+            return new BadRequestObjectResult(problemDetails);
+        };
     });
 
 // OpenAPI/Scalar setup for documentation

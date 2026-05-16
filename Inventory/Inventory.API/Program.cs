@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Inventory.API.Helper;
 using Inventory.Application;
 using Inventory.Infrastructure;
@@ -19,7 +20,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
-builder.Services.AddControllers();
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -58,6 +59,19 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.Converters.Add(new StringOrNumberConverter());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState);
+            var errors = string.Join("; ", problemDetails.Errors.SelectMany(x => x.Value));
+            
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Inventory.API.Middleware.ExceptionHandlingMiddleware>>();
+            logger.LogError("Model validation failed on {Path}: {Errors}", context.HttpContext.Request.Path, errors);
+            
+            return new BadRequestObjectResult(problemDetails);
+        };
     });
 
 // Add services to the container.

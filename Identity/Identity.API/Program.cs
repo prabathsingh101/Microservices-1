@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using FluentValidation.AspNetCore;
 using Identity.API.Extensions;
 using Identity.API.Helpers;
@@ -33,7 +34,20 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(new StringOrNumberConverter());
     })
-    .AddFluentValidation();
+    .AddFluentValidation()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState);
+            var errors = string.Join("; ", problemDetails.Errors.SelectMany(x => x.Value));
+            
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<ExceptionMiddleware>>();
+            logger.LogError("Model validation failed on {Path}: {Errors}", context.HttpContext.Request.Path, errors);
+            
+            return new BadRequestObjectResult(problemDetails);
+        };
+    });
 
 builder.Services.AddHttpClient();
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Customers.Application;
 using Customers.Infrastructure;
 using Customers.Infrastructure.Persistence;
@@ -35,6 +36,19 @@ builder.Services.AddControllers()
     .AddJsonOptions(options => {
         // Taaki dates aur complex objects sahi se serialize hon
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetails = new ValidationProblemDetails(context.ModelState);
+            var errors = string.Join("; ", problemDetails.Errors.SelectMany(x => x.Value));
+            
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<ExceptionMiddleware>>();
+            logger.LogError("Model validation failed on {Path}: {Errors}", context.HttpContext.Request.Path, errors);
+            
+            return new BadRequestObjectResult(problemDetails);
+        };
     });
 
 builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
