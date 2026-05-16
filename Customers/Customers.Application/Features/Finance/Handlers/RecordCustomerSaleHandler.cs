@@ -44,7 +44,8 @@ namespace Customers.Application.Features.Finance.Handlers
                 Credit = 0,
                 Balance = newBalance,
                 CreatedBy = sale.CreatedBy,
-                CompanyId = _currentUserService.CompanyId
+                CompanyId = sale.CompanyId ?? _currentUserService.CompanyId,
+                BranchId = sale.BranchId ?? _currentUserService.BranchId
             };
 
             await _financeRepository.AddLedgerEntryAsync(entry);

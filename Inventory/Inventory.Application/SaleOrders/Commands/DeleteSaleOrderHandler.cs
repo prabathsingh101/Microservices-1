@@ -76,7 +76,9 @@ namespace Inventory.Application.SaleOrders.Commands
                                 -order.GrandTotal, // Negative amount
                                 order.SoNumber,
                                 $"Sale Order Deleted/Cancelled: {order.SoNumber}",
-                                "System"
+                                "System",
+                                Guid.TryParse(order.BranchId, out var branchId) ? branchId : (Guid?)null,
+                                order.CompanyId
                             );
                         }
                         catch (Exception ex)

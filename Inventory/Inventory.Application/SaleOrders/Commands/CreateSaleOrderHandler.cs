@@ -180,7 +180,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                                     -existingWithItems.GrandTotal,
                                     existingWithItems.SONumber,
                                     $"Sale Order Adjustment (Old Reversal): {existingWithItems.SONumber}",
-                                    "System"
+                                    "System",
+                                    Guid.TryParse(existingWithItems.BranchId, out var branchId) ? branchId : (Guid?)null,
+                                    existingWithItems.CompanyId
                                 );
                             }
                             catch (Exception ex) { Console.WriteLine($"Old Ledger reversal failed: {ex.Message}"); }
@@ -264,7 +266,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                             saleOrder.GrandTotal,
                             saleOrder.SONumber,
                             $"Sale Invoice generated: {saleOrder.SONumber}",
-                            saleOrder.CreatedBy ?? "System"
+                            saleOrder.CreatedBy ?? "System",
+                            Guid.TryParse(saleOrder.BranchId, out var branchId) ? branchId : (Guid?)null,
+                            saleOrder.CompanyId
                         );
                     }
                     catch (Exception ex)

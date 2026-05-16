@@ -13,7 +13,7 @@ namespace Inventory.Application.Clients
 
         Task<List<Guid>> SearchCustomerIdsByNameAsync(string searchName);
 
-        Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy);
+        Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy, Guid? branchId, Guid? companyId);
         Task<CustomerLookupDto?> GetCustomerByIdAsync(Guid id);
     }
 }

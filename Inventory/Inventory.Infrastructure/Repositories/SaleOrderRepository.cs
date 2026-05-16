@@ -491,7 +491,9 @@ public class SaleOrderRepository : ISaleOrderRepository
                             order.GrandTotal,
                             order.SONumber,
                             $"Sale Invoice generated: {order.SONumber}",
-                            "System"
+                            "System",
+                            Guid.TryParse(order.BranchId, out var parsedBranchId) ? parsedBranchId : (Guid?)null,
+                            order.CompanyId
                         );
                     }
                     catch (Exception ex)

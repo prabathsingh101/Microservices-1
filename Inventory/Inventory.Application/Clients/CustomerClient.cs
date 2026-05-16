@@ -88,7 +88,7 @@ public class CustomerClient : ICustomerClient
         return new List<Guid>();
     }
 
-    public async Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy)
+    public async Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy, Guid? branchId, Guid? companyId)
     {
         var client = _httpClientFactory.CreateClient("CustomerService");
         AddAuthorizationHeader(client);
@@ -100,7 +100,9 @@ public class CustomerClient : ICustomerClient
             ReferenceId = referenceId,
             Description = description,
             TransactionDate = DateTime.Now,
-            CreatedBy = createdBy
+            CreatedBy = createdBy,
+            BranchId = branchId,
+            CompanyId = companyId
         };
 
         var response = await client.PostAsJsonAsync("api/finance/sale", payload);

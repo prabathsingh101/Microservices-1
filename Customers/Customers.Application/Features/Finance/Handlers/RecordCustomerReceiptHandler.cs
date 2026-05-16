@@ -85,7 +85,8 @@ namespace Customers.Application.Features.Finance.Handlers
                         TransactionDate = receiptDto.ReceiptDate,
                         Description = "Receipt Received: " + receiptDto.ReceiptMode,
                         CreatedBy = receiptDto.CreatedBy,
-                        CompanyId = _currentUserService.CompanyId
+                        CompanyId = _currentUserService.CompanyId,
+                        BranchId = string.IsNullOrEmpty(receiptDto.BranchId) ? _currentUserService.BranchId : Guid.Parse(receiptDto.BranchId)
                     };
 
                     await _repository.AddLedgerEntryAsync(ledgerEntry);
