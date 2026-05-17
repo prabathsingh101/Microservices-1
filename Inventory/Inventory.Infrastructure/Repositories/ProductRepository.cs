@@ -471,7 +471,6 @@ public sealed class ProductRepository : IProductRepository
                             if (string.IsNullOrWhiteSpace(catName)) { errors.Add($"Row {rowNum}: Category is required."); continue; }
                             if (string.IsNullOrWhiteSpace(subName)) { errors.Add($"Row {rowNum}: Subcategory is required."); continue; }
                             if (string.IsNullOrWhiteSpace(unit)) { errors.Add($"Row {rowNum}: Unit is required."); continue; }
-                            if (string.IsNullOrWhiteSpace(hsn)) { errors.Add($"Row {rowNum}: HSN Code is required."); continue; }
 
                             if (!categories.TryGetValue(catName.Trim(), out var catId))
                             {
@@ -589,7 +588,7 @@ public sealed class ProductRepository : IProductRepository
                                 "finished" => "1",
                                 "goods" => "2",
                                 "raw material" => "3",
-                                _ => "1"
+                                _ => "2"
                             };
 
                             Product? existingProduct = null;
@@ -617,12 +616,12 @@ public sealed class ProductRepository : IProductRepository
                                     categoryid: catId,
                                     subcategoryid: subInfo.Id,
                                     name: name,
-                                    sku: sku ?? "",
+                                    sku: sku,
                                     saleRate: saleRate,
                                     discount: discount,
                                     brand: brand ?? "",
                                     unit: unit,
-                                    hsncode: hsn ?? "",
+                                    hsncode: hsn,
                                     basepurchaseprice: basePrice,
                                     mrp: mrp,
                                     defaultGst: gst,
@@ -648,10 +647,10 @@ public sealed class ProductRepository : IProductRepository
                                     categoryid: catId,
                                     subcategoryid: subInfo.Id,
                                     productname: name,
-                                    sku: sku ?? "",
+                                    sku: sku,
                                     brand: brand ?? "",
                                     unit: unit,
-                                    hsncode: hsn ?? "",
+                                    hsncode: hsn,
                                     basepurchaseprice: basePrice,
                                     mrp: mrp,
                                     discount: discount,

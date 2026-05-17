@@ -59,6 +59,7 @@ public sealed class CreatePriceListCommandHandler
                 var alreadyActiveInDb = await _context.PriceListItems
                     .AnyAsync(pi => pi.ProductId == item.productId &&
                                     pi.PriceList.PriceType == request.priceType &&
+                                    pi.PriceList.ApplicableGroup == request.applicableGroup &&
                                     pi.PriceList.IsActive == true, ct); // DB column check
 
                 if (alreadyActiveInDb)

@@ -50,6 +50,7 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                 var isAlreadyActiveElsewhere = await _context.PriceListItems
                     .AnyAsync(pi => pi.ProductId == item.productId &&
                                     pi.PriceList.PriceType == request.priceType &&
+                                    pi.PriceList.ApplicableGroup == entity.ApplicableGroup &&
                                     pi.PriceList.IsActive == true &&
                                     pi.PriceListId != request.id, cancellationToken);
 
