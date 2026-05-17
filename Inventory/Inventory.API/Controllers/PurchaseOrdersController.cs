@@ -339,16 +339,16 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
         public async Task<ActionResult<ProductPriceDto>> GetProductRate(
             
-            [FromQuery] Guid productId, [FromQuery] Guid priceListId)
+            [FromQuery] Guid productId, [FromQuery] Guid priceListId, [FromQuery] string? type)
         {
-            // Validation: Dono IDs honi chahiye
-            if (priceListId == Guid.Empty || productId == Guid.Empty)
+            // Validation: Product ID honi chahiye
+            if (productId == Guid.Empty)
             {
-                return BadRequest(new { message = "Invalid PriceList or Product selection." });
+                return BadRequest(new { message = "Invalid Product selection." });
             }
 
             // Repository call
-            var result = await _purchaseOrderRepository.GetPriceListRateAsync( productId, priceListId);
+            var result = await _purchaseOrderRepository.GetPriceListRateAsync(productId, priceListId, type);
 
             if (result == null)
             {

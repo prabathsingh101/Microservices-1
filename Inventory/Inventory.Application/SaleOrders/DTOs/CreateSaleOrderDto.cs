@@ -11,6 +11,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public Guid CompanyId { get; set; }
         public string? BranchId { get; set; }
         public Guid? CustomerId { get; set; }
+        public Guid? PriceListId { get; set; }
         public DateTime SoDate { get; set; }
         public DateTime? ExpectedDeliveryDate { get; set; }
         public string Remarks { get; set; }

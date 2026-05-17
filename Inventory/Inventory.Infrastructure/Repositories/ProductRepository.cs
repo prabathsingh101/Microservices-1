@@ -154,7 +154,7 @@ public sealed class ProductRepository : IProductRepository
         return products;
     }
 
-    public async Task<ProductRateDto> GetProductRateAsync(Guid productId, Guid? priceListId)
+    public async Task<ProductRateDto> GetProductRateAsync(Guid productId, Guid? priceListId, string? type = null)
     {
         // 1. Pehle hum dhoondhenge ki kaunsa rate aur discount apply karna hai
         decimal finalRate = 0;
@@ -179,20 +179,33 @@ public sealed class ProductRepository : IProductRepository
         }
         else
         {
-            // AUTOMATIC LOGIC: Latest Active Purchase PriceList dhoondho
-            var pli = await priceQuery
-                .Where(pli => pli.PriceList.IsActive == true &&
-                              pli.PriceList.PriceType == "PURCHASE" &&
-                              pli.PriceList.ValidFrom <= DateTime.Now &&
-                              pli.PriceList.ValidTo >= DateTime.Now)
-                .OrderByDescending(pli => pli.PriceList.CreatedOn)
-                .Select(pli => new { pli.Rate, pli.DiscountPercent })
-                .FirstOrDefaultAsync();
-
-            if (pli != null)
+            if (type == "SALES")
             {
-                finalRate = pli.Rate;
-                finalDiscount = pli.DiscountPercent;
+                // 🚀 SALE FALLBACK: Return default sale rate of the product
+                var product = await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId);
+                if (product != null)
+                {
+                    finalRate = product.SaleRate ?? 0m;
+                    finalDiscount = product.Discount;
+                }
+            }
+            else
+            {
+                // AUTOMATIC LOGIC: Latest Active Purchase PriceList dhoondho
+                var pli = await priceQuery
+                    .Where(pli => pli.PriceList.IsActive == true &&
+                                  pli.PriceList.PriceType == "PURCHASE" &&
+                                  pli.PriceList.ValidFrom <= DateTime.Now &&
+                                  pli.PriceList.ValidTo >= DateTime.Now)
+                    .OrderByDescending(pli => pli.PriceList.CreatedOn)
+                    .Select(pli => new { pli.Rate, pli.DiscountPercent })
+                    .FirstOrDefaultAsync();
+
+                if (pli != null)
+                {
+                    finalRate = pli.Rate;
+                    finalDiscount = pli.DiscountPercent;
+                }
             }
         }
 

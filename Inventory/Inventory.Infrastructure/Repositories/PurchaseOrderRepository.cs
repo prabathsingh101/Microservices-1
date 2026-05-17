@@ -509,22 +509,46 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         }).FirstOrDefaultAsync();
     }
 
-    public async Task<ProductPriceDto?> GetPriceListRateAsync( Guid productId, Guid priceListId)
+    public async Task<ProductPriceDto?> GetPriceListRateAsync(Guid productId, Guid priceListId, string? type = null)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
-        return await _context.PriceListItems.AsNoTracking()
-            .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId)
-            .Select(pi => new ProductPriceDto
+
+        if (priceListId != Guid.Empty)
+        {
+            return await _context.PriceListItems.AsNoTracking()
+                .Where(pi => pi.PriceListId == priceListId && pi.ProductId == productId && pi.CompanyId == companyId)
+                .Select(pi => new ProductPriceDto
+                {
+                    ProductId = pi.ProductId,
+                    Rate = pi.Rate, // From dbo.PriceListItems
+                    Unit = pi.Unit, // From dbo.PriceListItems
+                                    // From dbo.Products.DefaultGst
+                    GstPercent = pi.Product.DefaultGst ?? 0,
+                    DiscountPercent = pi.DiscountPercent // Fixed: Mapping discount from price list
+                })
+                .FirstOrDefaultAsync();
+        }
+        else
+        {
+            if (type == "SALES")
             {
-                ProductId = pi.ProductId,
-                Rate = pi.Rate, // From dbo.PriceListItems
-                Unit = pi.Unit, // From dbo.PriceListItems
-                                // From dbo.Products.DefaultGst
-                GstPercent = pi.Product.DefaultGst ?? 0,
-                DiscountPercent = pi.DiscountPercent // Fixed: Mapping discount from price list
-            })
-            .FirstOrDefaultAsync();
+                // 🚀 SALE FALLBACK: Return default sale rate of the product
+                var product = await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId);
+                if (product != null)
+                {
+                    return new ProductPriceDto
+                    {
+                        ProductId = productId,
+                        Rate = product.SaleRate ?? 0m,
+                        Unit = product.Unit ?? "PCS",
+                        GstPercent = product.DefaultGst ?? 0,
+                        DiscountPercent = product.Discount
+                    };
+                }
+            }
+            return null;
+        }
     }
 
     /// <summary>

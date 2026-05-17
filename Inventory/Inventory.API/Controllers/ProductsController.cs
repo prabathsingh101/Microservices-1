@@ -165,9 +165,9 @@ namespace Inventory.API.Controllers
 
         [HttpGet("rate")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> GetRate([FromQuery] Guid productId, [FromQuery] Guid? priceListId)
+        public async Task<IActionResult> GetRate([FromQuery] Guid productId, [FromQuery] Guid? priceListId, [FromQuery] string? type)
         {
-            var result = await _productRepository.GetProductRateAsync(productId, priceListId);
+            var result = await _productRepository.GetProductRateAsync(productId, priceListId, type);
             return Ok(result);
         }
 

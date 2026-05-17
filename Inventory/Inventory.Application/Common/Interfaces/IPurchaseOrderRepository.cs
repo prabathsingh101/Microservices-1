@@ -38,7 +38,7 @@ namespace Inventory.Application.Common.Interfaces
 
         Task<POHeaderDetailsDto?> GetPOHeaderAsync(Guid lastPurchaseOrderId);
 
-        Task<ProductPriceDto?> GetPriceListRateAsync( Guid productId, Guid priceListId);
+        Task<ProductPriceDto?> GetPriceListRateAsync(Guid productId, Guid priceListId, string? type = null);
 
         Task<bool> BulkSentForApprovalAsync(List<Guid> ids);
 

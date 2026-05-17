@@ -6,5 +6,5 @@ using System.Text;
 
 namespace Inventory.Application.PriceLists.Queries.GetPriceListById
 {
-    public record GetPriceListsLookUpQuery(Guid? CompanyId = null) : IRequest<List<PriceListDto>>;
+    public record GetPriceListsLookUpQuery(Guid? CompanyId = null, string? PriceType = null) : IRequest<List<PriceListDto>>;
 }

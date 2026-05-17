@@ -21,10 +21,11 @@ public sealed class GetPriceListsLookUpQueryHandler
         CancellationToken cancellationToken)
     {
         // 1. FAST EXECUTION: .AsNoTracking() use kiya hai
-        // 2. STRICT DROPDOWN FILTER: Sirf Active aur Purchase type hi dropdown mein aayega
+        // 2. STRICT DROPDOWN FILTER: Sirf Active aur specified type hi dropdown mein aayega (Default: PURCHASE)
+        var targetType = request.PriceType ?? "PURCHASE";
         var query = _context.PriceLists
             .AsNoTracking()
-            .Where(pl => pl.IsActive == true && pl.PriceType == "PURCHASE");
+            .Where(pl => pl.IsActive == true && pl.PriceType == targetType);
 
         if (request.CompanyId.HasValue)
         {
@@ -39,7 +40,8 @@ public sealed class GetPriceListsLookUpQueryHandler
                 name = pl.Name,
                 code = pl.Code,
                 isActive = pl.IsActive, 
-                priceType = pl.PriceType
+                priceType = pl.PriceType,
+                applicableGroup = pl.ApplicableGroup
             })
             .ToListAsync(cancellationToken);
     }

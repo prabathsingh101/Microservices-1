@@ -78,6 +78,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             BranchId = dto.BranchId,
             SONumber = finalSONo,
             CustomerId = dto.CustomerId,
+            PriceListId = dto.PriceListId,
             SODate = dto.SoDate,
             ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
             SubTotal = dto.SubTotal,

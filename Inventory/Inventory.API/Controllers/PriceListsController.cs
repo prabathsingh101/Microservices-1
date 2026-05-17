@@ -124,7 +124,7 @@ namespace Inventory.API.Controllers
 
         [HttpGet("dropdown")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
-        public async Task<IActionResult> dropdown()
+        public async Task<IActionResult> dropdown([FromQuery] string? type)
         {
             // 🚀 SMART INJECTION: Get CompanyId from Claims
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
@@ -134,7 +134,7 @@ namespace Inventory.API.Controllers
                 companyId = cid;
             }
 
-            var result = await _mediator.Send(new GetPriceListsLookUpQuery(companyId));
+            var result = await _mediator.Send(new GetPriceListsLookUpQuery(companyId, type));
             return Ok(result);
         }
 
