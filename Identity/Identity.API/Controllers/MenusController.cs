@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Identity.Application.Interfaces;
 using Identity.Domain.Menus;
+using Identity.Application.DTOs;
 
 namespace Identity.API.Controllers;
 
@@ -54,6 +55,13 @@ public class MenusController : ControllerBase
     {
         await _menuService.UpdateAsync(menu);
         return Ok(menu);
+    }
+
+    [HttpPut("update-orders")]
+    public async Task<IActionResult> UpdateOrders(List<MenuOrderUpdateDto> updates)
+    {
+        await _menuService.UpdateOrdersAsync(updates);
+        return Ok();
     }
 
     [HttpDelete("{id}")]

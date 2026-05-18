@@ -33,6 +33,7 @@ public class IdentityDbContext : DbContext
     public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<Menu> Menus { get; set; }
     public DbSet<RolePermission> RolePermissions { get; set; }
+    public DbSet<PermissionAuditLog> PermissionAuditLogs { get; set; }
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<RolePrintSetting> RolePrintSettings { get; set; }
@@ -104,9 +105,19 @@ public class IdentityDbContext : DbContext
             entity.HasKey(rs => rs.Id);
         });
 
+        builder.Entity<PermissionAuditLog>(entity =>
+        {
+            entity.ToTable("PermissionAuditLogs");
+            entity.HasKey(pal => pal.Id);
+        });
+
         // 🛡️ MULTI-TENANT GLOBAL QUERY FILTER
         builder.Entity<User>().HasQueryFilter(u =>
             _isPlatformAdmin ? true : u.CompanyId == _currentCompanyId
+        );
+
+        builder.Entity<PermissionAuditLog>().HasQueryFilter(pal =>
+            _isPlatformAdmin ? true : pal.CompanyId == _currentCompanyId
         );
 
         builder.Entity<Subscription>().HasQueryFilter(s =>

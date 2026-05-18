@@ -1,5 +1,6 @@
 using Identity.Application.Interfaces;
 using Identity.Domain.Menus;
+using Identity.Application.DTOs;
 
 namespace Identity.Application.Services;
 
@@ -35,5 +36,10 @@ public class MenuService : IMenuService
     public async Task DeleteAsync(Guid id)
     {
         await _menuRepository.DeleteAsync(id);
+    }
+
+    public async Task UpdateOrdersAsync(IEnumerable<MenuOrderUpdateDto> updates)
+    {
+        await _menuRepository.UpdateOrdersAsync(updates);
     }
 }

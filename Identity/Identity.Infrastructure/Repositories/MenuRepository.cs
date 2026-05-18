@@ -2,6 +2,7 @@ using Identity.Application.Interfaces;
 using Identity.Domain.Menus;
 using Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Identity.Application.DTOs;
 
 namespace Identity.Infrastructure.Repositories;
 
@@ -54,5 +55,18 @@ public class MenuRepository : IMenuRepository
             _context.Menus.Remove(menu);
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task UpdateOrdersAsync(IEnumerable<MenuOrderUpdateDto> updates)
+    {
+        foreach (var update in updates)
+        {
+            var menu = await _context.Menus.FindAsync(update.Id);
+            if (menu != null)
+            {
+                menu.Order = update.Order;
+            }
+        }
+        await _context.SaveChangesAsync();
     }
 }

@@ -13,15 +13,18 @@ public class RolesController : ControllerBase
     private readonly IRoleRepository _roleRepository;
     private readonly IRolePermissionRepository _permissionRepository;
     private readonly Identity.Infrastructure.Persistence.IdentityDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
     public RolesController(
         IRoleRepository roleRepository, 
         IRolePermissionRepository permissionRepository,
-        Identity.Infrastructure.Persistence.IdentityDbContext context)
+        Identity.Infrastructure.Persistence.IdentityDbContext context,
+        ICurrentUserService currentUserService)
     {
         _roleRepository = roleRepository;
         _permissionRepository = permissionRepository;
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -197,7 +200,15 @@ public class RolesController : ControllerBase
             }
         }
 
-        await _permissionRepository.UpdateRolePermissionsAsync(targetRoleId, permissions);
+        var actionByUserId = _currentUserService.UserId ?? Guid.Empty;
+        var actionByUserName = User.Identity?.Name ?? "System";
+
+        await _permissionRepository.UpdateRolePermissionsAsync(
+            targetRoleId, 
+            permissions, 
+            actionByUserId, 
+            actionByUserName
+        );
         return Ok();
     }
 
@@ -241,6 +252,17 @@ public class RolesController : ControllerBase
 
         await printRepo.UpdateRolePrintSettingsAsync(roleId, settings, targetCompanyId, targetBranchId);
         return Ok();
+    }
+
+    [HttpGet("permission-audit-logs")]
+    public async Task<IActionResult> GetPermissionAuditLogs()
+    {
+        var logs = await _context.PermissionAuditLogs
+            .OrderByDescending(l => l.CreatedDate)
+            .Take(100)
+            .ToListAsync();
+            
+        return Ok(logs);
     }
 
     // --- Role Management CRUD ---

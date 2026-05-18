@@ -32,7 +32,7 @@ public class RolePermissionRepository : IRolePermissionRepository
         return userPermissions;
     }
 
-    public async Task UpdateRolePermissionsAsync(Guid roleId, IEnumerable<RolePermission> permissions)
+    public async Task UpdateRolePermissionsAsync(Guid roleId, IEnumerable<RolePermission> permissions, Guid actionByUserId, string actionByUserName, Guid? targetUserId = null, string? targetUserName = null)
     {
         // 0. Get Role's CompanyId first to ensure correct tenant association
         var role = await _context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roleId);
@@ -76,6 +76,27 @@ public class RolePermissionRepository : IRolePermissionRepository
         {
             _context.RolePermissions.RemoveRange(toRemove);
         }
+
+        // 3. Create Audit Log
+        var details = $"Updated permissions for Role: {role?.RoleName ?? roleId.ToString()}";
+        if (incomingUserId.HasValue || targetUserId.HasValue)
+        {
+            details += $", User: {targetUserName ?? targetUserId?.ToString() ?? incomingUserId?.ToString()}";
+        }
+        
+        var auditLog = new PermissionAuditLog(
+            actionByUserId,
+            actionByUserName,
+            "Updated Permissions",
+            details,
+            targetUserId ?? incomingUserId,
+            targetUserName,
+            roleId,
+            role?.RoleName,
+            companyId
+        );
+
+        await _context.PermissionAuditLogs.AddAsync(auditLog);
 
         await _context.SaveChangesAsync();
     }
