@@ -82,6 +82,13 @@ public class RolePermissionRepository : IRolePermissionRepository
 
     public async Task<IEnumerable<Application.DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds, Guid? userId = null)
     {
+        var roleNames = await _context.Roles
+            .Where(r => roleIds.Contains(r.Id))
+            .Select(r => r.RoleName.ToLower())
+            .ToListAsync();
+            
+        bool isAdmin = roleNames.Any(n => n.Contains("admin"));
+
         var dbPermissions = await _context.RolePermissions
             .IgnoreQueryFilters()
             .Include(rp => rp.Menu)
@@ -124,7 +131,7 @@ public class RolePermissionRepository : IRolePermissionRepository
                     AdditionalActions = additionalActionsStr
                 });
             }
-            else
+            else if (!userId.HasValue || isAdmin)
             {
                 var rolePerms = group.Where(rp => rp.UserId == null).ToList();
                 if (rolePerms.Any())
