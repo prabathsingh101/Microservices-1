@@ -26,7 +26,7 @@ internal sealed class DeleteSubcategoryCommandHandler
         if (subcategory is null)
             throw new KeyNotFoundException("Subcategory not found");
 
-       await _repository.DeleteAsync(subcategory);
+        await _repository.DeleteAsync(subcategory);
 
         await _context.SaveChangesAsync(cancellationToken);
 

@@ -67,7 +67,7 @@ public sealed class ProductConfiguration
         builder.HasOne(p => p.Subcategory)
                .WithMany()
                .HasForeignKey(p => p.SubcategoryId)
-               .OnDelete(DeleteBehavior.Restrict);
+               .OnDelete(DeleteBehavior.Cascade);
 
         // FK ? Default Warehouse/Rack
         builder.HasOne(p => p.DefaultWarehouse)

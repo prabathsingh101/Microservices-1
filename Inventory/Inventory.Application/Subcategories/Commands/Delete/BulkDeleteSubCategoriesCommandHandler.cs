@@ -3,6 +3,7 @@ using Inventory.Application.Common.Interfaces;
 using MediatR;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Inventory.Application.Subcategories.Commands.Delete
@@ -26,19 +27,14 @@ namespace Inventory.Application.Subcategories.Commands.Delete
             CancellationToken cancellationToken)
         {
             if (request.Ids == null || request.Ids.Count == 0)
-                throw new InvalidOperationException("No categories selected");
+                throw new InvalidOperationException("No subcategories selected");
 
-            // ? CHECK DEPENDENCIES FIRST
-            if (await _repository.HasSubcategoriesAsync(request.Ids))
-                throw new InvalidOperationException(
-                    "One or more categories contain subcategories and cannot be deleted");
+            var subcategories = await _repository.GetByIdsAsync(request.Ids);
 
-            var categories = await _repository.GetByIdsAsync(request.Ids);
+            if (!subcategories.Any())
+                throw new KeyNotFoundException("Subcategories not found");
 
-            if (!categories.Any())
-                throw new KeyNotFoundException("Categories not found");
-
-            _repository.DeleteRange(categories);
+            _repository.DeleteRange(subcategories);
 
             await _context.SaveChangesAsync(cancellationToken);
         }
