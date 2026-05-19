@@ -104,6 +104,22 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
                 .SumAsync(x => x.DamagedStock);
 
+            var topSellingQuery = _context.SaleOrderItems.AsNoTracking();
+            if (!_currentUserService.IsPlatformAdmin)
+            {
+                topSellingQuery = topSellingQuery.Where(x => x.CompanyId == companyId && (x.SaleOrder.BranchId == null || string.IsNullOrEmpty(branchId) || x.SaleOrder.BranchId == branchId));
+            }
+
+            var topSelling = await topSellingQuery
+                .GroupBy(x => x.ProductName)
+                .Select(g => new { ProductName = g.Key, TotalQty = g.Sum(x => x.Qty) })
+                .OrderByDescending(x => x.TotalQty)
+                .Take(5)
+                .ToListAsync();
+
+            chart.TopSellingProducts = topSelling.Select(x => x.ProductName ?? "Unknown").ToList();
+            chart.TopSellingQtys = topSelling.Select(x => x.TotalQty).ToList();
+
             return chart;
         }
 

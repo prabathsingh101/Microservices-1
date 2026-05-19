@@ -11,4 +11,8 @@ public class DashboardChartDto
     public int FinishedGoods { get; set; }
     public int RawMaterials { get; set; }
     public int DamagedItems { get; set; }
+
+    // Most Selling Items (Bar Chart)
+    public List<string> TopSellingProducts { get; set; } = new();
+    public List<decimal> TopSellingQtys { get; set; } = new();
 }
