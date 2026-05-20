@@ -38,13 +38,13 @@ public class OnboardingService : IOnboardingService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task BootstrapCompanyAsync(Guid companyId, string companyName)
+    public async Task BootstrapCompanyAsync(Guid companyId, string companyCode, string companyName, string? overrideAuthToken = null)
     {
-        // 🚀 IDEMPOTENCY: Check if roles already exist for this company
+        // 🚀 IDEMPOTENCY: Check if roles already exist for this company (ignore global roles)
         var existingRoles = await _roleRepository.GetByCompanyAsync(companyId);
-        if (existingRoles.Any())
+        if (existingRoles.Any(r => r.CompanyId == companyId))
         {
-             // If roles exist, skip to syncing the profile just in case it's missing
+             // If roles exist for THIS company, skip to syncing the profile just in case it's missing
              goto SyncProfile;
         }
 
@@ -107,11 +107,18 @@ public class OnboardingService : IOnboardingService
             var createCompanyRequest = new 
             {
                 companyId = companyId.ToString(),
+                companyCode = companyCode,
                 name = companyName,
-                tagline = "Welcome to " + companyName,
+                tagline = $"Welcome to {companyName}",
+                primaryEmail = string.Empty,
+                isInternalSync = true, // 🚀 FIX: Prevent infinite loop/duplicate subscription
                 registrationNumber = "PENDING",
                 gstin = "PENDING",
                 primaryPhone = "0000000000",
+                saleReturnWindowValue = 7,
+                saleReturnWindowUnit = "Days",
+                purchaseReturnWindowValue = 7,
+                purchaseReturnWindowUnit = "Days",
                 addresses = new[] { new { branchName = "Head Office", addressLine1 = "Update your address", city = "Update City", state = "State", stateCode = "00", pinCode = "000000", country = "India", isHeadOffice = true } },
                 bankInfo = new { id = 0, bankName = "Update Bank", branchName = "Update Branch", accountNumber = "0000", ifscCode = "IFSC000", accountType = "Current" },
                 authorizedSignatories = new List<object>()
@@ -152,10 +159,12 @@ public class OnboardingService : IOnboardingService
             // We spoof the X-Company-Id header for the CurrentUserService fallback.
             requestMessage.Headers.Add("X-Company-Id", companyId.ToString());
             
-            // Pass the original Authorization token if available
-            var authHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+            // Pass the original Authorization token if available, or the override token
+            var authHeader = overrideAuthToken ?? _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
             if (!string.IsNullOrEmpty(authHeader))
             {
+                if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    authHeader = "Bearer " + authHeader;
                 requestMessage.Headers.Add("Authorization", authHeader);
             }
             

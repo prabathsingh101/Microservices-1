@@ -64,6 +64,20 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id);
     }
 
+    public async Task<User?> GetGlobalUserWithRolesByEmailAsync(string email)
+    {
+        return await _context.Users
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                    .ThenInclude(r => r.RolePermissions)
+                        .ThenInclude(rp => rp.Menu)
+            .Include(u => u.RefreshTokens)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(u => u.Email == email);
+    }
+
     public async Task<User?> GetWithRolesByEmailAsync(string email, Guid? companyId)
     {
         // 🚀 UPDATED: Including RolePermissions and Menus for faster login logic

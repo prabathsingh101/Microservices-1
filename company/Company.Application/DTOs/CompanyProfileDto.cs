@@ -82,6 +82,7 @@ namespace Company.Application.DTOs
     public record UpsertCompanyRequest(
         Guid? CompanyId,
         string? CompanyCode,
+        bool? IsInternalSync, // 🚀 FIX: Flag to prevent automatic subscription creation on sync
         string Name,
         string? Tagline,
         string RegistrationNumber,

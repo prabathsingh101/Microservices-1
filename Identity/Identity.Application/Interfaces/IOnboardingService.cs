@@ -8,5 +8,5 @@ public interface IOnboardingService
     /// <summary>
     /// Creates default roles and permissions for a new company/tenant.
     /// </summary>
-    Task BootstrapCompanyAsync(Guid companyId, string companyName);
+    Task BootstrapCompanyAsync(Guid companyId, string companyCode, string companyName, string? overrideAuthToken = null);
 }

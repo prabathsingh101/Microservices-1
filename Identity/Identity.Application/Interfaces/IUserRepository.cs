@@ -11,6 +11,7 @@ public interface IUserRepository
     Task AddAsync(User user);
 
     Task<User?> GetByEmailAsync(string email, Guid? companyId);
+    Task<User?> GetGlobalUserWithRolesByEmailAsync(string email);
     Task<User?> GetWithRolesByEmailAsync(string email, Guid? companyId);
     Task<User?> GetByRefreshTokenAsync(string refreshToken);
     Task<User?> GetByResetTokenAsync(string resetToken);

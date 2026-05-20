@@ -70,7 +70,7 @@ namespace Identity.API.Controllers
                 user.SetCompanyId(companyId);
 
                 // 5. BOOTSTRAP: Create Roles and Permissions
-                await _onboardingService.BootstrapCompanyAsync(companyId, request.CompanyName);
+                await _onboardingService.BootstrapCompanyAsync(companyId, code, request.CompanyName);
 
                 // 6. Assign Admin Role to this initial User
                 var adminRole = await _context.Roles

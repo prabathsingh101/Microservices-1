@@ -159,7 +159,7 @@ namespace Identity.API.Controllers
             await _context.SaveChangesAsync();
 
             // 🚀 BOOTSTRAP: Create Roles/Menus for this Company automatically
-            await _onboardingService.BootstrapCompanyAsync(dto.CompanyId, dto.CompanyName);
+            await _onboardingService.BootstrapCompanyAsync(dto.CompanyId, subscription.CompanyCode, dto.CompanyName);
 
             // 🚀 LINK USER: If UserId provided, link this user to the company
             if (dto.UserId.HasValue)

@@ -70,6 +70,11 @@ public class IdentityDbContext : DbContext
             entity.HasOne(ur => ur.Role)
                   .WithMany()
                   .HasForeignKey(ur => ur.RoleId);
+
+            // 🛡️ FIX: Define relationship with User
+            entity.HasOne(ur => ur.User)
+                  .WithMany(u => u.UserRoles)
+                  .HasForeignKey(ur => ur.UserId);
         });
 
         builder.Entity<Menu>(entity =>

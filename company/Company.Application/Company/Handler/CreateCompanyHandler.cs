@@ -287,30 +287,33 @@ namespace Company.Application.Company.Commands.Create.Handler
             // 🚀 AUTOMATIC SUBSCRIPTION BRIDGE:
             // When a company is created manually from side menu, we trigger Identity to create a default subscription
             // so it appears in the management list and the company becomes "Active".
-            
-            // Fetch configured Identity URL from appsettings.json
-            var identityUrl = _configuration["ServiceUrls:IdentityApi"];
-            
-            if (string.IsNullOrEmpty(identityUrl)) 
+            // FIX: We skip this if the creation is triggered internally (e.g. from Identity Social Login)
+            if (!cmd.Request.IsInternalSync.GetValueOrDefault())
             {
-                throw new Exception("[Configuration Error]: 'ServiceUrls:IdentityApi' is missing in appsettings.json. Cannot sync subscription.");
-            }
-            
-            var client = _httpClientFactory.CreateClient();
-            var onboardReq = new
-            {
-                CompanyId = resultId,
-                CompanyName = company.Name,
-                CompanyCode = company.CompanyCode,
-                PlanType = "Trial",
-                DurationDays = 14
-            };
+                // Fetch configured Identity URL from appsettings.json
+                var identityUrl = _configuration["ServiceUrls:IdentityApi"];
+                
+                if (string.IsNullOrEmpty(identityUrl)) 
+                {
+                    throw new Exception("[Configuration Error]: 'ServiceUrls:IdentityApi' is missing in appsettings.json. Cannot sync subscription.");
+                }
+                
+                var client = _httpClientFactory.CreateClient();
+                var onboardReq = new
+                {
+                    CompanyId = resultId,
+                    CompanyName = company.Name,
+                    CompanyCode = company.CompanyCode,
+                    PlanType = "Trial",
+                    DurationDays = 14
+                };
 
-            var response = await client.PostAsJsonAsync($"{identityUrl}/api/admin/subscriptions/onboard", onboardReq);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorMsg = await response.Content.ReadAsStringAsync();
-                throw new Exception($"[Subscription Sync Failed]: Identity service returned {response.StatusCode}. Details: {errorMsg}");
+                var response = await client.PostAsJsonAsync($"{identityUrl}/api/admin/subscriptions/onboard", onboardReq);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorMsg = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"[Subscription Sync Failed]: Identity service returned {response.StatusCode}. Details: {errorMsg}");
+                }
             }
 
             return resultId;

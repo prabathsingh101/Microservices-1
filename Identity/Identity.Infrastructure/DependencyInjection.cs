@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, Services.CurrentUserService>();
         services.AddScoped<IOnboardingService, Services.OnboardingService>();
+        services.AddScoped<IGoogleTokenVerifier, Services.GoogleTokenVerifier>();
         return services;
     }
 }

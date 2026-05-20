@@ -14,7 +14,9 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
     public string? BranchId { get; set; } // Link to their specific branch
     public string UserName { get; private set; } = default!;
     public string Email { get; private set; } = default!;
-    public string PasswordHash { get; private set; } = default!;
+    public string? PasswordHash { get; private set; }
+    public string AuthProvider { get; private set; } = "local"; // "local" or "google"
+    public string? GoogleId { get; private set; }
     public bool IsActive { get; private set; } = true;
 
     // Reset Token
@@ -32,9 +34,19 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
         Email = email;
     }
 
-    public void SetPasswordHash(string hash)
+    public void SetPasswordHash(string? hash)
     {
         PasswordHash = hash;
+    }
+
+    public void SetAuthProvider(string provider)
+    {
+        AuthProvider = provider;
+    }
+
+    public void SetGoogleId(string googleId)
+    {
+        GoogleId = googleId;
     }
 
     public void SetCompanyId(Guid? companyId)

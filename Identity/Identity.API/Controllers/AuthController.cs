@@ -1,10 +1,12 @@
-﻿using Identity.Application.Commands.Logout;
+using Identity.Application.Commands.Logout;
 using Identity.Application.Commands.RegisterUser;
+using Identity.Application.Commands.SocialLogin;
 using Identity.Application.DTOs;
 using Identity.Application.Queries.LoginUser;
 using Identity.Application.Commands.ChangePassword;
 using Identity.Application.Commands.ForgotPassword;
 using Identity.Application.Commands.ResetPassword;
+using Identity.API.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -43,6 +45,21 @@ namespace Identity.API.Controllers
             [FromBody] LoginUserQuery query)
         {
             var result = await _mediator.Send(query);
+
+            if (!result.IsSuccess)
+                return Unauthorized(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        // ---------------- GOOGLE SOCIAL LOGIN ----------------
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.IdToken))
+                return BadRequest("Google ID token is required.");
+
+            var result = await _mediator.Send(new SocialLoginCommand(request.IdToken));
 
             if (!result.IsSuccess)
                 return Unauthorized(result.Error);

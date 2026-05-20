@@ -65,6 +65,19 @@ public class LoginUserQueryHandler
         Console.WriteLine($"[DEBUG-HANDLER] User found. ID: {user.Id}");
 
         // 2. Verify Password
+        // 🔒 Social login users have no password — block normal login for them
+        if (user.AuthProvider != "local")
+        {
+            Console.WriteLine($"[DEBUG-HANDLER] Social login user ({user.AuthProvider}) tried normal login. Blocked.");
+            return Result<AuthResponse>.Failure("This account uses Google Sign-In. Please use 'Login with Google'.");
+        }
+
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            Console.WriteLine("[DEBUG-HANDLER] User has no password hash. Cannot verify.");
+            return Result<AuthResponse>.Failure("Invalid credentials");
+        }
+
         var verify = _hasher.VerifyHashedPassword(
             user,
             user.PasswordHash,
