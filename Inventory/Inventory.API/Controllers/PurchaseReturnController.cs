@@ -22,7 +22,7 @@ namespace Inventory.API.Controllers
         // GET: api/PurchaseReturn/rejected-items/{supplierId}
         // Recommended Route
         [HttpGet("rejected-items/{supplierId}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetRejectedItems(Guid supplierId)
         {
             try
@@ -42,7 +42,7 @@ namespace Inventory.API.Controllers
         }
 
 
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         [HttpGet("suppliers-purchase-return")]
         public async Task<IActionResult> GetSuppliersWithRejections()
         {
@@ -62,7 +62,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("get-received-stock/{supplierId}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetReceivedStock(Guid supplierId)
         {
             try
@@ -79,7 +79,7 @@ namespace Inventory.API.Controllers
 
         // POST: api/PurchaseReturn/create
         [HttpPost("create")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> CreateReturn([FromBody] PurchaseReturnDto returnDto)
         {
             if (returnDto == null || returnDto.Items == null || !returnDto.Items.Any())
@@ -184,7 +184,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("list")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<ActionResult<PurchaseReturnPagedResponse>> GetList(
              [FromQuery] string? filter,        // Frontend se 'filter' key aa rahi hai [cite: 2026-02-04]
              [FromQuery] int pageIndex = 0,
@@ -212,7 +212,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("details/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetById(Guid id)        
         {
            
@@ -227,7 +227,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("export-excel")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> ExportExcel([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
             var fileContent = await _repository.ExportPurchaseReturnsToExcelAsync(fromDate, toDate);
@@ -238,7 +238,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("pending-prs")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetPendingPRs()
         {
             var result = await _repository.GetPendingPurchaseReturnsAsync();
@@ -246,7 +246,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("bulk-outward")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> BulkOutward([FromBody] List<Guid> ids)
         {
             if (ids == null || !ids.Any()) return BadRequest("No IDs provided");
@@ -256,7 +256,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("summary")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetSummary([FromQuery] bool isQuick = false)
         {
             var result = await _repository.GetPurchaseReturnSummaryAsync(isQuick);

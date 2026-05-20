@@ -21,7 +21,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("Save")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> Save([FromBody] CreateGRNCommand command)
         {
             // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
@@ -61,7 +61,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("GetPOData")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetPOData([FromQuery] string poIds, [FromQuery] Guid? grnHeaderId = null, [FromQuery] string? gatePassNo = null)
         {
             // Mediator query mein ab string poIds jayenge
@@ -71,7 +71,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("grn-list")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetGRNList(
         [FromQuery] string? search = "",
         [FromQuery] string? sortField = "id", // Default value rakhein
@@ -86,7 +86,7 @@ namespace Inventory.API.Controllers
 
 
         [HttpGet("print-data/{grnNumber}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetPrintData(string grnNumber)
         {
             // String parameter receive kar rahe hain
@@ -99,7 +99,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("bulk-create")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> CreateBulkGrn([FromBody] BulkGrnRequestDto request)
         {
             // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
@@ -135,7 +135,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("rejection-history/{grnNumber}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetRejectionHistory([FromRoute] string grnNumber)
         {
             var result = await _grnRepository.GetGrnRejectionHistoryAsync(grnNumber);

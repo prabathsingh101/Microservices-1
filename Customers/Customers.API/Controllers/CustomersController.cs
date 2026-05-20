@@ -27,7 +27,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Create(CreateCustomerDto dto)
     {
         var id = await _mediator.Send(new CreateCustomerCommand(dto));
@@ -35,7 +35,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost("paged")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetCustomers([FromBody] GridRequest request)
     {
         var result = await _mediator.Send(new GetCustomersPagedQuery(request));
@@ -72,7 +72,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("lookup")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetCustomerLookup()
     {
         var customers = await _customerRepo.GetCustomersLookupAsync();
@@ -80,7 +80,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _mediator.Send(new GetCustomerByIdQuery(id));
@@ -89,7 +89,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateCustomerDto dto)
     {
         var result = await _mediator.Send(new UpdateCustomerCommand(id, dto));
@@ -98,7 +98,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _mediator.Send(new DeleteCustomerCommand(id));
@@ -107,7 +107,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("search-ids")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<ActionResult<List<Guid>>> SearchIdsByName([FromQuery] string name)
     {
         var ids = await _customerRepo.GetIdsByNameAsync(name);

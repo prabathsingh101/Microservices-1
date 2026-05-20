@@ -31,7 +31,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Create(CreateRackCommand command)
     {
         var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
@@ -46,7 +46,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Update(Guid id, UpdateRackCommand command)
     {
         if (id != command.Id)
@@ -64,7 +64,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Delete(Guid id)
     {
         await _mediator.Send(new DeleteRackCommand(id));
@@ -72,7 +72,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetAll()
     {
         var result = await _mediator.Send(new GetRacksQuery());
@@ -80,7 +80,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpGet("warehouse/{warehouseId}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetByWarehouse(Guid warehouseId)
     {
         var result = await _rackRepository.GetByWarehouseIdAsync(warehouseId);
@@ -88,7 +88,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpPost("upload-excel")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> UploadExcel([FromForm] IFormFile file)
     {
         if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
@@ -118,7 +118,7 @@ public sealed class RacksController : ControllerBase
     }
 
     [HttpGet("download-template")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public IActionResult DownloadTemplate()
     {
         var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "rack_template.csv");

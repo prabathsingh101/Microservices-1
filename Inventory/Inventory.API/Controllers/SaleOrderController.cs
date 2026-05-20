@@ -23,7 +23,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpPost("save")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> Save([FromBody] CreateSaleOrderDto dto)
     {
         // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
@@ -55,7 +55,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpPost("export")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> ExportSaleOrderReport([FromBody] List<Guid> orderIds) // Guid
     {
         // 1. Validation check karein taaki 400 error handle ho sake
@@ -104,7 +104,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> GetSaleOrders(
      [FromQuery] string searchTerm = "",
      [FromQuery] int pageNumber = 1,
@@ -143,7 +143,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpPatch("{id}/status")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] StatusUpdateDto request)
     {
         if (request == null || string.IsNullOrEmpty(request.Status))
@@ -166,7 +166,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _mediator.Send(new DeleteSaleOrderCommand(id));
@@ -184,7 +184,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<ActionResult<SaleOrderDetailDto>> GetOrder(Guid id)
     {
         var order = await _saleRepo.GetSaleOrderByIdAsync(id);
@@ -198,7 +198,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpGet("export-list")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> ExportSaleOrderList()
     {
         // Excel export ke liye hum pagination bypass karenge
@@ -253,7 +253,7 @@ public class SaleOrderController : ControllerBase
 
 
     [HttpGet("orders-by-customer/{customerId}")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> GetOrdersByCustomer(Guid customerId)
     {
         if (customerId == Guid.Empty)
@@ -273,7 +273,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpGet("grid-items/{saleOrderId}")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> GetGridItems(Guid saleOrderId)
     {
         if (saleOrderId == Guid.Empty) return BadRequest("Invalid Sale Order ID");
@@ -288,7 +288,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpGet("pending-sos")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> GetPendingSOs()
     {
         var result = await _mediator.Send(new GetPendingSOQuery());
@@ -296,7 +296,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpGet("check-phone")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
     public async Task<IActionResult> CheckPhone([FromQuery] string phone)
     {
         if (string.IsNullOrEmpty(phone)) return BadRequest("Phone is required");

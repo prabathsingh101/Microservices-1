@@ -29,7 +29,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Create([FromBody] CreateSupplierDto dto)
         {
             // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
@@ -55,7 +55,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetAll()
         {
             var query = new GetAllSuppliersQuery();
@@ -64,7 +64,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Update(Guid id, [FromBody] CreateSupplierDto dto)
         {
             // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
@@ -89,7 +89,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(new DeleteSupplierCommand(id));
@@ -97,7 +97,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var query = new GetSupplierByIdQuery(id);
@@ -112,7 +112,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpPost("paged")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetSuppliers([FromBody] GridRequest query)
         {
             var result = await _mediator.Send(new GetSuppliersPagedQuery(query));
@@ -144,7 +144,7 @@ namespace Suppliers.API.Controllers
         }
 
         [HttpGet("search-ids")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<ActionResult<List<Guid>>> SearchIdsByName([FromQuery] string name)
         {
             var ids = await _supplierRepository.GetIdsByNameAsync(name);

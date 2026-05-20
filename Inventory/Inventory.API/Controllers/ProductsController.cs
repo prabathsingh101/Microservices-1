@@ -34,7 +34,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("paged")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
         {
             var result = await _mediator.Send(new GetProductsPagedQuery(request));
@@ -42,7 +42,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetAll()
         {
             var result = await _mediator.Send(new GetProductsQuery());
@@ -50,7 +50,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _mediator.Send(new GetProductByIdQuery(id));
@@ -58,7 +58,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Create(CreateProductCommand command)
         {
             var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
@@ -81,7 +81,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Update(Guid id, UpdateProductCommand command)
         {
             if (id != command.Id)
@@ -107,7 +107,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Delete(Guid id)
         {
             await _mediator.Send(new DeleteProductCommand(id));
@@ -115,7 +115,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("upload-excel")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> UploadExcel([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
@@ -140,7 +140,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("check-duplicate")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> CheckDuplicate([FromQuery] string name, [FromQuery] Guid? excludeId = null)
         {
             if (string.IsNullOrWhiteSpace(name)) return Ok(new { exists = false });
@@ -156,7 +156,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("search")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Search([FromQuery] string term)
         {
             var result = await _productRepository.SearchActiveProductsAsync(term);
@@ -164,7 +164,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("rate")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetRate([FromQuery] Guid productId, [FromQuery] Guid? priceListId, [FromQuery] string? type)
         {
             var result = await _productRepository.GetProductRateAsync(productId, priceListId, type);
@@ -172,7 +172,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("low-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetLowStock()
         {
             var result = await _productRepository.GetLowStockProductsAsync();
@@ -180,7 +180,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("export-low-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> ExportLowStock()
         {
             var data = await _productRepository.GetLowStockExportDataAsync();
@@ -188,7 +188,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("recent-movements")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetRecentMovements([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _productRepository.GetRecentMovementsPagedAsync(pageNumber, pageSize);
@@ -196,7 +196,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("download-template")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public IActionResult DownloadTemplate()
         {
             var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "product_template.csv");

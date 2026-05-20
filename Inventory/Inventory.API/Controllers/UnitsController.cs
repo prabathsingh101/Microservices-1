@@ -25,7 +25,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("bulk")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> CreateBulk([FromBody] CreateBulkUnitsCommand command)
         {
             var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
@@ -40,7 +40,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("upload-excel")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> UploadExcel([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest(ApiResponse<string>.Fail("Please upload an excel file."));
@@ -70,7 +70,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("download-template")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public IActionResult DownloadTemplate()
         {
             var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "unit_template.csv");
@@ -119,7 +119,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPut("update/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitCommand command)
         {
             if (id != command.Id) return BadRequest(ApiResponse<string>.Fail("ID mismatch"));
@@ -136,7 +136,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpDelete("delete/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _mediator.Send(new DeleteUnitCommand(id));
@@ -144,7 +144,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("getbyid/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var units = await _mediator.Send(new GetAllUnitsQuery());
@@ -153,7 +153,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("get")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetAll()
             => Ok(await _mediator.Send(new GetAllUnitsQuery()));
     }

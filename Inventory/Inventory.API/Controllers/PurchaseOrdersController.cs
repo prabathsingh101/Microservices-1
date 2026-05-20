@@ -28,7 +28,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("next-number")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetNextNumber()
         {
             // MediatR command bhej raha hai handler ko
@@ -37,7 +37,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("save-po")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderDto dto)
         {
             // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims (Header prioritised)
@@ -70,7 +70,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet]
-        //[Authorize(Roles = "Manager, Admin")]
+        //[Authorize(Roles = "Manager, Admin, Salesman")]
         public async Task<ActionResult> GetOrders([FromQuery] GetPurchaseOrdersQuery query)
         {
             // Ensure 'query' is not null
@@ -79,7 +79,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("query")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetOrders([FromBody] GetPurchaseOrdersRequest request)
         {
             var query = new GetDateRangePurchaseOrdersQuery(request);
@@ -88,7 +88,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("get-paged-orders")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetPagedOrders([FromBody] GetPurchaseOrdersRequest request)
         {
             // Frontend se aane wale request DTO ko query mein wrap kar rahe hain
@@ -100,7 +100,7 @@ namespace Inventory.API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -122,7 +122,7 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         [HttpPut("{id}")] //
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -183,7 +183,7 @@ namespace Inventory.API.Controllers
         /// Frontend call: this.http.delete(`${this.apiUrl}/PurchaseOrders/${poId}`)
         /// </summary>
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> Delete(Guid id)
         {
             try
@@ -216,7 +216,7 @@ namespace Inventory.API.Controllers
         // URL: POST /api/PurchaseOrders/bulk-delete
         // Frontend call: this.http.post(`${this.apiUrl}/PurchaseOrders/bulk-delete`, { ids })
         [HttpPost("bulk-delete-orders")] // Name easily identifiable
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> BulkDeleteOrders([FromBody] BulkDeletePurchaseOrderCommand command)
         {
             try
@@ -232,7 +232,7 @@ namespace Inventory.API.Controllers
 
         // --- 3. BULK CHILD ITEMS DELETE ---
         [HttpPost("bulk-delete-items")] // Easily identifiable name
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> BulkDeleteItems([FromBody] BulkDeletePOItemsCommand command)
         {
             try
@@ -256,7 +256,7 @@ namespace Inventory.API.Controllers
         /// <returns></returns>
 
         [HttpPut("UpdateStatus")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> UpdateStatus([FromBody] UpdateStatusDTO dto)
         {
             if (dto == null || string.IsNullOrEmpty(dto.Status))
@@ -293,7 +293,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("pending-pos")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetPendingPOs()
         {
             var result = await _mediator.Send(new GetPendingPOQuery());
@@ -301,7 +301,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("po-items/{poId}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetPOItemsForGRN(Guid poId)
         {
             var result = await _mediator.Send(new GetPOItemsForGRNQuery(poId));
@@ -313,7 +313,7 @@ namespace Inventory.API.Controllers
         /// </summary>
         /// <param name="lastPurchaseOrderId">Integer format ID</param>
         [HttpGet("header-details/{lastPurchaseOrderId:guid}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<ActionResult<POHeaderDetailsDto>> GetHeaderDetails(Guid lastPurchaseOrderId)
         {
             // 1. Query create karein [cite: 2026-01-22]
@@ -336,7 +336,7 @@ namespace Inventory.API.Controllers
         /// Product select hone par ya Price List change hone par rate fetch karne ke liye
         /// </summary>
         [HttpGet("get-product-rate")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<ActionResult<ProductPriceDto>> GetProductRate(
             
             [FromQuery] Guid productId, [FromQuery] Guid priceListId, [FromQuery] string? type)
@@ -364,7 +364,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("bulk-sent-for-approval")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> BulkSentForApproval([FromBody] List<Guid> ids)
         {
             var result = await _purchaseOrderRepository.BulkSentForApprovalAsync(ids);
@@ -374,7 +374,7 @@ namespace Inventory.API.Controllers
         
 
         [HttpPost("bulk-approve")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> BulkApprove([FromBody] List<Guid> ids)
         {
             if (ids == null || !ids.Any())
@@ -393,7 +393,7 @@ namespace Inventory.API.Controllers
        
 
         [HttpPost("bulk-reject")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> BulkReject([FromBody] List<Guid> ids)
         {
             if (ids == null || !ids.Any())
@@ -417,7 +417,7 @@ namespace Inventory.API.Controllers
         /// <returns></returns>
 
         [HttpGet("{id}/print-details")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetPrintDetails(Guid id)
         {
             var result = await _purchaseOrderRepository.GetPODetailsForPrintAsync(id);
@@ -435,7 +435,7 @@ namespace Inventory.API.Controllers
         /// <returns></returns>
 
         [HttpGet("{id}/download-pdf")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> DownloadPdf(Guid id)
         {
             
@@ -453,14 +453,14 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("replacement-qty/{poId}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> GetReplacementQty(Guid poId)
         {
             var qty = await _purchaseOrderRepository.GetTotalReturnedQtyAsync(poId);
             return Ok(new { replacementQty = qty });
         }
         [HttpPut("{id}/toggle-dispatch")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> ToggleDispatch(Guid id)
         {
             var result = await _purchaseOrderRepository.ToggleDispatchStatusAsync(id);

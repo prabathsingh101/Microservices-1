@@ -19,7 +19,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetList([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50, [FromQuery] string search = "", [FromQuery] string? branchId = null)
     {
         var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
@@ -61,7 +61,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
@@ -89,7 +89,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Create(ExpenseEntry entry)
     {
         // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
@@ -119,7 +119,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Update(Guid id, ExpenseEntry entry)
     {
         if (id != entry.Id) return BadRequest();
@@ -162,7 +162,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var entry = await _context.ExpenseEntries.FindAsync(id);
@@ -174,7 +174,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpPost("chart-data")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetChartData([FromBody] DashboardFilter filters)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
@@ -223,7 +223,7 @@ public class ExpenseEntriesController : ControllerBase
     }
 
     [HttpGet("monthly-totals")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetMonthlyTotals([FromQuery] int months = 6, [FromQuery] string? branchId = null)
     {
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;

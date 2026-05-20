@@ -24,7 +24,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("current-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetStock(
            [FromQuery] string? search,
            [FromQuery] string? sortField,
@@ -44,7 +44,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("ExportExcel")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> ExportExcel([FromBody] List<Guid> productIds)
         {
             if (productIds == null || !productIds.Any())
@@ -69,7 +69,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("adjust")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> AdjustStock([FromBody] RejectStockCommand command)
         {
             var result = await _mediator.Send(command);
@@ -77,7 +77,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("move-to-expired")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> MoveToExpired([FromBody] MoveToExpiredRackCommand command)
         {
             try
@@ -93,7 +93,7 @@ namespace Inventory.API.Controllers
 
 
         [HttpGet("batch-history")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetBatchHistory(
             [FromQuery] Guid productId,
             [FromQuery] Guid warehouseId,
@@ -107,7 +107,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPost("sync")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Sync()
         {
             var result = await _mediator.Send(new SyncStockCommand());
@@ -115,7 +115,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("warehouse-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetWarehouseStock(
            [FromQuery] string? search,
            [FromQuery] string? sortField,
@@ -131,7 +131,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpGet("disposed-stock")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> GetDisposedStock(
            [FromQuery] string? search,
            [FromQuery] string? sortField,

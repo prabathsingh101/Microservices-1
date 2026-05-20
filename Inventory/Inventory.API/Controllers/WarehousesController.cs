@@ -30,7 +30,7 @@ public sealed class WarehousesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse,Super Admin, Salesman")]
     public async Task<IActionResult> Create(CreateWarehouseCommand command)
     {
         var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
@@ -53,7 +53,7 @@ public sealed class WarehousesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Update(Guid id, UpdateWarehouseCommand command)
     {
         if (id != command.Id)
@@ -79,7 +79,7 @@ public sealed class WarehousesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> Delete(Guid id)
     {
         await _mediator.Send(new DeleteWarehouseCommand(id));
@@ -87,7 +87,7 @@ public sealed class WarehousesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> GetAll()
     {
         var result = await _mediator.Send(new GetWarehousesQuery());
@@ -95,7 +95,7 @@ public sealed class WarehousesController : ControllerBase
     }
 
     [HttpPost("upload-excel")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> UploadExcel([FromForm] IFormFile file)
     {
         if (file == null || file.Length == 0) return BadRequest("Please upload an excel file.");
@@ -124,7 +124,7 @@ public sealed class WarehousesController : ControllerBase
         });
     }
     [HttpGet("download-template")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public IActionResult DownloadTemplate()
     {
         var filePath = Path.Combine(AppContext.BaseDirectory, "Templates", "warehouse_template.csv");
@@ -169,7 +169,7 @@ public sealed class WarehousesController : ControllerBase
         }
     }
     [HttpGet("debug-info")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> DebugInfo()
     {
         var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
@@ -188,7 +188,7 @@ public sealed class WarehousesController : ControllerBase
     }
 
     [HttpGet("seed-sample")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> SeedSample()
     {
         var companyIdClaim = User.Claims.FirstOrDefault(c => c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase))?.Value;
