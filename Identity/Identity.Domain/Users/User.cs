@@ -23,6 +23,9 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
     public string? ResetToken { get; private set; }
     public DateTime? ResetTokenExpires { get; private set; }
 
+    // Concurrent Login Protection
+    public string? CurrentSessionId { get; private set; }
+
     public IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();
     public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
@@ -132,5 +135,10 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
     {
         ResetToken = null;
         ResetTokenExpires = null;
+    }
+
+    public void SetCurrentSessionId(string sessionId)
+    {
+        CurrentSessionId = sessionId;
     }
 }

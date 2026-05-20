@@ -16,6 +16,7 @@ using Serilog;
 using Identity.Application.Services;
 using Identity.Domain.Users;
 using Identity.Domain;
+using Identity.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +57,7 @@ builder.Services.AddIdentityInfrastructure(builder.Configuration);
 
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ISignalRNotificationService, SignalRNotificationService>();
 
 builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
 {
@@ -83,11 +85,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             System.Text.Encoding.UTF8.GetBytes(jwt["Key"]!)),
             ClockSkew = TimeSpan.Zero,
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<IdentityDbContext>();
+                var userIdString = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var tokenSessionId = context.Principal?.FindFirst("SessionId")?.Value;
+
+                if (Guid.TryParse(userIdString, out var userId))
+                {
+                    var user = await db.Users.FindAsync(new object[] { userId }, context.HttpContext.RequestAborted);
+                    if (user == null || user.CurrentSessionId != tokenSessionId)
+                    {
+                        context.Fail("Session has expired or logged in from another device.");
+                    }
+                }
+            },
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/auth"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
+
+var signalRBuilder = builder.Services.AddSignalR();
+var redisConnection = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrEmpty(redisConnection))
+{
+    signalRBuilder.AddStackExchangeRedis(redisConnection);
+}
 
 var app = builder.Build();
 
@@ -128,6 +166,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
+app.MapHub<Identity.API.Hubs.AuthHub>("/hubs/auth");
 
 try
 {

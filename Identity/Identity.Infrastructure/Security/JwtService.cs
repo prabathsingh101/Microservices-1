@@ -34,7 +34,8 @@ public class JwtService : IJwtService
             new Claim("CompanyId", user.CompanyId?.ToString() ?? string.Empty),
             new Claim("BranchId", user.BranchId?.ToString() ?? string.Empty),
             new Claim("BranchName", branchName ?? string.Empty),
-            new Claim("CompanyName", companyName ?? string.Empty)
+            new Claim("CompanyName", companyName ?? string.Empty),
+            new Claim("SessionId", user.CurrentSessionId ?? string.Empty)
         };
 
         // ... (remaining roles and token creation logic stays the same)

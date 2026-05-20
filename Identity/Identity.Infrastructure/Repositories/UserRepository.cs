@@ -185,4 +185,13 @@ public class UserRepository : IUserRepository
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task UpdateSessionIdAsync(Guid userId, string sessionId)
+    {
+        // Direct DB update — bypasses AsNoTracking() issue completely
+        await _context.Users
+            .IgnoreQueryFilters()
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.CurrentSessionId, sessionId));
+    }
 }

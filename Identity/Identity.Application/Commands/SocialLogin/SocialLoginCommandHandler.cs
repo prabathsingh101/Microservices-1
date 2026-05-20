@@ -24,6 +24,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
     private readonly IJwtService _jwt;
     private readonly IUnitOfWork _uow;
     private readonly IOnboardingService _onboarding;
+    private readonly ISignalRNotificationService _signalR;
 
     public SocialLoginCommandHandler(
         IGoogleTokenVerifier googleVerifier,
@@ -34,7 +35,8 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         IRefreshTokenRepository tokens,
         IJwtService jwt,
         IUnitOfWork uow,
-        IOnboardingService onboarding)
+        IOnboardingService onboarding,
+        ISignalRNotificationService signalR)
     {
         _googleVerifier = googleVerifier;
         _users = users;
@@ -45,6 +47,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         _jwt = jwt;
         _uow = uow;
         _onboarding = onboarding;
+        _signalR = signalR;
     }
 
     public async Task<Result<AuthResponse>> Handle(SocialLoginCommand request, CancellationToken ct)
@@ -197,6 +200,11 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
             .Select(r => r.Role?.RoleName ?? "User")
             .ToList();
 
+        // ** Concurrent Login Prevention **
+        // NOTE: user may be untracked, so update session ID directly in DB
+        var sessionId = Guid.NewGuid().ToString();
+        await _users.UpdateSessionIdAsync(user.Id, sessionId);
+
         // Generate JWT
         var auth = _jwt.Generate(user, rolesStrings, companyName);
         auth.CompanyTagline = companyTagline;
@@ -211,6 +219,10 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
             CreatedDate = DateTime.UtcNow
         };
         await _tokens.AddAsync(refreshToken);
+
+        // Notify old sessions to logout via SignalR
+        await _signalR.SendForceLogoutAsync(user.Id.ToString(), ct);
+
         await _uow.SaveChangesAsync(ct);
 
         Console.WriteLine($"[SOCIAL-LOGIN] JWT generated successfully for: {user.Email}");

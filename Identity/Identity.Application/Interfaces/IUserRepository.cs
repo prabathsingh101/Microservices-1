@@ -22,4 +22,5 @@ public interface IUserRepository
     Task ClearRolesAsync(Guid userId);
     Task UpdateAsync(User user);
     Task DeleteAsync(Guid id);
+    Task UpdateSessionIdAsync(Guid userId, string sessionId);
 }

@@ -18,6 +18,7 @@ public class LoginUserQueryHandler
     private readonly IUnitOfWork _uow;
     private readonly ISubscriptionRepository _subscriptions;
     private readonly IRolePermissionRepository _permissionRepository;
+    private readonly ISignalRNotificationService _signalR;
 
     public LoginUserQueryHandler(
         IUserRepository users,
@@ -26,7 +27,8 @@ public class LoginUserQueryHandler
         IJwtService jwt,
         IUnitOfWork uow,
         ISubscriptionRepository subscriptions,
-        IRolePermissionRepository permissionRepository)
+        IRolePermissionRepository permissionRepository,
+        ISignalRNotificationService signalR)
     {
         _users = users;
         _tokens = tokens;
@@ -35,6 +37,7 @@ public class LoginUserQueryHandler
         _uow = uow;
         _subscriptions = subscriptions;
         _permissionRepository = permissionRepository;
+        _signalR = signalR;
     }
 
     public async Task<Result<AuthResponse>> Handle(
@@ -165,6 +168,11 @@ public class LoginUserQueryHandler
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();
 
+        // ** Concurrent Login Prevention **
+        // NOTE: GetWithRolesByEmailAsync uses AsNoTracking(), so we must update session ID directly in DB
+        var sessionId = Guid.NewGuid().ToString();
+        await _users.UpdateSessionIdAsync(user.Id, sessionId);
+
         // 8. Add Refresh Token directly via repository to avoid untracked entity tracking issues
         Console.WriteLine("[DEBUG-HANDLER] Adding refresh token...");
         var refreshToken = new RefreshToken(user.Id, auth.RefreshToken, DateTime.UtcNow.AddDays(7), user.CompanyId, user.BranchId)
@@ -173,6 +181,9 @@ public class LoginUserQueryHandler
             CreatedDate = DateTime.UtcNow
         };
         await _tokens.AddAsync(refreshToken);
+
+        // Notify old sessions to logout via SignalR
+        await _signalR.SendForceLogoutAsync(user.Id.ToString(), ct);
 
         Console.WriteLine("[DEBUG-HANDLER] Saving changes...");
         await _uow.SaveChangesAsync(ct);
