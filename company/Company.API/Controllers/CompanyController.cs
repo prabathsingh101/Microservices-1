@@ -148,6 +148,60 @@ namespace Company.API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("check-duplicate")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CheckDuplicate([FromQuery] string field, [FromQuery] string value, [FromQuery] Guid? excludeId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(value))
+                {
+                    return BadRequest("Field and value are required.");
+                }
+
+                var query = _dbContext.CompanyProfiles.AsNoTracking().AsQueryable();
+                
+                if (excludeId.HasValue && excludeId.Value != Guid.Empty)
+                {
+                    query = query.Where(c => c.Id != excludeId.Value);
+                }
+
+                bool exists = false;
+                switch (field.ToLower())
+                {
+                    case "companycode":
+                        exists = await query.AnyAsync(c => c.CompanyCode == value);
+                        break;
+                    case "name":
+                        exists = await query.AnyAsync(c => c.Name == value);
+                        break;
+                    case "primaryemail":
+                        exists = await query.AnyAsync(c => c.PrimaryEmail == value || c.Email == value);
+                        break;
+                    case "email":
+                        exists = await query.AnyAsync(c => c.Email == value || c.PrimaryEmail == value);
+                        break;
+                    case "primaryphone":
+                        exists = await query.AnyAsync(c => c.PrimaryPhone == value);
+                        break;
+                    case "gstin":
+                        exists = await query.AnyAsync(c => c.Gstin == value);
+                        break;
+                    case "registrationnumber":
+                        exists = await query.AnyAsync(c => c.RegistrationNumber == value);
+                        break;
+                    default:
+                        return BadRequest("Invalid field specified.");
+                }
+
+                return Ok(new { isDuplicate = exists });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
 
