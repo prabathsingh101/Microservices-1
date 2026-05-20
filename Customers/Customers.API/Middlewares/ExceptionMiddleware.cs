@@ -43,9 +43,17 @@ public class ExceptionMiddleware
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        var response = _env.IsDevelopment()
+        if (exception is InvalidOperationException || exception is ArgumentException)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+        }
+        else
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        }
+
+        var response = (_env.IsDevelopment() || context.Response.StatusCode == (int)HttpStatusCode.BadRequest)
             ? new ApiExceptionResponse(context.Response.StatusCode, exception.Message, exception.StackTrace?.ToString())
             : new ApiExceptionResponse(context.Response.StatusCode, "An unexpected internal server error occurred.");
 
