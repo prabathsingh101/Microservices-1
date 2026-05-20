@@ -23,6 +23,20 @@ namespace Company.Application.Company.Commands.Update.Handler
 
             if (profile == null) return Guid.Empty;
 
+            // 🔍 DUPLICATE BANK ACCOUNT CHECK:
+            if (cmd.Request.BankInfo != null && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.AccountNumber) && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.IfscCode))
+            {
+                bool isBankDuplicate = await _repo.HasDuplicateBankAccountAsync(
+                    cmd.Request.BankInfo.AccountNumber, 
+                    cmd.Request.BankInfo.IfscCode, 
+                    cmd.Id);
+                    
+                if (isBankDuplicate)
+                {
+                    throw new Exception($"The bank account details (Account Number: '{cmd.Request.BankInfo.AccountNumber}' and IFSC: '{cmd.Request.BankInfo.IfscCode}') are already registered with another company.");
+                }
+            }
+
             // --- Logo Update Logic ---
             if (!string.IsNullOrEmpty(cmd.Request.LogoUrl))
             {

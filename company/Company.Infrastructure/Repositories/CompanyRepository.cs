@@ -141,5 +141,22 @@ namespace Company.Infrastructure.Repositories
                 InactiveCount = inactiveCount
             };
         }
+
+        public async Task<bool> HasDuplicateBankAccountAsync(string accountNumber, string ifscCode, Guid? excludeCompanyId)
+        {
+            if (string.IsNullOrWhiteSpace(accountNumber) || string.IsNullOrWhiteSpace(ifscCode))
+            {
+                return false;
+            }
+
+            var query = _context.BankDetails.AsNoTracking().AsQueryable();
+
+            if (excludeCompanyId.HasValue && excludeCompanyId.Value != Guid.Empty)
+            {
+                query = query.Where(b => b.CompanyProfileId != excludeCompanyId.Value);
+            }
+
+            return await query.AnyAsync(b => b.AccountNumber == accountNumber && b.IfscCode != null && b.IfscCode.ToUpper() == ifscCode.ToUpper());
+        }
     }
 }

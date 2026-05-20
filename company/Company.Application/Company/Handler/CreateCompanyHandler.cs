@@ -76,6 +76,20 @@ namespace Company.Application.Company.Commands.Create.Handler
                 throw new Exception($"Company with name '{cmd.Request.Name}' already exists.");
             }
 
+            // 🔍 DUPLICATE BANK ACCOUNT CHECK:
+            if (cmd.Request.BankInfo != null && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.AccountNumber) && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.IfscCode))
+            {
+                bool isBankDuplicate = await _repo.HasDuplicateBankAccountAsync(
+                    cmd.Request.BankInfo.AccountNumber, 
+                    cmd.Request.BankInfo.IfscCode, 
+                    targetId);
+                    
+                if (isBankDuplicate)
+                {
+                    throw new Exception($"The bank account details (Account Number: '{cmd.Request.BankInfo.AccountNumber}' and IFSC: '{cmd.Request.BankInfo.IfscCode}') are already registered with another company.");
+                }
+            }
+
             var existing = await _repo.GetByIdAsync(targetId);
 
             if (existing != null)

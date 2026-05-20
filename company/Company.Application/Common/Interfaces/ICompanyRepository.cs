@@ -16,6 +16,7 @@ namespace Company.Application.Common.Interfaces
         Task<Guid> InsertCompanyAsync(CompanyProfile company);
         Task<Guid> UpsertCompanyProfileAsync(CompanyProfile profile);
         Task<GridResponse<CompanyProfile>> GetPagedAsync(GridRequest request);
+        Task<bool> HasDuplicateBankAccountAsync(string accountNumber, string ifscCode, Guid? excludeCompanyId);
     }
 }
 

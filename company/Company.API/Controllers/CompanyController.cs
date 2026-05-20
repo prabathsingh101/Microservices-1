@@ -151,7 +151,7 @@ namespace Company.API.Controllers
 
         [HttpGet("check-duplicate")]
         [AllowAnonymous]
-        public async Task<IActionResult> CheckDuplicate([FromQuery] string field, [FromQuery] string value, [FromQuery] Guid? excludeId)
+        public async Task<IActionResult> CheckDuplicate([FromQuery] string field, [FromQuery] string value, [FromQuery] Guid? excludeId, [FromQuery] string? additionalValue = null)
         {
             try
             {
@@ -170,6 +170,18 @@ namespace Company.API.Controllers
                 bool exists = false;
                 switch (field.ToLower())
                 {
+                    case "bankaccount":
+                        if (string.IsNullOrWhiteSpace(additionalValue))
+                        {
+                            return BadRequest("IFSC Code (additionalValue) is required for bank account duplicate check.");
+                        }
+                        var bankQuery = _dbContext.BankDetails.AsNoTracking().AsQueryable();
+                        if (excludeId.HasValue && excludeId.Value != Guid.Empty)
+                        {
+                            bankQuery = bankQuery.Where(b => b.CompanyProfileId != excludeId.Value);
+                        }
+                        exists = await bankQuery.AnyAsync(b => b.AccountNumber == value && b.IfscCode != null && b.IfscCode.ToUpper() == additionalValue.ToUpper());
+                        break;
                     case "companycode":
                         exists = await query.AnyAsync(c => c.CompanyCode == value);
                         break;
