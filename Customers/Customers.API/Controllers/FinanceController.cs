@@ -115,5 +115,80 @@ namespace Customers.API.Controllers
             var result = await _mediator.Send(new GetReceiptsReportQuery(request));
             return Ok(result);
         }
+
+        // ---- DEBTORS AGEING ----
+        [HttpGet("debtors-ageing")]
+        public async Task<IActionResult> GetDebtorsAgeing([FromQuery] string? branchId = null)
+        {
+            var result = await _mediator.Send(new GetDebtorsAgeingQuery(branchId));
+            return Ok(result);
+        }
+
+        // ---- PAYMENT REMINDERS ----
+        [HttpGet("payment-reminder-logs")]
+        public async Task<IActionResult> GetPaymentReminderLogs([FromQuery] Guid? customerId = null, [FromQuery] string? branchId = null)
+        {
+            var result = await _mediator.Send(new GetPaymentReminderLogsQuery(customerId, branchId));
+            return Ok(result);
+        }
+
+        [HttpPost("payment-reminders")]
+        public async Task<IActionResult> RecordPaymentReminder([FromBody] PaymentReminderLogDto reminderDto)
+        {
+            var id = await _mediator.Send(new RecordPaymentReminderCommand(reminderDto));
+            return Ok(new { Id = id, Message = "Reminder logged successfully" });
+        }
+
+        // ---- CONTRA ENTRIES ----
+        [HttpGet("contra-entries")]
+        public async Task<IActionResult> GetContraEntries([FromQuery] string? branchId = null)
+        {
+            var result = await _mediator.Send(new GetContraEntriesQuery(branchId));
+            return Ok(result);
+        }
+
+        [HttpPost("contra-entries")]
+        public async Task<IActionResult> RecordContraEntry([FromBody] ContraEntryDto contraDto)
+        {
+            var id = await _mediator.Send(new RecordContraEntryCommand(contraDto));
+            return Ok(new { Id = id, Message = "Contra entry recorded successfully" });
+        }
+
+        // ---- BANK RECONCILIATION ----
+        [HttpGet("reconciliation/statements")]
+        public async Task<IActionResult> GetBankStatements([FromQuery] string? branchId = null)
+        {
+            var result = await _mediator.Send(new GetBankStatementsQuery(branchId));
+            return Ok(result);
+        }
+
+        [HttpGet("reconciliation/statements/{statementId}/lines")]
+        public async Task<IActionResult> GetBankStatementLines(Guid statementId)
+        {
+            var result = await _mediator.Send(new GetBankStatementLinesQuery(statementId));
+            return Ok(result);
+        }
+
+        [HttpPost("reconciliation/upload")]
+        public async Task<IActionResult> UploadBankStatement([FromBody] UploadBankStatementCommand command)
+        {
+            var id = await _mediator.Send(command);
+            return Ok(new { Id = id, Message = "Bank statement uploaded successfully" });
+        }
+
+        [HttpPost("reconciliation/reconcile")]
+        public async Task<IActionResult> ReconcileTransaction([FromBody] ReconcileTransactionRequestDto requestDto)
+        {
+            var success = await _mediator.Send(new ReconcileTransactionCommand(requestDto));
+            if (!success) return BadRequest(new { Message = "Statement line not found or could not be reconciled." });
+            return Ok(new { Message = "Transaction reconciled successfully" });
+        }
+
+        [HttpGet("reconciliation/unmatched")]
+        public async Task<IActionResult> GetUnmatchedTransactions([FromQuery] string transactionType = "CustomerReceipt", [FromQuery] string? branchId = null)
+        {
+            var result = await _mediator.Send(new GetUnmatchedSystemTransactionsQuery(transactionType, branchId));
+            return Ok(result);
+        }
     }
 }

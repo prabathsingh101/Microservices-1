@@ -410,5 +410,320 @@ namespace Customers.Infrastructure.Repositories
                 PageSize = request.PageSize
             };
         }
+
+        // --- NEW FEATURES ---
+        public async Task<List<DebtorsAgeingDto>> GetDebtorsAgeingAsync(string? branchId = null)
+        {
+            string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+
+            var ledgers = await _context.CustomerLedgers
+                .Where(l => l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
+                .OrderBy(l => l.TransactionDate)
+                .ToListAsync();
+
+            var customers = await _context.Customers
+                .Where(c => c.CompanyId == _companyId && (c.BranchId == null || string.IsNullOrEmpty(finalBranchId) || c.BranchId == finalBranchId))
+                .ToListAsync();
+
+            var result = new List<DebtorsAgeingDto>();
+
+            var internalAccountNames = new[] { 
+                "Proprietor (Self / Capital Account)", 
+                "Company Bank Account (Internal)" 
+            };
+
+            foreach (var customer in customers)
+            {
+                if (internalAccountNames.Contains(customer.CustomerName!)) continue;
+
+                var customerLedger = ledgers.Where(l => l.CustomerId == customer.Id).ToList();
+                if (!customerLedger.Any()) continue;
+
+                var lastEntry = customerLedger.OrderByDescending(l => l.CreatedOn).FirstOrDefault();
+                if (lastEntry == null || lastEntry.Balance <= 0) continue;
+
+                decimal totalBalance = lastEntry.Balance;
+
+                var debitEntries = customerLedger.Where(l => l.Debit > 0).OrderBy(l => l.TransactionDate).ToList();
+                var creditEntries = customerLedger.Where(l => l.Credit > 0).OrderBy(l => l.TransactionDate).ToList();
+
+                decimal totalCredits = creditEntries.Sum(l => l.Credit);
+
+                decimal age0To30 = 0;
+                decimal age31To60 = 0;
+                decimal age61To90 = 0;
+                decimal age91Plus = 0;
+
+                foreach (var debit in debitEntries)
+                {
+                    decimal remainingDebit = debit.Debit;
+                    if (totalCredits > 0)
+                    {
+                        if (totalCredits >= remainingDebit)
+                        {
+                            totalCredits -= remainingDebit;
+                            remainingDebit = 0;
+                        }
+                        else
+                        {
+                            remainingDebit -= totalCredits;
+                            totalCredits = 0;
+                        }
+                    }
+
+                    if (remainingDebit > 0)
+                    {
+                        var ageInDays = (DateTime.Now - debit.TransactionDate).TotalDays;
+                        if (ageInDays <= 30)
+                            age0To30 += remainingDebit;
+                        else if (ageInDays <= 60)
+                            age31To60 += remainingDebit;
+                        else if (ageInDays <= 90)
+                            age61To90 += remainingDebit;
+                        else
+                            age91Plus += remainingDebit;
+                    }
+                }
+
+                decimal sumOfBuckets = age0To30 + age31To60 + age61To90 + age91Plus;
+                if (sumOfBuckets != totalBalance && sumOfBuckets > 0)
+                {
+                    decimal ratio = totalBalance / sumOfBuckets;
+                    age0To30 *= ratio;
+                    age31To60 *= ratio;
+                    age61To90 *= ratio;
+                    age91Plus *= ratio;
+                }
+                else if (sumOfBuckets == 0)
+                {
+                    age0To30 = totalBalance;
+                }
+
+                result.Add(new DebtorsAgeingDto
+                {
+                    CustomerId = customer.Id,
+                    CustomerName = customer.CustomerName,
+                    Phone = customer.Phone,
+                    TotalOutstanding = totalBalance,
+                    Age0To30 = Math.Round(age0To30, 2),
+                    Age31To60 = Math.Round(age31To60, 2),
+                    Age61To90 = Math.Round(age61To90, 2),
+                    Age91Plus = Math.Round(age91Plus, 2)
+                });
+            }
+
+            return result;
+        }
+
+        public async Task RecordPaymentReminderAsync(PaymentReminderLog log)
+        {
+            log.CompanyId = _companyId;
+            if (string.IsNullOrEmpty(log.BranchId))
+            {
+                log.BranchId = _branchId;
+            }
+            await _context.PaymentReminderLogs.AddAsync(log);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<PaymentReminderLogDto>> GetPaymentReminderLogsAsync(Guid? customerId = null, string? branchId = null)
+        {
+            string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+
+            var query = _context.PaymentReminderLogs
+                .Where(l => l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId));
+
+            if (customerId.HasValue && customerId.Value != Guid.Empty)
+            {
+                query = query.Where(l => l.CustomerId == customerId.Value);
+            }
+
+            return await query
+                .OrderByDescending(l => l.CreatedOn)
+                .Select(l => new PaymentReminderLogDto
+                {
+                    CustomerId = l.CustomerId,
+                    CustomerName = l.CustomerName,
+                    Phone = l.Phone,
+                    OutstandingAmount = l.OutstandingAmount,
+                    ReminderType = l.ReminderType,
+                    SentStatus = l.SentStatus,
+                    SentMessage = l.SentMessage,
+                    CreatedOn = l.CreatedOn ?? DateTime.MinValue
+                })
+                .ToListAsync();
+        }
+
+        public async Task RecordContraEntryAsync(ContraEntry contra)
+        {
+            contra.CompanyId = _companyId;
+            if (string.IsNullOrEmpty(contra.BranchId))
+            {
+                contra.BranchId = _branchId;
+            }
+            contra.TransferDate = DateTime.Now;
+            
+            await _context.ContraEntries.AddAsync(contra);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<ContraEntryDto>> GetContraEntriesAsync(string? branchId = null)
+        {
+            string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+
+            return await _context.ContraEntries
+                .Where(c => c.CompanyId == _companyId && (c.BranchId == null || string.IsNullOrEmpty(finalBranchId) || c.BranchId == finalBranchId))
+                .OrderByDescending(c => c.TransferDate)
+                .Select(c => new ContraEntryDto
+                {
+                    Id = c.Id,
+                    TransferDate = c.TransferDate,
+                    SourceType = c.SourceType,
+                    SourceAccount = c.SourceAccount,
+                    DestinationType = c.DestinationType,
+                    DestinationAccount = c.DestinationAccount,
+                    Amount = c.Amount,
+                    ReferenceNumber = c.ReferenceNumber,
+                    Remarks = c.Remarks,
+                    CreatedOn = c.CreatedOn ?? DateTime.MinValue
+                })
+                .ToListAsync();
+        }
+
+        public async Task UploadBankStatementAsync(BankStatement statement, List<BankStatementLine> lines)
+        {
+            statement.CompanyId = _companyId;
+            if (string.IsNullOrEmpty(statement.BranchId))
+            {
+                statement.BranchId = _branchId;
+            }
+            statement.UploadDate = DateTime.Now;
+            statement.Status = "Pending";
+
+            await _context.BankStatements.AddAsync(statement);
+            await _context.SaveChangesAsync();
+
+            foreach (var line in lines)
+            {
+                line.BankStatementId = statement.Id;
+                line.ReconciliationStatus = "Unmatched";
+                await _context.BankStatementLines.AddAsync(line);
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<BankStatementDto>> GetBankStatementsAsync(string? branchId = null)
+        {
+            string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+
+            return await _context.BankStatements
+                .Where(s => s.CompanyId == _companyId && (s.BranchId == null || string.IsNullOrEmpty(finalBranchId) || s.BranchId == finalBranchId))
+                .OrderByDescending(s => s.UploadDate)
+                .Select(s => new BankStatementDto
+                {
+                    Id = s.Id,
+                    FileName = s.FileName,
+                    UploadDate = s.UploadDate,
+                    BankAccountNumber = s.BankAccountNumber,
+                    BankName = s.BankName,
+                    Status = s.Status,
+                    TotalAmount = s.TotalAmount
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<BankStatementLineDto>> GetBankStatementLinesAsync(Guid statementId)
+        {
+            return await _context.BankStatementLines
+                .Where(l => l.BankStatementId == statementId)
+                .OrderBy(l => l.TransactionDate)
+                .Select(l => new BankStatementLineDto
+                {
+                    Id = l.Id,
+                    BankStatementId = l.BankStatementId,
+                    TransactionDate = l.TransactionDate,
+                    Description = l.Description,
+                    ReferenceNumber = l.ReferenceNumber,
+                    Withdrawal = l.Withdrawal,
+                    Deposit = l.Deposit,
+                    ReconciliationStatus = l.ReconciliationStatus,
+                    MatchedTransactionType = l.MatchedTransactionType,
+                    MatchedTransactionId = l.MatchedTransactionId
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<ReceiptReportDto>> GetUnmatchedSystemTransactionsAsync(string transactionType, string? branchId = null)
+        {
+            string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+
+            var matchedIds = await _context.BankStatementLines
+                .Where(l => l.ReconciliationStatus == "Matched" && l.MatchedTransactionType == transactionType && l.MatchedTransactionId != null)
+                .Select(l => l.MatchedTransactionId!.Value)
+                .ToListAsync();
+
+            if (transactionType == "CustomerReceipt")
+            {
+                var receipts = await _context.CustomerReceipts
+                    .Where(r => r.CompanyId == _companyId && (r.BranchId == null || string.IsNullOrEmpty(finalBranchId) || r.BranchId == finalBranchId))
+                    .Where(r => !matchedIds.Contains(r.Id))
+                    .OrderByDescending(r => r.ReceiptDate)
+                    .ToListAsync();
+
+                var customerIds = receipts.Select(r => r.CustomerId).Distinct().ToList();
+                var customers = await _context.Customers.Where(c => customerIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.CustomerName);
+
+                return receipts.Select(r => new ReceiptReportDto
+                {
+                    Id = r.Id,
+                    CustomerId = r.CustomerId ?? Guid.Empty,
+                    CustomerName = (r.CustomerId.HasValue && customers.ContainsKey(r.CustomerId.Value)) ? customers[r.CustomerId.Value] : "Walking Customer",
+                    Amount = r.Amount,
+                    ReceiptDate = r.ReceiptDate,
+                    ReceiptMode = r.ReceiptMode,
+                    ReferenceNumber = r.ReferenceNumber,
+                    Remarks = r.Remarks,
+                    CreatedBy = r.CreatedBy
+                }).ToList();
+            }
+
+            return new List<ReceiptReportDto>();
+        }
+
+        public async Task<bool> ReconcileTransactionAsync(Guid lineId, string matchedTransactionType, Guid matchedTransactionId)
+        {
+            var line = await _context.BankStatementLines.FirstOrDefaultAsync(l => l.Id == lineId);
+            if (line == null) return false;
+
+            line.ReconciliationStatus = "Matched";
+            line.MatchedTransactionType = matchedTransactionType;
+            line.MatchedTransactionId = matchedTransactionId;
+
+            await _context.SaveChangesAsync();
+
+            var statementId = line.BankStatementId;
+            var allLines = await _context.BankStatementLines.Where(l => l.BankStatementId == statementId).ToListAsync();
+            var statement = await _context.BankStatements.FirstOrDefaultAsync(s => s.Id == statementId);
+            
+            if (statement != null)
+            {
+                int matchedCount = allLines.Count(l => l.ReconciliationStatus == "Matched");
+                if (matchedCount == allLines.Count)
+                {
+                    statement.Status = "Reconciled";
+                }
+                else if (matchedCount > 0)
+                {
+                    statement.Status = "Partially Reconciled";
+                }
+                else
+                {
+                    statement.Status = "Pending";
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            return true;
+        }
     }
 }

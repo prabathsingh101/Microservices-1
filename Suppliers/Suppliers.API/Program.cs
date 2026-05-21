@@ -65,7 +65,8 @@ builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
 {
     p.AllowAnyHeader()
      .AllowAnyMethod()
-     .AllowAnyOrigin()
+     .SetIsOriginAllowed(origin => true)
+     .AllowCredentials()
      .WithExposedHeaders("Content-Disposition"); // <-- important
 }));
 

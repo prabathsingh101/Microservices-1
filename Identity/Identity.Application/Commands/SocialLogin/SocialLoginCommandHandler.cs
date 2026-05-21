@@ -204,6 +204,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         // NOTE: user may be untracked, so update session ID directly in DB
         var sessionId = Guid.NewGuid().ToString();
         await _users.UpdateSessionIdAsync(user.Id, sessionId);
+        user.SetCurrentSessionId(sessionId);
 
         // Generate JWT
         var auth = _jwt.Generate(user, rolesStrings, companyName);

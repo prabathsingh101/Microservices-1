@@ -144,4 +144,74 @@ namespace Customers.Application.DTOs
         public decimal CreditAdjustments { get; set; }
         public decimal DebitAdjustments { get; set; }
     }
+
+    public class DebtorsAgeingDto
+    {
+        public Guid CustomerId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? Phone { get; set; }
+        public decimal TotalOutstanding { get; set; }
+        public decimal Age0To30 { get; set; }
+        public decimal Age31To60 { get; set; }
+        public decimal Age61To90 { get; set; }
+        public decimal Age91Plus { get; set; }
+    }
+
+    public class PaymentReminderLogDto
+    {
+        public Guid CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public decimal OutstandingAmount { get; set; }
+        public string ReminderType { get; set; } = string.Empty; // 'WhatsApp' or 'SMS'
+        public string SentStatus { get; set; } = string.Empty; // 'Success', 'Failed'
+        public string? SentMessage { get; set; }
+        public DateTime CreatedOn { get; set; }
+    }
+
+    public class ContraEntryDto
+    {
+        public Guid Id { get; set; }
+        public DateTime TransferDate { get; set; }
+        public string SourceType { get; set; } = string.Empty;
+        public string? SourceAccount { get; set; }
+        public string DestinationType { get; set; } = string.Empty;
+        public string? DestinationAccount { get; set; }
+        public decimal Amount { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Remarks { get; set; }
+        public DateTime CreatedOn { get; set; }
+    }
+
+    public class BankStatementDto
+    {
+        public Guid Id { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public DateTime UploadDate { get; set; }
+        public string BankAccountNumber { get; set; } = string.Empty;
+        public string BankName { get; set; } = string.Empty;
+        public string Status { get; set; } = "Pending";
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class BankStatementLineDto
+    {
+        public Guid Id { get; set; }
+        public Guid BankStatementId { get; set; }
+        public DateTime TransactionDate { get; set; }
+        public string? Description { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public decimal Withdrawal { get; set; }
+        public decimal Deposit { get; set; }
+        public string ReconciliationStatus { get; set; } = "Unmatched";
+        public string? MatchedTransactionType { get; set; }
+        public Guid? MatchedTransactionId { get; set; }
+    }
+
+    public class ReconcileTransactionRequestDto
+    {
+        public Guid StatementLineId { get; set; }
+        public string MatchedTransactionType { get; set; } = string.Empty; // 'CustomerReceipt' or 'SupplierPayment' or 'ExpenseEntry'
+        public Guid MatchedTransactionId { get; set; }
+    }
 }

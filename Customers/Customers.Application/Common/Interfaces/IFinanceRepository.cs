@@ -23,5 +23,17 @@ namespace Customers.Application.Common.Interfaces
         Task<bool> IsReferenceUniqueAsync(string referenceNumber);
         Task<(bool IsUnique, string Source)> IsReferenceUniqueWithSourceAsync(string referenceNumber);
         Task<PaginatedListDto<ReceiptReportDto>> GetReceiptsReportAsync(ReceiptReportRequestDto request);
+
+        // --- NEW FEATURES ---
+        Task<List<DebtorsAgeingDto>> GetDebtorsAgeingAsync(string? branchId = null);
+        Task RecordPaymentReminderAsync(PaymentReminderLog log);
+        Task<List<PaymentReminderLogDto>> GetPaymentReminderLogsAsync(Guid? customerId = null, string? branchId = null);
+        Task RecordContraEntryAsync(ContraEntry contra);
+        Task<List<ContraEntryDto>> GetContraEntriesAsync(string? branchId = null);
+        Task UploadBankStatementAsync(BankStatement statement, List<BankStatementLine> lines);
+        Task<List<BankStatementDto>> GetBankStatementsAsync(string? branchId = null);
+        Task<List<BankStatementLineDto>> GetBankStatementLinesAsync(Guid statementId);
+        Task<List<ReceiptReportDto>> GetUnmatchedSystemTransactionsAsync(string transactionType, string? branchId = null);
+        Task<bool> ReconcileTransactionAsync(Guid lineId, string matchedTransactionType, Guid matchedTransactionId);
     }
 }

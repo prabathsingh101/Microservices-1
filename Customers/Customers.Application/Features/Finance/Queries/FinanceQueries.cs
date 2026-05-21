@@ -12,4 +12,11 @@ namespace Customers.Application.Features.Finance.Queries
     public record GetPendingDuesQuery(string? BranchId = null, string? CompanyId = null) : IRequest<List<OutstandingDto>>;
     public record GetMonthlyReceiptsTrendQuery(int Months, string? BranchId = null, string? CompanyId = null) : IRequest<List<MonthlyTrendDto>>;
     public record GetReceiptsReportQuery(ReceiptReportRequestDto Request) : IRequest<PaginatedListDto<ReceiptReportDto>>;
+
+    public record GetDebtorsAgeingQuery(string? BranchId = null) : IRequest<List<DebtorsAgeingDto>>;
+    public record GetPaymentReminderLogsQuery(Guid? CustomerId = null, string? BranchId = null) : IRequest<List<PaymentReminderLogDto>>;
+    public record GetContraEntriesQuery(string? BranchId = null) : IRequest<List<ContraEntryDto>>;
+    public record GetBankStatementsQuery(string? BranchId = null) : IRequest<List<BankStatementDto>>;
+    public record GetBankStatementLinesQuery(Guid StatementId) : IRequest<List<BankStatementLineDto>>;
+    public record GetUnmatchedSystemTransactionsQuery(string TransactionType, string? BranchId = null) : IRequest<List<ReceiptReportDto>>;
 }

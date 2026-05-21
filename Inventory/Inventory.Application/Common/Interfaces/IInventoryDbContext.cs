@@ -32,6 +32,7 @@ namespace Inventory.Application.Common.Interfaces
         DbSet<Product> Products { get; }
         DbSet<ExpenseCategory> ExpenseCategories { get; }
         DbSet<ExpenseEntry> ExpenseEntries { get; }
+        DbSet<ExpenseBudget> ExpenseBudgets { get; }
         DbSet<GatePass> GatePasses { get; }
         public DbSet<UnitMaster> Units { get; }
         DbSet<Warehouse> Warehouses { get; }

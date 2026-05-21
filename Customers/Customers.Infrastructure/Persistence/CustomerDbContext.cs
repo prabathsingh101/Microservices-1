@@ -25,6 +25,10 @@ namespace Customers.Infrastructure.Persistence
         public DbSet<Customer> Customers { get; set; }
         public DbSet<CustomerReceipt> CustomerReceipts { get; set; }
         public DbSet<CustomerLedger> CustomerLedgers { get; set; }
+        public DbSet<PaymentReminderLog> PaymentReminderLogs { get; set; }
+        public DbSet<ContraEntry> ContraEntries { get; set; }
+        public DbSet<BankStatement> BankStatements { get; set; }
+        public DbSet<BankStatementLine> BankStatementLines { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

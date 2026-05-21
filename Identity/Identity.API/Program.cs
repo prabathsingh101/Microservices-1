@@ -63,7 +63,8 @@ builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
 {
     p.AllowAnyHeader()
      .AllowAnyMethod()
-     .AllowAnyOrigin()
+     .SetIsOriginAllowed(origin => true)
+     .AllowCredentials()
      .WithExposedHeaders("Content-Disposition");
 }));
 
@@ -88,18 +89,49 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogError(context.Exception, "JWT Authentication failed for {Path}", context.HttpContext.Request.Path);
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogWarning("JWT Challenge triggered for {Path}. Error: {Error}, ErrorDescription: {ErrorDescription}", 
+                    context.HttpContext.Request.Path, context.Error, context.ErrorDescription);
+                return Task.CompletedTask;
+            },
             OnTokenValidated = async context =>
             {
                 var db = context.HttpContext.RequestServices.GetRequiredService<IdentityDbContext>();
                 var userIdString = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var tokenSessionId = context.Principal?.FindFirst("SessionId")?.Value;
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
+                logger.LogInformation("OnTokenValidated called for {Path}. UserId: {UserId}, SessionId: {SessionId}", 
+                    context.HttpContext.Request.Path, userIdString, tokenSessionId);
 
                 if (Guid.TryParse(userIdString, out var userId))
                 {
-                    var user = await db.Users.FindAsync(new object[] { userId }, context.HttpContext.RequestAborted);
-                    if (user == null || user.CurrentSessionId != tokenSessionId)
+                    var user = await db.Users
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(u => u.Id == userId, context.HttpContext.RequestAborted);
+
+                    if (user == null)
                     {
+                        logger.LogWarning("JWT Token validation failed: User {UserId} not found in database.", userId);
+                        context.Fail("User not found.");
+                    }
+                    else if (user.CurrentSessionId != tokenSessionId)
+                    {
+                        logger.LogWarning("JWT Token validation failed: SessionId mismatch. DB: {DbSessionId}, Token: {TokenSessionId}", 
+                            user.CurrentSessionId, tokenSessionId);
                         context.Fail("Session has expired or logged in from another device.");
+                    }
+                    else
+                    {
+                        logger.LogInformation("JWT Token validation succeeded for User: {UserId}", userId);
                     }
                 }
             },
@@ -107,6 +139,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
+                var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                
+                logger.LogInformation("OnMessageReceived called for {Path}. Query token present: {HasToken}", 
+                    path, !string.IsNullOrEmpty(accessToken));
+
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/auth"))
                 {
                     context.Token = accessToken;

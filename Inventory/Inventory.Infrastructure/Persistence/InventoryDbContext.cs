@@ -45,6 +45,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     public DbSet<AppNotification> AppNotifications { get; set; }
     public DbSet<ExpenseCategory> ExpenseCategories { get; set; }
     public DbSet<ExpenseEntry> ExpenseEntries { get; set; }
+    public DbSet<ExpenseBudget> ExpenseBudgets { get; set; }
     public DbSet<GatePass> GatePasses => Set<GatePass>();
     public DbSet<UnitMaster> Units => Set<UnitMaster>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();

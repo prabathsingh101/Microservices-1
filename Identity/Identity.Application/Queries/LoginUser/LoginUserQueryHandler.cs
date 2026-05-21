@@ -158,6 +158,11 @@ public class LoginUserQueryHandler
             .Select(r => r.Role?.RoleName ?? "User")
             .ToList();
 
+        // ** Concurrent Login Prevention & Session Setup **
+        var sessionId = Guid.NewGuid().ToString();
+        user.SetCurrentSessionId(sessionId);
+        await _users.UpdateSessionIdAsync(user.Id, sessionId);
+
         // 6. Generate JWT
         Console.WriteLine("[DEBUG-HANDLER] Generating JWT...");
         var auth = _jwt.Generate(user, rolesStrings, companyName);
@@ -167,11 +172,6 @@ public class LoginUserQueryHandler
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();
-
-        // ** Concurrent Login Prevention **
-        // NOTE: GetWithRolesByEmailAsync uses AsNoTracking(), so we must update session ID directly in DB
-        var sessionId = Guid.NewGuid().ToString();
-        await _users.UpdateSessionIdAsync(user.Id, sessionId);
 
         // 8. Add Refresh Token directly via repository to avoid untracked entity tracking issues
         Console.WriteLine("[DEBUG-HANDLER] Adding refresh token...");
