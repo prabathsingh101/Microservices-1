@@ -684,8 +684,14 @@ namespace Inventory.Infrastructure.Repositories
                         // 🔍 DEBUG LOGGING
                         Console.WriteLine($"[GRN Payment Status] GRN: {item.GRNNo}, Total: {item.TotalAmount}, Paid: {totalPaidAmount}, RejectedVal: {rejectionValue}, ReturnVal: {returnedValue}, NetPayable: {netPayableAmount}");
 
+                        // 💰 SMART PAYMENT LOGIC:
+                        // If the supplier's outstanding balance is fully settled (<= 0.01), then all their GRNs are Paid/Settled.
+                        if (currentSupplierBalance <= 0.01m)
+                        {
+                            item.PaymentStatus = "Paid";
+                        }
                         // We use a small epsilon (0.10) to handle potential rounding issues.
-                        if (totalPaidAmount >= (netPayableAmount - 0.10m))
+                        else if (totalPaidAmount >= (netPayableAmount - 0.10m))
                         {
                             item.PaymentStatus = "Paid";
                         }
@@ -693,10 +699,14 @@ namespace Inventory.Infrastructure.Repositories
                         {
                             item.PaymentStatus = "Partial";
                         }
+                        // If net payable is 0 (everything returned/rejected), it's effectively Paid/Settled
+                        else if (netPayableAmount <= 0.01m)
+                        {
+                            item.PaymentStatus = "Paid";
+                        }
                         else 
                         {
-                            // If net payable is 0 (everything returned/rejected), it's effectively Paid/Settled
-                            item.PaymentStatus = netPayableAmount <= 0.01m ? "Paid" : "Unpaid";
+                            item.PaymentStatus = "Unpaid";
                         }
 
                         item.PaidAmount = totalPaidAmount;

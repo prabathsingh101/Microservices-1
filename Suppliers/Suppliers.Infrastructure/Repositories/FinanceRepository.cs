@@ -184,7 +184,7 @@ namespace Suppliers.Infrastructure.Repositories
             // GRNs/POs are unique across the entire company, so matching payments must be resolved company-wide.
             var relevantPayments = await _context.SupplierLedgers
                 .IgnoreQueryFilters()
-                .Where(l => l.TransactionType == "Payment" && l.Description != null && l.CompanyId == _companyId)
+                .Where(l => (l.TransactionType == "Payment" || l.TransactionType == "Debit Note") && l.Description != null && l.CompanyId == _companyId)
                 .Select(l => new { l.Description, l.ReferenceId, l.Debit })
                 .ToListAsync();
 
