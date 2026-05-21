@@ -170,6 +170,31 @@ namespace Suppliers.Infrastructure.Repositories
                 .SumAsync(p => p.Amount);
         }
 
+        public async Task<AdjustmentsSummaryDto> GetTotalAdjustmentsAsync(DateRangeDto dateRange)
+        {
+            var branchId = !string.IsNullOrEmpty(dateRange.BranchId) ? dateRange.BranchId : _branchId;
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
+
+            // Debit note (Purchase returns/Shortages claims) = Sum of SupplierLedgers.Debit where ReferenceId starts with "LA-" and Debit > 0
+            var debitAdjustments = await _context.SupplierLedgers
+                .Where(l => l.TransactionDate >= dateRange.StartDate && l.TransactionDate <= dateRange.EndDate && l.CompanyId == finalCompanyId && (string.IsNullOrEmpty(branchId) || l.BranchId == branchId))
+                .Where(l => l.ReferenceId != null && l.ReferenceId.StartsWith("LA-") && l.Debit > 0)
+                .SumAsync(l => l.Debit);
+
+            // Credit note (Rate differences/Purchases adjustments) = Sum of SupplierLedgers.Credit where ReferenceId starts with "LA-" and Credit > 0
+            var creditAdjustments = await _context.SupplierLedgers
+                .Where(l => l.TransactionDate >= dateRange.StartDate && l.TransactionDate <= dateRange.EndDate && l.CompanyId == finalCompanyId && (string.IsNullOrEmpty(branchId) || l.BranchId == branchId))
+                .Where(l => l.ReferenceId != null && l.ReferenceId.StartsWith("LA-") && l.Credit > 0)
+                .SumAsync(l => l.Credit);
+
+            return new AdjustmentsSummaryDto
+            {
+                CreditAdjustments = creditAdjustments,
+                DebitAdjustments = debitAdjustments
+            };
+        }
+
         public async Task<Dictionary<string, decimal>> GetGRNPaymentStatusesAsync(List<string> grnNumbers)
         {
             if (grnNumbers == null || !grnNumbers.Any()) return new Dictionary<string, decimal>();

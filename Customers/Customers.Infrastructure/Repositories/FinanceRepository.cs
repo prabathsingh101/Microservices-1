@@ -215,11 +215,44 @@ namespace Customers.Infrastructure.Repositories
 
             return await _context.CustomerReceipts
                 .Where(r => r.ReceiptDate >= dateRange.StartDate && r.ReceiptDate <= dateRange.EndDate && r.CompanyId == finalCompanyId)
+                .Where(r => r.BranchId == null || string.IsNullOrEmpty(branchGuid) || r.BranchId == branchGuid)
+                .Where(r => r.ReceiptMode != "Adjustment" && (r.Remarks == null || (!r.Remarks.Contains("[PROPRIETOR_CAPITAL]") && !r.Remarks.Contains("[BANK_TRANSFER]"))))
                 .SumAsync(r => r.Amount);
+        }
+
+        public async Task<AdjustmentsSummaryDto> GetTotalAdjustmentsAsync(DateRangeDto dateRange)
+        {
+            string? branchGuid = string.IsNullOrEmpty(dateRange.BranchId) ? _branchId : dateRange.BranchId;
+
+            Guid finalCompanyId = _companyId;
+            if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
+
+            // Credit adjustments represent customer credit notes (write-offs/bad debts)
+            // They are recorded in CustomerReceipts with ReceiptMode == "Adjustment"
+            var creditAdjustments = await _context.CustomerReceipts
+                .Where(r => r.ReceiptDate >= dateRange.StartDate && r.ReceiptDate <= dateRange.EndDate && r.CompanyId == finalCompanyId)
+                .Where(r => r.BranchId == null || string.IsNullOrEmpty(branchGuid) || r.BranchId == branchGuid)
+                .Where(r => r.ReceiptMode == "Adjustment")
+                .SumAsync(r => r.Amount);
+
+            // Debit adjustments represent customer debit notes (finance charges, surcharges)
+            // They are recorded in CustomerLedger with ReferenceId starting with "LA-" and have a Debit amount
+            var debitAdjustments = await _context.CustomerLedgers
+                .Where(l => l.TransactionDate >= dateRange.StartDate && l.TransactionDate <= dateRange.EndDate && l.CompanyId == finalCompanyId)
+                .Where(l => l.BranchId == null || string.IsNullOrEmpty(branchGuid) || l.BranchId == branchGuid)
+                .Where(l => l.ReferenceId != null && l.ReferenceId.StartsWith("LA-") && l.Debit > 0)
+                .SumAsync(l => l.Debit);
+
+            return new AdjustmentsSummaryDto
+            {
+                CreditAdjustments = creditAdjustments,
+                DebitAdjustments = debitAdjustments
+            };
         }
 
         public async Task<decimal> GetTotalOutstandingAsync(string? branchId = null, string? companyId = null)
         {
+            string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
@@ -229,12 +262,12 @@ namespace Customers.Infrastructure.Repositories
             };
             
             var customerBalances = await _context.CustomerLedgers
-                .Where(l => l.CompanyId == finalCompanyId)
+                .Where(l => l.CompanyId == finalCompanyId && (l.BranchId == null || string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
                 .Where(l => l.CreatedOn == _context.CustomerLedgers
-                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == finalCompanyId)
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == finalCompanyId && (inner.BranchId == null || string.IsNullOrEmpty(finalBranchId) || inner.BranchId == finalBranchId))
                     .Max(inner => inner.CreatedOn))
                 .Join(_context.Customers, l => l.CustomerId, c => c.Id, (l, c) => new { l, c })
-                .Where(x => !internalAccountNames.Contains(x.c.CustomerName!) && x.c.CompanyId == finalCompanyId)
+                .Where(x => !internalAccountNames.Contains(x.c.CustomerName!) && x.c.CompanyId == finalCompanyId && (x.c.BranchId == null || string.IsNullOrEmpty(finalBranchId) || x.c.BranchId == finalBranchId))
                 .Select(x => x.l.Balance)
                 .ToListAsync();
 
@@ -249,15 +282,15 @@ namespace Customers.Infrastructure.Repositories
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
             var latestEntries = await _context.CustomerLedgers
-                .Where(l => l.CompanyId == finalCompanyId)
+                .Where(l => l.CompanyId == finalCompanyId && (l.BranchId == null || string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
                 .Where(l => l.CreatedOn == _context.CustomerLedgers
-                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == finalCompanyId)
+                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == finalCompanyId && (inner.BranchId == null || string.IsNullOrEmpty(finalBranchId) || inner.BranchId == finalBranchId))
                     .Max(inner => inner.CreatedOn))
                 .Where(l => l.Balance > 0)
                 .ToListAsync();
 
             var customerIds = latestEntries.Select(d => d.CustomerId).ToList();
-            var customers = await _context.Customers.Where(c => customerIds.Contains(c.Id)).ToListAsync();
+            var customers = await _context.Customers.Where(c => customerIds.Contains(c.Id) && (c.BranchId == null || string.IsNullOrEmpty(finalBranchId) || c.BranchId == finalBranchId)).ToListAsync();
 
             return latestEntries.Select(l => {
                 var c = customers.FirstOrDefault(c => c.Id == l.CustomerId);
@@ -286,6 +319,8 @@ namespace Customers.Infrastructure.Repositories
 
             var receipts = await _context.CustomerReceipts
                 .Where(r => r.ReceiptDate >= startDate && r.CompanyId == finalCompanyId)
+                .Where(r => r.BranchId == null || string.IsNullOrEmpty(finalBranchId) || r.BranchId == finalBranchId)
+                .Where(r => r.ReceiptMode != "Adjustment" && (r.Remarks == null || (!r.Remarks.Contains("[PROPRIETOR_CAPITAL]") && !r.Remarks.Contains("[BANK_TRANSFER]"))))
                 .ToListAsync();
 
             return receipts

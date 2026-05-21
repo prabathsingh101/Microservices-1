@@ -10,6 +10,8 @@ namespace Suppliers.Application.Features.Suppliers.Queries
     public record GetPendingDuesQuery(string? BranchId = null, string? CompanyId = null) : IRequest<List<PendingDueDto>>;
 
     public record GetTotalPaymentsQuery(DateRangeDto DateRange) : IRequest<decimal>;
+
+    public record GetTotalAdjustmentsQuery(DateRangeDto DateRange) : IRequest<AdjustmentsSummaryDto>;
     
     public record GetGRNPaymentStatusesQuery(List<string> GrnNumbers) : IRequest<Dictionary<string, decimal>>;
 

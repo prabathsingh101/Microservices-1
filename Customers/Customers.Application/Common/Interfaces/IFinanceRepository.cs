@@ -16,6 +16,7 @@ namespace Customers.Application.Common.Interfaces
         Task<CustomerLedgerPagedResultDto> GetLedgerAsync(CustomerLedgerRequestDto request);
         Task<OutstandingPagedResultDto> GetOutstandingAsync(OutstandingRequestDto request);
         Task<decimal> GetTotalReceiptsAsync(DateRangeDto dateRange);
+        Task<AdjustmentsSummaryDto> GetTotalAdjustmentsAsync(DateRangeDto dateRange);
         Task<decimal> GetTotalOutstandingAsync(string? branchId = null, string? companyId = null);
         Task<List<OutstandingDto>> GetPendingDuesAsync(string? branchId = null, string? companyId = null);
         Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null);

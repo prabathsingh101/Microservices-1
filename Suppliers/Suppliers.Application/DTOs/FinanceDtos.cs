@@ -103,4 +103,10 @@ namespace Suppliers.Application.DTOs
         public string? Month { get; set; }
         public decimal Amount { get; set; }
     }
+
+    public class AdjustmentsSummaryDto
+    {
+        public decimal CreditAdjustments { get; set; }
+        public decimal DebitAdjustments { get; set; }
+    }
 }

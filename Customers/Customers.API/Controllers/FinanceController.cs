@@ -92,6 +92,16 @@ namespace Customers.API.Controllers
             return Ok(new { TotalReceipts = total });
         }
 
+        [HttpPost("total-adjustments")]
+        public async Task<IActionResult> GetTotalAdjustments([FromBody] DateRangeDto dateRange)
+        {
+            if (string.IsNullOrEmpty(dateRange.BranchId)) {
+                dateRange.BranchId = Request.Headers["X-Branch-Id"].ToString();
+            }
+            var result = await _mediator.Send(new GetTotalAdjustmentsQuery(dateRange));
+            return Ok(result);
+        }
+
         [HttpGet("monthly-receipts")]
         public async Task<IActionResult> GetMonthlyReceipts([FromQuery] int months = 6, [FromQuery] string? branchId = null)
         {

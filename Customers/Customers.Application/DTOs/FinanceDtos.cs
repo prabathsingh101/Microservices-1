@@ -138,4 +138,10 @@ namespace Customers.Application.DTOs
         public string SortBy { get; set; } = "ReceiptDate";
         public string SortOrder { get; set; } = "desc";
     }
+
+    public class AdjustmentsSummaryDto
+    {
+        public decimal CreditAdjustments { get; set; }
+        public decimal DebitAdjustments { get; set; }
+    }
 }
