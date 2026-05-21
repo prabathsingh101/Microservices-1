@@ -26,14 +26,23 @@ namespace Company.Application.Company.Commands.Update.Handler
             // 🔍 DUPLICATE BANK ACCOUNT CHECK:
             if (cmd.Request.BankInfo != null && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.AccountNumber) && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.IfscCode))
             {
-                bool isBankDuplicate = await _repo.HasDuplicateBankAccountAsync(
-                    cmd.Request.BankInfo.AccountNumber, 
-                    cmd.Request.BankInfo.IfscCode, 
-                    cmd.Id);
-                    
-                if (isBankDuplicate)
+                // Check if the submitted bank details are different from the existing ones.
+                var existingBank = profile.BankDetails.FirstOrDefault();
+                bool bankDetailsChanged = existingBank == null || 
+                                          existingBank.AccountNumber != cmd.Request.BankInfo.AccountNumber || 
+                                          existingBank.IfscCode != cmd.Request.BankInfo.IfscCode;
+
+                if (bankDetailsChanged)
                 {
-                    throw new Exception($"The bank account details (Account Number: '{cmd.Request.BankInfo.AccountNumber}' and IFSC: '{cmd.Request.BankInfo.IfscCode}') are already registered with another company.");
+                    bool isBankDuplicate = await _repo.HasDuplicateBankAccountAsync(
+                        cmd.Request.BankInfo.AccountNumber, 
+                        cmd.Request.BankInfo.IfscCode, 
+                        cmd.Id);
+                        
+                    if (isBankDuplicate)
+                    {
+                        throw new Exception($"The bank account details (Account Number: '{cmd.Request.BankInfo.AccountNumber}' and IFSC: '{cmd.Request.BankInfo.IfscCode}') are already registered with another company.");
+                    }
                 }
             }
 

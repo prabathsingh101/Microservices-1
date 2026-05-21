@@ -175,6 +175,24 @@ namespace Company.API.Controllers
                         {
                             return BadRequest("IFSC Code (additionalValue) is required for bank account duplicate check.");
                         }
+
+                        // If the company being edited already has these exact bank details, we don't treat it as a duplicate.
+                        if (excludeId.HasValue && excludeId.Value != Guid.Empty)
+                        {
+                            var currentCompanyBank = await _dbContext.BankDetails
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(b => b.CompanyProfileId == excludeId.Value);
+
+                            if (currentCompanyBank != null && 
+                                currentCompanyBank.AccountNumber == value && 
+                                currentCompanyBank.IfscCode != null && 
+                                currentCompanyBank.IfscCode.ToUpper() == additionalValue.ToUpper())
+                            {
+                                exists = false;
+                                break;
+                            }
+                        }
+
                         var bankQuery = _dbContext.BankDetails.AsNoTracking().AsQueryable();
                         if (excludeId.HasValue && excludeId.Value != Guid.Empty)
                         {
