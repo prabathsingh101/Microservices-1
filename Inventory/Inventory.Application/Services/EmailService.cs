@@ -7,7 +7,7 @@ namespace Inventory.Application.Services
 {
     public class EmailService : IEmailService
     {
-        public async Task SendPoEmailAsync(CompanyProfileDto company, string supplierEmail, string poNumber, decimal amount)
+        public async Task SendPoEmailAsync(CompanyProfileDto company, string supplierEmail, string poNumber, decimal amount, byte[] pdfAttachmentBytes = null)
         {
             if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
             {
@@ -48,7 +48,21 @@ namespace Inventory.Application.Services
                         IsBodyHtml = true
                     })
                     {
-                        await smtp.SendMailAsync(message);
+                        Console.WriteLine($"[EmailService] Sending PO Email. Attachment bytes length: {(pdfAttachmentBytes != null ? pdfAttachmentBytes.Length.ToString() : "NULL")}");
+
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"PurchaseOrder_{poNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
                     }
                 }
                 Console.WriteLine($"[EmailService] PO Email sent to {supplierEmail}");
@@ -122,7 +136,7 @@ namespace Inventory.Application.Services
             }
         }
         
-        public async Task SendGrnEmailAsync(CompanyProfileDto company, string supplierEmail, string grnNumber, string poNumber, decimal amount)
+        public async Task SendGrnEmailAsync(CompanyProfileDto company, string supplierEmail, string grnNumber, string poNumber, decimal amount, byte[] pdfAttachmentBytes = null)
         {
             if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
             {
@@ -162,7 +176,21 @@ namespace Inventory.Application.Services
                         IsBodyHtml = true
                     })
                     {
-                        await smtp.SendMailAsync(message);
+                        Console.WriteLine($"[EmailService] Sending GRN Email. Attachment bytes length: {(pdfAttachmentBytes != null ? pdfAttachmentBytes.Length.ToString() : "NULL")}");
+
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"GRN_{grnNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
                     }
                 }
                 Console.WriteLine($"[EmailService] GRN Email sent to {supplierEmail}");

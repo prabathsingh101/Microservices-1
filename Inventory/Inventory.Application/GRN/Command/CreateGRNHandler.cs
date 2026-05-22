@@ -96,36 +96,66 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
                 Console.WriteLine($"[CreateGRNHandler] WARNING: Financial record failed: {ex.Message}");
             }
 
+            // FETCH DATA BEFORE Task.Run SO HTTP CONTEXT IS AVAILABLE FOR TOKENS
+            var companyClientNotification = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ICompanyClient>();
+            var supplierClientNotification = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ISupplierClient>();
+            var poRepoLocal = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IPurchaseOrderRepository>();
+            
+            Inventory.Application.Clients.DTOs.CompanyProfileDto? companyNotification = null;
+            Inventory.Application.PurchaseReturn.SupplierSelectDto? supplierNotification = null;
+            string? poNumberLocal = "Quick";
+            
+            try 
+            {
+                companyNotification = await companyClientNotification.GetCompanyProfileAsync();
+                supplierNotification = await supplierClientNotification.GetSupplierByIdAsync(dto.SupplierId);
+                poNumberLocal = (dto.POHeaderId != Guid.Empty) ? (await poRepoLocal.GetByIdAsync(dto.POHeaderId))?.PoNumber : "Quick";
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"[CreateGRNHandler] Failed to fetch data for notification: {ex.Message}");
+            }
+
             // 📢 2. Background Task for non-critical notifications (Email/WhatsApp)
             _ = Task.Run(async () =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
                 var whatsAppService = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
-                var companyClient = scope.ServiceProvider.GetRequiredService<ICompanyClient>();
-                var supplierClient = scope.ServiceProvider.GetRequiredService<ISupplierClient>();
-                var poRepo = scope.ServiceProvider.GetRequiredService<IPurchaseOrderRepository>();
 
                 try
                 {
-                    var company = await companyClient.GetCompanyProfileAsync();
-                    var supplier = await supplierClient.GetSupplierByIdAsync(dto.SupplierId);
-                    
-                    if (company != null && supplier != null)
+                    if (companyNotification != null && supplierNotification != null)
                     {
-                        var poNumber = (dto.POHeaderId != Guid.Empty) ? (await poRepo.GetByIdAsync(dto.POHeaderId))?.PoNumber : "Quick";
-
                         // ✉️ Email
-                        if (!string.IsNullOrEmpty(supplier.Email))
+                        if (!string.IsNullOrEmpty(supplierNotification.Email))
                         {
-                            await emailService.SendGrnEmailAsync(company, supplier.Email, grnNumber, poNumber ?? "N/A", dto.TotalAmount);
+                            byte[] pdfBytes = null;
+                            if (dto.POHeaderId != Guid.Empty)
+                            {
+                                try
+                                {
+                                    var scopedPoRepo = scope.ServiceProvider.GetRequiredService<IPurchaseOrderRepository>();
+                                    var pdfResponse = await scopedPoRepo.GeneratePOReportPdfAsync(dto.POHeaderId);
+                                    if (pdfResponse != null)
+                                    {
+                                        pdfBytes = pdfResponse.PdfBytes;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[CreateGRNHandler] PDF generation failed: {ex.Message}");
+                                }
+                            }
+
+                            await emailService.SendGrnEmailAsync(companyNotification, supplierNotification.Email, grnNumber, poNumberLocal ?? "N/A", dto.TotalAmount, pdfBytes);
                         }
 
                         // 📱 WhatsApp
-                        if (!string.IsNullOrEmpty(supplier.Phone))
+                        if (!string.IsNullOrEmpty(supplierNotification.Phone))
                         {
-                            string msg = $"Goods Received: {grnNumber}\nRef PO: {poNumber}\nSource: {company.Name}\nStatus: Received & Accepted.\nThank you!";
-                            await whatsAppService.SendMessageAsync(supplier.Phone, msg);
+                            string msg = $"Goods Received: {grnNumber}\nRef PO: {poNumberLocal}\nSource: {companyNotification.Name}\nStatus: Received & Accepted.\nThank you!";
+                            await whatsAppService.SendMessageAsync(supplierNotification.Phone, msg);
                         }
                     }
                 }

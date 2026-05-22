@@ -66,6 +66,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     Remarks = dto.Remarks,
                     ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
                     IsQuick = dto.IsQuick, // Map flag from DTO
+                    Status = "Draft", // Always start as Draft
                     Items = dto.Items.Select(i => new PurchaseOrderItem
                     {
                         ProductId = i.ProductId,
@@ -96,6 +97,8 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 throw;
             }
         });
+
+
 
         return new CreatePOResponse
         {

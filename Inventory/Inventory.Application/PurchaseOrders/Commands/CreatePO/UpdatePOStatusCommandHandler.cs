@@ -21,29 +21,59 @@ public class UpdatePOStatusHandler : IRequestHandler<UpdatePOStatusCommand, bool
 
         if (result && request.Status == "Approved")
         {
+            // FETCH DATA BEFORE Task.Run SO HTTP CONTEXT IS AVAILABLE FOR TOKENS
+            var companyClient = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ICompanyClient>();
+            var supplierClient = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ISupplierClient>();
+            
+            Inventory.Application.Clients.DTOs.CompanyProfileDto? company = null;
+            Inventory.Application.PurchaseReturn.SupplierSelectDto? supplier = null;
+            PurchaseOrder po = await _repository.GetByIdAsync(request.Id);
+
+            if (po != null)
+            {
+                try 
+                {
+                    company = await companyClient.GetCompanyProfileAsync();
+                    supplier = await supplierClient.GetSupplierByIdAsync(po.SupplierId);
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine($"[UpdatePOStatusHandler] Failed to fetch data for notification: {ex.Message}");
+                }
+            }
+
             // Background Task to send notifications when approved
             _ = Task.Run(async () =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
                 var whatsAppService = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
-                var companyClient = scope.ServiceProvider.GetRequiredService<ICompanyClient>();
-                var supplierClient = scope.ServiceProvider.GetRequiredService<ISupplierClient>();
 
                 try
                 {
-                    var po = await _repository.GetByIdAsync(request.Id);
                     if (po == null) return;
-
-                    var company = await companyClient.GetCompanyProfileAsync();
-                    var supplier = await supplierClient.GetSupplierByIdAsync(po.SupplierId);
 
                     if (company != null && supplier != null)
                     {
                         // 1. Email
                         if (!string.IsNullOrEmpty(supplier.Email))
                         {
-                            await emailService.SendPoEmailAsync(company, supplier.Email, po.PoNumber, po.GrandTotal);
+                            byte[] pdfBytes = null;
+                            try
+                            {
+                                var scopedRepo = scope.ServiceProvider.GetRequiredService<IPurchaseOrderRepository>();
+                                var pdfResponse = await scopedRepo.GeneratePOReportPdfAsync(po.Id);
+                                if (pdfResponse != null)
+                                {
+                                    pdfBytes = pdfResponse.PdfBytes;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[UpdatePOStatusHandler] PDF generation failed: {ex.Message}");
+                            }
+
+                            await emailService.SendPoEmailAsync(company, supplier.Email, po.PoNumber, po.GrandTotal, pdfBytes);
                         }
 
                         // 2. WhatsApp

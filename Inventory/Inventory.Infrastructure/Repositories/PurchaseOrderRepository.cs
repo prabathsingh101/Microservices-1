@@ -791,6 +791,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         // 1. Timeout Fix: Simple query bina nested include ke
         var po = await _context.PurchaseOrders
             .AsNoTracking()
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (po == null) return null;
@@ -821,14 +822,14 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
 
         // 3. STATUS FIX: GRNHeaders table mein check karein ki kya ye PO receive ho chuka hai
-        bool isReceived = await _context.GRNHeaders
+        bool isReceived = await _context.GRNHeaders.IgnoreQueryFilters()
             .AnyAsync(g => g.PurchaseOrderId == id && g.Status == "Received");
 
         string documentTitle = isReceived ? "TAX INVOICE" : "PURCHASE ORDER";
 
         // 4. Items fetch optimized
-        var itemsWithNames = await (from item in _context.PurchaseOrderItems
-                                    join prod in _context.Products on item.ProductId equals prod.Id
+        var itemsWithNames = await (from item in _context.PurchaseOrderItems.IgnoreQueryFilters()
+                                    join prod in _context.Products.IgnoreQueryFilters() on item.ProductId equals prod.Id
                                     where item.PurchaseOrderId == id
                                     select new
                                     {
