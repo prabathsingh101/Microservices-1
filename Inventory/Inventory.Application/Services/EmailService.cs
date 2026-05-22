@@ -31,6 +31,8 @@ namespace Inventory.Application.Services
                 string subject = $"Purchase Order: {poNumber} from {company.Name}";
                 string body = $@"<html><body><h2>Dear Supplier,</h2><p>We are pleased to place a New Purchase Order with you.</p><p><strong>PO Number:</strong> {poNumber}</p><p><strong>Total Amount:</strong> {amount}</p><p>Please find the details in the attached document (coming soon) or log in to our portal.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
 
+                Console.WriteLine($"[EmailService] Attempting to send PO email via {company.SmtpHost}:{company.SmtpPort} with SSL: {company.SmtpUseSsl}");
+
                 using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
                 {
                     smtp.EnableSsl = company.SmtpUseSsl;
@@ -79,6 +81,8 @@ namespace Inventory.Application.Services
                 var toAddress = new MailAddress(customerEmail);
                 string subject = $"Sale Order Confirmation: {soNumber} - {company.Name}";
                 string body = $@"<html><body><h2>Dear Customer,</h2><p>Thank you for your order!</p><p><strong>Order Number:</strong> {soNumber}</p><p><strong>Total Amount:</strong> {amount}</p><p>We are processing your order and will notify you once it's shipped. Please find your tax invoice attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send SO email via {company.SmtpHost}:{company.SmtpPort} with SSL: {company.SmtpUseSsl}");
 
                 using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
                 {
@@ -140,6 +144,8 @@ namespace Inventory.Application.Services
                 var toAddress = new MailAddress(supplierEmail);
                 string subject = $"Goods Received Advice: {grnNumber} (Ref PO: {poNumber}) - {company.Name}";
                 string body = $@"<html><body><h2>Dear Supplier,</h2><p>This is to inform you that we have received the goods against your supply.</p><p><strong>GRN Number:</strong> {grnNumber}</p><p><strong>PO Reference:</strong> {poNumber}</p><p><strong>Accepted Amount:</strong> {amount}</p><p>The inventory has been updated in our system. Thank you for the timely delivery.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send GRN email via {company.SmtpHost}:{company.SmtpPort} with SSL: {company.SmtpUseSsl}");
 
                 using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
                 {

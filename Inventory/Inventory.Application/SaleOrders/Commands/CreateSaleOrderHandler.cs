@@ -16,16 +16,20 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
     private readonly ICustomerClient _customerClient;
     private readonly IServiceScopeFactory _scopeFactory;
 
+    private readonly ICompanyClient _companyClient;
+
     public CreateSaleOrderHandler(
         ISaleOrderRepository repo, 
         IInventoryDbContext context, 
         IServiceScopeFactory scopeFactory,
-        ICustomerClient customerClient)
+        ICustomerClient customerClient,
+        ICompanyClient companyClient)
     {
         _repo = repo;
         _context = context;
         _scopeFactory = scopeFactory;
         _customerClient = customerClient;
+        _companyClient = companyClient;
     }
 
     public async Task<object> Handle(CreateSaleOrderCommand request, CancellationToken cancellationToken)
@@ -303,34 +307,32 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
         // 4. Notifications
         if (result != null && dto.Status == "Confirmed" && (oldStatus == null || oldStatus != "Confirmed"))
         {
+            // FETCH DATA BEFORE Task.Run SO HTTP CONTEXT IS AVAILABLE FOR TOKENS
+            var company = await _companyClient.GetCompanyProfileAsync();
+            CustomerLookupDto? customer = null;
+            if (saleOrder.CustomerId.HasValue && saleOrder.CustomerId.Value != Guid.Empty)
+            {
+                customer = await _customerClient.GetCustomerByIdAsync(saleOrder.CustomerId.Value);
+            }
+            else if (!string.IsNullOrEmpty(saleOrder.GuestName))
+            {
+                customer = new CustomerLookupDto 
+                { 
+                    CustomerName = saleOrder.GuestName,
+                    Phone = saleOrder.GuestPhone,
+                    Email = "" // Guest typically doesn't have email in this simplified flow
+                };
+            }
+
             _ = Task.Run(async () =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
                 var whatsAppService = scope.ServiceProvider.GetRequiredService<IWhatsAppService>();
-                var companyClient = scope.ServiceProvider.GetRequiredService<ICompanyClient>();
-                var customerClient = scope.ServiceProvider.GetRequiredService<ICustomerClient>();
                 var pdfService = scope.ServiceProvider.GetRequiredService<IPdfService>();
 
                 try
                 {
-                    var company = await companyClient.GetCompanyProfileAsync();
-                    
-                    CustomerLookupDto? customer = null;
-                    if (saleOrder.CustomerId.HasValue && saleOrder.CustomerId.Value != Guid.Empty)
-                    {
-                        customer = await customerClient.GetCustomerByIdAsync(saleOrder.CustomerId.Value);
-                    }
-                    else if (!string.IsNullOrEmpty(saleOrder.GuestName))
-                    {
-                        customer = new CustomerLookupDto 
-                        { 
-                            CustomerName = saleOrder.GuestName,
-                            Phone = saleOrder.GuestPhone,
-                            Email = "" // Guest typically doesn't have email in this simplified flow
-                        };
-                    }
-
                     if (company != null && customer != null)
                     {
                         byte[] pdfBytes = null;

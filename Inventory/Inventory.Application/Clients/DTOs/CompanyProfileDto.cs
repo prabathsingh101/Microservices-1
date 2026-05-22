@@ -1,8 +1,10 @@
+using System;
+
 namespace Inventory.Application.Clients.DTOs
 {
     public class CompanyProfileDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; }
         public string Tagline { get; set; }
         public string RegistrationNumber { get; set; }
