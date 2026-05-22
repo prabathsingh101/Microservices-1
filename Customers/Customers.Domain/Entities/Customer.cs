@@ -71,10 +71,20 @@ namespace Customers.Domain.Entities
             Email = email;
             GstNumber = gstNumber;
             CreditLimit = creditLimit;
-            BillingAddress = billingAddress;
-            ShippingAddress = shippingAddress;
             Status = status;
             ModifiedOn = DateTime.UtcNow;
+
+            if (BillingAddress == null)
+                BillingAddress = billingAddress;
+            else
+                BillingAddress.UpdateAddressLine(billingAddress.AddressLine);
+
+            if (shippingAddress == null)
+                ShippingAddress = null;
+            else if (ShippingAddress == null)
+                ShippingAddress = shippingAddress;
+            else
+                ShippingAddress.UpdateAddressLine(shippingAddress.AddressLine);
         }
 
         public void UpdateStatus(string status)
@@ -93,6 +103,11 @@ namespace Customers.Domain.Entities
         public Address(string address)
         {
             AddressLine = address;
+        }
+
+        public void UpdateAddressLine(string newLine)
+        {
+            AddressLine = newLine;
         }
     }
 }
