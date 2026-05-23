@@ -373,148 +373,152 @@ public class SaleOrderRepository : ISaleOrderRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            // 1. Pehle Order fetch karein
-            var order = await _context.SaleOrders.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
-            if (order == null) return false;
-
-            // 2. Agar status 'Confirmed' ho raha hai aur pehle se nahi tha
-            if (status == "Confirmed" && order.Status != "Confirmed")
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                // Order ke saare items nikaalein
-                var items = await _context.SaleOrderItems
-                                          .Where(x => x.SaleOrderId == id)
-                                          .ToListAsync();
+                // 1. Pehle Order fetch karein
+                var order = await _context.SaleOrders.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+                if (order == null) return false;
 
-                foreach (var item in items)
+                // 2. Agar status 'Confirmed' ho raha hai aur pehle se nahi tha
+                if (status == "Confirmed" && order.Status != "Confirmed")
                 {
-                    // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK (MINUS)
-                    if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
-                    {
-                        var whStock = await _context.WarehouseStocks
-                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+                    // Order ke saare items nikaalein
+                    var items = await _context.SaleOrderItems
+                                              .Where(x => x.SaleOrderId == id)
+                                              .ToListAsync();
 
-                        if (whStock != null)
+                    foreach (var item in items)
+                    {
+                        // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK (MINUS)
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                         {
-                            whStock.Quantity -= item.Qty;
-                        }
-                        else
-                        {
-                            await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                            if (whStock != null)
                             {
-                                ProductId = item.ProductId,
-                                WarehouseId = item.WarehouseId.Value,
-                                Quantity = -item.Qty,
-                                MinStock = 0,
-                                CompanyId = order.CompanyId,
-                                BranchId = order.BranchId
-                            });
+                                whStock.Quantity -= item.Qty;
+                            }
+                            else
+                            {
+                                await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                                {
+                                    ProductId = item.ProductId,
+                                    WarehouseId = item.WarehouseId.Value,
+                                    Quantity = -item.Qty,
+                                    MinStock = 0,
+                                    CompanyId = order.CompanyId,
+                                    BranchId = order.BranchId
+                                });
+                            }
                         }
-                    }
 
-                    // 🆕 Record Inventory Transaction for Audit Trail
-                    bool isQuick = order.SONumber.Contains("-Q-");
-                    var saleTx = new InventoryTransaction(
-                        item.ProductId,
-                        -item.Qty, // Negative because it is REDUCING stock
-                        isQuick ? "QuickSale" : "Sale",
-                        order.SONumber,
-                        item.WarehouseId,
-                        item.RackId,
-                        item.MfgDate,
-                        item.ExpDate,
-                        order.CompanyId,
-                        order.BranchId,
-                        item.ReferenceNumber, // Link back to source PO
-                        item.BatchNumber     // Specific Batch
-                    );
-                    await _context.InventoryTransactions.AddAsync(saleTx);
-                }
-            }
-            // 3. Agar pehle 'Confirmed' tha aur ab status change ho raha hai (Reverse Stock)
-            else if (order.Status == "Confirmed" && status != "Confirmed")
-            {
-                var items = await _context.SaleOrderItems
-                                          .Where(x => x.SaleOrderId == id)
-                                          .ToListAsync();
-
-                foreach (var item in items)
-                {
-                    // 🚀 RESTORE PHYSICAL WAREHOUSE STOCK (PLUS)
-                    if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
-                    {
-                        var whStock = await _context.WarehouseStocks
-                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
-
-                        if (whStock != null)
-                        {
-                            whStock.Quantity += item.Qty;
-                        }
-                    }
-
-                    // 🆕 Record Inventory Transaction (REVERSAL)
-                    bool isQuick = order.SONumber.Contains("-Q-");
-                    var reversalTx = new InventoryTransaction(
-                        item.ProductId,
-                        item.Qty, // Positive because it is READDING stock
-                        (isQuick ? "QuickSale" : "Sale") + "-REVERSED",
-                        order.SONumber,
-                        item.WarehouseId,
-                        item.RackId,
-                        item.MfgDate,
-                        item.ExpDate,
-                        order.CompanyId,
-                        order.BranchId,
-                        item.ReferenceNumber,
-                        item.BatchNumber
-                    );
-                    await _context.InventoryTransactions.AddAsync(reversalTx);
-                }
-            }
-
-            // 3. Status update karein aur save karein
-            order.Status = status;
-            var saved = await _context.SaveChangesAsync() > 0;
-            
-            await transaction.CommitAsync();
-
-            if (saved && status == "Confirmed")
-            {
-                if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty)
-                {
-                    try
-                    {
-                        await _customerClient.RecordSaleAsync(
-                            order.CustomerId.Value,
-                            order.GrandTotal,
+                        // 🆕 Record Inventory Transaction for Audit Trail
+                        bool isQuick = order.SONumber.Contains("-Q-");
+                        var saleTx = new InventoryTransaction(
+                            item.ProductId,
+                            -item.Qty, // Negative because it is REDUCING stock
+                            isQuick ? "QuickSale" : "Sale",
                             order.SONumber,
-                            $"Sale Invoice generated: {order.SONumber}",
-                            "System",
-                            Guid.TryParse(order.BranchId, out var parsedBranchId) ? parsedBranchId : (Guid?)null,
-                            order.CompanyId
+                            item.WarehouseId,
+                            item.RackId,
+                            item.MfgDate,
+                            item.ExpDate,
+                            order.CompanyId,
+                            order.BranchId,
+                            item.ReferenceNumber, // Link back to source PO
+                            item.BatchNumber     // Specific Batch
                         );
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Customer Ledger sync error: {ex.Message}");
+                        await _context.InventoryTransactions.AddAsync(saleTx);
                     }
                 }
-                else
+                // 3. Agar pehle 'Confirmed' tha aur ab status change ho raha hai (Reverse Stock)
+                else if (order.Status == "Confirmed" && status != "Confirmed")
                 {
-                    Console.WriteLine($"[UpdateSaleOrderStatus] Skipping ledger sync for Walking Customer: {order.GuestName}");
-                }
-            }
+                    var items = await _context.SaleOrderItems
+                                              .Where(x => x.SaleOrderId == id)
+                                              .ToListAsync();
 
-            return saved;
-        }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync();
-            Console.WriteLine($"Error updating sale order status: {ex.Message}");
-            throw; // Re-throw to handle in API layer
-        }
+                    foreach (var item in items)
+                    {
+                        // 🚀 RESTORE PHYSICAL WAREHOUSE STOCK (PLUS)
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                        {
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                            if (whStock != null)
+                            {
+                                whStock.Quantity += item.Qty;
+                            }
+                        }
+
+                        // 🆕 Record Inventory Transaction (REVERSAL)
+                        bool isQuick = order.SONumber.Contains("-Q-");
+                        var reversalTx = new InventoryTransaction(
+                            item.ProductId,
+                            item.Qty, // Positive because it is READDING stock
+                            (isQuick ? "QuickSale" : "Sale") + "-REVERSED",
+                            order.SONumber,
+                            item.WarehouseId,
+                            item.RackId,
+                            item.MfgDate,
+                            item.ExpDate,
+                            order.CompanyId,
+                            order.BranchId,
+                            item.ReferenceNumber,
+                            item.BatchNumber
+                        );
+                        await _context.InventoryTransactions.AddAsync(reversalTx);
+                    }
+                }
+
+                // 3. Status update karein aur save karein
+                order.Status = status;
+                var saved = await _context.SaveChangesAsync() > 0;
+                
+                await transaction.CommitAsync();
+
+                if (saved && status == "Confirmed")
+                {
+                    if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty)
+                    {
+                        try
+                        {
+                            await _customerClient.RecordSaleAsync(
+                                order.CustomerId.Value,
+                                order.GrandTotal,
+                                order.SONumber,
+                                $"Sale Invoice generated: {order.SONumber}",
+                                "System",
+                                Guid.TryParse(order.BranchId, out var parsedBranchId) ? parsedBranchId : (Guid?)null,
+                                order.CompanyId
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Customer Ledger sync error: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[UpdateSaleOrderStatus] Skipping ledger sync for Walking Customer: {order.GuestName}");
+                    }
+                }
+
+                return saved;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"Error updating sale order status: {ex.Message}");
+                throw; // Re-throw to handle in API layer
+            }
+        });
     }
 
     public async Task<SaleOrderDetailDto?> GetSaleOrderByIdAsync(Guid id)
