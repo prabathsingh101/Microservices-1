@@ -42,6 +42,7 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? BranchId { get; set; }
         public string? BranchName { get; set; }
         public string? BatchNumber { get; set; }
+        public string? HsnCode { get; set; }
         public decimal MRP { get; set; }
         public decimal Discount { get; set; }
         public decimal SaleRate { get; set; }

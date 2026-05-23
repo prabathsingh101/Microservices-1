@@ -108,6 +108,7 @@ namespace Inventory.Infrastructure.Repositories
                     RackName = _context.Racks.IgnoreQueryFilters().Where(r => r.Id == x.ri.RackId).Select(r => r.Name).FirstOrDefault() ?? "N/A",
                     Sku = x.p.Sku,
                     GstPercent = x.p.DefaultGst ?? 0M,
+                    HSNCode = x.p.HSNCode,
                     IsExpiryRequired = x.p.IsExpiryRequired,
                     MRP = x.p.MRP,
                     Discount = x.p.Discount,
@@ -161,7 +162,8 @@ namespace Inventory.Infrastructure.Repositories
                     g.Discount,
                     g.SaleRate,
                     g.BasePurchasePrice,
-                    BranchId = g.BranchId
+                    BranchId = g.BranchId,
+                    HsnCode = g.HSNCode
                 })
                 .Select(group => new StockSummaryDto
                 {
@@ -182,6 +184,7 @@ namespace Inventory.Infrastructure.Repositories
                     SaleRate = group.Key.SaleRate,
                     BasePurchasePrice = group.Key.BasePurchasePrice,
                     BranchId = group.Key.BranchId,
+                    HsnCode = group.Key.HsnCode,
                     TotalReceived = group.Sum(x => x.ReceivedQty),
                     TotalRejected = group.Sum(x => (x.GrnRackName != null && (
                         x.GrnRackName.ToLower().Contains("e1") || 
@@ -256,23 +259,27 @@ namespace Inventory.Infrastructure.Repositories
             foreach (var item in items)
             {
                 var salesQuery = _context.SaleOrderItems.IgnoreQueryFilters().AsQueryable();
+                var invoiceQuery = _context.SalesInvoiceItems.IgnoreQueryFilters().AsQueryable();
                 var returnsQuery = _context.SaleReturnItems.IgnoreQueryFilters().AsQueryable();
                 var grnQuery = _context.GRNDetails.IgnoreQueryFilters().AsQueryable();
 
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     salesQuery = salesQuery.Where(si => si.CompanyId == companyId);
+                    invoiceQuery = invoiceQuery.Where(ii => ii.CompanyId == companyId);
                     returnsQuery = returnsQuery.Where(sri => sri.CompanyId == companyId);
                     grnQuery = grnQuery.Where(g => g.CompanyId == companyId);
                 }
 
                 salesQuery = salesQuery.Where(si => si.ProductId == item.ProductId);
+                invoiceQuery = invoiceQuery.Where(ii => ii.ProductId == item.ProductId);
                 returnsQuery = returnsQuery.Where(sri => sri.ProductId == item.ProductId);
                 grnQuery = grnQuery.Where(g => g.ProductId == item.ProductId);
 
                 if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
                 {
                     salesQuery = salesQuery.Where(si => si.BranchId == finalBranchId);
+                    invoiceQuery = invoiceQuery.Where(ii => ii.BranchId == finalBranchId);
                     returnsQuery = returnsQuery.Where(sri => sri.BranchId == finalBranchId);
                     grnQuery = grnQuery.Where(g => g.BranchId == finalBranchId);
                 }
@@ -281,6 +288,13 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId 
                         && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled")
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
+
+                var quickSold = await invoiceQuery
+                    .Where(ii => ii.WarehouseId == item.WarehouseId && ii.RackId == item.RackId 
+                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled")
+                    .SumAsync(ii => (decimal?)ii.Qty) ?? 0;
+
+                grossSold += quickSold;
 
                 var totalSaleReturn = await returnsQuery
                     .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
@@ -377,6 +391,13 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(si => (si.WarehouseId == null || si.RackId == null) 
                         && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled")
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
+
+                var unlinkedQuickSold = await invoiceQuery
+                    .Where(ii => (ii.WarehouseId == null || ii.RackId == null) 
+                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled")
+                    .SumAsync(ii => (decimal?)ii.Qty) ?? 0;
+
+                unlinkedSales += unlinkedQuickSold;
 
                 var isOldest = await grnQuery
                     .OrderBy(g => g.GRNHeader.ReceivedDate)
@@ -570,8 +591,34 @@ namespace Inventory.Infrastructure.Repositories
                     .OrderBy(h => h.ReceivedDate)
                     .ToList();
 
-                // Apply FIFO distribution of TotalSold, TotalPurchaseReturn and TotalTransferredOut
-                decimal remainingSold = item.TotalSold;
+                // EXACT BATCH MATCHING for Sales
+                var exactBatchSoldMap = itemTransactions
+                    .Where(tx => tx.TransactionType.Contains("Sale") && !tx.TransactionType.Contains("REVERSED") && !string.IsNullOrEmpty(tx.BatchNumber))
+                    .GroupBy(tx => tx.BatchNumber)
+                    .ToDictionary(g => g.Key, g => g.Sum(tx => -tx.Quantity)); // Sale quantity is negative in InventoryTransaction, so -tx.Quantity gives positive sold amount
+
+                var exactBatchSaleReversals = itemTransactions
+                    .Where(tx => tx.TransactionType.Contains("Sale") && tx.TransactionType.Contains("REVERSED") && !string.IsNullOrEmpty(tx.BatchNumber))
+                    .GroupBy(tx => tx.BatchNumber)
+                    .ToDictionary(g => g.Key, g => g.Sum(tx => tx.Quantity)); // Reversal is positive
+
+                // Calculate Net Exact Sold per Batch
+                var netExactBatchSold = new Dictionary<string, decimal>();
+                foreach (var kvp in exactBatchSoldMap)
+                {
+                    decimal sold = kvp.Value;
+                    decimal reversed = exactBatchSaleReversals.ContainsKey(kvp.Key) ? exactBatchSaleReversals[kvp.Key] : 0;
+                    decimal netSold = sold - reversed;
+                    if (netSold > 0)
+                    {
+                        netExactBatchSold[kvp.Key] = netSold;
+                    }
+                }
+
+                // Apply FIFO distribution of unlinked TotalSold, TotalPurchaseReturn and TotalTransferredOut
+                decimal remainingSold = item.TotalSold - netExactBatchSold.Values.Sum();
+                if (remainingSold < 0) remainingSold = 0; // Guard against negative remaining
+
                 decimal remainingReturn = totalDeductibleReturn;
                 decimal remainingTransfer = item.TotalTransferredOut;
 
@@ -588,11 +635,22 @@ namespace Inventory.Infrastructure.Repositories
                         remainingReturn -= toReturn;
                     }
 
-                    // 2. Deduct Sales (FIFO)
+                    // 2a. Deduct Exact Sales for this Batch First!
+                    if (h.BatchNumber != null && netExactBatchSold.ContainsKey(h.BatchNumber))
+                    {
+                        decimal exactSold = netExactBatchSold[h.BatchNumber];
+                        decimal toExactSold = Math.Min(exactSold, netRecv);
+                        h.SoldQty += toExactSold;
+                        netRecv -= toExactSold;
+                        // Reduce the exact map so we don't double count if there are duplicate batch numbers in history (shouldn't happen, but safe)
+                        netExactBatchSold[h.BatchNumber] -= toExactSold;
+                    }
+
+                    // 2b. Deduct Unlinked Sales (FIFO)
                     if (remainingSold > 0 && netRecv > 0)
                     {
                         decimal toSold = Math.Min(remainingSold, netRecv);
-                        h.SoldQty = toSold;
+                        h.SoldQty += toSold; // Add to whatever was exactly sold
                         netRecv -= toSold;
                         remainingSold -= toSold;
                     }
@@ -610,7 +668,7 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         var batchPurged = itemTransactions
                             .Where(tx => tx.TransactionType == "StockPurge-OUT" && tx.ExpDate?.Date == h.ExpiryDate?.Date)
-                            .Sum(tx => tx.Quantity);
+                            .Sum(tx => Math.Abs(tx.Quantity));
                         h.ExpiredQty = batchPurged;
                     }
 

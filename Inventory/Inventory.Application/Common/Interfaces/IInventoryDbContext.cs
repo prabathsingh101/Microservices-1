@@ -16,6 +16,8 @@ namespace Inventory.Application.Common.Interfaces
         DbSet<SaleOrderItem> SaleOrderItems { get; }
         DbSet<Inventory.Domain.Entities.PurchaseReturn> PurchaseReturns { get; }
         DbSet<Inventory.Domain.Entities.PurchaseReturnItem> PurchaseReturnItems { get; }
+        DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoice> SalesInvoices { get; }
+        DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceItem> SalesInvoiceItems { get; }
 
         DbSet<SaleReturnHeader> SaleReturnHeaders { get; }
         DbSet<SaleReturnItem> SaleReturnItems { get; }

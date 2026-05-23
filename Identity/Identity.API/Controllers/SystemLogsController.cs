@@ -136,5 +136,30 @@ namespace Identity.API.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
+
+        [HttpPost]
+        public async Task<IActionResult> LogFrontendError([FromBody] SystemLogDto log)
+        {
+            try
+            {
+                using var connection = new SqlConnection(_connectionString);
+                var sql = @"INSERT INTO AppLogs (Message, Level, TimeStamp, Exception, ServiceName, CorrelationId)
+                            VALUES (@Message, @Level, @TimeStamp, @Exception, @ServiceName, @CorrelationId)";
+                
+                await connection.ExecuteAsync(sql, new {
+                    Message = log.Message,
+                    Level = string.IsNullOrEmpty(log.Level) ? "ERROR" : log.Level,
+                    TimeStamp = DateTimeOffset.UtcNow,
+                    Exception = log.Exception,
+                    ServiceName = "FRONTEND.WEB",
+                    CorrelationId = log.CorrelationId
+                });
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 }
