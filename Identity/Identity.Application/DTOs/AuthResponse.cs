@@ -20,6 +20,7 @@ namespace Identity.Application.DTOs
 
     public class UserPermissionDto
     {
+        public Guid MenuId { get; set; }
         public string MenuName { get; set; } = string.Empty;
         public string ActionCode { get; set; } = string.Empty; // e.g. "INVENTORY_VIEW"
         public bool CanView { get; set; }

@@ -40,7 +40,7 @@ public class RolePermissionRepository : IRolePermissionRepository
         var incomingUserId = permissions.FirstOrDefault()?.UserId;
 
         var existingPermissions = incomingUserId.HasValue
-            ? await _context.RolePermissions.Where(rp => rp.UserId == incomingUserId.Value).ToListAsync()
+            ? await _context.RolePermissions.Where(rp => rp.RoleId == roleId && rp.UserId == incomingUserId.Value).ToListAsync()
             : await _context.RolePermissions.Where(rp => rp.RoleId == roleId && rp.UserId == null).ToListAsync();
 
         // 1. Process Updates and Inserts
@@ -143,6 +143,7 @@ public class RolePermissionRepository : IRolePermissionRepository
 
                 resultList.Add(new Application.DTOs.UserPermissionDto
                 {
+                    MenuId = menuId,
                     MenuName = userSpecificsForMenu.First().Menu!.Title,
                     ActionCode = userSpecificsForMenu.First().Menu!.Url ?? string.Empty, 
                     CanView = userSpecificsForMenu.Any(x => x.CanView),
@@ -169,6 +170,7 @@ public class RolePermissionRepository : IRolePermissionRepository
 
                     resultList.Add(new Application.DTOs.UserPermissionDto
                     {
+                        MenuId = menuId,
                         MenuName = firstRolePerm.Menu!.Title,
                         ActionCode = firstRolePerm.Menu!.Url ?? string.Empty, 
                         CanView = rolePerms.Any(x => x.CanView),
