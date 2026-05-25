@@ -1091,5 +1091,98 @@ namespace Inventory.Infrastructure.Repositories
                 throw;
             }
         }
+        public async Task<bool> CancelGRNWithStockReversal(Guid grnId)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+                    var branchId = _currentUserService.BranchId;
+
+                    var grnHeader = await _context.GRNHeaders
+                        .Include(g => g.GRNItems)
+                        .FirstOrDefaultAsync(g => g.Id == grnId && g.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || g.BranchId == branchId));
+
+                    if (grnHeader == null)
+                        throw new Exception("GRN not found.");
+                        
+                    if (grnHeader.Status == "Cancelled")
+                        throw new Exception("GRN is already cancelled.");
+
+                    grnHeader.Status = "Cancelled";
+                    grnHeader.ModifiedOn = DateTime.UtcNow;
+                    _context.GRNHeaders.Update(grnHeader);
+
+                    if (grnHeader.GRNItems != null)
+                    {
+                        foreach (var item in grnHeader.GRNItems)
+                        {
+                            decimal qtyToDecrease = item.ReceivedQty - item.RejectedQty;
+
+                            if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                            {
+                                var whStock = await _context.WarehouseStocks
+                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                                if (whStock != null)
+                                {
+                                    whStock.Quantity -= qtyToDecrease;
+                                    if (whStock.Quantity < 0) whStock.Quantity = 0;
+                                }
+                            }
+
+                            var transactionRecord = new InventoryTransaction(
+                                item.ProductId,
+                                -qtyToDecrease,
+                                "GRNCancel",
+                                grnHeader.GRNNumber,
+                                item.WarehouseId,
+                                item.RackId,
+                                item.MfgDate,
+                                item.ExpDate,
+                                grnHeader.CompanyId,
+                                grnHeader.BranchId,
+                                null, 
+                                string.IsNullOrWhiteSpace(item.BatchNumber) ? grnHeader.GRNNumber : item.BatchNumber
+                            );
+                            await _context.InventoryTransactions.AddAsync(transactionRecord);
+
+                            if (grnHeader.PurchaseOrderId != Guid.Empty)
+                            {
+                                await _context.Database.ExecuteSqlRawAsync(
+                                    "UPDATE PurchaseOrderItems SET ReceivedQty = ReceivedQty - {0} WHERE PurchaseOrderId = {1} AND ProductId = {2} AND CompanyId = {3}",
+                                    item.ReceivedQty, grnHeader.PurchaseOrderId, item.ProductId, grnHeader.CompanyId);
+                            }
+                        }
+                    }
+
+                    if (grnHeader.PurchaseOrderId != Guid.Empty)
+                    {
+                        await _context.Database.ExecuteSqlRawAsync(
+                            @"UPDATE PurchaseOrders SET Status = 'Cancelled'
+                              WHERE Id = {0} AND CompanyId = {1}",
+                            grnHeader.PurchaseOrderId, grnHeader.CompanyId);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return true;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
+        }
+
+        public async Task<GRNHeader> GetGrnBasicDetailsAsync(Guid grnId)
+        {
+            return await _context.GRNHeaders.FirstOrDefaultAsync(g => g.Id == grnId);
+        }
     }
 }

@@ -31,6 +31,7 @@ public class PurchaseOrderDto
     public decimal TotalReturned { get; set; }
 
     public string? Remarks { get; set; }
+    public string? GrnNumber { get; set; }
 
     public DateTime? ExpectedDeliveryDate { get; set; } 
 
@@ -87,7 +88,14 @@ public class PurchaseOrderDto
 
         if (entity.GrnHeaders != null)
         {
-            var allGrnDetails = ((IEnumerable<dynamic>)entity.GrnHeaders)
+            var allGrnHeaders = (IEnumerable<dynamic>)entity.GrnHeaders;
+            var firstGrn = allGrnHeaders.FirstOrDefault();
+            if (firstGrn != null)
+            {
+                dto.GrnNumber = firstGrn.GRNNumber;
+            }
+
+            var allGrnDetails = allGrnHeaders
                 .SelectMany(h => (IEnumerable<dynamic>)h.GRNItems ?? Enumerable.Empty<dynamic>())
                 .ToList();
 

@@ -17,5 +17,7 @@ namespace Inventory.Application.Common.Interfaces
 
         Task<bool> CreateBulkGrnFromPoAsync(BulkGrnRequestDto request);
         Task<List<GrnRejectionHistoryDto>> GetGrnRejectionHistoryAsync(string grnNumber);
+        Task<bool> CancelGRNWithStockReversal(Guid grnId);
+        Task<GRNHeader> GetGrnBasicDetailsAsync(Guid grnId);
     }
 }

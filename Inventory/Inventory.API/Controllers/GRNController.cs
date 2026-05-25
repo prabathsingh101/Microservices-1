@@ -141,6 +141,26 @@ namespace Inventory.API.Controllers
             var result = await _grnRepository.GetGrnRejectionHistoryAsync(grnNumber);
             return Ok(result);
         }
+
+        [HttpPut("cancel/{id}")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> CancelGRN([FromRoute] Guid id)
+        {
+            var command = new CancelGRNCommand
+            {
+                GrnId = id,
+                CancelledBy = User.FindFirst("UserId")?.Value ?? "System"
+            };
+
+            var success = await _mediator.Send(command);
+
+            if (success)
+            {
+                return Ok(new { success = true, message = "Invoice Cancelled & Stock Reversed Successfully" });
+            }
+
+            return BadRequest(new { success = false, message = "Failed to cancel invoice" });
+        }
     }
 
 }
