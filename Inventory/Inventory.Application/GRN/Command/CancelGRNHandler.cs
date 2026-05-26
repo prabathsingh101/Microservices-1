@@ -42,6 +42,10 @@ namespace Inventory.Application.GRN.Command
                     var supplierClient = scope.ServiceProvider.GetRequiredService<ISupplierClient>();
                     
                     string description = $"Cancellation Reversal for GRN: {grnHeader.GRNNumber}";
+                    if (!string.IsNullOrWhiteSpace(request.Reason))
+                    {
+                        description += $" | Reason: {request.Reason}";
+                    }
                     // RecordPurchaseReturnAsync can be used to reverse the ledger
                     await supplierClient.RecordPurchaseReturnAsync(grnHeader.SupplierId, grnHeader.TotalAmount, grnHeader.GRNNumber ?? "N/A", description, request.CancelledBy);
                 }

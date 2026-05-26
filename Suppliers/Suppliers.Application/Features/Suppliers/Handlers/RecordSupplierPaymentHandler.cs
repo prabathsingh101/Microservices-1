@@ -32,7 +32,21 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
 
                 var lastLedger = await _repository.GetLastLedgerEntryAsync(paymentDto.SupplierId);
                 decimal roundedAmount = Math.Round(paymentDto.Amount, 2, MidpointRounding.AwayFromZero);
-                decimal currentBalance = (lastLedger?.Balance ?? 0) - roundedAmount;
+                
+                bool isRefund = paymentDto.TransactionType == "Refund";
+                
+                decimal currentBalance;
+                if (isRefund)
+                {
+                    // Refund received: Increase balance (Credit)
+                    currentBalance = (lastLedger?.Balance ?? 0) + roundedAmount;
+                }
+                else
+                {
+                    // Payment sent: Decrease balance (Debit)
+                    currentBalance = (lastLedger?.Balance ?? 0) - roundedAmount;
+                }
+                
                 currentBalance = Math.Round(currentBalance, 2, MidpointRounding.AwayFromZero);
 
                 var supplierPayment = new SupplierPayment
@@ -43,6 +57,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                     PaymentMode = paymentDto.PaymentMode ?? "Other",
                     ReferenceNumber = paymentDto.ReferenceNumber,
                     Remarks = paymentDto.Remarks,
+                    TransactionType = paymentDto.TransactionType ?? "Payment",
                     CreatedBy = paymentDto.CreatedBy,
                     CompanyId = paymentDto.CompanyId,
                     BranchId = paymentDto.BranchId
@@ -53,13 +68,13 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 var supplierLedger = new SupplierLedger
                 {
                     SupplierId = paymentDto.SupplierId,
-                    TransactionType = "Payment",
-                    ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : "PAY-" + Guid.NewGuid().ToString().Substring(0, 8),
-                    Debit = roundedAmount,
-                    Credit = 0,
+                    TransactionType = isRefund ? "Refund" : "Payment",
+                    ReferenceId = !string.IsNullOrEmpty(paymentDto.ReferenceNumber) ? paymentDto.ReferenceNumber : (isRefund ? "REF-" : "PAY-") + Guid.NewGuid().ToString().Substring(0, 8),
+                    Debit = isRefund ? 0 : roundedAmount,
+                    Credit = isRefund ? roundedAmount : 0,
                     Balance = currentBalance,
                     TransactionDate = paymentDto.PaymentDate,
-                    Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}",
+                    Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : (isRefund ? $"Refund Received {paymentDto.ReferenceNumber ?? ""}" : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}"),
                     CompanyId = paymentDto.CompanyId,
                     BranchId = paymentDto.BranchId
                 };

@@ -7,5 +7,6 @@ namespace Inventory.Application.GRN.Command
     {
         public Guid GrnId { get; set; }
         public string CancelledBy { get; set; } = string.Empty;
+        public string? Reason { get; set; }
     }
 }

@@ -12,5 +12,6 @@ namespace Suppliers.Domain.Entities
         public string PaymentMode { get; set; } // GPay, Cash, Check, etc.
         public string? ReferenceNumber { get; set; }
         public string? Remarks { get; set; }
+        public string TransactionType { get; set; } = "Payment"; // "Payment" or "Refund"
     }
 }

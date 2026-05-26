@@ -142,14 +142,21 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
+        public class CancelDto
+        {
+            public string? Reason { get; set; }
+        }
+
+
         [HttpPut("cancel/{id}")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
-        public async Task<IActionResult> CancelGRN([FromRoute] Guid id)
+        public async Task<IActionResult> CancelGRN([FromRoute] Guid id, [FromBody] CancelDto dto)
         {
             var command = new CancelGRNCommand
             {
                 GrnId = id,
-                CancelledBy = User.FindFirst("UserId")?.Value ?? "System"
+                CancelledBy = User.FindFirst("UserId")?.Value ?? "System",
+                Reason = dto?.Reason
             };
 
             var success = await _mediator.Send(command);

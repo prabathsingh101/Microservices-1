@@ -12,5 +12,6 @@ public class SupplierPaymentDto
     public string PaymentMode { get; set; } = "Cash";
     public string? ReferenceNumber { get; set; }
     public string? Remarks { get; set; }
+    public string TransactionType { get; set; } = "Payment"; // "Payment" or "Refund"
     public string CreatedBy { get; set; } = "System";
 }
