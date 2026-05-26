@@ -469,5 +469,15 @@ namespace Inventory.API.Controllers
 
             return NotFound(new { success = false, message = "Purchase Order not found." });
         }
+        [HttpPost("{id}/payments")]
+        public async Task<IActionResult> MakePayment(Guid id, [FromBody] Inventory.Application.PurchaseOrders.Commands.MakePayment.RecordPurchasePaymentCommand command)
+        {
+            if (id != command.PurchaseOrderId)
+            {
+                return BadRequest("ID mismatch");
+            }
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
     }
 }

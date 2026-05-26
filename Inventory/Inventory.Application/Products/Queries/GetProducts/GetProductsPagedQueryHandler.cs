@@ -122,7 +122,7 @@ internal sealed class GetProductsPagedQueryHandler
 
         // 🚀 SMART BATCH DATE LOOKUP (For Earliest Batch)
         var batchLookup = await _context.GRNDetails
-            .Where(g => productIds.Contains(g.ProductId))
+            .Where(g => productIds.Contains(g.ProductId) && g.GRNHeader.Status != "Cancelled")
             .GroupBy(g => g.ProductId)
             .Select(g => new
             {

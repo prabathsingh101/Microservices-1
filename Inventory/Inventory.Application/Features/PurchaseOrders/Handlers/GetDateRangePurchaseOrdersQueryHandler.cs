@@ -91,15 +91,20 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     TotalTax = x.TotalTax,
                     GrandTotal = x.GrandTotal,
                     SubTotal = x.SubTotal,
+                    PaidAmount = x.PaidAmount,
                     ExpectedDeliveryDate = x.ExpectedDeliveryDate,
                     CreatedBy = x.CreatedBy,
                     CreatedOn = x.CreatedOn ?? DateTime.MinValue,
                     ModifiedOn = x.ModifiedOn,
                     Remarks = x.Remarks,
                     IsDispatched = x.IsDispatched,
-                    Status = (x.GrnHeaders != null && x.GrnHeaders.Any())
-                             ? (x.Items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received")
-                             : x.Status,
+                    Status = x.Status == "Cancelled" 
+                             ? "Cancelled" 
+                             : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
+                                 ? (x.Items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received")
+                                 : x.Status,
+                    GrnNumber = x.GrnHeaders?.FirstOrDefault()?.GRNNumber,
+                    GrnId = x.GrnHeaders?.FirstOrDefault()?.Id,
 
                     Items = items,
                     TotalOrdered = items.Sum(i => i.Qty),

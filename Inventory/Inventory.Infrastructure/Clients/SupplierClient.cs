@@ -178,6 +178,33 @@ namespace Inventory.Infrastructure.Clients
             return true;
         }
 
+        public async Task<bool> RecordPaymentAsync(Guid supplierId, decimal amount, string referenceNumber, string remarks, string paymentMode, string createdBy)
+        {
+            var payload = new
+            {
+                SupplierId = supplierId,
+                Amount = amount,
+                ReferenceNumber = referenceNumber,
+                Remarks = remarks,
+                PaymentMode = paymentMode,
+                PaymentDate = DateTime.Now,
+                CreatedBy = createdBy
+            };
+
+            var client = _httpClientFactory.CreateClient("SupplierServiceClient");
+            AddAuthorizationHeader(client);
+            
+            var response = await client.PostAsJsonAsync("api/finance/payment-entry", payload);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[SupplierClient] Payment Record Failed: {response.StatusCode} - {content}");
+                throw new Exception($"Failed to update Supplier Ledger: {content}");
+            }
+            return true;
+        }
+
         public async Task<List<Guid>> SearchSupplierIdsByNameAsync(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return new List<Guid>();

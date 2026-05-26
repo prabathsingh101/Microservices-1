@@ -52,6 +52,7 @@ namespace Inventory.Infrastructure.Repositories
             }
 
             var rawGrns = _context.GRNDetails.IgnoreQueryFilters().AsNoTracking()
+                .Where(g => g.GRNHeader.Status != "Cancelled")
                 .Select(g => new
                 {
                     ProductId = g.ProductId,
@@ -261,7 +262,9 @@ namespace Inventory.Infrastructure.Repositories
                 var salesQuery = _context.SaleOrderItems.IgnoreQueryFilters().AsQueryable();
                 var invoiceQuery = _context.SalesInvoiceItems.IgnoreQueryFilters().AsQueryable();
                 var returnsQuery = _context.SaleReturnItems.IgnoreQueryFilters().AsQueryable();
-                var grnQuery = _context.GRNDetails.IgnoreQueryFilters().AsQueryable();
+                var grnQuery = _context.GRNDetails.IgnoreQueryFilters()
+                    .Where(g => g.GRNHeader.Status != "Cancelled")
+                    .AsQueryable();
 
                 if (!_currentUserService.IsPlatformAdmin)
                 {

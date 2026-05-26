@@ -17,6 +17,7 @@ public class PurchaseOrder : Inventory.Domain.Common.BaseAuditableEntity
     public decimal TotalTax { get; set; } //
     public decimal SubTotal { get; set; } //
     public decimal GrandTotal { get; set; } //
+    public decimal PaidAmount { get; set; } = 0; //
     public string? TaxType { get; set; } // local, interState
     public decimal? TdsPercent { get; set; }
     public decimal? TdsAmount { get; set; }

@@ -358,6 +358,10 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
     public void Delete(PurchaseOrder po)
     {
+        if (po.Items != null && po.Items.Any())
+        {
+            _context.PurchaseOrderItems.RemoveRange(po.Items);
+        }
         _context.PurchaseOrders.Remove(po);
     }
 

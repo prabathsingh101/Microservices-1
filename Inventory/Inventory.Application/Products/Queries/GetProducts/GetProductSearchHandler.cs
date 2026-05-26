@@ -64,13 +64,13 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
                 isExpiryRequired = p.IsExpiryRequired,
                 manufacturingDate = await _context.GRNDetails
                     .AsNoTracking()
-                    .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0)
+                    .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0 && g.GRNHeader.Status != "Cancelled")
                     .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
                     .Select(g => g.MfgDate)
                     .FirstOrDefaultAsync(cancellationToken),
                 expiryDate = await _context.GRNDetails
                     .AsNoTracking()
-                    .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0)
+                    .Where(g => g.ProductId == p.Id && (g.ReceivedQty - g.RejectedQty) > 0 && g.GRNHeader.Status != "Cancelled")
                     .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
                     .Select(g => g.ExpDate)
                     .FirstOrDefaultAsync(cancellationToken),

@@ -29,9 +29,13 @@ public class PurchaseOrderDto
     public decimal TotalAccepted { get; set; }
     public decimal TotalRejected { get; set; }
     public decimal TotalReturned { get; set; }
+    public decimal PaidAmount { get; set; }
+    public decimal DueAmount => GrandTotal - PaidAmount;
+    public string PaymentStatus => DueAmount <= 0 ? "Paid" : (PaidAmount > 0 ? "Partial" : "Unpaid");
 
     public string? Remarks { get; set; }
     public string? GrnNumber { get; set; }
+    public Guid? GrnId { get; set; }
 
     public DateTime? ExpectedDeliveryDate { get; set; } 
 
