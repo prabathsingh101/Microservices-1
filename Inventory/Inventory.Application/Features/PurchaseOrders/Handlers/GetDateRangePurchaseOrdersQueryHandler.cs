@@ -3,27 +3,55 @@ using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Features.PurchaseOrders.Queries;
 using Inventory.Application.PurchaseOrders.DTOs;
 using MediatR;
-using Microsoft.EntityFrameworkCore; 
+using Microsoft.EntityFrameworkCore;
+using Inventory.Application.Clients;
+using System.Linq;
 
 namespace Inventory.Application.Features.PurchaseOrders.Handlers
 {
     public class GetDateRangePurchaseOrdersQueryHandler : IRequestHandler<GetDateRangePurchaseOrdersQuery, PurchaseOrderPagedResponse>
     {
         private readonly IPurchaseOrderRepository _repo;
-        private readonly IInventoryDbContext _context; 
+        private readonly IInventoryDbContext _context;
+        private readonly ISupplierClient _supplierClient;
 
         public GetDateRangePurchaseOrdersQueryHandler(
             IPurchaseOrderRepository repo, 
-            IInventoryDbContext context)
+            IInventoryDbContext context,
+            ISupplierClient supplierClient)
         {
             _repo = repo;
             _context = context;
+            _supplierClient = supplierClient;
         }
 
         public async Task<PurchaseOrderPagedResponse> Handle(GetDateRangePurchaseOrdersQuery query, CancellationToken ct)
         {
             // 1. Fetch PO Data with stats
             var result = await _repo.GetDateRangePagedOrdersAsync(query.Request);
+
+            // --- CROSS MODULE PAYMENT CHECK ---
+            var searchTerms = new List<string>();
+            foreach (var po in result.Data)
+            {
+                if (!string.IsNullOrEmpty(po.PoNumber)) searchTerms.Add(po.PoNumber);
+                var grnNumber = po.GrnHeaders?.FirstOrDefault()?.GRNNumber;
+                if (!string.IsNullOrEmpty(grnNumber)) searchTerms.Add(grnNumber);
+            }
+
+            var paymentStatuses = new Dictionary<string, decimal>();
+            if (searchTerms.Any())
+            {
+                try
+                {
+                    paymentStatuses = await _supplierClient.GetGRNPaymentStatusesAsync(searchTerms.Distinct().ToList());
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Payment Status Sync Error: {ex.Message}");
+                }
+            }
+            // ----------------------------------
 
             // 2. Mapping with Net Quantity Logic
             var dtos = result.Data.Select(x => {
@@ -81,6 +109,11 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     };
                 }).ToList();
 
+                var grnNumber = x.GrnHeaders?.FirstOrDefault()?.GRNNumber;
+                decimal paidFromPO = (!string.IsNullOrEmpty(x.PoNumber) && paymentStatuses.ContainsKey(x.PoNumber)) ? paymentStatuses[x.PoNumber] : 0;
+                decimal paidFromGRN = (!string.IsNullOrEmpty(grnNumber) && paymentStatuses.ContainsKey(grnNumber)) ? paymentStatuses[grnNumber] : 0;
+                decimal actualPaidAmount = paidFromPO + paidFromGRN;
+
                 return new PurchaseOrderDto
                 {
                     Id = x.Id,
@@ -91,7 +124,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     TotalTax = x.TotalTax,
                     GrandTotal = x.GrandTotal,
                     SubTotal = x.SubTotal,
-                    PaidAmount = x.PaidAmount,
+                    PaidAmount = actualPaidAmount, // Dynamically mapped from Ledger payments
                     ExpectedDeliveryDate = x.ExpectedDeliveryDate,
                     CreatedBy = x.CreatedBy,
                     CreatedOn = x.CreatedOn ?? DateTime.MinValue,
@@ -103,7 +136,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                              : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
                                  ? (x.Items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received")
                                  : x.Status,
-                    GrnNumber = x.GrnHeaders?.FirstOrDefault()?.GRNNumber,
+                    GrnNumber = grnNumber,
                     GrnId = x.GrnHeaders?.FirstOrDefault()?.Id,
 
                     Items = items,

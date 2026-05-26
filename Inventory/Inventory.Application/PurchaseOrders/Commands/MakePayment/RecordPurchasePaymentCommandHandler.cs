@@ -42,11 +42,13 @@ namespace Inventory.Application.PurchaseOrders.Commands.MakePayment
             var createdBy = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value ?? "Admin";
             var description = $"Payment against PO {po.PoNumber}. " + (request.Remarks ?? string.Empty);
             
+            var uniqueReference = $"{po.PoNumber}-{DateTime.UtcNow.Ticks % 10000}";
+
             // This will throw an exception if the API call fails, preventing the DB save below
             await _supplierClient.RecordPaymentAsync(
                 po.SupplierId, 
                 request.Amount, 
-                po.PoNumber, 
+                uniqueReference, 
                 description, 
                 request.PaymentMode ?? "Cash", 
                 createdBy);

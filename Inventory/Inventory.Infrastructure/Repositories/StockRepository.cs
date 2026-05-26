@@ -618,52 +618,53 @@ namespace Inventory.Infrastructure.Repositories
                     }
                 }
 
-                // Apply FIFO distribution of unlinked TotalSold, TotalPurchaseReturn and TotalTransferredOut
-                decimal remainingSold = item.TotalSold - netExactBatchSold.Values.Sum();
-                if (remainingSold < 0) remainingSold = 0; // Guard against negative remaining
-
+                // Calculate how much we need to distribute overall
+                decimal totalSoldToDistribute = item.TotalSold;
                 decimal remainingReturn = totalDeductibleReturn;
                 decimal remainingTransfer = item.TotalTransferredOut;
 
+                // PASS 1: Exact matches and Returns
                 foreach (var h in history)
                 {
-                    decimal netRecv = h.ReceivedQty - h.RejectedQty;
+                    h.AvailableQty = h.ReceivedQty - h.RejectedQty;
                     
-                    // 1. Deduct Purchase Returns first (FIFO)
-                    if (remainingReturn > 0)
+                    // Deduct Purchase Returns (FIFO)
+                    if (remainingReturn > 0 && h.AvailableQty > 0)
                     {
-                        decimal toReturn = Math.Min(remainingReturn, netRecv);
+                        decimal toReturn = Math.Min(remainingReturn, h.AvailableQty);
                         h.ReturnedQty = toReturn;
-                        netRecv -= toReturn;
+                        h.AvailableQty -= toReturn;
                         remainingReturn -= toReturn;
                     }
 
-                    // 2a. Deduct Exact Sales for this Batch First!
-                    if (h.BatchNumber != null && netExactBatchSold.ContainsKey(h.BatchNumber))
+                    // Deduct Exact Sales for this Batch
+                    if (h.BatchNumber != null && netExactBatchSold.ContainsKey(h.BatchNumber) && h.AvailableQty > 0)
                     {
                         decimal exactSold = netExactBatchSold[h.BatchNumber];
-                        decimal toExactSold = Math.Min(exactSold, netRecv);
+                        decimal toExactSold = Math.Min(exactSold, h.AvailableQty);
                         h.SoldQty += toExactSold;
-                        netRecv -= toExactSold;
-                        // Reduce the exact map so we don't double count if there are duplicate batch numbers in history (shouldn't happen, but safe)
+                        h.AvailableQty -= toExactSold;
                         netExactBatchSold[h.BatchNumber] -= toExactSold;
+                        totalSoldToDistribute -= toExactSold;
+                    }
+                }
+
+                // PASS 2: Distribute leftover sales and transfers (FIFO)
+                foreach (var h in history)
+                {
+                    if (totalSoldToDistribute > 0 && h.AvailableQty > 0)
+                    {
+                        decimal toSold = Math.Min(totalSoldToDistribute, h.AvailableQty);
+                        h.SoldQty += toSold;
+                        h.AvailableQty -= toSold;
+                        totalSoldToDistribute -= toSold;
                     }
 
-                    // 2b. Deduct Unlinked Sales (FIFO)
-                    if (remainingSold > 0 && netRecv > 0)
+                    if (remainingTransfer > 0 && h.AvailableQty > 0)
                     {
-                        decimal toSold = Math.Min(remainingSold, netRecv);
-                        h.SoldQty += toSold; // Add to whatever was exactly sold
-                        netRecv -= toSold;
-                        remainingSold -= toSold;
-                    }
-
-                    // 3. Deduct Stock Transfers (FIFO)
-                    if (remainingTransfer > 0 && netRecv > 0)
-                    {
-                        decimal toTransfer = Math.Min(remainingTransfer, netRecv);
+                        decimal toTransfer = Math.Min(remainingTransfer, h.AvailableQty);
                         h.TransferredQty = toTransfer;
-                        netRecv -= toTransfer;
+                        h.AvailableQty -= toTransfer;
                         remainingTransfer -= toTransfer;
                     }
 
@@ -674,8 +675,6 @@ namespace Inventory.Infrastructure.Repositories
                             .Sum(tx => Math.Abs(tx.Quantity));
                         h.ExpiredQty = batchPurged;
                     }
-
-                    h.AvailableQty = netRecv;
                 }
                 item.History = history;
             }
