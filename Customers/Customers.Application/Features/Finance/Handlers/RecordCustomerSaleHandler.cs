@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System;
 using Customers.Application.Features.Finance.Commands;
+using Customers.Application.Common;
 
 namespace Customers.Application.Features.Finance.Handlers
 {
@@ -29,29 +30,46 @@ namespace Customers.Application.Features.Finance.Handlers
                 return Guid.Empty; // Placeholder for walking customers
             }
 
-            var lastEntry = await _financeRepository.GetLastLedgerEntryAsync(sale.CustomerId.Value);
-            decimal currentBalance = lastEntry?.Balance ?? 0;
-            decimal newBalance = currentBalance + sale.Amount;
-
-            var entry = new CustomerLedger
+            if (!string.IsNullOrWhiteSpace(sale.ReferenceId))
             {
-                CustomerId = sale.CustomerId.Value,
-                TransactionDate = sale.TransactionDate,
-                TransactionType = "Sale",
-                ReferenceId = sale.ReferenceId ?? string.Empty,
-                Description = sale.Description,
-                Debit = sale.Amount,
-                Credit = 0,
-                Balance = newBalance,
-                CreatedBy = sale.CreatedBy,
-                CompanyId = sale.CompanyId ?? _currentUserService.CompanyId,
-                BranchId = sale.BranchId ?? _currentUserService.BranchId
-            };
+                bool isDuplicate = await _financeRepository.HasRefundOrAdjustmentAgainstReferenceAsync(sale.CustomerId.Value, sale.ReferenceId);
+                if (isDuplicate)
+                {
+                    throw new InvalidOperationException($"An adjustment or refund has already been processed against the reference number: {sale.ReferenceId}");
+                }
+            }
 
-            await _financeRepository.AddLedgerEntryAsync(entry);
-            await _financeRepository.SaveChangesAsync();
+            await CustomerLedgerLock.Semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                var lastEntry = await _financeRepository.GetLastLedgerEntryAsync(sale.CustomerId.Value);
+                decimal currentBalance = lastEntry?.Balance ?? 0;
+                decimal newBalance = currentBalance + sale.Amount;
 
-            return entry.Id;
+                var entry = new CustomerLedger
+                {
+                    CustomerId = sale.CustomerId.Value,
+                    TransactionDate = sale.TransactionDate,
+                    TransactionType = "Sale",
+                    ReferenceId = sale.ReferenceId ?? string.Empty,
+                    Description = sale.Description,
+                    Debit = sale.Amount >= 0 ? sale.Amount : 0,
+                    Credit = sale.Amount < 0 ? Math.Abs(sale.Amount) : 0,
+                    Balance = newBalance,
+                    CreatedBy = sale.CreatedBy,
+                    CompanyId = sale.CompanyId ?? _currentUserService.CompanyId,
+                    BranchId = sale.BranchId ?? _currentUserService.BranchId
+                };
+
+                await _financeRepository.AddLedgerEntryAsync(entry);
+                await _financeRepository.SaveChangesAsync();
+
+                return entry.Id;
+            }
+            finally
+            {
+                CustomerLedgerLock.Semaphore.Release();
+            }
         }
     }
 }

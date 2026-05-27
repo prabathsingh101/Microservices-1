@@ -33,7 +33,7 @@ namespace Inventory.Application.Stock.Commands
             var saleStock = await _context.SaleOrderItems
                 .IgnoreQueryFilters()
                 .Where(s => s.CompanyId == companyId && s.WarehouseId != null && 
-                            s.SaleOrder.Status != "Draft" && s.SaleOrder.Status != "Cancelled")
+                            s.SaleOrder.Status != "Draft" && s.SaleOrder.Status != "Cancelled" && s.SaleOrder.Status != "Canceled")
                 .GroupBy(s => new { s.ProductId, s.WarehouseId })
                 .Select(s => new { ProductId = (Guid)s.Key.ProductId, WarehouseId = (Guid)s.Key.WarehouseId.Value, Qty = s.Sum(x => x.Qty) })
                 .ToListAsync(ct);

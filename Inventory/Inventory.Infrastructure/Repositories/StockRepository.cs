@@ -289,12 +289,12 @@ namespace Inventory.Infrastructure.Repositories
 
                 var grossSold = await salesQuery
                     .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId 
-                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled")
+                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled" && si.SaleOrder.Status != "Canceled")
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
                 var quickSold = await invoiceQuery
                     .Where(ii => ii.WarehouseId == item.WarehouseId && ii.RackId == item.RackId 
-                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled")
+                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled" && ii.SalesInvoice.Status != "Canceled")
                     .SumAsync(ii => (decimal?)ii.Qty) ?? 0;
 
                 grossSold += quickSold;
@@ -392,12 +392,12 @@ namespace Inventory.Infrastructure.Repositories
 
                 var unlinkedSales = await salesQuery
                     .Where(si => (si.WarehouseId == null || si.RackId == null) 
-                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled")
+                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled" && si.SaleOrder.Status != "Canceled")
                     .SumAsync(si => (decimal?)si.Qty) ?? 0;
 
                 var unlinkedQuickSold = await invoiceQuery
                     .Where(ii => (ii.WarehouseId == null || ii.RackId == null) 
-                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled")
+                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled" && ii.SalesInvoice.Status != "Canceled")
                     .SumAsync(ii => (decimal?)ii.Qty) ?? 0;
 
                 unlinkedSales += unlinkedQuickSold;

@@ -469,6 +469,22 @@ namespace Inventory.API.Controllers
 
             return NotFound(new { success = false, message = "Purchase Order not found." });
         }
+        [HttpGet("orders-by-supplier/{supplierId}")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> GetOrdersBySupplier(Guid supplierId)
+        {
+            var result = await _purchaseOrderRepository.GetOrdersBySupplierAsync(supplierId);
+            return Ok(result);
+        }
+
+        [HttpGet("cancelled-orders-by-supplier/{supplierId}")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> GetCancelledOrdersBySupplier(Guid supplierId)
+        {
+            var result = await _purchaseOrderRepository.GetCancelledOrdersBySupplierAsync(supplierId);
+            return Ok(result);
+        }
+
         [HttpPost("{id}/payments")]
         public async Task<IActionResult> MakePayment(Guid id, [FromBody] Inventory.Application.PurchaseOrders.Commands.MakePayment.RecordPurchasePaymentCommand command)
         {

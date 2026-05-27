@@ -359,6 +359,34 @@ namespace Customers.Infrastructure.Repositories
             return (true, string.Empty);
         }
 
+        public async Task<bool> HasRefundOrAdjustmentAgainstReferenceAsync(Guid customerId, string referenceNumber)
+        {
+            if (string.IsNullOrWhiteSpace(referenceNumber)) return false;
+
+            // Check if there is already a Refund entry or an Adjustment entry in the ledger against this specific reference number
+            var duplicateLedgerExists = await _context.CustomerLedgers.AnyAsync(l => 
+                l.CustomerId == customerId && 
+                l.ReferenceId == referenceNumber && 
+                (
+                    l.TransactionType == "Refund" || 
+                    (l.Description != null && (l.Description.Contains("Adjustment") || l.Description.Contains("Refund"))) 
+                ) && 
+                l.CompanyId == _companyId
+            );
+
+            if (duplicateLedgerExists) return true;
+
+            // Also check Receipts where Amount < 0 (Refunds recorded as negative receipts)
+            var duplicateReceiptExists = await _context.CustomerReceipts.AnyAsync(r =>
+                r.CustomerId == customerId &&
+                r.ReferenceNumber == referenceNumber &&
+                r.Amount < 0 &&
+                r.CompanyId == _companyId
+            );
+
+            return duplicateReceiptExists;
+        }
+
         public async Task<PaginatedListDto<ReceiptReportDto>> GetReceiptsReportAsync(ReceiptReportRequestDto request)
         {
             string? branchGuid = string.IsNullOrEmpty(request.BranchId) ? _branchId : request.BranchId;

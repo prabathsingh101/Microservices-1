@@ -167,14 +167,14 @@ public class SaleOrderController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] string? reason)
     {
-        var result = await _mediator.Send(new DeleteSaleOrderCommand(id));
+        var result = await _mediator.Send(new DeleteSaleOrderCommand(id, reason));
         if (result)
         {
-            return Ok(new { success = true, message = "Sale Order deleted and stock reverted!" });
+            return Ok(new { success = true, message = "Sale Order canceled and stock reverted!" });
         }
-        return BadRequest(new { success = false, message = "Delete failed or order not found." });
+        return BadRequest(new { success = false, message = "Cancel failed or order not found." });
     }
 
     // Simple DTO for binding
@@ -267,6 +267,25 @@ public class SaleOrderController : ControllerBase
         if (orders == null || !orders.Any())
         {
             return Ok(new List<SaleOrderLookupDto>()); // Empty list if no orders found
+        }
+        
+        return Ok(orders);
+    }
+
+    [HttpGet("cancelled-orders-by-customer/{customerId}")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    public async Task<IActionResult> GetCancelledOrdersByCustomer(Guid customerId)
+    {
+        if (customerId == Guid.Empty)
+        {
+            return BadRequest("Invalid Customer Id");
+        }
+
+        var orders = await _saleRepo.GetCancelledOrdersByCustomerAsync(customerId);
+
+        if (orders == null || !orders.Any())
+        {
+            return Ok(new List<SaleOrderLookupDto>());
         }
 
         return Ok(orders);

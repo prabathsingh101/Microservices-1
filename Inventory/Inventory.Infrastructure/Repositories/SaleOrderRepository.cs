@@ -303,6 +303,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 TotalQty = o.Items.Sum(i => i.Qty),
                 CreatedBy = o.CreatedBy,
                 Remarks = o.Remarks,
+                CancelReason = o.CancelReason,
                 CustomerName = "Loading...",
                 Items = o.Items.Select(i => new SaleOrderItemDto
                 {
@@ -554,6 +555,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                 BranchId = o.BranchId,
                 CompanyId = o.CompanyId,
                 IsQuick = o.IsQuick,
+                CancelReason = o.CancelReason,
                 // Items ki mapping yahan karein
                 Items = o.Items.Select(oi => new SaleOrderItemDto
                 {
@@ -611,7 +613,23 @@ public class SaleOrderRepository : ISaleOrderRepository
             .Select(x => new SaleOrderLookupDto
             {
                 SaleOrderId = x.Id,
-                SoNumber = x.SONumber // Display ke liye number
+                SoNumber = x.SONumber, // Display ke liye number
+                GrandTotal = x.GrandTotal
+            }).ToListAsync();
+    }
+
+    public async Task<List<SaleOrderLookupDto>> GetCancelledOrdersByCustomerAsync(Guid customerId)
+    {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
+        return await _context.SaleOrders
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId && (x.Status == "Canceled" || x.Status == "Cancelled" || x.Status == "Void") && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Select(x => new SaleOrderLookupDto
+            {
+                SaleOrderId = x.Id,
+                SoNumber = x.SONumber,
+                GrandTotal = x.GrandTotal
             }).ToListAsync();
     }
 

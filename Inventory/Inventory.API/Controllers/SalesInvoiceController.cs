@@ -49,5 +49,59 @@ namespace Inventory.API.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("get-paged")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> GetPaged(
+             [FromQuery] string searchTerm = "",
+             [FromQuery] int pageNumber = 1,
+             [FromQuery] int pageSize = 10,
+             [FromQuery] string sortBy = "Date",
+             [FromQuery] string sortOrder = "desc",
+             [FromQuery] DateTime? startDate = null,
+             [FromQuery] DateTime? endDate = null,
+             [FromQuery] string? branchId = null,
+             [FromQuery] string? sourceFilter = null)
+        {
+            var query = new Inventory.Application.SalesInvoices.Queries.GetUnifiedSalesInvoicesQuery
+            {
+                SearchTerm = searchTerm,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                SortBy = sortBy,
+                SortOrder = sortOrder,
+                StartDate = startDate,
+                EndDate = endDate,
+                BranchId = branchId,
+                SourceFilter = sourceFilter
+            };
+
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+
+        [HttpGet("get-items/{id}")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> GetItems(Guid id, [FromQuery] string source)
+        {
+            var query = new Inventory.Application.SalesInvoices.Queries.GetUnifiedSaleItemsQuery
+            {
+                Id = id,
+                Source = source
+            };
+
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> Delete(Guid id, [FromQuery] string? reason)
+        {
+            var command = new Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice.DeleteSalesInvoiceCommand(id, reason);
+            var result = await _mediator.Send(command);
+
+            if (!result) return NotFound(new { message = "Invoice not found or could not be cancelled." });
+            return Ok(new { success = true, message = "Invoice cancelled successfully." });
+        }
     }
 }

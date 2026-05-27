@@ -42,6 +42,9 @@ namespace Inventory.Application.Common.Interfaces
 
         Task<bool> BulkSentForApprovalAsync(List<Guid> ids);
 
+        Task<List<PurchaseOrderLookupDto>> GetOrdersBySupplierAsync(Guid supplierId);
+        Task<List<PurchaseOrderLookupDto>> GetCancelledOrdersBySupplierAsync(Guid supplierId);
+
         Task<bool> BulkApprovePOsAsync(List<Guid> ids, string approvedBy);
 
         Task<bool> BulkRejectPOsAsync(List<Guid> ids, string rejectedBy);

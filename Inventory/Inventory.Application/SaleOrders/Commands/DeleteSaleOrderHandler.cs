@@ -70,12 +70,18 @@ namespace Inventory.Application.SaleOrders.Commands
                     {
                         try
                         {
+                            string ledgerNote = $"Sale Order Deleted/Cancelled: {order.SoNumber}";
+                            if (!string.IsNullOrWhiteSpace(request.Reason))
+                            {
+                                ledgerNote += $" | Reason: {request.Reason}";
+                            }
+
                             // Recording a negative sale to offset the original entry
                             await _customerClient.RecordSaleAsync(
                                 order.CustomerId.Value,
                                 -order.GrandTotal, // Negative amount
                                 order.SoNumber,
-                                $"Sale Order Deleted/Cancelled: {order.SoNumber}",
+                                ledgerNote,
                                 "System",
                                 Guid.TryParse(order.BranchId, out var branchId) ? branchId : (Guid?)null,
                                 order.CompanyId
@@ -94,8 +100,16 @@ namespace Inventory.Application.SaleOrders.Commands
                     }
                 }
 
-                // 3. Delete Order and Items
-                deleted = await _repo.DeleteAsync(request.Id);
+                // 3. Soft Delete: Update Order Entity to Canceled
+                var orderEntity = await _context.SaleOrders.FirstOrDefaultAsync(o => o.Id == request.Id);
+                if (orderEntity != null)
+                {
+                    orderEntity.Status = "Cancelled";
+                    orderEntity.CancelReason = request.Reason;
+                    _context.SaleOrders.Update(orderEntity);
+                    await _context.SaveChangesAsync(cancellationToken);
+                    deleted = true;
+                }
             });
 
             return deleted;

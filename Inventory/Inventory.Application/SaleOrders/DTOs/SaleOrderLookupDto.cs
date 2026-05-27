@@ -11,5 +11,7 @@ namespace Inventory.Application.SaleOrders.DTOs
 
         // Order Number (e.g., SO-001) jo user ko dropdown mein dikhega
         public string SoNumber { get; set; } = string.Empty;
+
+        public decimal GrandTotal { get; set; }
     }
 }

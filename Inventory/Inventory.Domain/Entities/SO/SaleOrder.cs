@@ -60,6 +60,9 @@ namespace Inventory.Domain.Entities.SO
         public bool IsQuick { get; set; } // Flag for Quick vs Standard Sale
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
+        
+        [StringLength(500)]
+        public string? CancelReason { get; set; }
 
         // Relationship: One SaleOrder has many SaleOrderItems
         public virtual ICollection<SaleOrderItem> Items { get; set; }

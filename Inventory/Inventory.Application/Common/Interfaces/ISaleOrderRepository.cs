@@ -42,6 +42,7 @@ namespace Inventory.Application.Common.Interfaces
         Task<SaleOrderDetailDto?> GetSaleOrderByIdAsync(Guid id);
 
         Task<List<SaleOrderLookupDto>> GetOrdersByCustomerAsync(Guid customerId);
+        Task<List<SaleOrderLookupDto>> GetCancelledOrdersByCustomerAsync(Guid customerId);
 
         Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(Guid saleOrderId);
         Task<bool> DeleteAsync(Guid id);

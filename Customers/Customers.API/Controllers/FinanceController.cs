@@ -39,6 +39,16 @@ namespace Customers.API.Controllers
             return Ok(new { Id = id }); // Returning object to be consistent
         }
 
+        // 2.1 Refund Entry
+        [HttpPost("refund")]
+        public async Task<IActionResult> RecordRefund([FromBody] CustomerRefundDto refundDto)
+        {
+            var command = new RecordCustomerRefundCommand(refundDto);
+            var id = await _mediator.Send(command);
+            
+            return Ok(new { Id = id });
+        }
+
         // 2a. Bulk Receipt Entry
         [HttpPost("bulk-receipts")]
         public async Task<IActionResult> RecordBulkReceipts([FromBody] BulkReceiptDto bulkReceiptDto)

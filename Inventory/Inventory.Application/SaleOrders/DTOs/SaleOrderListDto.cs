@@ -30,6 +30,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public string CreatedBy { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public bool IsReturnable { get; set; } = true;
+        public string? CancelReason { get; set; }
         public List<SaleOrderItemDto> Items { get; set; } = new();
     }
 }

@@ -463,6 +463,45 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             })
             .ToListAsync();
     }
+    public async Task<List<PurchaseOrderLookupDto>> GetOrdersBySupplierAsync(Guid supplierId)
+    {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
+        
+        // Find orders that are Approved and not fully received, or Partially Received
+        return await _context.PurchaseOrders.AsNoTracking()
+            .Where(x => x.CompanyId == companyId 
+                     && x.SupplierId == supplierId 
+                     && (x.Status == "Approved" || x.Status == "Partially Received" || x.Status == "Submitted")
+                     && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .OrderByDescending(x => x.CreatedOn)
+            .Select(x => new PurchaseOrderLookupDto 
+            {
+                PurchaseOrderId = x.Id,
+                PoNumber = x.PoNumber
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<PurchaseOrderLookupDto>> GetCancelledOrdersBySupplierAsync(Guid supplierId)
+    {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+        var branchId = _currentUserService.BranchId;
+
+        return await _context.PurchaseOrders.AsNoTracking()
+            .Where(x => x.CompanyId == companyId 
+                     && x.SupplierId == supplierId 
+                     && (x.Status == "Canceled" || x.Status == "Cancelled" || x.Status == "Void")
+                     && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .OrderByDescending(x => x.CreatedOn)
+            .Select(x => new PurchaseOrderLookupDto 
+            {
+                PurchaseOrderId = x.Id,
+                PoNumber = x.PoNumber
+            })
+            .ToListAsync();
+    }
+    
     public async Task<IEnumerable<POItemForGRNDto>> GetPOItemsForGRNAsync(Guid poId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
