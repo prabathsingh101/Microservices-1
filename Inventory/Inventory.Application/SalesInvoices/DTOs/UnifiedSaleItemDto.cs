@@ -14,5 +14,7 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public decimal Total { get; set; }
         public DateTime? MfgDate { get; set; }
         public DateTime? ExpDate { get; set; }
+        public string Location { get; set; } = string.Empty;
+        public string Rack { get; set; } = string.Empty;
     }
 }

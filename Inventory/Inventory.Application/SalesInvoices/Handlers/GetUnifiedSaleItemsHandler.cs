@@ -24,42 +24,52 @@ namespace Inventory.Application.SalesInvoices.Handlers
         {
             if (request.Source == "QuickSale")
             {
-                return await _context.SaleOrderItems
-                    .AsNoTracking()
-                    .Where(x => x.SaleOrderId == request.Id)
-                    .Select(x => new UnifiedSaleItemDto
-                    {
-                        Id = x.Id,
-                        ProductId = x.ProductId,
-                        ProductName = x.ProductName,
-                        Qty = x.Qty,
-                        Unit = x.Unit ?? string.Empty,
-                        Rate = x.Rate,
-                        TaxAmount = x.TaxAmount,
-                        Total = x.Total,
-                        MfgDate = x.MfgDate,
-                        ExpDate = x.ExpDate
-                    })
+                return await (from item in _context.SaleOrderItems
+                              join wh in _context.Warehouses on item.WarehouseId equals wh.Id into whJoin
+                              from wh in whJoin.DefaultIfEmpty()
+                              join r in _context.Racks on item.RackId equals r.Id into rJoin
+                              from r in rJoin.DefaultIfEmpty()
+                              where item.SaleOrderId == request.Id
+                              select new UnifiedSaleItemDto
+                              {
+                                  Id = item.Id,
+                                  ProductId = item.ProductId,
+                                  ProductName = item.ProductName,
+                                  Qty = item.Qty,
+                                  Unit = item.Unit ?? string.Empty,
+                                  Rate = item.Rate,
+                                  TaxAmount = item.TaxAmount,
+                                  Total = item.Total,
+                                  MfgDate = item.MfgDate,
+                                  ExpDate = item.ExpDate,
+                                  Location = wh != null ? wh.Name : "NA",
+                                  Rack = r != null ? r.Name : "NA"
+                              })
                     .ToListAsync(cancellationToken);
             }
             else if (request.Source == "TaxInvoice")
             {
-                return await _context.SalesInvoiceItems
-                    .AsNoTracking()
-                    .Where(x => x.SalesInvoiceId == request.Id)
-                    .Select(x => new UnifiedSaleItemDto
-                    {
-                        Id = x.Id,
-                        ProductId = x.ProductId,
-                        ProductName = x.ProductName,
-                        Qty = x.Qty,
-                        Unit = x.Unit ?? string.Empty,
-                        Rate = x.Rate,
-                        TaxAmount = x.TaxAmount,
-                        Total = x.Total,
-                        MfgDate = x.MfgDate,
-                        ExpDate = x.ExpDate
-                    })
+                return await (from item in _context.SalesInvoiceItems
+                              join wh in _context.Warehouses on item.WarehouseId equals wh.Id into whJoin
+                              from wh in whJoin.DefaultIfEmpty()
+                              join r in _context.Racks on item.RackId equals r.Id into rJoin
+                              from r in rJoin.DefaultIfEmpty()
+                              where item.SalesInvoiceId == request.Id
+                              select new UnifiedSaleItemDto
+                              {
+                                  Id = item.Id,
+                                  ProductId = item.ProductId,
+                                  ProductName = item.ProductName,
+                                  Qty = item.Qty,
+                                  Unit = item.Unit ?? string.Empty,
+                                  Rate = item.Rate,
+                                  TaxAmount = item.TaxAmount,
+                                  Total = item.Total,
+                                  MfgDate = item.MfgDate,
+                                  ExpDate = item.ExpDate,
+                                  Location = wh != null ? wh.Name : "NA",
+                                  Rack = r != null ? r.Name : "NA"
+                              })
                     .ToListAsync(cancellationToken);
             }
 
