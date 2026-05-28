@@ -13,11 +13,15 @@ namespace Inventory.Domain.Entities
         public string ReferenceId { get; private set; } = null!;
         public Guid? WarehouseId { get; private set; }
         public Guid? RackId { get; private set; }
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         public string? ReferenceNumber { get; private set; }
+        
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         public string? BatchNumber { get; private set; }
 
         public DateTime? MfgDate { get; private set; }
         public DateTime? ExpDate { get; private set; }
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         public DateTime TransactionDate { get; private set; }
         
         // Navigation Properties

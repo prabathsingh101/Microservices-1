@@ -20,7 +20,9 @@ public class SaleReturnHeader : BaseAuditableEntity // Agar aap BaseAuditableEnt
     public virtual SaleOrder SaleOrder { get; set; } = null!;
 
     public Guid? CustomerId { get; set; } // Direct reference for easy reporting
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? GuestName { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? GuestPhone { get; set; }
 
     public decimal SubTotal { get; set; }

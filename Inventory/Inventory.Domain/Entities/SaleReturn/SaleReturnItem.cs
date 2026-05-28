@@ -34,6 +34,9 @@ public class SaleReturnItem : BaseAuditableEntity
 
     public Guid? WarehouseId { get; set; }
     public Guid? RackId { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? BatchNumber { get; set; }
+    
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? ReferenceNumber { get; set; }
 }
