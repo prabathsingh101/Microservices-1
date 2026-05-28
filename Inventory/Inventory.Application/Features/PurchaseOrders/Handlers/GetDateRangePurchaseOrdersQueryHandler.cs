@@ -35,8 +35,13 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
             foreach (var po in result.Data)
             {
                 if (!string.IsNullOrEmpty(po.PoNumber)) searchTerms.Add(po.PoNumber);
-                var grnNumber = po.GrnHeaders?.FirstOrDefault()?.GRNNumber;
-                if (!string.IsNullOrEmpty(grnNumber)) searchTerms.Add(grnNumber);
+                if (po.GrnHeaders != null)
+                {
+                    foreach (var gh in po.GrnHeaders)
+                    {
+                        if (!string.IsNullOrEmpty(gh.GRNNumber)) searchTerms.Add(gh.GRNNumber);
+                    }
+                }
             }
 
             var paymentStatuses = new Dictionary<string, decimal>();
@@ -73,6 +78,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     var totalRejected = grnSummary.Sum(s => s.RejectedQty);
                     if (totalAccepted < 0) totalAccepted = 0;
 
+                    var netAccepted = Math.Max(0, totalAccepted - totalReturned);
+
                     return new PurchaseOrderItemDto
                     {
                         Id = item.Id,
@@ -87,12 +94,12 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
 
                         // Use the field from PurchaseOrderItems table (which is net-updated by repo) minus returns
                         ReceivedQty = item.ReceivedQty - totalReturned,
-                        AcceptedQty = totalAccepted,
+                        AcceptedQty = netAccepted,
                         RejectedQty = totalRejected,
                         ReturnQty = totalReturned,
 
                         // Pending = (Ordered - NetAccepted)
-                        PendingQty = item.Qty - totalAccepted,
+                        PendingQty = Math.Max(0, item.Qty - netAccepted),
                         ManufacturingDate = item.MfgDate,
                         ExpiryDate = item.ExpDate,
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,
@@ -111,7 +118,17 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
 
                 var grnNumber = x.GrnHeaders?.FirstOrDefault()?.GRNNumber;
                 decimal paidFromPO = (!string.IsNullOrEmpty(x.PoNumber) && paymentStatuses.ContainsKey(x.PoNumber)) ? paymentStatuses[x.PoNumber] : 0;
-                decimal paidFromGRN = (!string.IsNullOrEmpty(grnNumber) && paymentStatuses.ContainsKey(grnNumber)) ? paymentStatuses[grnNumber] : 0;
+                decimal paidFromGRN = 0;
+                if (x.GrnHeaders != null)
+                {
+                    foreach (var gh in x.GrnHeaders)
+                    {
+                        if (!string.IsNullOrEmpty(gh.GRNNumber) && paymentStatuses.ContainsKey(gh.GRNNumber))
+                        {
+                            paidFromGRN += paymentStatuses[gh.GRNNumber];
+                        }
+                    }
+                }
                 decimal actualPaidAmount = paidFromPO + paidFromGRN;
 
                 return new PurchaseOrderDto

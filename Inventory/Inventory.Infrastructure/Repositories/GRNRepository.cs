@@ -565,14 +565,22 @@ namespace Inventory.Infrastructure.Repositories
                     // Hum PO Item ki cumulative 'ReceivedQty' ke bajaye transaction level logic use karenge
                     // Pending = Total Ordered - Jo is GRN tak total 'Net Accepted' ho chuka tha
                     // Net Accepted = Total Received - Total Rejected
-                    PendingQty = d.OrderedQty > 0 ? (d.OrderedQty - (
-                        _context.GRNDetails
+                    PendingQty = d.OrderedQty > 0 ? Math.Max(0, d.OrderedQty - (
+                        (_context.GRNDetails
                             .Where(prev => prev.ProductId == d.ProductId &&
                                            prev.GRNHeader.PurchaseOrderId == g.PurchaseOrderId &&
                                            prev.GRNHeader.CreatedOn <= g.CreatedOn &&
                                            prev.CompanyId == companyId)
                             .Sum(prev => (decimal?)prev.ReceivedQty - (decimal?)prev.RejectedQty) ?? 0)
-                    ) : 0,
+                        -
+                        (_context.PurchaseReturnItems
+                            .Where(ri => ri.ProductId == d.ProductId &&
+                                         _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef &&
+                                                                       gh.PurchaseOrderId == g.PurchaseOrderId &&
+                                                                       gh.CreatedOn <= g.CreatedOn) &&
+                                         ri.CompanyId == companyId)
+                            .Sum(ri => (decimal?)ri.ReturnQty) ?? 0)
+                    )) : 0,
 
                     RejectedQty = d.RejectedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                     ReturnedQty = _context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0,
