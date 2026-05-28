@@ -778,7 +778,12 @@ public class SaleOrderRepository : ISaleOrderRepository
 
     public async Task<bool> ExistsByPhoneAsync(string phone, Guid companyId)
     {
-        return await _context.SaleOrders
+        var existsInSo = await _context.SaleOrders
+            .AnyAsync(x => x.GuestPhone == phone && x.CompanyId == companyId);
+
+        if (existsInSo) return true;
+
+        return await _context.SalesInvoices
             .AnyAsync(x => x.GuestPhone == phone && x.CompanyId == companyId);
     }
 }
