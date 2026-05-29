@@ -750,6 +750,7 @@ namespace Inventory.Infrastructure.Repositories
             var branchId = companyId.HasValue ? null : _currentUserService.BranchId;
             // Step 1: GRN Header fetch karein aur uske details ko PO items ke saath join karein
             var grnData = await _context.GRNHeaders
+                .IgnoreQueryFilters()
                 .Where(h => h.GRNNumber == grnNumber && h.CompanyId == activeCompanyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId))
                 .AsNoTracking()
                 .Select(h => new GrnPrintDto
@@ -766,6 +767,7 @@ namespace Inventory.Infrastructure.Repositories
                     TotalAmount = h.TotalAmount,
                     // Items ko optimize tarike se fetch karne ke liye join logic
                     Items = _context.GRNDetails
+                        .IgnoreQueryFilters()
                         .Where(d => d.GRNHeaderId == h.Id && d.CompanyId == activeCompanyId)
                         .Select(d => new GrnItemPrintDto
                         {
@@ -774,8 +776,8 @@ namespace Inventory.Infrastructure.Repositories
                             Unit = d.Product.Unit,
                             OrderedQty = d.OrderedQty,
                             PendingQty = d.PendingQty,
-                            ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                            AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                            ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                            AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                             RejectedQty = d.RejectedQty,
                             UnitRate = d.UnitRate,
                             DiscountPercent = d.DiscountPercent,

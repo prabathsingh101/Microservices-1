@@ -528,6 +528,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         var branchId = _currentUserService.BranchId;
         // 1. Database se Order aur uske Items fetch karein
         var order = await _context.SaleOrders
+            .IgnoreQueryFilters()
             .Include(o => o.Items)
             .Where(o => o.Id == id && o.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || o.BranchId == branchId))
             .Select(o => new SaleOrderDetailDto

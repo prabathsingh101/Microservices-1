@@ -35,6 +35,7 @@ namespace Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice
         public async Task<bool> Handle(DeleteSalesInvoiceCommand request, CancellationToken cancellationToken)
         {
             var invoice = await _context.SalesInvoices
+                .IgnoreQueryFilters()
                 .Include(si => si.Items)
                 .FirstOrDefaultAsync(si => si.Id == request.Id, cancellationToken);
 
@@ -161,11 +162,23 @@ namespace Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice
                                 using var scope = _scopeFactory.CreateScope();
                                 var pdfService = scope.ServiceProvider.GetRequiredService<IPdfService>();
                                 var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                                var scopedContext = scope.ServiceProvider.GetRequiredService<IInventoryDbContext>();
 
-                                byte[] pdfBytes = null;
+                                // Fetch detailed invoice inside the scoped background context to prevent ObjectDisposedException
+                                var detailedInvoice = await scopedContext.SalesInvoices
+                                    .IgnoreQueryFilters()
+                                    .Include(si => si.Items)
+                                    .FirstOrDefaultAsync(si => si.Id == invoice.Id);
+
+                                if (detailedInvoice == null)
+                                {
+                                    detailedInvoice = invoice; // Fallback
+                                }
+
+                                byte[]? pdfBytes = null;
                                 try
                                 {
-                                    string invoiceHtml = GenerateCancelledInvoiceHtml(company, customer, invoice, request.Reason ?? "Not Specified");
+                                    string invoiceHtml = GenerateCancelledInvoiceHtml(company, customer, detailedInvoice, request.Reason ?? "Not Specified");
                                     pdfBytes = pdfService.Convert(invoiceHtml);
                                 }
                                 catch (Exception pdfEx)
@@ -176,8 +189,8 @@ namespace Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice
                                 await emailService.SendCancelledInvoiceEmailAsync(
                                     company, 
                                     customer.Email, 
-                                    invoice.InvoiceNo ?? "N/A", 
-                                    invoice.GrandTotal, 
+                                    detailedInvoice.InvoiceNo ?? "N/A", 
+                                    detailedInvoice.GrandTotal, 
                                     request.Reason ?? "Not Specified", 
                                     pdfBytes
                                 );

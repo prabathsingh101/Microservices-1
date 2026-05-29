@@ -326,5 +326,68 @@ namespace Inventory.Application.Services
                 Console.WriteLine($"[EmailService] Cancelled Invoice Email fail: {ex.Message} | {ex.InnerException?.Message}");
             }
         }
+
+        public async Task SendCancelledSaleOrderEmailAsync(CompanyProfileDto company, string customerEmail, string soNumber, decimal amount, string reason, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping Cancelled Sale Order email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(customerEmail))
+            {
+                Console.WriteLine("[EmailService] Customer email missing. Skipping Cancelled Sale Order email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
+                var toAddress = new MailAddress(customerEmail);
+                string subject = $"CANCELLED: Sale Order: {soNumber} - {company.Name}";
+                string body = $@"<html><body><h2>Dear Customer,</h2><p>This is to notify you that your Sale Order has been <strong>CANCELLED</strong>.</p><p><strong>Order Number:</strong> {soNumber}</p><p><strong>Order Amount:</strong> {amount}</p><p><strong>Reason for Cancellation:</strong> {reason}</p><p>Please find the cancelled order details attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send Cancelled Sale Order email via {company.SmtpHost}:{company.SmtpPort}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"Cancelled_SaleOrder_{soNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] Cancelled Sale Order Email sent to {customerEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] Cancelled Sale Order Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
     }
 }
