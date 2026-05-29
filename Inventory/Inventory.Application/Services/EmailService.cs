@@ -200,5 +200,131 @@ namespace Inventory.Application.Services
                 Console.WriteLine($"[EmailService] GRN Email fail: {ex.Message} | {ex.InnerException?.Message}");
             }
         }
+
+        public async Task SendCancelledGrnEmailAsync(CompanyProfileDto company, string supplierEmail, string grnNumber, string poNumber, decimal amount, string reason, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping Cancelled GRN email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(supplierEmail))
+            {
+                Console.WriteLine("[EmailService] Supplier email missing. Skipping Cancelled GRN email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
+                var toAddress = new MailAddress(supplierEmail);
+                string subject = $"CANCELLED: Goods Received Advice: {grnNumber} (Ref PO: {poNumber}) - {company.Name}";
+                string body = $@"<html><body><h2>Dear Supplier,</h2><p>This is to notify you that the Goods Received Advice (GRN) listed below has been <strong>CANCELLED</strong>.</p><p><strong>GRN Number:</strong> {grnNumber}</p><p><strong>PO Reference:</strong> {poNumber}</p><p><strong>Cancelled Amount:</strong> {amount}</p><p><strong>Reason for Cancellation:</strong> {reason}</p><p>If you have any questions or concern, please contact us immediately. Please find the cancelled document attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send Cancelled GRN email via {company.SmtpHost}:{company.SmtpPort}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"Cancelled_GRN_{grnNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] Cancelled GRN Email sent to {supplierEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] Cancelled GRN Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
+
+        public async Task SendCancelledInvoiceEmailAsync(CompanyProfileDto company, string customerEmail, string invoiceNumber, decimal amount, string reason, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping Cancelled Invoice email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(customerEmail))
+            {
+                Console.WriteLine("[EmailService] Customer email missing. Skipping Cancelled Invoice email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
+                var toAddress = new MailAddress(customerEmail);
+                string subject = $"CANCELLED: Tax Invoice: {invoiceNumber} - {company.Name}";
+                string body = $@"<html><body><h2>Dear Customer,</h2><p>This is to notify you that your Tax Invoice has been <strong>CANCELLED</strong>.</p><p><strong>Invoice Number:</strong> {invoiceNumber}</p><p><strong>Amount Reversed:</strong> {amount}</p><p><strong>Reason for Cancellation:</strong> {reason}</p><p>A refund or ledger reversal has been posted. Please find the cancelled invoice details attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send Cancelled Invoice email via {company.SmtpHost}:{company.SmtpPort}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"Cancelled_Invoice_{invoiceNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] Cancelled Invoice Email sent to {customerEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] Cancelled Invoice Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
     }
 }

@@ -13,7 +13,7 @@ namespace Inventory.Application.Common.Interfaces
         Task<string> SaveGRNWithStockUpdate(GRNHeader header, List<GRNDetail> details);
         Task<GRNPagedResponseDto> GetGRNPagedListAsync(string search, string sortField, string sortOrder, int pageIndex, int pageSize, bool isQuick = false);
 
-        Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber);
+        Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber, Guid? companyId = null);
 
         Task<bool> CreateBulkGrnFromPoAsync(BulkGrnRequestDto request);
         Task<List<GrnRejectionHistoryDto>> GetGrnRejectionHistoryAsync(string grnNumber);

@@ -744,13 +744,13 @@ namespace Inventory.Infrastructure.Repositories
         }
 
 
-        public async Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber)
+        public async Task<GrnPrintDto?> GetGrnDetailsByNumberAsync(string grnNumber, Guid? companyId = null)
         {
-            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
+            var activeCompanyId = companyId ?? _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = companyId.HasValue ? null : _currentUserService.BranchId;
             // Step 1: GRN Header fetch karein aur uske details ko PO items ke saath join karein
             var grnData = await _context.GRNHeaders
-                .Where(h => h.GRNNumber == grnNumber && h.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId))
+                .Where(h => h.GRNNumber == grnNumber && h.CompanyId == activeCompanyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId))
                 .AsNoTracking()
                 .Select(h => new GrnPrintDto
                 {
@@ -766,27 +766,23 @@ namespace Inventory.Infrastructure.Repositories
                     TotalAmount = h.TotalAmount,
                     // Items ko optimize tarike se fetch karne ke liye join logic
                     Items = _context.GRNDetails
-                        .Where(d => d.GRNHeaderId == h.Id && d.CompanyId == companyId)
-                        .Join(_context.PurchaseOrderItems.Where(poi => poi.CompanyId == companyId),
-                              d => new { h.PurchaseOrderId, d.ProductId },
-                              poi => new { poi.PurchaseOrderId, poi.ProductId },
-                              (d, poi) => new GrnItemPrintDto
-                              {
-                                  ProductName = d.Product.Name, //
-                                  Sku = d.Product.Sku,
-                                  Unit = d.Product.Unit,
-                                  OrderedQty = d.OrderedQty,
-                                  PendingQty = d.PendingQty,
-                                  ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                                  AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                                  RejectedQty = d.RejectedQty,
-                                  UnitRate = d.UnitRate,
-                                  DiscountPercent = poi.DiscountPercent,
-                                  // PO Table se direct data
-                                  GstPercentage = poi.GstPercent,
-                                  GstAmount = ((d.ReceivedQty * d.UnitRate) * (1 - poi.DiscountPercent / 100)) * (poi.GstPercent / 100),
-                                  Total = (d.ReceivedQty * d.UnitRate) * (1 - poi.DiscountPercent / 100)
-                              }).ToList()
+                        .Where(d => d.GRNHeaderId == h.Id && d.CompanyId == activeCompanyId)
+                        .Select(d => new GrnItemPrintDto
+                        {
+                            ProductName = d.Product.Name,
+                            Sku = d.Product.Sku,
+                            Unit = d.Product.Unit,
+                            OrderedQty = d.OrderedQty,
+                            PendingQty = d.PendingQty,
+                            ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                            AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                            RejectedQty = d.RejectedQty,
+                            UnitRate = d.UnitRate,
+                            DiscountPercent = d.DiscountPercent,
+                            GstPercentage = d.GstPercent,
+                            GstAmount = d.TaxAmount,
+                            Total = d.Total
+                        }).ToList()
                 })
                 .FirstOrDefaultAsync();
 
