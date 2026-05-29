@@ -460,8 +460,20 @@ namespace Inventory.Infrastructure.Repositories
                     foreach (var d in po.Items)
                     {
                         var returnedQty = returnLookup.ContainsKey(d.ProductId) ? returnLookup[d.ProductId] : 0;
-                        // Pending = (Ordered - Physically Received) + Returned (need replacement)
-                        var pending = (d.Qty - d.ReceivedQty) + returnedQty;
+                        
+                        // Calculate total accepted quantity so far across all GRNs for this PO item
+                        var grnSummary = _context.GRNDetails
+                            .Where(gd => gd.ProductId == d.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id)
+                            .Select(gd => new { gd.ReceivedQty, gd.RejectedQty })
+                            .ToList();
+
+                        var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty);
+                        if (totalAccepted < 0) totalAccepted = 0;
+
+                        var netAccepted = Math.Max(0, totalAccepted - returnedQty);
+
+                        // Pending = (Ordered - NetAccepted)
+                        var pending = Math.Max(0, d.Qty - netAccepted);
                         decimal proposedRecv;
 
                         // 🎯 FIX: Prioritize replacement quantity (return items) even without a gate pass

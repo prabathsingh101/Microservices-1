@@ -26,8 +26,13 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
             // --- CROSS MODULE PAYMENT CHECK ---
             var searchTerms = new List<string>();
             if (!string.IsNullOrEmpty(po.PoNumber)) searchTerms.Add(po.PoNumber);
-            var grnNumber = po.GrnHeaders?.FirstOrDefault()?.GRNNumber;
-            if (!string.IsNullOrEmpty(grnNumber)) searchTerms.Add(grnNumber);
+            if (po.GrnHeaders != null)
+            {
+                foreach (var gh in po.GrnHeaders)
+                {
+                    if (!string.IsNullOrEmpty(gh.GRNNumber)) searchTerms.Add(gh.GRNNumber);
+                }
+            }
 
             var paymentStatuses = new Dictionary<string, decimal>();
             if (searchTerms.Any())
@@ -43,7 +48,17 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
             }
             
             decimal paidFromPO = (!string.IsNullOrEmpty(po.PoNumber) && paymentStatuses.ContainsKey(po.PoNumber)) ? paymentStatuses[po.PoNumber] : 0;
-            decimal paidFromGRN = (!string.IsNullOrEmpty(grnNumber) && paymentStatuses.ContainsKey(grnNumber)) ? paymentStatuses[grnNumber] : 0;
+            decimal paidFromGRN = 0;
+            if (po.GrnHeaders != null)
+            {
+                foreach (var gh in po.GrnHeaders)
+                {
+                    if (!string.IsNullOrEmpty(gh.GRNNumber) && paymentStatuses.ContainsKey(gh.GRNNumber))
+                    {
+                        paidFromGRN += paymentStatuses[gh.GRNNumber];
+                    }
+                }
+            }
             decimal actualPaidAmount = paidFromPO + paidFromGRN;
             // ----------------------------------
 
