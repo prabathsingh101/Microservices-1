@@ -422,7 +422,8 @@ namespace Inventory.Infrastructure.Repositories
                                  WarehouseId = d.WarehouseId,
                                  RackId = d.RackId,
                                  MfgDate = d.MfgDate,
-                                 ExpDate = d.ExpDate
+                                 ExpDate = d.ExpDate,
+                                 IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false
                              }).ToListAsync();
             }
             else
@@ -523,7 +524,8 @@ namespace Inventory.Infrastructure.Repositories
                             WarehouseId = lastWhId ?? d.Product?.DefaultWarehouseId,
                             RackId = lastRackId ?? d.Product?.DefaultRackId,
                             MfgDate = d.MfgDate,
-                            ExpDate = d.ExpDate
+                            ExpDate = d.ExpDate,
+                            IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false
                         });
                     }
                 }
