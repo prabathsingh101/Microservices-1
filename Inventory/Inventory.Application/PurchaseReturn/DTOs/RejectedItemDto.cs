@@ -16,4 +16,5 @@ public class RejectedItemDto
     public DateTime? ExpDate { get; set; }
     public string? BranchId { get; set; }
     public bool IsSettled { get; set; }
+    public string? PoNumber { get; set; }
 }

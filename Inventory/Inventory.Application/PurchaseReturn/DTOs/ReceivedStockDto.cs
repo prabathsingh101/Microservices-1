@@ -22,5 +22,6 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public string? BranchId { get; set; }
         public bool IsReturnable { get; set; } = true;
         public double RemainingHours { get; set; }
+        public string? PoNumber { get; set; }
     }
 }

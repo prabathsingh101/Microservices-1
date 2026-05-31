@@ -43,6 +43,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                          .Include(x => x.Warehouse)
                          .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
+                    join po in _context.PurchaseOrders on gh.PurchaseOrderId equals po.Id into poGroup
+                    from po in poGroup.DefaultIfEmpty()
                     where gh.SupplierId == supplierId && gd.RejectedQty > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
                     select new RejectedItemDto
                     {
@@ -63,7 +65,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         MfgDate = gd.MfgDate,
                         ExpDate = gd.ExpDate,
                         BranchId = gh.BranchId,
-                        IsSettled = gd.IsSettled
+                        IsSettled = gd.IsSettled,
+                        PoNumber = po != null ? po.PoNumber : "Quick"
                     };
 
         return await query.ToListAsync();
@@ -122,8 +125,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         .Include(x => x.Warehouse)
                         .Include(x => x.Rack)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
+                    join po in _context.PurchaseOrders on gh.PurchaseOrderId equals po.Id into poGroup
+                    from po in poGroup.DefaultIfEmpty()
                     where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
-                    select new { gd, gh }).ToListAsync();
+                    select new { gd, gh, PoNumber = po != null ? po.PoNumber : "Quick" }).ToListAsync();
 
         var result = rawList.Select(x => {
             // Calculate already returned quantity for this specific Product and GRN [cite: 2026-05-04]
@@ -152,7 +157,8 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 RackId = x.gd.RackId,
                 BranchId = x.gh.BranchId,
                 IsReturnable = x.gh.ReceivedDate >= limitDate,
-                RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours)
+                RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours),
+                PoNumber = x.PoNumber
             };
         }).Where(x => x.AvailableQty > 0)
         .OrderByDescending(x => x.ReceivedDate)
