@@ -30,6 +30,14 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
             // 1. Fetch PO Data with stats
             var result = await _repo.GetDateRangePagedOrdersAsync(query.Request);
 
+            // Fetch all product IDs from the current page to check for purges
+            var productIds = result.Data.SelectMany(po => po.Items).Select(item => item.ProductId).Distinct().ToList();
+            var purgedProductIds = await _context.InventoryTransactions
+                .Where(tx => tx.TransactionType == "StockPurge-OUT" && productIds.Contains(tx.ProductId))
+                .Select(tx => tx.ProductId)
+                .Distinct()
+                .ToListAsync(ct);
+
             // --- CROSS MODULE PAYMENT CHECK ---
             var searchTerms = new List<string>();
             foreach (var po in result.Data)
@@ -80,6 +88,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
 
                     var netAccepted = Math.Max(0, totalAccepted - totalReturned);
 
+                    var isAlreadyPurged = grnSummary.Any() && grnSummary.All(s => s.ReceivedQty == 0 && s.RejectedQty == 0) && purgedProductIds.Contains(item.ProductId);
+
                     return new PurchaseOrderItemDto
                     {
                         Id = item.Id,
@@ -112,7 +122,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                             .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
                             .OrderByDescending(gd => gd.Id)
                             .Select(gd => gd.Rack != null ? gd.Rack.Name : null)
-                            .FirstOrDefault()
+                            .FirstOrDefault(),
+                        IsAlreadyPurged = isAlreadyPurged
                     };
                 }).ToList();
 

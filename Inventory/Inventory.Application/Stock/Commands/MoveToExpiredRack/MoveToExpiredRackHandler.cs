@@ -97,6 +97,7 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
                     {
                         GRNHeaderId = b.GRNHeaderId,
                         ProductId = b.ProductId,
+                        CompanyId = companyId,
                         ReceivedQty = toMove,
                         UnitRate = b.UnitRate,
                         GstPercent = b.GstPercent,

@@ -22,6 +22,7 @@ public class PurchaseOrderItemDto
     public bool IsExpiryRequired { get; set; }
     public string? WarehouseName { get; set; }
     public string? RackName { get; set; }
+    public bool IsAlreadyPurged { get; set; }
 
     // Manual Mapping from Entity to DTO
     public static PurchaseOrderItemDto FromEntity(dynamic entity)
