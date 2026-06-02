@@ -345,8 +345,15 @@ namespace Inventory.Infrastructure.Repositories
 
                 if (totalPurged > 0)
                 {
-                    if (item.IsAlreadyPurged) item.TotalExpired = totalPurged;
-                    else item.TotalExpired += totalPurged;
+                    if (item.IsAlreadyPurged)
+                    {
+                        item.TotalExpired = totalPurged;
+                        item.TotalReceived = totalPurged;
+                    }
+                    else
+                    {
+                        item.TotalExpired += totalPurged;
+                    }
                 }
 
                 // 🚀 TRANSFER CALCULATION
@@ -674,6 +681,7 @@ namespace Inventory.Infrastructure.Repositories
                             .Where(tx => tx.TransactionType == "StockPurge-OUT" && tx.ExpDate?.Date == h.ExpiryDate?.Date)
                             .Sum(tx => Math.Abs(tx.Quantity));
                         h.ExpiredQty = batchPurged;
+                        h.ReceivedQty = batchPurged;
                     }
                 }
                 item.History = history;
