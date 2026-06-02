@@ -278,4 +278,68 @@ public class UsersController : ControllerBase
         await _userRepository.DeleteAsync(id);
         return NoContent();
     }
+
+    [HttpGet("online")]
+    public async Task<IActionResult> GetOnlineUsers()
+    {
+        var companyId = _currentUserService.CompanyId;
+        var now = DateTime.UtcNow;
+
+        // Fetch user IDs from active refresh tokens
+        var activeTokens = await _context.RefreshTokens
+            .Where(rt => !rt.IsRevoked && rt.ExpiresAt > now)
+            .Select(rt => new { rt.UserId, rt.CreatedDate })
+            .ToListAsync();
+
+        var activeUserIds = activeTokens.Select(t => t.UserId).Distinct().ToList();
+
+        // Filter by real-time SignalR connections to eliminate stale tokens (e.g. from closed tabs)
+        var onlineUserIds = Hubs.AuthHub.GetOnlineUserIds();
+
+        // Ensure current requesting user is always considered online as a fallback
+        var currentUserId = _currentUserService.UserId;
+        if (currentUserId.HasValue)
+        {
+            if (!onlineUserIds.Contains(currentUserId.Value))
+            {
+                onlineUserIds.Add(currentUserId.Value);
+            }
+        }
+
+        // Intersect database refresh tokens with real-time SignalR active connections
+        var finalActiveUserIds = activeUserIds.Intersect(onlineUserIds).ToList();
+
+        // Fallback: If current user is not in final list (e.g. token expired but request succeeded), add them
+        if (currentUserId.HasValue && !finalActiveUserIds.Contains(currentUserId.Value))
+        {
+            finalActiveUserIds.Add(currentUserId.Value);
+        }
+
+        var query = _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .Where(u => u.IsActive && finalActiveUserIds.Contains(u.Id))
+            .AsNoTracking();
+
+        if (!_currentUserService.IsPlatformAdmin && companyId.HasValue)
+        {
+            query = query.Where(u => u.CompanyId == companyId.Value);
+        }
+
+        var usersList = await query.ToListAsync();
+        var userLoginTimes = activeTokens
+            .GroupBy(t => t.UserId)
+            .ToDictionary(g => g.Key, g => g.Max(t => t.CreatedDate));
+
+        var result = usersList.Select(u => new
+        {
+            u.Id,
+            u.UserName,
+            u.Email,
+            Role = u.UserRoles.Select(ur => ur.Role.RoleName).FirstOrDefault() ?? "Staff",
+            LoginTime = userLoginTimes.TryGetValue(u.Id, out var dt) ? dt : u.CreatedDate
+        }).ToList();
+
+        return Ok(result);
+    }
 }
