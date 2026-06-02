@@ -389,5 +389,131 @@ namespace Inventory.Application.Services
                 Console.WriteLine($"[EmailService] Cancelled Sale Order Email fail: {ex.Message} | {ex.InnerException?.Message}");
             }
         }
+
+        public async Task SendDcEmailAsync(CompanyProfileDto company, string customerEmail, string dcNumber, decimal amount, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping DC email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(customerEmail))
+            {
+                Console.WriteLine("[EmailService] Customer email missing. Skipping DC email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
+                var toAddress = new MailAddress(customerEmail);
+                string subject = $"Delivery Challan Dispatch: {dcNumber} - {company.Name}";
+                string body = $@"<html><body><h2>Dear Customer,</h2><p>We are pleased to inform you that your goods have been dispatched!</p><p><strong>Challan Number:</strong> {dcNumber}</p><p><strong>Total Value:</strong> {amount}</p><p>Please find the delivery challan with item details attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send DC email via {company.SmtpHost}:{company.SmtpPort} with SSL: {company.SmtpUseSsl}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"DeliveryChallan_{dcNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] DC Email sent to {customerEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] DC Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
+
+        public async Task SendInvoiceEmailAsync(CompanyProfileDto company, string customerEmail, string invoiceNumber, decimal amount, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping Invoice email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(customerEmail))
+            {
+                Console.WriteLine("[EmailService] Customer email missing. Skipping Invoice email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
+                var toAddress = new MailAddress(customerEmail);
+                string subject = $"Tax Invoice: {invoiceNumber} - {company.Name}";
+                string body = $@"<html><body><h2>Dear Customer,</h2><p>Thank you for your business!</p><p><strong>Invoice Number:</strong> {invoiceNumber}</p><p><strong>Total Amount:</strong> {amount}</p><p>Please find your tax invoice with item details attached.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send Invoice email via {company.SmtpHost}:{company.SmtpPort} with SSL: {company.SmtpUseSsl}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"Invoice_{invoiceNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] Invoice Email sent to {customerEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] Invoice Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
     }
 }

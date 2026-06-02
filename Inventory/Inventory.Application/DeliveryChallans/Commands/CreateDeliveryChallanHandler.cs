@@ -4,24 +4,26 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Inventory.Application.Common.Interfaces;
-using Inventory.Application.Clients;
-using Inventory.Application.Services;
+using Inventory.Application.DeliveryChallans.DTOs;
 using Inventory.Domain.Entities;
 using Inventory.Domain.Entities.SalesInvoice;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+
+using Inventory.Application.Clients;
+using Inventory.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.Application.SalesInvoices.Commands
+namespace Inventory.Application.DeliveryChallans.Commands
 {
-    public class CreateSalesInvoiceHandler : IRequestHandler<CreateSalesInvoiceCommand, object>
+    public class CreateDeliveryChallanHandler : IRequestHandler<CreateDeliveryChallanCommand, object>
     {
         private readonly IInventoryDbContext _context;
         private readonly ICustomerClient _customerClient;
         private readonly ICompanyClient _companyClient;
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public CreateSalesInvoiceHandler(
+        public CreateDeliveryChallanHandler(
             IInventoryDbContext context,
             ICustomerClient customerClient,
             ICompanyClient companyClient,
@@ -33,94 +35,91 @@ namespace Inventory.Application.SalesInvoices.Commands
             _scopeFactory = scopeFactory;
         }
 
-        public async Task<object> Handle(CreateSalesInvoiceCommand request, CancellationToken cancellationToken)
+        public async Task<object> Handle(CreateDeliveryChallanCommand request, CancellationToken cancellationToken)
         {
-            var dto = request.InvoiceDto;
+            var dto = request.ChallanDto;
 
-            // 1. Generate Invoice No if missing
-            string invoiceNo = dto.InvoiceNo;
-            if (string.IsNullOrEmpty(invoiceNo))
+            // 1. Generate Challan No if null or empty
+            string challanNo = dto.ChallanNo ?? string.Empty;
+            if (string.IsNullOrEmpty(challanNo))
             {
-                var lastInvoice = await _context.SalesInvoices
+                var lastChallan = await _context.DeliveryChallans
                     .OrderByDescending(x => x.CreatedOn)
                     .FirstOrDefaultAsync(cancellationToken);
-                
-                int nextId = lastInvoice == null ? 1 : int.Parse(lastInvoice.InvoiceNo.Split('/').Last()) + 1;
+
+                int nextId = lastChallan == null ? 1 : int.Parse(lastChallan.ChallanNo!.Split('/').Last()) + 1;
                 string fyString = $"{DateTime.Now.Year}-{(DateTime.Now.Year + 1).ToString().Substring(2)}";
-                invoiceNo = $"INV/{fyString}/{nextId:D4}";
+                challanNo = $"DC/{fyString}/{nextId:D4}";
             }
 
-            // Map DTO to Entity
-            var invoice = new SalesInvoice
+            // 2. Map DTO to Entity
+            var challan = new DeliveryChallan
             {
                 Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
-                InvoiceNo = invoiceNo,
-                InvoiceDate = dto.InvoiceDate,
+                ChallanNo = challanNo,
+                ChallanDate = dto.ChallanDate ?? DateTime.Now,
                 CustomerId = dto.CustomerId,
+                CustomerName = dto.CustomerName,
                 SubTotal = dto.SubTotal,
                 TotalTax = dto.TotalTax,
                 GrandTotal = dto.GrandTotal,
-                TaxType = dto.TaxType,
-                IgstAmount = dto.IgstAmount ?? (dto.TaxType?.ToLower() == "interstate" ? dto.TotalTax : 0M),
-                CgstAmount = dto.CgstAmount ?? (dto.TaxType?.ToLower() == "local" || string.IsNullOrEmpty(dto.TaxType) ? dto.TotalTax / 2 : 0M),
-                SgstAmount = dto.SgstAmount ?? (dto.TaxType?.ToLower() == "local" || string.IsNullOrEmpty(dto.TaxType) ? dto.TotalTax / 2 : 0M),
-                Remarks = dto.Remarks ?? "Tax Invoice",
-                Status = dto.Status ?? "Confirmed",
-                IsQuick = dto.IsQuick,
-                GuestName = dto.GuestName,
-                GuestPhone = dto.GuestPhone,
-                DeliveryChallanId = dto.DeliveryChallanId,
+                Remarks = dto.Remarks ?? "Delivery Challan",
+                Status = dto.Status ?? "Pending",
+                GrossWeight = dto.GrossWeight,
+                VehicleRegNo = dto.VehicleRegNo,
+                Origin = dto.Origin,
+                Destination = dto.Destination,
                 CompanyId = dto.CompanyId ?? Guid.Empty,
                 BranchId = dto.BranchId,
                 CreatedBy = dto.CreatedBy,
-                Items = dto.Items.Select(i => new SalesInvoiceItem
+                Items = dto.Items.Select(i => new DeliveryChallanItem
                 {
                     Id = Guid.NewGuid(),
                     ProductId = i.ProductId,
                     ProductName = i.ProductName,
                     Qty = i.Qty,
-                    Unit = i.Unit,
+                    Unit = i.Unit ?? "PCS",
                     Rate = i.Rate,
-                    MRP = i.MRP,
-                    DiscountAmount = i.DiscountAmount,
-                    DiscountPercent = i.DiscountPercent,
-                    GSTPercent = i.GstPercent,
-                    TaxAmount = i.TaxAmount,
+                    MRP = i.MRP ?? 0M,
+                    DiscountPercent = i.DiscountPercent ?? 0M,
+                    DiscountAmount = i.DiscountAmount ?? 0M,
+                    GSTPercent = i.GstPercent ?? 0M,
+                    TaxAmount = i.TaxAmount ?? 0M,
                     Total = i.Total,
                     WarehouseId = i.WarehouseId,
                     RackId = i.RackId,
                     BatchNumber = i.BatchNumber,
-                    ReferenceNumber = i.ReferenceNumber,
-                    MfgDate = i.ManufacturingDate,
-                    ExpDate = i.ExpiryDate,
+                    MfgDate = i.MfgDate,
+                    ExpDate = i.ExpDate,
                     CompanyId = dto.CompanyId ?? Guid.Empty,
                     BranchId = dto.BranchId
                 }).ToList()
             };
 
-            await _context.SalesInvoices.AddAsync(invoice, cancellationToken);
+            await _context.DeliveryChallans.AddAsync(challan, cancellationToken);
 
-            // Deduct Stock only if NOT generated from a Delivery Challan (since DC already deducted stock)
-            if (!invoice.DeliveryChallanId.HasValue || invoice.DeliveryChallanId.Value == Guid.Empty)
+            // 3. Deduct Stock at Challan Stage
+            foreach (var item in challan.Items)
             {
-                foreach (var item in invoice.Items)
+                if (item.ProductId.HasValue && item.ProductId != Guid.Empty && item.Qty.HasValue)
                 {
-                    var saleTx = new InventoryTransaction(
-                        item.ProductId,
-                        -item.Qty,
-                        invoice.IsQuick ? "QuickSaleInvoice" : "SaleInvoice",
-                        invoice.InvoiceNo,
+                    var transaction = new InventoryTransaction(
+                        item.ProductId.Value,
+                        -item.Qty.Value,
+                        "DeliveryChallan",
+                        challan.ChallanNo!,
                         item.WarehouseId,
                         item.RackId,
                         item.MfgDate,
                         item.ExpDate,
-                        invoice.CompanyId,
-                        invoice.BranchId,
-                        item.ReferenceNumber,
+                        challan.CompanyId,
+                        challan.BranchId,
+                        null,
                         item.BatchNumber
                     );
-                    await _context.InventoryTransactions.AddAsync(saleTx, cancellationToken);
+                    await _context.InventoryTransactions.AddAsync(transaction, cancellationToken);
 
+                    // Update WarehouseStocks
                     if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                     {
                         var whStock = await _context.WarehouseStocks
@@ -128,56 +127,33 @@ namespace Inventory.Application.SalesInvoices.Commands
 
                         if (whStock != null)
                         {
-                            whStock.Quantity -= item.Qty;
+                            whStock.Quantity -= item.Qty.Value;
                         }
                         else
                         {
                             await _context.WarehouseStocks.AddAsync(new WarehouseStock
                             {
-                                ProductId = item.ProductId,
+                                ProductId = item.ProductId.Value,
                                 WarehouseId = item.WarehouseId.Value,
-                                Quantity = -item.Qty,
+                                Quantity = -item.Qty.Value,
                                 MinStock = 0,
-                                CompanyId = invoice.CompanyId,
-                                BranchId = invoice.BranchId
+                                CompanyId = challan.CompanyId ?? Guid.Empty,
+                                BranchId = challan.BranchId
                             }, cancellationToken);
                         }
                     }
                 }
             }
-            else
+
+            try
             {
-                // Update the source Delivery Challan status to "Invoiced"
-                var challan = await _context.DeliveryChallans
-                    .FirstOrDefaultAsync(x => x.Id == invoice.DeliveryChallanId.Value, cancellationToken);
-                
-                if (challan != null)
-                {
-                    challan.Status = "Invoiced";
-                }
+                await _context.SaveChangesAsync(cancellationToken);
             }
-
-            await _context.SaveChangesAsync(cancellationToken);
-
-            // Record in Finance Ledger
-            if (invoice.CustomerId.HasValue && invoice.CustomerId.Value != Guid.Empty)
+            catch (DbUpdateException ex)
             {
-                try
-                {
-                    await _customerClient.RecordSaleAsync(
-                        invoice.CustomerId.Value,
-                        invoice.GrandTotal,
-                        invoice.InvoiceNo,
-                        $"Tax Invoice generated: {invoice.InvoiceNo}",
-                        invoice.CreatedBy ?? "System",
-                        Guid.TryParse(invoice.BranchId, out var branchId) ? branchId : (Guid?)null,
-                        invoice.CompanyId
-                    );
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Ledger sync failed: {ex.Message}");
-                }
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                Console.WriteLine($"[CreateDeliveryChallanHandler] DB Update Exception: {innerMessage}");
+                throw new Exception($"DB Save Error: {innerMessage}", ex);
             }
 
             // Trigger Email Dispatch in Background
@@ -185,18 +161,9 @@ namespace Inventory.Application.SalesInvoices.Commands
             {
                 var company = await _companyClient.GetCompanyProfileAsync();
                 CustomerLookupDto? customer = null;
-                if (invoice.CustomerId.HasValue && invoice.CustomerId.Value != Guid.Empty)
+                if (challan.CustomerId.HasValue && challan.CustomerId.Value != Guid.Empty)
                 {
-                    customer = await _customerClient.GetCustomerByIdAsync(invoice.CustomerId.Value);
-                }
-                else if (!string.IsNullOrEmpty(invoice.GuestName))
-                {
-                    customer = new CustomerLookupDto
-                    {
-                        CustomerName = invoice.GuestName,
-                        Phone = invoice.GuestPhone,
-                        Email = ""
-                    };
+                    customer = await _customerClient.GetCustomerByIdAsync(challan.CustomerId.Value);
                 }
 
                 _ = Task.Run(async () =>
@@ -212,35 +179,35 @@ namespace Inventory.Application.SalesInvoices.Commands
                             byte[] pdfBytes = null;
                             try
                             {
-                                string invoiceHtml = GenerateInvoiceHtml(company, customer, invoice);
-                                pdfBytes = pdfService.Convert(invoiceHtml);
+                                string challanHtml = GenerateChallanHtml(company, customer, challan);
+                                pdfBytes = pdfService.Convert(challanHtml);
                             }
                             catch (Exception pdfEx)
                             {
-                                Console.WriteLine($"[CreateSalesInvoiceHandler] PDF generation failed: {pdfEx.Message}");
+                                Console.WriteLine($"[CreateDeliveryChallanHandler] PDF generation failed: {pdfEx.Message}");
                             }
 
                             if (!string.IsNullOrEmpty(customer.Email))
                             {
-                                await emailService.SendInvoiceEmailAsync(company, customer.Email, invoice.InvoiceNo, invoice.GrandTotal, pdfBytes);
+                                await emailService.SendDcEmailAsync(company, customer.Email, challan.ChallanNo!, challan.GrandTotal ?? 0M, pdfBytes);
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[CreateSalesInvoiceHandler] Notification task failed: {ex.Message}");
+                        Console.WriteLine($"[CreateDeliveryChallanHandler] Notification task failed: {ex.Message}");
                     }
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CreateSalesInvoiceHandler] Failed to kick off notification task: {ex.Message}");
+                Console.WriteLine($"[CreateDeliveryChallanHandler] Failed to kick off notification task: {ex.Message}");
             }
 
-            return new { Id = invoice.Id, InvoiceNo = invoice.InvoiceNo };
+            return new { Id = challan.Id, ChallanNo = challan.ChallanNo };
         }
 
-        private static string GenerateInvoiceHtml(Inventory.Application.Clients.DTOs.CompanyProfileDto company, CustomerLookupDto customer, SalesInvoice invoice)
+        private static string GenerateChallanHtml(Inventory.Application.Clients.DTOs.CompanyProfileDto company, CustomerLookupDto customer, DeliveryChallan challan)
         {
             var sb = new StringBuilder();
             var address = company.Address != null 
@@ -259,6 +226,8 @@ namespace Inventory.Application.SalesInvoices.Commands
                 .invoice-title {{ font-size: 24px; font-weight: bold; text-align: right; color: #1e293b; }}
                 .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 25px; }}
                 .info-table td {{ width: 50%; vertical-align: top; font-size: 13px; }}
+                .transport-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }}
+                .transport-table td {{ padding: 8px 12px; font-size: 13px; }}
                 .items-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
                 .items-table th {{ background-color: #2563eb; color: #ffffff; font-weight: 600; text-align: left; padding: 10px 8px; font-size: 13px; }}
                 .items-table td {{ padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }}
@@ -279,9 +248,9 @@ namespace Inventory.Application.SalesInvoices.Commands
                             <div style='font-size:12px; font-weight:normal; color:#64748b; margin-top:2px;'>{company.Tagline}</div>
                         </td>
                         <td class='invoice-title'>
-                            TAX INVOICE
-                            <div style='font-size:14px; font-weight:normal; color:#475569; margin-top:4px;'>Invoice No: {invoice.InvoiceNo}</div>
-                            <div style='font-size:14px; font-weight:normal; color:#475569;'>Date: {invoice.InvoiceDate.ToShortDateString()}</div>
+                            DELIVERY CHALLAN
+                            <div style='font-size:14px; font-weight:normal; color:#475569; margin-top:4px;'>Challan No: {challan.ChallanNo}</div>
+                            <div style='font-size:14px; font-weight:normal; color:#475569;'>Date: {challan.ChallanDate?.ToShortDateString()}</div>
                         </td>
                     </tr>
                 </table>
@@ -291,7 +260,7 @@ namespace Inventory.Application.SalesInvoices.Commands
                 <table class='info-table'>
                     <tr>
                         <td>
-                            <strong style='color: #1e293b; font-size: 14px;'>Billed From:</strong><br/>
+                            <strong style='color: #1e293b; font-size: 14px;'>Dispatched From:</strong><br/>
                             <strong>{company.Name}</strong><br/>
                             {address}<br/>
                             GSTIN: {company.Gstin}<br/>
@@ -299,11 +268,23 @@ namespace Inventory.Application.SalesInvoices.Commands
                             Email: {company.PrimaryEmail}
                         </td>
                         <td style='text-align: right;'>
-                            <strong style='color: #1e293b; font-size: 14px;'>Billed To:</strong><br/>
+                            <strong style='color: #1e293b; font-size: 14px;'>Dispatched To:</strong><br/>
                             <strong>{customer?.CustomerName}</strong><br/>
                             Phone: {customer?.Phone}<br/>
                             Email: {customer?.Email}
                         </td>
+                    </tr>
+                </table>
+
+                <h3 style='color: #1e293b; font-size: 14px; margin-bottom: 8px;'>Transport & Vehicle Details</h3>
+                <table class='transport-table'>
+                    <tr>
+                        <td><strong>Vehicle No:</strong> {challan.VehicleRegNo}</td>
+                        <td><strong>Gross Weight:</strong> {challan.GrossWeight} kg</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Origin:</strong> {challan.Origin}</td>
+                        <td><strong>Destination:</strong> {challan.Destination}</td>
                     </tr>
                 </table>
 
@@ -314,13 +295,12 @@ namespace Inventory.Application.SalesInvoices.Commands
                             <th>Qty</th>
                             <th>Unit</th>
                             <th class='text-right'>Rate</th>
-                            <th class='text-right'>Tax%</th>
                             <th class='text-right'>Total</th>
                         </tr>
                     </thead>
                     <tbody>");
 
-            foreach (var item in invoice.Items)
+            foreach (var item in challan.Items)
             {
                 sb.Append($@"
                         <tr>
@@ -328,7 +308,6 @@ namespace Inventory.Application.SalesInvoices.Commands
                             <td>{item.Qty}</td>
                             <td>{item.Unit}</td>
                             <td class='text-right'>₹{item.Rate:N2}</td>
-                            <td class='text-right'>{item.GSTPercent}%</td>
                             <td class='text-right'>₹{item.Total:N2}</td>
                         </tr>");
             }
@@ -341,15 +320,15 @@ namespace Inventory.Application.SalesInvoices.Commands
                     <table>
                         <tr>
                             <td>Subtotal</td>
-                            <td class='text-right'>₹{invoice.SubTotal:N2}</td>
+                            <td class='text-right'>₹{challan.SubTotal:N2}</td>
                         </tr>
                         <tr>
                             <td>Tax</td>
-                            <td class='text-right'>₹{invoice.TotalTax:N2}</td>
+                            <td class='text-right'>₹{challan.TotalTax:N2}</td>
                         </tr>
                         <tr class='total-row'>
                             <td style='padding-top: 8px;'>Grand Total</td>
-                            <td class='text-right' style='padding-top: 8px;'>₹{invoice.GrandTotal:N2}</td>
+                            <td class='text-right' style='padding-top: 8px;'>₹{challan.GrandTotal:N2}</td>
                         </tr>
                     </table>
                 </div>

@@ -48,6 +48,7 @@ namespace Inventory.Domain.Entities.SalesInvoice
         public bool IsQuick { get; set; }
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
+        public Guid? DeliveryChallanId { get; set; }
 
         public virtual ICollection<SalesInvoiceItem> Items { get; set; }
     }

@@ -21,6 +21,7 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public bool IsQuick { get; set; }
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
+        public Guid? DeliveryChallanId { get; set; }
         
         public Guid? CompanyId { get; set; }
         public string? BranchId { get; set; }

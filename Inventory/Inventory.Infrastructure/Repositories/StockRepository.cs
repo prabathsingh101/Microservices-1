@@ -416,7 +416,24 @@ namespace Inventory.Infrastructure.Repositories
 
                 var adjustment = (isOldest != null && isOldest.WarehouseId == item.WarehouseId && isOldest.RackId == item.RackId) ? unlinkedSales : 0;
 
-                item.TotalSold = grossSold + adjustment - totalSaleReturn;
+                // Deduct pending/draft Delivery Challans that have not yet been invoiced (to prevent double deduction and show instant stock drop)
+                var challanQuery = _context.DeliveryChallanItems.IgnoreQueryFilters().AsQueryable();
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    challanQuery = challanQuery.Where(dci => dci.CompanyId == companyId);
+                }
+                challanQuery = challanQuery.Where(dci => dci.ProductId == item.ProductId);
+                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+                {
+                    challanQuery = challanQuery.Where(dci => dci.BranchId == finalBranchId);
+                }
+
+                var pendingChallanQty = await challanQuery
+                    .Where(dci => dci.WarehouseId == item.WarehouseId && dci.RackId == item.RackId
+                        && (dci.DeliveryChallan.Status == "Pending" || dci.DeliveryChallan.Status == "Draft"))
+                    .SumAsync(dci => (decimal?)dci.Qty) ?? 0;
+
+                item.TotalSold = grossSold + adjustment - totalSaleReturn + pendingChallanQty;
                 item.TotalReturned = totalPurchaseReturn;
                 item.TotalTransferredOut = transferredOut;
                 item.TotalTransferredIn = transferredIn;
