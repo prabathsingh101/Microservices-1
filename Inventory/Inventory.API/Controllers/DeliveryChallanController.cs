@@ -73,5 +73,24 @@ namespace Inventory.API.Controllers
             if (result == null) return NotFound(new { message = "Delivery Challan not found" });
             return Ok(result);
         }
+
+        [HttpPatch("{id}/cancel")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> Cancel(Guid id)
+        {
+            try
+            {
+                var result = await _mediator.Send(new CancelDeliveryChallanCommand(id));
+                return Ok(result);
+            }
+            catch (Exception ex) when (ex.Message.Contains("not found"))
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }
