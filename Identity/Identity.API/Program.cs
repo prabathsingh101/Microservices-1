@@ -144,7 +144,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 logger.LogInformation("OnMessageReceived called for {Path}. Query token present: {HasToken}", 
                     path, !string.IsNullOrEmpty(accessToken));
 
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/auth"))
+                if (!string.IsNullOrEmpty(accessToken) && path.Value?.StartsWith("/hubs") == true)
                 {
                     context.Token = accessToken;
                 }
@@ -168,6 +168,18 @@ var app = builder.Build();
 
 // Middleware Pipeline
 app.UseCors("AllowAngularDev");
+
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+    RequestPath = "/api/uploads"
+});
+app.UseStaticFiles();
 
 // Global Exception Handler - Catch everything!
 app.UseMiddleware<ExceptionMiddleware>();
@@ -204,6 +216,7 @@ using (var scope = app.Services.CreateScope())
 
 app.MapControllers();
 app.MapHub<Identity.API.Hubs.AuthHub>("/hubs/auth");
+app.MapHub<Identity.API.Hubs.ChatHub>("/hubs/chat");
 
 try
 {

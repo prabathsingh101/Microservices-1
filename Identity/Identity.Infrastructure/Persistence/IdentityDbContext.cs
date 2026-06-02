@@ -37,6 +37,7 @@ public class IdentityDbContext : DbContext
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<RolePrintSetting> RolePrintSettings { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -114,6 +115,12 @@ public class IdentityDbContext : DbContext
         {
             entity.ToTable("PermissionAuditLogs");
             entity.HasKey(pal => pal.Id);
+        });
+
+        builder.Entity<ChatMessage>(entity =>
+        {
+            entity.ToTable("ChatMessages");
+            entity.HasKey(cm => cm.Id);
         });
 
         // 🛡️ MULTI-TENANT GLOBAL QUERY FILTER
