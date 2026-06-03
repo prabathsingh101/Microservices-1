@@ -36,7 +36,11 @@ namespace Inventory.API.Controllers
                     request.FromBranchId,
                     request.ToBranchId,
                     companyId,
-                    request.Remarks
+                    request.Remarks,
+                    request.VehicleRegNo,
+                    request.TransporterName,
+                    request.DriverName,
+                    request.EWayBillNo
                 );
 
                 var details = request.Items.Select(i => new StockTransferDetail(
@@ -101,6 +105,10 @@ namespace Inventory.API.Controllers
         public string? FromBranchId { get; set; }
         public string? ToBranchId { get; set; }
         public string? Remarks { get; set; }
+        public string? VehicleRegNo { get; set; }
+        public string? TransporterName { get; set; }
+        public string? DriverName { get; set; }
+        public string? EWayBillNo { get; set; }
         public List<StockTransferItemRequest> Items { get; set; } = new();
     }
 

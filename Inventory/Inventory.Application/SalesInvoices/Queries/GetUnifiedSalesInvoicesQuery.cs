@@ -22,5 +22,6 @@ namespace Inventory.Application.SalesInvoices.Queries
         public DateTime? EndDate { get; set; }
         public string? BranchId { get; set; }
         public string? SourceFilter { get; set; } // "All", "QuickSale", "TaxInvoice"
+        public bool? IsQuick { get; set; }
     }
 }

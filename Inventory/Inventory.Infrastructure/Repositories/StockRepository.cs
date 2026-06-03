@@ -357,7 +357,9 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 // 🚀 TRANSFER CALCULATION
-                var transfersOutQuery = _context.StockTransferDetails.IgnoreQueryFilters().AsQueryable();
+                var transfersOutQuery = _context.StockTransferDetails.IgnoreQueryFilters()
+                    .Where(td => td.StockTransferHeader.Status == "Dispatched" || td.StockTransferHeader.Status == "Completed")
+                    .AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     transfersOutQuery = transfersOutQuery.Where(td => td.CompanyId == companyId);
@@ -387,7 +389,9 @@ namespace Inventory.Infrastructure.Repositories
                     )
                     .SumAsync(td => (decimal?)td.Quantity) ?? 0;
 
-                var transfersInQuery = _context.StockTransferDetails.IgnoreQueryFilters().AsQueryable();
+                var transfersInQuery = _context.StockTransferDetails.IgnoreQueryFilters()
+                    .Where(td => td.StockTransferHeader.Status == "Completed")
+                    .AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     transfersInQuery = transfersInQuery.Where(td => td.CompanyId == companyId);
@@ -568,10 +572,12 @@ namespace Inventory.Infrastructure.Repositories
                         ReceivedQty = td.Quantity,
                         TransferredQty = td.Quantity,
                         AvailableQty = td.Quantity,
-                        WarehouseName = td.StockTransferHeader.FromWarehouse.Name, // 🎯 Source Warehouse
+                        WarehouseName = td.StockTransferHeader.ToWarehouse.Name, // 🎯 Display Destination Warehouse Name (Bhagwanpur)
                         RackName = "Transferred In",
-                        BranchId = td.StockTransferHeader.FromWarehouse.BranchId, // 🎯 Source Branch ID
-                        BranchName = td.StockTransferHeader.FromWarehouse.BranchId, // 🎯 Source Branch Name
+                        BranchId = td.StockTransferHeader.ToBranchId, // 🎯 Destination Branch ID
+                        BranchName = td.StockTransferHeader.ToBranchId, // 🎯 Destination Branch Name
+                        TransferredFromBranchId = td.StockTransferHeader.FromBranchId, // 🎯 Source Branch ID
+                        TransferredFromBranchName = td.StockTransferHeader.FromBranchId, // 🎯 Source Branch Name
                         IsExpiryRequired = _context.Products.Where(p => p.Id == td.ProductId).Select(p => p.IsExpiryRequired).FirstOrDefault(),
                         ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
                         ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
@@ -606,6 +612,9 @@ namespace Inventory.Infrastructure.Repositories
                         WarehouseName = item.WarehouseName,
                         RackName = item.RackName,
                         BranchId = td.BranchId ?? td.StockTransferHeader.FromWarehouse.BranchId, // Fallback to warehouse branch
+                        BranchName = td.BranchId ?? td.StockTransferHeader.FromWarehouse.BranchId,
+                        TransferredToBranchId = td.StockTransferHeader.ToBranchId,
+                        TransferredToBranchName = td.StockTransferHeader.ToBranchId,
                         ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
                         ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
                         BatchNumber = td.BatchNumber,
@@ -902,10 +911,10 @@ namespace Inventory.Infrastructure.Repositories
             if (expDate.HasValue) query = query.Where(tx => tx.ExpDate.HasValue && tx.ExpDate.Value.Date == expDate.Value.Date);
 
             return await query
-                .OrderByDescending(tx => tx.TransactionDate)
+                .OrderByDescending(tx => tx.CreatedOn)
                 .Select(tx => new BatchTransactionDto
                 {
-                    TransactionDate = tx.TransactionDate,
+                    TransactionDate = tx.CreatedOn ?? DateTime.Now,
                     TransactionType = tx.TransactionType,
                     Quantity = tx.Quantity,
                     RemainingStock = 0, // Placeholder

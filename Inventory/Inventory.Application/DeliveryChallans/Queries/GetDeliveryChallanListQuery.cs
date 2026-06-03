@@ -40,6 +40,7 @@ namespace Inventory.Application.DeliveryChallans.Queries
                 GrandTotal = challan.GrandTotal,
                 Remarks = challan.Remarks,
                 Status = challan.Status,
+                CancelReason = challan.CancelReason,
                 GrossWeight = challan.GrossWeight,
                 VehicleRegNo = challan.VehicleRegNo,
                 Origin = challan.Origin,

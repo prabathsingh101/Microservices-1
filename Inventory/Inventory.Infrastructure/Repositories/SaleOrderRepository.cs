@@ -623,7 +623,8 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
-        return await _context.SaleOrders
+        
+        var cancelledOrders = await _context.SaleOrders
             .AsNoTracking()
             .Where(x => x.CustomerId == customerId && (x.Status == "Canceled" || x.Status == "Cancelled" || x.Status == "Void") && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(x => new SaleOrderLookupDto
@@ -632,6 +633,23 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SoNumber = x.SONumber,
                 GrandTotal = x.GrandTotal
             }).ToListAsync();
+
+        var cancelledInvoices = await _context.SalesInvoices
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId && (x.Status == "Canceled" || x.Status == "Cancelled" || x.Status == "Void") && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Select(x => new SaleOrderLookupDto
+            {
+                SaleOrderId = x.Id,
+                SoNumber = x.DeliveryChallanId != null
+                    ? x.InvoiceNo + " (Challan: " + _context.DeliveryChallans
+                        .Where(dc => dc.Id == x.DeliveryChallanId)
+                        .Select(dc => dc.ChallanNo)
+                        .FirstOrDefault() + ")"
+                    : x.InvoiceNo,
+                GrandTotal = x.GrandTotal
+            }).ToListAsync();
+
+        return cancelledOrders.Concat(cancelledInvoices).ToList();
     }
 
     public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(Guid saleOrderId)

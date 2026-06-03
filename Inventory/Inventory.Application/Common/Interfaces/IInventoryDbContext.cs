@@ -20,6 +20,7 @@ namespace Inventory.Application.Common.Interfaces
         DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceItem> SalesInvoiceItems { get; }
         DbSet<Inventory.Domain.Entities.SalesInvoice.DeliveryChallan> DeliveryChallans { get; }
         DbSet<Inventory.Domain.Entities.SalesInvoice.DeliveryChallanItem> DeliveryChallanItems { get; }
+        DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceDeliveryChallan> SalesInvoiceDeliveryChallans { get; }
 
         DbSet<SaleReturnHeader> SaleReturnHeaders { get; }
         DbSet<SaleReturnItem> SaleReturnItems { get; }

@@ -37,6 +37,7 @@ namespace Inventory.Application.DeliveryChallans.Commands
 
             // Mark as Cancelled
             challan.Status = "Cancelled";
+            challan.CancelReason = request.Reason;
 
             // Reverse the stock deductions made at challan creation
             foreach (var item in challan.Items)

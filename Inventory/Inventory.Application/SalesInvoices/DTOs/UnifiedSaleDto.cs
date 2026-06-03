@@ -15,5 +15,8 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public string Status { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty; // "QuickSale" or "TaxInvoice"
         public string CreatedBy { get; set; } = string.Empty;
+        public Guid? DeliveryChallanId { get; set; }
+        public string? ChallanNo { get; set; }
+        public bool IsQuick { get; set; }
     }
 }

@@ -35,6 +35,8 @@ namespace Inventory.Domain.Entities.SalesInvoice
         [StringLength(50)]
         public string? Status { get; set; } // Pending, Invoiced, Cancelled
 
+        public string? CancelReason { get; set; }
+
         [Column(TypeName = "decimal(18,2)")]
         public decimal? GrossWeight { get; set; }
 
@@ -50,6 +52,8 @@ namespace Inventory.Domain.Entities.SalesInvoice
         public Guid? CompanyId { get; set; }
         
         public string? BranchId { get; set; }
+
+        public Guid? StockTransferHeaderId { get; set; }
 
         public virtual ICollection<DeliveryChallanItem> Items { get; set; } = new List<DeliveryChallanItem>();
     }

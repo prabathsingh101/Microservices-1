@@ -15,6 +15,7 @@ namespace Inventory.Application.DeliveryChallans.DTOs
         public decimal? GrandTotal { get; set; }
         public string? Remarks { get; set; }
         public string? Status { get; set; } = "Pending";
+        public string? CancelReason { get; set; }
         
         // GTA details
         public decimal? GrossWeight { get; set; }

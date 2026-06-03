@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
+using Inventory.Domain.Entities.SalesInvoice;
 using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,6 +46,22 @@ namespace Inventory.Infrastructure.Repositories
                     await _context.StockTransferHeaders.AddAsync(header);
                     await _context.SaveChangesAsync();
 
+                    // Query From and To Warehouses to get names for the Delivery Challan
+                    var fromWarehouse = await _context.Warehouses.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(w => w.Id == header.FromWarehouseId && w.CompanyId == companyId);
+                    var toWarehouse = await _context.Warehouses.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(w => w.Id == header.ToWarehouseId && w.CompanyId == companyId);
+
+                    // Query Product details to compute rates and taxes for Delivery Challan Items
+                    var productIds = details.Select(d => d.ProductId).Distinct().ToList();
+                    var products = await _context.Products.IgnoreQueryFilters()
+                        .Where(p => productIds.Contains(p.Id) && p.CompanyId == companyId)
+                        .ToDictionaryAsync(p => p.Id);
+
+                    decimal subTotal = 0M;
+                    decimal totalTax = 0M;
+                    var challanItems = new List<DeliveryChallanItem>();
+
                     foreach (var item in details)
                     {
                         item.StockTransferHeaderId = header.Id;
@@ -77,11 +94,85 @@ namespace Inventory.Infrastructure.Repositories
                             null, // ReferenceNumber not applicable here (Transfer)
                             item.BatchNumber
                         ));
+
+                        // C. Build Delivery Challan Item
+                        products.TryGetValue(item.ProductId, out var product);
+                        
+                        decimal rate = product?.BasePurchasePrice ?? 0M;
+                        decimal gstPercent = product?.DefaultGst ?? 0M;
+                        decimal itemSubTotal = item.Quantity * rate;
+                        decimal taxAmount = itemSubTotal * (gstPercent / 100M);
+                        decimal itemTotal = itemSubTotal + taxAmount;
+
+                        subTotal += itemSubTotal;
+                        totalTax += taxAmount;
+
+                        challanItems.Add(new DeliveryChallanItem
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = item.ProductId,
+                            ProductName = product?.Name ?? "Unknown Product",
+                            Qty = item.Quantity,
+                            Unit = product?.Unit ?? "PCS",
+                            Rate = rate,
+                            MRP = product?.MRP ?? 0M,
+                            DiscountPercent = 0M,
+                            DiscountAmount = 0M,
+                            GSTPercent = gstPercent,
+                            TaxAmount = taxAmount,
+                            Total = itemTotal,
+                            WarehouseId = header.FromWarehouseId,
+                            BatchNumber = item.BatchNumber,
+                            CompanyId = companyId,
+                            BranchId = header.FromBranchId
+                        });
                     }
 
+                    // D. Generate Challan Number
+                    var lastChallan = await _context.DeliveryChallans
+                        .IgnoreQueryFilters()
+                        .Where(x => x.CompanyId == companyId)
+                        .OrderByDescending(x => x.CreatedOn)
+                        .FirstOrDefaultAsync();
+
+                    int nextId = 1;
+                    if (lastChallan != null && !string.IsNullOrEmpty(lastChallan.ChallanNo))
+                    {
+                        var parts = lastChallan.ChallanNo.Split('/');
+                        if (parts.Length > 0 && int.TryParse(parts.Last(), out int parsedId))
+                        {
+                            nextId = parsedId + 1;
+                        }
+                    }
+                    string fyString = $"{DateTime.Now.Year}-{(DateTime.Now.Year + 1).ToString().Substring(2)}";
+                    string challanNo = $"DC/{fyString}/{nextId:D4}";
+
+                    // E. Create Delivery Challan Header
+                    var challan = new DeliveryChallan
+                    {
+                        Id = Guid.NewGuid(),
+                        ChallanNo = challanNo,
+                        ChallanDate = header.TransferDate,
+                        StockTransferHeaderId = header.Id,
+                        CustomerId = null,
+                        CustomerName = $"Stock Transfer: {toWarehouse?.Name ?? header.ToBranchId}",
+                        SubTotal = subTotal,
+                        TotalTax = totalTax,
+                        GrandTotal = subTotal + totalTax,
+                        Remarks = $"Internal Stock Transfer from {fromWarehouse?.Name ?? "Source"} to {toWarehouse?.Name ?? "Destination"}. Ref: {header.TransferNumber}",
+                        Status = "Pending",
+                        VehicleRegNo = header.VehicleRegNo,
+                        Origin = fromWarehouse?.Name ?? header.FromBranchId,
+                        Destination = toWarehouse?.Name ?? header.ToBranchId,
+                        CompanyId = companyId,
+                        BranchId = header.FromBranchId,
+                        Items = challanItems
+                    };
+
+                    await _context.DeliveryChallans.AddAsync(challan);
                     await _context.SaveChangesAsync();
 
-                    // C. Add native In-App Notification for Destination Branch
+                    // F. Add native In-App Notification for Destination Branch
                     await _notificationRepository.AddNotificationAsync(
                         "Incoming Stock Transfer",
                         $"New stock transfer {header.TransferNumber} dispatched to your branch from source branch.",

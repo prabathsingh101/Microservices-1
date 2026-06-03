@@ -49,7 +49,10 @@ namespace Inventory.Application.SalesInvoices.Handlers
                     PaymentStatus = "Unpaid", // Default placeholder
                     Status = x.Status,
                     Source = "QuickSale",
-                    CreatedBy = x.CreatedBy ?? string.Empty
+                    CreatedBy = x.CreatedBy ?? string.Empty,
+                    DeliveryChallanId = null,
+                    ChallanNo = null,
+                    IsQuick = x.IsQuick
                 });
 
             // 2. Projection for Tax Invoices
@@ -68,7 +71,13 @@ namespace Inventory.Application.SalesInvoices.Handlers
                     PaymentStatus = "Unpaid", // Default placeholder
                     Status = x.Status,
                     Source = "TaxInvoice",
-                    CreatedBy = x.CreatedBy ?? string.Empty
+                    CreatedBy = x.CreatedBy ?? string.Empty,
+                    DeliveryChallanId = x.DeliveryChallanId,
+                    ChallanNo = _context.DeliveryChallans
+                        .Where(dc => dc.Id == x.DeliveryChallanId)
+                        .Select(dc => dc.ChallanNo)
+                        .FirstOrDefault(),
+                    IsQuick = x.IsQuick
                 });
 
             // 3. UNION & Source Filter
@@ -87,6 +96,11 @@ namespace Inventory.Application.SalesInvoices.Handlers
             }
 
             // 4. Filters
+            if (request.IsQuick.HasValue)
+            {
+                combinedQuery = combinedQuery.Where(o => o.IsQuick == request.IsQuick.Value);
+            }
+
             if (request.StartDate.HasValue)
             {
                 combinedQuery = combinedQuery.Where(o => o.Date >= request.StartDate.Value);
@@ -137,7 +151,7 @@ namespace Inventory.Application.SalesInvoices.Handlers
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            // 8. Populate Customer Names efficiently
+            // 8. Populate Customer Names efficiently & Challan Numbers for Consolidated Invoices
             var customerIds = pagedData
                 .Where(x => x.CustomerId.HasValue && x.CustomerId.Value != Guid.Empty)
                 .Select(x => x.CustomerId!.Value)
@@ -146,8 +160,19 @@ namespace Inventory.Application.SalesInvoices.Handlers
 
             var customerDictionary = await _customerClient.GetCustomerNamesAsync(customerIds);
 
+            var invoiceIds = pagedData.Where(x => x.Source == "TaxInvoice").Select(x => x.Id).ToList();
+            var relations = await _context.SalesInvoiceDeliveryChallans
+                .AsNoTracking()
+                .Where(r => invoiceIds.Contains(r.SalesInvoiceId))
+                .Select(r => new { r.SalesInvoiceId, r.DeliveryChallanId, ChallanNo = r.DeliveryChallan != null ? r.DeliveryChallan.ChallanNo : string.Empty })
+                .ToListAsync(cancellationToken);
+
+            var relationGroup = relations.GroupBy(r => r.SalesInvoiceId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             foreach (var item in pagedData)
             {
+                // Customer Name
                 if (item.CustomerId.HasValue && customerDictionary != null && customerDictionary.TryGetValue(item.CustomerId.Value, out var name))
                 {
                     item.CustomerName = name;
@@ -155,6 +180,13 @@ namespace Inventory.Application.SalesInvoices.Handlers
                 else if (string.IsNullOrEmpty(item.CustomerName))
                 {
                     item.CustomerName = "Cash Customer";
+                }
+
+                // Consolidated Challan numbers
+                if (item.Source == "TaxInvoice" && relationGroup.TryGetValue(item.Id, out var linkedChallans) && linkedChallans.Any())
+                {
+                    item.ChallanNo = string.Join(", ", linkedChallans.Select(c => c.ChallanNo).Where(c => !string.IsNullOrEmpty(c)));
+                    item.DeliveryChallanId = linkedChallans.First().DeliveryChallanId;
                 }
             }
 

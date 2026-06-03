@@ -76,11 +76,11 @@ namespace Inventory.API.Controllers
 
         [HttpPatch("{id}/cancel")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
-        public async Task<IActionResult> Cancel(Guid id)
+        public async Task<IActionResult> Cancel(Guid id, [FromQuery] string? reason)
         {
             try
             {
-                var result = await _mediator.Send(new CancelDeliveryChallanCommand(id));
+                var result = await _mediator.Send(new CancelDeliveryChallanCommand(id, reason));
                 return Ok(result);
             }
             catch (Exception ex) when (ex.Message.Contains("not found"))

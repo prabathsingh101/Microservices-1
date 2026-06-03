@@ -21,6 +21,11 @@ namespace Inventory.Domain.Entities
 
         public string Status { get; private set; } = "Dispatched"; // Draft, Dispatched, Completed, Cancelled
         public string? Remarks { get; private set; }
+        
+        public string? VehicleRegNo { get; private set; }
+        public string? TransporterName { get; private set; }
+        public string? DriverName { get; private set; }
+        public string? EWayBillNo { get; private set; }
 
         public virtual ICollection<StockTransferDetail> Items { get; internal set; } = new List<StockTransferDetail>();
 
@@ -54,7 +59,11 @@ namespace Inventory.Domain.Entities
             string? fromBranchId,
             string? toBranchId,
             Guid companyId,
-            string? remarks = null)
+            string? remarks = null,
+            string? vehicleRegNo = null,
+            string? transporterName = null,
+            string? driverName = null,
+            string? eWayBillNo = null)
         {
             Id = Guid.NewGuid();
             TransferNumber = transferNumber;
@@ -67,6 +76,10 @@ namespace Inventory.Domain.Entities
             Remarks = remarks;
             Status = "Dispatched";
             CreatedOn = DateTime.UtcNow;
+            VehicleRegNo = vehicleRegNo;
+            TransporterName = transporterName;
+            DriverName = driverName;
+            EWayBillNo = eWayBillNo;
         }
     }
 }

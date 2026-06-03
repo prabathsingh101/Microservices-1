@@ -61,7 +61,8 @@ namespace Inventory.API.Controllers
              [FromQuery] DateTime? startDate = null,
              [FromQuery] DateTime? endDate = null,
              [FromQuery] string? branchId = null,
-             [FromQuery] string? sourceFilter = null)
+             [FromQuery] string? sourceFilter = null,
+             [FromQuery] bool? isQuick = null)
         {
             var query = new Inventory.Application.SalesInvoices.Queries.GetUnifiedSalesInvoicesQuery
             {
@@ -73,7 +74,8 @@ namespace Inventory.API.Controllers
                 StartDate = startDate,
                 EndDate = endDate,
                 BranchId = branchId,
-                SourceFilter = sourceFilter
+                SourceFilter = sourceFilter,
+                IsQuick = isQuick
             };
 
             var result = await _mediator.Send(query);

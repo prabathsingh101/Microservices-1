@@ -81,5 +81,9 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? BranchName { get; set; }
         public string? BatchNumber { get; set; }
         public string? ReferenceNumber { get; set; }
+        public string? TransferredToBranchId { get; set; }
+        public string? TransferredToBranchName { get; set; }
+        public string? TransferredFromBranchId { get; set; }
+        public string? TransferredFromBranchName { get; set; }
     }
 }

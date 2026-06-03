@@ -46,6 +46,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     public DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceItem> SalesInvoiceItems { get; set; }
     public DbSet<Inventory.Domain.Entities.SalesInvoice.DeliveryChallan> DeliveryChallans { get; set; }
     public DbSet<Inventory.Domain.Entities.SalesInvoice.DeliveryChallanItem> DeliveryChallanItems { get; set; }
+    public DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceDeliveryChallan> SalesInvoiceDeliveryChallans { get; set; }
     public DbSet<AppNotification> AppNotifications { get; set; }
     public DbSet<ExpenseCategory> ExpenseCategories { get; set; }
     public DbSet<ExpenseEntry> ExpenseEntries { get; set; }
@@ -63,6 +64,19 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly);
+
+        modelBuilder.Entity<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceDeliveryChallan>(entity =>
+        {
+            entity.HasKey(x => new { x.SalesInvoiceId, x.DeliveryChallanId });
+
+            entity.HasOne(x => x.SalesInvoice)
+                .WithMany()
+                .HasForeignKey(x => x.SalesInvoiceId);
+
+            entity.HasOne(x => x.DeliveryChallan)
+                .WithMany()
+                .HasForeignKey(x => x.DeliveryChallanId);
+        });
 
         // ... [Existing entity configurations] ...
 

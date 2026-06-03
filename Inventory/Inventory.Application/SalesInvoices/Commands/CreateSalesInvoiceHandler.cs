@@ -69,7 +69,7 @@ namespace Inventory.Application.SalesInvoices.Commands
                 IsQuick = dto.IsQuick,
                 GuestName = dto.GuestName,
                 GuestPhone = dto.GuestPhone,
-                DeliveryChallanId = dto.DeliveryChallanId,
+                DeliveryChallanId = dto.DeliveryChallanId ?? (dto.DeliveryChallanIds != null && dto.DeliveryChallanIds.Any() ? dto.DeliveryChallanIds.First() : null),
                 CompanyId = dto.CompanyId ?? Guid.Empty,
                 BranchId = dto.BranchId,
                 CreatedBy = dto.CreatedBy,
@@ -101,7 +101,10 @@ namespace Inventory.Application.SalesInvoices.Commands
             await _context.SalesInvoices.AddAsync(invoice, cancellationToken);
 
             // Deduct Stock only if NOT generated from a Delivery Challan (since DC already deducted stock)
-            if (!invoice.DeliveryChallanId.HasValue || invoice.DeliveryChallanId.Value == Guid.Empty)
+            bool isChallanInvoice = (invoice.DeliveryChallanId.HasValue && invoice.DeliveryChallanId.Value != Guid.Empty) ||
+                                    (dto.DeliveryChallanIds != null && dto.DeliveryChallanIds.Any());
+
+            if (!isChallanInvoice)
             {
                 foreach (var item in invoice.Items)
                 {
@@ -147,13 +150,33 @@ namespace Inventory.Application.SalesInvoices.Commands
             }
             else
             {
-                // Update the source Delivery Challan status to "Invoiced"
-                var challan = await _context.DeliveryChallans
-                    .FirstOrDefaultAsync(x => x.Id == invoice.DeliveryChallanId.Value, cancellationToken);
-                
-                if (challan != null)
+                var challanIds = new List<Guid>();
+                if (dto.DeliveryChallanIds != null && dto.DeliveryChallanIds.Any())
                 {
-                    challan.Status = "Invoiced";
+                    challanIds.AddRange(dto.DeliveryChallanIds);
+                }
+                else if (invoice.DeliveryChallanId.HasValue && invoice.DeliveryChallanId.Value != Guid.Empty)
+                {
+                    challanIds.Add(invoice.DeliveryChallanId.Value);
+                }
+
+                foreach (var challanId in challanIds)
+                {
+                    var challan = await _context.DeliveryChallans
+                        .FirstOrDefaultAsync(x => x.Id == challanId, cancellationToken);
+                    
+                    if (challan != null)
+                    {
+                        challan.Status = "Invoiced";
+                    }
+
+                    // Store relation
+                    var relation = new Inventory.Domain.Entities.SalesInvoice.SalesInvoiceDeliveryChallan
+                    {
+                        SalesInvoiceId = invoice.Id,
+                        DeliveryChallanId = challanId
+                    };
+                    await _context.SalesInvoiceDeliveryChallans.AddAsync(relation, cancellationToken);
                 }
             }
 
