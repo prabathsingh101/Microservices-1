@@ -12,5 +12,6 @@ namespace Inventory.Application.Services
         Task SendCancelledSaleOrderEmailAsync(CompanyProfileDto company, string customerEmail, string soNumber, decimal amount, string reason, byte[] pdfAttachmentBytes = null);
         Task SendDcEmailAsync(CompanyProfileDto company, string customerEmail, string dcNumber, decimal amount, byte[] pdfAttachmentBytes = null);
         Task SendInvoiceEmailAsync(CompanyProfileDto company, string customerEmail, string invoiceNumber, decimal amount, byte[] pdfAttachmentBytes = null);
+        Task SendStockTransferEmailAsync(CompanyProfileDto company, string targetBranchEmail, string transferNumber, string fromBranchName, string toBranchName, string challanNumber, byte[] pdfAttachmentBytes = null);
     }
 }

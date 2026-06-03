@@ -7,6 +7,10 @@ using Inventory.Domain.Entities;
 using Inventory.Domain.Entities.SalesInvoice;
 using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Inventory.Application.Clients;
+using Inventory.Application.Clients.DTOs;
+using Inventory.Application.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.Infrastructure.Repositories
 {
@@ -15,15 +19,21 @@ namespace Inventory.Infrastructure.Repositories
         private readonly InventoryDbContext _context;
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationRepository _notificationRepository;
+        private readonly ICompanyClient _companyClient;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public StockTransferRepository(
             InventoryDbContext context, 
             ICurrentUserService currentUserService,
-            INotificationRepository notificationRepository)
+            INotificationRepository notificationRepository,
+            ICompanyClient companyClient,
+            IServiceScopeFactory scopeFactory)
         {
             _context = context;
             _currentUserService = currentUserService;
             _notificationRepository = notificationRepository;
+            _companyClient = companyClient;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task<string> CreateTransferAsync(StockTransferHeader header, List<StockTransferDetail> details)
@@ -182,7 +192,76 @@ namespace Inventory.Infrastructure.Repositories
                         companyId
                     );
 
-                    await transaction.CommitAsync();
+                     await transaction.CommitAsync();
+
+                    // G. Trigger Background Email Dispatch
+                    try
+                    {
+                        var company = await _companyClient.GetCompanyProfileAsync();
+                        if (company != null)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    using var scope = _scopeFactory.CreateScope();
+                                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                                    var pdfService = scope.ServiceProvider.GetRequiredService<IPdfService>();
+                                    var scopedContext = scope.ServiceProvider.GetRequiredService<IInventoryDbContext>();
+
+                                    // Find target and source branch names and emails
+                                    var targetBranch = company.Addresses.FirstOrDefault(a => a.Id.ToString() == header.ToBranchId);
+                                    var sourceBranch = company.Addresses.FirstOrDefault(a => a.Id.ToString() == header.FromBranchId);
+
+                                    string targetEmail = targetBranch?.Email ?? "";
+                                    string fromBranchName = sourceBranch?.BranchName ?? "Khanpur Branch";
+                                    string toBranchName = targetBranch?.BranchName ?? "Matihaan Branch";
+
+                                    if (!string.IsNullOrEmpty(targetEmail))
+                                    {
+                                        // Fetch the newly created delivery challan with items inside scope
+                                        var dbChallan = await scopedContext.DeliveryChallans
+                                            .IgnoreQueryFilters()
+                                            .Include(dc => dc.Items)
+                                            .FirstOrDefaultAsync(dc => dc.StockTransferHeaderId == header.Id);
+
+                                        if (dbChallan != null)
+                                        {
+                                            byte[] pdfBytes = null;
+                                            try
+                                            {
+                                                string challanHtml = GenerateChallanHtml(company, fromBranchName, toBranchName, dbChallan);
+                                                pdfBytes = pdfService.Convert(challanHtml);
+                                            }
+                                            catch (Exception pdfEx)
+                                            {
+                                                Console.WriteLine($"[StockTransferRepository] PDF generation failed: {pdfEx.Message}");
+                                            }
+
+                                            await emailService.SendStockTransferEmailAsync(
+                                                company,
+                                                targetEmail,
+                                                header.TransferNumber,
+                                                fromBranchName,
+                                                toBranchName,
+                                                dbChallan.ChallanNo!,
+                                                pdfBytes
+                                            );
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"[StockTransferRepository] Background email dispatch failed: {ex.Message}");
+                                }
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[StockTransferRepository] Failed to kick off background task: {ex.Message}");
+                    }
+
                     return header.TransferNumber;
                 }
                 catch (Exception)
@@ -191,6 +270,144 @@ namespace Inventory.Infrastructure.Repositories
                     throw;
                 }
             });
+        }
+
+        private static string GenerateChallanHtml(CompanyProfileDto company, string fromBranchName, string toBranchName, DeliveryChallan challan)
+        {
+            var sb = new System.Text.StringBuilder();
+            var address = company.Address != null 
+                ? $"{company.Address.AddressLine1}, {company.Address.City}, {company.Address.State} - {company.Address.PinCode}" 
+                : "";
+
+            sb.Append($@"
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 15px; color: #333; }}
+                .invoice-box {{ max-width: 800px; margin: auto; padding: 10px; font-size: 14px; line-height: 24px; }}
+                .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+                .header-table td {{ vertical-align: top; }}
+                .logo-container {{ font-size: 28px; font-weight: bold; color: #2563eb; }}
+                .invoice-title {{ font-size: 24px; font-weight: bold; text-align: right; color: #1e293b; }}
+                .info-table {{ width: 100%; border-collapse: collapse; margin-bottom: 25px; }}
+                .info-table td {{ width: 50%; vertical-align: top; font-size: 13px; }}
+                .transport-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }}
+                .transport-table td {{ padding: 8px 12px; font-size: 13px; }}
+                .items-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                .items-table th {{ background-color: #2563eb; color: #ffffff; font-weight: 600; text-align: left; padding: 10px 8px; font-size: 13px; }}
+                .items-table td {{ padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }}
+                .text-right {{ text-align: right; }}
+                .total-section {{ float: right; width: 320px; margin-top: 20px; background-color: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; }}
+                .total-section table {{ width: 100%; border-collapse: collapse; }}
+                .total-section td {{ padding: 4px 0; font-size: 13px; }}
+                .total-row {{ font-weight: bold; font-size: 16px; color: #1e293b; border-top: 2px solid #e2e8f0; padding-top: 8px; }}
+                .footer {{ text-align: center; margin-top: 100px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px; }}
+            </style>
+        </head>
+        <body>
+            <div class='invoice-box'>
+                <table class='header-table'>
+                    <tr>
+                        <td class='logo-container'>
+                            {company.Name}
+                            <div style='font-size:12px; font-weight:normal; color:#64748b; margin-top:2px;'>{company.Tagline}</div>
+                        </td>
+                        <td class='invoice-title'>
+                            DELIVERY CHALLAN
+                            <div style='font-size:14px; font-weight:normal; color:#475569; margin-top:4px;'>Challan No: {challan.ChallanNo}</div>
+                            <div style='font-size:14px; font-weight:normal; color:#475569;'>Date: {challan.ChallanDate?.ToShortDateString()}</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <hr style='border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;' />
+
+                <table class='info-table'>
+                    <tr>
+                        <td>
+                            <strong style='color: #2563eb; font-size: 14px;'>Dispatched From (Source):</strong><br/>
+                            <strong>{fromBranchName}</strong><br/>
+                            {company.Name}<br/>
+                            GSTIN: {company.Gstin}<br/>
+                            Phone: {company.PrimaryPhone}<br/>
+                            Email: {company.PrimaryEmail}
+                        </td>
+                        <td style='text-align: right;'>
+                            <strong style='color: #2563eb; font-size: 14px;'>Dispatched To (Destination):</strong><br/>
+                            <strong>{toBranchName}</strong><br/>
+                            {company.Name}<br/>
+                            GSTIN: {company.Gstin}
+                        </td>
+                    </tr>
+                </table>
+
+                <h3 style='color: #1e293b; font-size: 14px; margin-bottom: 8px;'>Transport & Vehicle Details</h3>
+                <table class='transport-table'>
+                    <tr>
+                        <td><strong>Vehicle No:</strong> {challan.VehicleRegNo}</td>
+                        <td><strong>Gross Weight:</strong> {challan.GrossWeight} kg</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Origin:</strong> {challan.Origin}</td>
+                        <td><strong>Destination:</strong> {challan.Destination}</td>
+                    </tr>
+                </table>
+
+                <table class='items-table'>
+                    <thead>
+                        <tr>
+                            <th>Item Description</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th class='text-right'>Rate</th>
+                            <th class='text-right'>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>");
+
+            foreach (var item in challan.Items)
+            {
+                sb.Append($@"
+                        <tr>
+                            <td>{item.ProductName}</td>
+                            <td>{item.Qty}</td>
+                            <td>{item.Unit}</td>
+                            <td class='text-right'>₹{item.Rate:N2}</td>
+                            <td class='text-right'>₹{item.Total:N2}</td>
+                        </tr>");
+            }
+
+            sb.Append($@"
+                    </tbody>
+                </table>
+
+                <div class='total-section'>
+                    <table>
+                        <tr>
+                            <td>Subtotal</td>
+                            <td class='text-right'>₹{challan.SubTotal:N2}</td>
+                        </tr>
+                        <tr>
+                            <td>Tax</td>
+                            <td class='text-right'>₹{challan.TotalTax:N2}</td>
+                        </tr>
+                        <tr class='total-row'>
+                            <td style='padding-top: 8px;'>Grand Total</td>
+                            <td class='text-right' style='padding-top: 8px;'>₹{challan.GrandTotal:N2}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div style='clear: both;'></div>
+
+                <div class='footer'>
+                    Internal stock transfer between branches. No sale is involved.<br/>
+                    <em>Regd. office: {address}</em>
+                </div>
+            </div>
+        </body>
+        </html>");
+
+            return sb.ToString();
         }
 
         public async Task<bool> ReceiveTransferAsync(Guid id, string? remarks)

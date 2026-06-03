@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Inventory.Application.Clients.DTOs
 {
@@ -26,13 +27,15 @@ namespace Inventory.Application.Clients.DTOs
         public int PurchaseReturnWindowValue { get; set; }
         public string PurchaseReturnWindowUnit { get; set; }
         public string? PurchaseReturnPolicyDisclaimer { get; set; }
-        public AddressDto Address { get; set; }
+        public List<AddressDto> Addresses { get; set; } = new();
+        public AddressDto Address => Addresses.Count > 0 ? Addresses[0] : new AddressDto();
         public BankDetailDto BankInfo { get; set; }
     }
 
     public class AddressDto
     {
         public int Id { get; set; }
+        public string? BranchName { get; set; }
         public string AddressLine1 { get; set; }
         public string AddressLine2 { get; set; }
         public string City { get; set; }

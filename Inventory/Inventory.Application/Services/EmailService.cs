@@ -515,5 +515,98 @@ namespace Inventory.Application.Services
                 Console.WriteLine($"[EmailService] Invoice Email fail: {ex.Message} | {ex.InnerException?.Message}");
             }
         }
+
+        public async Task SendStockTransferEmailAsync(CompanyProfileDto company, string targetBranchEmail, string transferNumber, string fromBranchName, string toBranchName, string challanNumber, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping Stock Transfer email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(targetBranchEmail))
+            {
+                Console.WriteLine("[EmailService] Target branch email missing. Skipping Stock Transfer email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, $"{company.Name} - {fromBranchName}");
+                var toAddress = new MailAddress(targetBranchEmail);
+                string subject = $"Stock Transfer Dispatched: {transferNumber} ({fromBranchName} to {toBranchName})";
+                
+                string body = $@"
+<html>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+  <h2 style='color: #2563eb;'>Incoming Stock Transfer</h2>
+  <p>Dear <strong>{toBranchName} Branch Team</strong>,</p>
+  <p>We are pleased to inform you that a new stock transfer has been dispatched to your branch from <strong>{fromBranchName}</strong>.</p>
+  <table style='border-collapse: collapse; margin: 20px 0; font-size: 14px;'>
+    <tr>
+      <td style='padding: 6px 12px; font-weight: bold; background-color: #f3f4f6; border: 1px solid #e5e7eb;'>Transfer Number</td>
+      <td style='padding: 6px 12px; border: 1px solid #e5e7eb;'>{transferNumber}</td>
+    </tr>
+    <tr>
+      <td style='padding: 6px 12px; font-weight: bold; background-color: #f3f4f6; border: 1px solid #e5e7eb;'>Delivery Challan</td>
+      <td style='padding: 6px 12px; border: 1px solid #e5e7eb;'>{challanNumber}</td>
+    </tr>
+    <tr>
+      <td style='padding: 6px 12px; font-weight: bold; background-color: #f3f4f6; border: 1px solid #e5e7eb;'>Dispatched From</td>
+      <td style='padding: 6px 12px; border: 1px solid #e5e7eb;'>{fromBranchName}</td>
+    </tr>
+    <tr>
+      <td style='padding: 6px 12px; font-weight: bold; background-color: #f3f4f6; border: 1px solid #e5e7eb;'>Dispatched To</td>
+      <td style='padding: 6px 12px; border: 1px solid #e5e7eb;'>{toBranchName}</td>
+    </tr>
+  </table>
+  <p>Please find the official <strong>Delivery Challan PDF</strong> attached to this email. You can use it to verify the items upon arrival and record the stock receive in the portal.</p>
+  <br/>
+  <p>Best Regards,</p>
+  <p><strong>{company.Name}</strong></p>
+</body>
+</html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send Stock Transfer email via {company.SmtpHost}:{company.SmtpPort}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                var attachment = new Attachment(ms, $"DeliveryChallan_{challanNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] Stock Transfer Email sent to {targetBranchEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] Stock Transfer Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
     }
 }
