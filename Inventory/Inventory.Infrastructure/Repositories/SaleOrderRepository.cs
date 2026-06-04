@@ -496,7 +496,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                                 order.SONumber,
                                 $"Sale Invoice generated: {order.SONumber}",
                                 "System",
-                                Guid.TryParse(order.BranchId, out var parsedBranchId) ? parsedBranchId : (Guid?)null,
+                                order.BranchId,
                                 order.CompanyId
                             );
                         }
@@ -684,65 +684,148 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         var result = new List<SaleOrderItemGridDto>();
 
-        foreach (var x in items)
+        if (items != null && items.Any())
         {
-            var dto = new SaleOrderItemGridDto
+            foreach (var x in items)
             {
-                ProductId = x.ProductId,
-                ProductName = x.ProductName,
-                Rate = x.Rate,
-                DiscountPercent = x.DiscountPercent,
-                DiscountAmount = x.DiscountAmount,
-                TaxPercentage = x.GSTPercent,
-                MfgDate = x.MfgDate,
-                ExpDate = x.ExpDate,
-                WarehouseId = x.WarehouseId,
-                WarehouseName = x.Warehouse?.Name,
-                RackId = x.RackId,
-                RackName = x.Rack?.Name,
+                var dto = new SaleOrderItemGridDto
+                {
+                    ProductId = x.ProductId,
+                    ProductName = x.ProductName,
+                    Rate = x.Rate,
+                    DiscountPercent = x.DiscountPercent,
+                    DiscountAmount = x.DiscountAmount,
+                    TaxPercentage = x.GSTPercent,
+                    MfgDate = x.MfgDate,
+                    ExpDate = x.ExpDate,
+                    WarehouseId = x.WarehouseId,
+                    WarehouseName = x.Warehouse?.Name,
+                    RackId = x.RackId,
+                    RackName = x.Rack?.Name,
+                    Qty = x.Qty,
+                    Unit = x.Unit ?? string.Empty,
+                    Total = x.Total,
 
-                // Dynamic Policy Calculation
-                IsReturnable = x.SaleOrder.SODate >= limitDate,
-                ReturnWindowRemainingHours = Math.Max(0, totalHours - (now - x.SaleOrder.SODate).TotalHours)
-            };
+                    // Dynamic Policy Calculation
+                    IsReturnable = x.SaleOrder.SODate >= limitDate,
+                    ReturnWindowRemainingHours = Math.Max(0, totalHours - (now - x.SaleOrder.SODate).TotalHours)
+                };
 
-            // Use WarehouseStocks instead of summing thousands of transactions
-            dto.CurrentStock = await _context.WarehouseStocks
+                // Use WarehouseStocks instead of summing thousands of transactions
+                dto.CurrentStock = await _context.WarehouseStocks
+                    .AsNoTracking()
+                    .Where(tx => tx.ProductId == x.ProductId && tx.CompanyId == companyId && tx.WarehouseId == x.WarehouseId)
+                    .SumAsync(tx => (decimal?)tx.Quantity) ?? 0;
+
+                // CRITICAL FIX: Original Sold (10) minus Already Returned (5) = Display (5)
+                var returnedQty = await _context.SaleReturnItems
+                    .Where(sr => sr.ProductId == x.ProductId &&
+                                 sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
+                                 sr.CompanyId == companyId &&
+                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
+                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
+                                 (x.ExpDate == null || sr.ExpDate == x.ExpDate))
+                    .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;
+                
+                dto.SoldQty = x.Qty - returnedQty;
+
+                // Fetch GRN and PO references based on Product/Warehouse/Rack/Batch metadata
+                var grn = await _context.GRNDetails
+                    .Include(g => g.GRNHeader)
+                    .ThenInclude(h => h.PurchaseOrder)
+                    .Where(g => g.ProductId == x.ProductId &&
+                                g.WarehouseId == x.WarehouseId &&
+                                g.RackId == x.RackId &&
+                                g.CompanyId == companyId &&
+                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
+                                (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
+                    .OrderByDescending(g => g.Id)
+                    .FirstOrDefaultAsync();
+
+                dto.GrnNumber = grn?.GRNHeader?.GRNNumber;
+                dto.RefNo = grn?.GRNHeader?.PurchaseOrder?.PoNumber;
+
+                if (dto.SoldQty > 0)
+                {
+                    result.Add(dto);
+                }
+            }
+        }
+        else
+        {
+            var invoiceItems = await _context.SalesInvoiceItems
+                .Include(x => x.SalesInvoice)
                 .AsNoTracking()
-                .Where(tx => tx.ProductId == x.ProductId && tx.CompanyId == companyId && tx.WarehouseId == x.WarehouseId)
-                .SumAsync(tx => (decimal?)tx.Quantity) ?? 0;
+                .Where(x => x.SalesInvoiceId == saleOrderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+                .ToListAsync();
 
-            // CRITICAL FIX: Original Sold (10) minus Already Returned (5) = Display (5)
-            var returnedQty = await _context.SaleReturnItems
-                .Where(sr => sr.ProductId == x.ProductId &&
-                             sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
-                             sr.CompanyId == companyId &&
-                             (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
-                             (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
-                             (x.ExpDate == null || sr.ExpDate == x.ExpDate))
-                .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;
-            
-            dto.SoldQty = x.Qty - returnedQty;
-
-            // Fetch GRN and PO references based on Product/Warehouse/Rack/Batch metadata
-            var grn = await _context.GRNDetails
-                .Include(g => g.GRNHeader)
-                .ThenInclude(h => h.PurchaseOrder)
-                .Where(g => g.ProductId == x.ProductId &&
-                            g.WarehouseId == x.WarehouseId &&
-                            g.RackId == x.RackId &&
-                            g.CompanyId == companyId &&
-                            (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
-                            (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
-                .OrderByDescending(g => g.Id)
-                .FirstOrDefaultAsync();
-
-            dto.GrnNumber = grn?.GRNHeader?.GRNNumber;
-            dto.RefNo = grn?.GRNHeader?.PurchaseOrder?.PoNumber;
-
-            if (dto.SoldQty > 0)
+            foreach (var x in invoiceItems)
             {
-                result.Add(dto);
+                var warehouse = x.WarehouseId.HasValue 
+                    ? await _context.Warehouses.AsNoTracking().FirstOrDefaultAsync(w => w.Id == x.WarehouseId) 
+                    : null;
+                var rack = x.RackId.HasValue 
+                    ? await _context.Racks.AsNoTracking().FirstOrDefaultAsync(r => r.Id == x.RackId) 
+                    : null;
+
+                var dto = new SaleOrderItemGridDto
+                {
+                    ProductId = x.ProductId,
+                    ProductName = x.ProductName,
+                    Rate = x.Rate,
+                    DiscountPercent = x.DiscountPercent,
+                    DiscountAmount = x.DiscountAmount,
+                    TaxPercentage = x.GSTPercent,
+                    MfgDate = x.MfgDate,
+                    ExpDate = x.ExpDate,
+                    WarehouseId = x.WarehouseId,
+                    WarehouseName = warehouse?.Name,
+                    RackId = x.RackId,
+                    RackName = rack?.Name,
+
+                    // Dynamic Policy Calculation
+                    IsReturnable = x.SalesInvoice.InvoiceDate >= limitDate,
+                    ReturnWindowRemainingHours = Math.Max(0, totalHours - (now - x.SalesInvoice.InvoiceDate).TotalHours)
+                };
+
+                // Use WarehouseStocks instead of summing thousands of transactions
+                dto.CurrentStock = await _context.WarehouseStocks
+                    .AsNoTracking()
+                    .Where(tx => tx.ProductId == x.ProductId && tx.CompanyId == companyId && tx.WarehouseId == x.WarehouseId)
+                    .SumAsync(tx => (decimal?)tx.Quantity) ?? 0;
+
+                // CRITICAL FIX: Original Sold (10) minus Already Returned (5) = Display (5)
+                var returnedQty = await _context.SaleReturnItems
+                    .Where(sr => sr.ProductId == x.ProductId &&
+                                 sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
+                                 sr.CompanyId == companyId &&
+                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
+                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
+                                 (x.ExpDate == null || sr.ExpDate == x.ExpDate))
+                    .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;
+                
+                dto.SoldQty = x.Qty - returnedQty;
+
+                // Fetch GRN and PO references based on Product/Warehouse/Rack/Batch metadata
+                var grn = await _context.GRNDetails
+                    .Include(g => g.GRNHeader)
+                    .ThenInclude(h => h.PurchaseOrder)
+                    .Where(g => g.ProductId == x.ProductId &&
+                                g.WarehouseId == x.WarehouseId &&
+                                g.RackId == x.RackId &&
+                                g.CompanyId == companyId &&
+                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
+                                (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
+                    .OrderByDescending(g => g.Id)
+                    .FirstOrDefaultAsync();
+
+                dto.GrnNumber = grn?.GRNHeader?.GRNNumber;
+                dto.RefNo = grn?.GRNHeader?.PurchaseOrder?.PoNumber;
+
+                if (dto.SoldQty > 0)
+                {
+                    result.Add(dto);
+                }
             }
         }
 

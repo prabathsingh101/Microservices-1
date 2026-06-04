@@ -43,7 +43,12 @@ namespace Inventory.Application.SalesInvoices.Handlers
                                   MfgDate = item.MfgDate,
                                   ExpDate = item.ExpDate,
                                   Location = wh != null ? wh.Name : "NA",
-                                  Rack = r != null ? r.Name : "NA"
+                                  Rack = r != null ? r.Name : "NA",
+                                  MRP = item.MRP,
+                                  DiscountPercent = item.DiscountPercent,
+                                  DiscountAmount = item.DiscountAmount,
+                                  GSTPercent = item.GSTPercent,
+                                  BatchNumber = item.BatchNumber
                               })
                     .ToListAsync(cancellationToken);
             }
@@ -68,7 +73,12 @@ namespace Inventory.Application.SalesInvoices.Handlers
                                   MfgDate = item.MfgDate,
                                   ExpDate = item.ExpDate,
                                   Location = wh != null ? wh.Name : "NA",
-                                  Rack = r != null ? r.Name : "NA"
+                                  Rack = r != null ? r.Name : "NA",
+                                  MRP = item.MRP,
+                                  DiscountPercent = item.DiscountPercent,
+                                  DiscountAmount = item.DiscountAmount,
+                                  GSTPercent = item.GSTPercent,
+                                  BatchNumber = item.BatchNumber
                               })
                     .ToListAsync(cancellationToken);
             }

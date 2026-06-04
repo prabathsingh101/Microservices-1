@@ -52,7 +52,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
                     CreatedBy = x.CreatedBy ?? string.Empty,
                     DeliveryChallanId = null,
                     ChallanNo = null,
-                    IsQuick = x.IsQuick
+                    IsQuick = x.IsQuick,
+                    TotalQty = x.Items.Sum(i => i.Qty),
+                    GatePassNo = x.GatePassNo
                 });
 
             // 2. Projection for Tax Invoices
@@ -77,7 +79,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
                         .Where(dc => dc.Id == x.DeliveryChallanId)
                         .Select(dc => dc.ChallanNo)
                         .FirstOrDefault(),
-                    IsQuick = x.IsQuick
+                    IsQuick = x.IsQuick,
+                    TotalQty = x.Items.Sum(i => i.Qty),
+                    GatePassNo = null
                 });
 
             // 3. UNION & Source Filter
@@ -129,8 +133,16 @@ namespace Inventory.Application.SalesInvoices.Handlers
                     (o.CustomerId.HasValue && matchingCustomerIds.Contains(o.CustomerId.Value)));
             }
 
-            // 5. Total Count
+            // 5. Total Count & Stats
             var totalCount = await combinedQuery.CountAsync(cancellationToken);
+
+            var today = DateTime.Today;
+            var monthStart = new DateTime(today.Year, today.Month, 1);
+            var tomorrow = today.AddDays(1);
+
+            var totalSalesAmount = await combinedQuery.Where(o => o.Status == "Confirmed").SumAsync(o => (decimal?)o.GrandTotal, cancellationToken) ?? 0;
+            var todayCount = await combinedQuery.Where(o => o.Date >= today && o.Date < tomorrow).CountAsync(cancellationToken);
+            var monthCount = await combinedQuery.Where(o => o.Date >= monthStart).CountAsync(cancellationToken);
 
             // 6. Sorting
             bool isDesc = request.SortOrder?.ToLower() == "desc" || string.IsNullOrEmpty(request.SortOrder);
@@ -193,7 +205,10 @@ namespace Inventory.Application.SalesInvoices.Handlers
             return new UnifiedSalesPagedResultDto
             {
                 Data = pagedData,
-                TotalCount = totalCount
+                TotalCount = totalCount,
+                TotalSalesAmount = totalSalesAmount,
+                TodayCount = todayCount,
+                MonthCount = monthCount
             };
         }
     }

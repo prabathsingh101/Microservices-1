@@ -9,6 +9,9 @@ namespace Inventory.Application.SalesInvoices.Queries
     {
         public List<UnifiedSaleDto> Data { get; set; } = new();
         public int TotalCount { get; set; }
+        public decimal TotalSalesAmount { get; set; }
+        public int TodayCount { get; set; }
+        public int MonthCount { get; set; }
     }
 
     public class GetUnifiedSalesInvoicesQuery : IRequest<UnifiedSalesPagedResultDto>

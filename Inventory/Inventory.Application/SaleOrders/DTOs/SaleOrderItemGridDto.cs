@@ -20,4 +20,7 @@ public class SaleOrderItemGridDto
     public bool IsReturnable { get; set; }
     public double ReturnWindowRemainingHours { get; set; }
     public decimal CurrentStock { get; set; }
+    public decimal Qty { get; set; }
+    public string Unit { get; set; } = string.Empty;
+    public decimal Total { get; set; }
 }

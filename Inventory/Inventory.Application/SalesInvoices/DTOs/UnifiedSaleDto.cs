@@ -18,5 +18,7 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public Guid? DeliveryChallanId { get; set; }
         public string? ChallanNo { get; set; }
         public bool IsQuick { get; set; }
+        public decimal TotalQty { get; set; }
+        public string? GatePassNo { get; set; }
     }
 }

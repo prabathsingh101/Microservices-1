@@ -292,8 +292,7 @@ namespace Inventory.Infrastructure.Repositories
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var branchId = _currentUserService.BranchId;
-            // 1. Get total quantity sold for THIS specifically batch-matched line item
-            var totalSold = await _context.SaleOrderItems
+            var totalSoldFromOrders = await _context.SaleOrderItems
                 .AsNoTracking()
                 .Where(soi => soi.SaleOrderId == saleOrderId &&
                               soi.ProductId == productId &&
@@ -301,6 +300,17 @@ namespace Inventory.Infrastructure.Repositories
                               (!mfgDate.HasValue || soi.MfgDate == mfgDate) &&
                               (!expDate.HasValue || soi.ExpDate == expDate))
                 .SumAsync(soi => (decimal?)soi.Qty) ?? 0;
+
+            var totalSoldFromInvoices = await _context.SalesInvoiceItems
+                .AsNoTracking()
+                .Where(sii => sii.SalesInvoiceId == saleOrderId &&
+                              sii.ProductId == productId &&
+                              sii.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || sii.BranchId == branchId) &&
+                              (!mfgDate.HasValue || sii.MfgDate == mfgDate) &&
+                              (!expDate.HasValue || sii.ExpDate == expDate))
+                .SumAsync(sii => (decimal?)sii.Qty) ?? 0;
+
+            var totalSold = totalSoldFromOrders + totalSoldFromInvoices;
 
 
             // 2. Get total already returned for THIS specific batch

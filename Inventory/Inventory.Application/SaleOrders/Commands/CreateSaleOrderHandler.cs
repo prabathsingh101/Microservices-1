@@ -175,7 +175,6 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                             }
                         }
 
-                        // Optional: Record reversal for OLD amount before recording NEW
                         if (existingWithItems.CustomerId.HasValue && existingWithItems.CustomerId.Value != Guid.Empty)
                         {
                             try
@@ -186,7 +185,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                                     existingWithItems.SONumber,
                                     $"Sale Order Adjustment (Old Reversal): {existingWithItems.SONumber}",
                                     "System",
-                                    Guid.TryParse(existingWithItems.BranchId, out var branchId) ? branchId : (Guid?)null,
+                                    existingWithItems.BranchId,
                                     existingWithItems.CompanyId
                                 );
                             }
@@ -272,7 +271,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                             saleOrder.SONumber,
                             $"Sale Invoice generated: {saleOrder.SONumber}",
                             saleOrder.CreatedBy ?? "System",
-                            Guid.TryParse(saleOrder.BranchId, out var branchId) ? branchId : (Guid?)null,
+                            saleOrder.BranchId,
                             saleOrder.CompanyId
                         );
                     }

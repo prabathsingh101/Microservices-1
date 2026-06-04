@@ -12,19 +12,30 @@ namespace Inventory.Application.GatePasses.Queries.GetVehicleAutocomplete
     public class GetVehicleAutocompleteHandler : IRequestHandler<GetVehicleAutocompleteQuery, List<VehicleAutocompleteDto>>
     {
         private readonly IInventoryDbContext _context;
+        private readonly ICurrentUserService _currentUserService;
 
-        public GetVehicleAutocompleteHandler(IInventoryDbContext context)
+        public GetVehicleAutocompleteHandler(IInventoryDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         public async Task<List<VehicleAutocompleteDto>> Handle(GetVehicleAutocompleteQuery request, CancellationToken cancellationToken)
         {
             var searchTerm = request.SearchTerm?.Trim().ToLower() ?? "";
+            var companyId = _currentUserService.CompanyId;
 
-            // Get unique vehicles with their latest driver details
-            var vehicles = await _context.GatePasses
-                .AsNoTracking()
+            // Get unique vehicles with their latest driver details across all branches company-wide
+            var query = _context.GatePasses
+                .IgnoreQueryFilters()
+                .AsNoTracking();
+
+            if (companyId.HasValue)
+            {
+                query = query.Where(x => x.CompanyId == companyId.Value);
+            }
+
+            var vehicles = await query
                 .Where(x => x.VehicleNo.ToLower().Contains(searchTerm))
                 .OrderByDescending(x => x.CreatedOn)
                 .Select(x => new 

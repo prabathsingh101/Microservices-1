@@ -101,7 +101,7 @@ namespace Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice
                                     invoice.InvoiceNo,
                                     ledgerNote,
                                     "System",
-                                    Guid.TryParse(invoice.BranchId, out var branchId) ? branchId : (Guid?)null,
+                                    invoice.BranchId,
                                     invoice.CompanyId
                                 );
                             }

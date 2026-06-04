@@ -44,6 +44,11 @@ namespace Inventory.Application.Clients.DTOs
         public string PinCode { get; set; }
         public string Country { get; set; }
         public string Email { get; set; }
+        public string? Phone { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? Gstin { get; set; }
+        public bool IsHeadOffice { get; set; }
+        public Guid? CompanyProfileId { get; set; }
     }
 
     public class BankDetailDto

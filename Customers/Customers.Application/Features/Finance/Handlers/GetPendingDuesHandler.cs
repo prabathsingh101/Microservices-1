@@ -19,7 +19,7 @@ namespace Customers.Application.Features.Finance.Handlers
 
         public async Task<List<OutstandingDto>> Handle(GetPendingDuesQuery request, CancellationToken cancellationToken)
         {
-            return await _repository.GetPendingDuesAsync();
+            return await _repository.GetPendingDuesAsync(request.BranchId, request.CompanyId);
         }
     }
 }

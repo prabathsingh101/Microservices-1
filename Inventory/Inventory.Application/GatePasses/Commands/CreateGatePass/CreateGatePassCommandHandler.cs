@@ -23,12 +23,16 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
 
         public async Task<GatePassDto> Handle(CreateGatePassCommand request, CancellationToken cancellationToken)
         {
-            var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+            var companyId = request.CompanyId ?? _currentUserService.CompanyId ?? Guid.Empty;
+            var branchId = request.BranchId ?? _currentUserService.BranchId;
             var prefix = request.PassType == "Inward" ? "IN" : "OUT";
             var year = DateTime.Now.Year.ToString();
 
             // Increment sequence based on the last generated number for this year/type
+            // IgnoreQueryFilters() is required here to search across all branches company-wide,
+            // preventing duplicate pass number generation when users are logged into a specific branch.
             var lastPass = await _context.GatePasses
+                .IgnoreQueryFilters()
                 .Where(x => x.CompanyId == companyId && x.PassNo.StartsWith($"{prefix}-{year}"))
                 .OrderByDescending(x => x.PassNo)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -65,7 +69,8 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
                 SecurityGuard = request.SecurityGuard,
                 Status = request.Status, // 1 = Entered/Created
                 Remarks = request.Remarks,
-                CompanyId = companyId
+                CompanyId = companyId,
+                BranchId = branchId
             };
 
             _context.GatePasses.Add(entity);

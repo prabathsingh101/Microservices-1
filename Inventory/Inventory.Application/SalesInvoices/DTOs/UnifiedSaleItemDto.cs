@@ -16,5 +16,10 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public DateTime? ExpDate { get; set; }
         public string Location { get; set; } = string.Empty;
         public string Rack { get; set; } = string.Empty;
+        public decimal MRP { get; set; }
+        public decimal DiscountPercent { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal GSTPercent { get; set; }
+        public string? BatchNumber { get; set; }
     }
 }

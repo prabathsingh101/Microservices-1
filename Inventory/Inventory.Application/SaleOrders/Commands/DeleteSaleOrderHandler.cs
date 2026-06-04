@@ -96,7 +96,7 @@ namespace Inventory.Application.SaleOrders.Commands
                                 order.SoNumber,
                                 ledgerNote,
                                 "System",
-                                Guid.TryParse(order.BranchId, out var branchId) ? branchId : (Guid?)null,
+                                order.BranchId,
                                 order.CompanyId
                             );
                         }

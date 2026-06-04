@@ -88,7 +88,7 @@ public class CustomerClient : ICustomerClient
         return new List<Guid>();
     }
 
-    public async Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy, Guid? branchId, Guid? companyId)
+    public async Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy, string? branchId, Guid? companyId)
     {
         var client = _httpClientFactory.CreateClient("CustomerService");
         AddAuthorizationHeader(client);

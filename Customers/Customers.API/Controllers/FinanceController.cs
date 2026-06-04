@@ -85,9 +85,9 @@ namespace Customers.API.Controllers
         }
 
         [HttpGet("pending-dues")]
-        public async Task<IActionResult> GetPendingDues([FromQuery] string? branchId = null)
+        public async Task<IActionResult> GetPendingDues([FromQuery] string? branchId = null, [FromQuery] string? companyId = null)
         {
-            var result = await _mediator.Send(new GetPendingDuesQuery(branchId));
+            var result = await _mediator.Send(new GetPendingDuesQuery(branchId, companyId));
             return Ok(result);
         }
 

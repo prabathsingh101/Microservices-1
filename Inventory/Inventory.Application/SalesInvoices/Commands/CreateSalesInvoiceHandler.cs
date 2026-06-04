@@ -42,10 +42,19 @@ namespace Inventory.Application.SalesInvoices.Commands
             if (string.IsNullOrEmpty(invoiceNo))
             {
                 var lastInvoice = await _context.SalesInvoices
+                    .IgnoreQueryFilters()
                     .OrderByDescending(x => x.CreatedOn)
                     .FirstOrDefaultAsync(cancellationToken);
                 
-                int nextId = lastInvoice == null ? 1 : int.Parse(lastInvoice.InvoiceNo.Split('/').Last()) + 1;
+                int nextId = 1;
+                if (lastInvoice != null && !string.IsNullOrEmpty(lastInvoice.InvoiceNo))
+                {
+                    var parts = lastInvoice.InvoiceNo.Split('/');
+                    if (parts.Length > 0 && int.TryParse(parts.Last(), out int parsedId))
+                    {
+                        nextId = parsedId + 1;
+                    }
+                }
                 string fyString = $"{DateTime.Now.Year}-{(DateTime.Now.Year + 1).ToString().Substring(2)}";
                 invoiceNo = $"INV/{fyString}/{nextId:D4}";
             }
@@ -193,7 +202,7 @@ namespace Inventory.Application.SalesInvoices.Commands
                         invoice.InvoiceNo,
                         $"Tax Invoice generated: {invoice.InvoiceNo}",
                         invoice.CreatedBy ?? "System",
-                        Guid.TryParse(invoice.BranchId, out var branchId) ? branchId : (Guid?)null,
+                        invoice.BranchId,
                         invoice.CompanyId
                     );
                 }

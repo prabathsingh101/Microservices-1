@@ -44,10 +44,19 @@ namespace Inventory.Application.DeliveryChallans.Commands
             if (string.IsNullOrEmpty(challanNo))
             {
                 var lastChallan = await _context.DeliveryChallans
+                    .IgnoreQueryFilters()
                     .OrderByDescending(x => x.CreatedOn)
                     .FirstOrDefaultAsync(cancellationToken);
 
-                int nextId = lastChallan == null ? 1 : int.Parse(lastChallan.ChallanNo!.Split('/').Last()) + 1;
+                int nextId = 1;
+                if (lastChallan != null && !string.IsNullOrEmpty(lastChallan.ChallanNo))
+                {
+                    var parts = lastChallan.ChallanNo.Split('/');
+                    if (parts.Length > 0 && int.TryParse(parts.Last(), out int parsedId))
+                    {
+                        nextId = parsedId + 1;
+                    }
+                }
                 string fyString = $"{DateTime.Now.Year}-{(DateTime.Now.Year + 1).ToString().Substring(2)}";
                 challanNo = $"DC/{fyString}/{nextId:D4}";
             }
