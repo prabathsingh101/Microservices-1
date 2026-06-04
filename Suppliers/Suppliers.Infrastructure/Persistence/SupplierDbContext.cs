@@ -79,7 +79,11 @@ namespace Suppliers.Infrastructure.Persistence
             modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
                 _currentUserService != null && 
                 e.CompanyId == _currentUserService.CompanyId &&
-                (e.BranchId == null || string.IsNullOrEmpty(_currentUserService.BranchId) || e.BranchId == _currentUserService.BranchId));
+                (e.BranchId == null || 
+                 string.IsNullOrEmpty(_currentUserService.BranchId) || 
+                 _currentUserService.BranchId == "All Branches" || 
+                 e.BranchId == _currentUserService.BranchId || 
+                 _currentUserService.BranchId.Contains(e.BranchId)));
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
