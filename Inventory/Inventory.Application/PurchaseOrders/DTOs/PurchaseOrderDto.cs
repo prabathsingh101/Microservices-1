@@ -29,8 +29,9 @@ public class PurchaseOrderDto
     public decimal TotalAccepted { get; set; }
     public decimal TotalRejected { get; set; }
     public decimal TotalReturned { get; set; }
+    public decimal TotalBilled { get; set; }
     public decimal PaidAmount { get; set; }
-    public decimal DueAmount => GrandTotal - PaidAmount;
+    public decimal DueAmount => (Status == "Received" && TotalBilled > 0) ? (TotalBilled - PaidAmount) : (GrandTotal - PaidAmount);
     public string PaymentStatus => DueAmount <= 0 ? "Paid" : (PaidAmount > 0 ? "Partial" : "Unpaid");
 
     public string? Remarks { get; set; }
@@ -106,6 +107,7 @@ public class PurchaseOrderDto
             dto.TotalReceived = allGrnDetails.Sum(x => (decimal)x.ReceivedQty);
             dto.TotalAccepted = allGrnDetails.Sum(x => (decimal)x.AcceptedQty);
             dto.TotalRejected = allGrnDetails.Sum(x => (decimal)x.RejectedQty);
+            dto.TotalBilled = allGrnHeaders.Where(g => g.Status != "Cancelled").Sum(g => (decimal)g.TotalAmount);
 
             // Per-item Distribution
             foreach (var item in dto.Items)

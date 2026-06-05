@@ -108,7 +108,7 @@ public class RefreshTokenCommandHandler
         auth.SubscriptionStatus = subStatus;
 
         // Fetch aggregated permissions
-        var aggregatedPermissions = await _rolePermissionRepository.GetAggregatedPermissionsAsync(roleIds);
+        var aggregatedPermissions = await _rolePermissionRepository.GetAggregatedPermissionsAsync(roleIds, user.Id, user.BranchId);
         auth.Permissions = aggregatedPermissions.ToList();
 
         // 6. Naya Refresh Token directly via repository to avoid concurrency tracking conflicts

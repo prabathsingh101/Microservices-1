@@ -72,7 +72,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     // Fetch all GRN Details for this specific PO Item
                     var grnSummary = _context.GRNDetails
                         .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
-                        .Select(gd => new { gd.ReceivedQty, gd.RejectedQty })
+                        .Select(gd => new { gd.ReceivedQty, gd.RejectedQty, gd.IsSettled })
                         .ToList();
 
                     // Fetch total returned quantity for this specific PO item
@@ -83,7 +83,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
 
                     // Dynamic calculation: Accepted = Received - Rejected (Returns are tracked separately and shouldn't reduce accepted if they were already rejected)
                     var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty);
-                    var totalRejected = grnSummary.Sum(s => s.RejectedQty);
+                    var totalRejected = grnSummary.Where(s => !s.IsSettled).Sum(s => s.RejectedQty);
                     if (totalAccepted < 0) totalAccepted = 0;
 
                     var netAccepted = Math.Max(0, totalAccepted - totalReturned);
@@ -140,6 +140,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         }
                     }
                 }
+                decimal totalBilled = x.GrnHeaders != null ? x.GrnHeaders.Where(g => g.Status != "Cancelled").Sum(g => g.TotalAmount) : 0;
                 decimal actualPaidAmount = paidFromPO + paidFromGRN;
 
                 return new PurchaseOrderDto
@@ -152,6 +153,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     TotalTax = x.TotalTax,
                     GrandTotal = x.GrandTotal,
                     SubTotal = x.SubTotal,
+                    TotalBilled = totalBilled,
                     PaidAmount = actualPaidAmount, // Dynamically mapped from Ledger payments
                     ExpectedDeliveryDate = x.ExpectedDeliveryDate,
                     CreatedBy = x.CreatedBy,

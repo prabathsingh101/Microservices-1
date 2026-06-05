@@ -252,7 +252,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             var poGrnsLower = po.GrnHeaders.Select(h => h.GRNNumber.Trim().ToLower()).ToList();
             var poReturnItems = allReturnItems.Where(ri => poGrnsLower.Contains(ri.GrnRef.Trim().ToLower())).ToList();
 
-            po.TotalRejected = po.GrnHeaders.SelectMany(h => h.GRNItems ?? new List<GRNDetail>()).Sum(d => d.RejectedQty);
+            po.TotalRejected = po.GrnHeaders.SelectMany(h => h.GRNItems ?? new List<GRNDetail>()).Where(d => !d.IsSettled).Sum(d => d.RejectedQty);
             po.TotalReturned = poReturnItems.Sum(ri => ri.ReturnQty);
 
             // 🎯 BUSINESS RULE: If there are unresolved rejections, PO cannot be "Received"
@@ -268,7 +268,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             {
                 item.RejectedQty = po.GrnHeaders
                     .SelectMany(h => h.GRNItems ?? new List<GRNDetail>())
-                    .Where(gd => gd.ProductId == item.ProductId)
+                    .Where(gd => gd.ProductId == item.ProductId && !gd.IsSettled)
                     .Sum(gd => gd.RejectedQty);
 
                 item.ReturnedQty = poReturnItems
@@ -442,26 +442,75 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
-        // 1. Fetch POs that are Approved and have pending quantities
-        // 2. SAFETY LOCK: Exclude POs that already have an "At-Gate" Gate Pass (Status 1)
-        return await _context.PurchaseOrders.AsNoTracking()
-            .Where(po => po.CompanyId == companyId && (po.Status == "Approved" || po.Status == "Partially Received") 
-                && po.Items.Any(i => i.Qty > i.ReceivedQty) && (string.IsNullOrEmpty(branchId) || po.BranchId == branchId))
+
+        // 1. Fetch POs that are Approved or Partially Received
+        var pos = await _context.PurchaseOrders.AsNoTracking()
+            .Where(po => po.CompanyId == companyId 
+                && (po.Status == "Approved" || po.Status == "Partially Received") 
+                && (string.IsNullOrEmpty(branchId) || po.BranchId == branchId))
             .Where(po => !_context.GatePasses.Any(gp => 
                 gp.ReferenceType == 1 && // 1 = PurchaseOrder
                 gp.ReferenceId == po.Id.ToString() && 
                 gp.Status == 1)) // 1 = Entered/At-Gate
+            .Include(po => po.Items)
+            .Include(po => po.GrnHeaders)
+                .ThenInclude(h => h.GRNItems)
             .OrderByDescending(po => po.CreatedOn)
-            .Select(po => new PendingPODto
-            {
-                Id = po.Id,
-                PoNumber = po.PoNumber,
-                SupplierName = po.SupplierName,
-                PoDate = po.PoDate,
-                Status = po.Status,
-                ExpectedQty = po.Items.Sum(x => x.Qty - x.ReceivedQty) // Show balance quantity
-            })
             .ToListAsync();
+
+        var poGrnNumbers = pos.SelectMany(x => x.GrnHeaders).Select(h => h.GRNNumber).Distinct().ToList();
+        var poGrnNumbersLower = poGrnNumbers.Select(n => n.Trim().ToLower()).ToList();
+        var allReturnItems = await _context.PurchaseReturnItems
+            .Where(ri => ri.CompanyId == companyId)
+            .ToListAsync();
+        allReturnItems = allReturnItems.Where(ri => poGrnNumbersLower.Contains(ri.GrnRef.Trim().ToLower())).ToList();
+
+        var result = new List<PendingPODto>();
+
+        foreach (var po in pos)
+        {
+            var poGrnsLower = po.GrnHeaders.Select(h => h.GRNNumber.Trim().ToLower()).ToList();
+            var poReturnItems = allReturnItems.Where(ri => poGrnsLower.Contains(ri.GrnRef.Trim().ToLower())).ToList();
+
+            decimal expectedQty = 0;
+            bool hasPendingQty = false;
+
+            foreach (var item in po.Items)
+            {
+                var itemRejected = po.GrnHeaders
+                    .SelectMany(h => h.GRNItems ?? new List<GRNDetail>())
+                    .Where(gd => gd.ProductId == item.ProductId)
+                    .Sum(gd => gd.RejectedQty);
+
+                var itemReturned = poReturnItems
+                    .Where(ri => ri.ProductId == item.ProductId)
+                    .Sum(ri => ri.ReturnQty);
+
+                var acceptedQty = item.ReceivedQty - (itemRejected - itemReturned);
+                var pendingQty = item.Qty - acceptedQty;
+
+                if (pendingQty > 0)
+                {
+                    expectedQty += pendingQty;
+                    hasPendingQty = true;
+                }
+            }
+
+            if (hasPendingQty)
+            {
+                result.Add(new PendingPODto
+                {
+                    Id = po.Id,
+                    PoNumber = po.PoNumber,
+                    SupplierName = po.SupplierName,
+                    PoDate = po.PoDate,
+                    Status = po.Status,
+                    ExpectedQty = expectedQty
+                });
+            }
+        }
+
+        return result;
     }
     public async Task<List<PurchaseOrderLookupDto>> GetOrdersBySupplierAsync(Guid supplierId)
     {

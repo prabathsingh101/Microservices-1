@@ -191,7 +191,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
 
         // Permissions
         var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
-        var aggregatedPermissions = await _permissions.GetAggregatedPermissionsAsync(roleIds, user.Id);
+        var aggregatedPermissions = await _permissions.GetAggregatedPermissionsAsync(roleIds, user.Id, user.BranchId);
 
         // Revoke old refresh tokens
         await _tokens.RevokeAllAsync(user.Id, user.Email);

@@ -438,6 +438,17 @@ namespace Inventory.Infrastructure.Repositories
                     .GroupBy(x => x.ri.ProductId)
                     .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ri.ReturnQty) })
                     .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
+
+                // 1.5. Fetch unsettled rejections to check replacements (even if no return was recorded)
+                var rejectionLookup = await _context.GRNDetails
+                    .Where(gd => gd.CompanyId == companyId 
+                        && idList.Contains(gd.GRNHeader.PurchaseOrderId) 
+                        && gd.RejectedQty > 0 
+                        && !gd.IsSettled)
+                    .GroupBy(gd => gd.ProductId)
+                    .Select(g => new { ProductId = g.Key, Qty = g.Sum(gd => gd.RejectedQty) })
+                    .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
+
                 // 🎯 Fetch last GRN warehouse/rack per product (for auto-fill)
                 var productIdsInPos = pos.SelectMany(p => p.Items.Select(i => i.ProductId)).Distinct().ToList();
                 var lastLocationLookup = new Dictionary<Guid, (Guid? WarehouseId, Guid? RackId)>();
@@ -461,6 +472,7 @@ namespace Inventory.Infrastructure.Repositories
                     foreach (var d in po.Items)
                     {
                         var returnedQty = returnLookup.ContainsKey(d.ProductId) ? returnLookup[d.ProductId] : 0;
+                        var rejectedQty = rejectionLookup.ContainsKey(d.ProductId) ? rejectionLookup[d.ProductId] : 0;
                         
                         // Calculate total accepted quantity so far across all GRNs for this PO item
                         var grnSummary = _context.GRNDetails
@@ -477,13 +489,13 @@ namespace Inventory.Infrastructure.Repositories
                         var pending = Math.Max(0, d.Qty - netAccepted);
                         decimal proposedRecv;
 
-                        // 🎯 FIX: Prioritize replacement quantity (return items) even without a gate pass
-                        if (returnLookup.Any())
+                        // 🎯 FIX: Prioritize replacement quantity (return items or rejections) even without a gate pass
+                        if (returnLookup.Any() || rejectionLookup.Any())
                         {
                             // If this product has a pending replacement, use that quantity. 
                             // If it doesn't, but OTHER items in this PO have replacements, default to 0 
                             // because this is likely a replacement-only delivery.
-                            proposedRecv = returnedQty;
+                            proposedRecv = returnedQty > 0 ? returnedQty : rejectedQty;
                         }
                         else
                         {
@@ -503,6 +515,27 @@ namespace Inventory.Infrastructure.Repositories
                             lastRackId = lastLocationLookup[d.ProductId].RackId;
                         }
 
+                        // Fetch original rejection dates if it is a replacement
+                        DateTime? origMfg = null;
+                        DateTime? origExp = null;
+                        if (rejectionLookup.ContainsKey(d.ProductId))
+                        {
+                            var origRej = await _context.GRNDetails
+                                .Where(gd => gd.CompanyId == companyId 
+                                    && idList.Contains(gd.GRNHeader.PurchaseOrderId) 
+                                    && gd.ProductId == d.ProductId
+                                    && gd.RejectedQty > 0)
+                                .OrderBy(gd => gd.CreatedOn)
+                                .Select(gd => new { gd.MfgDate, gd.ExpDate })
+                                .FirstOrDefaultAsync();
+
+                            if (origRej != null)
+                            {
+                                origMfg = origRej.MfgDate;
+                                origExp = origRej.ExpDate;
+                            }
+                        }
+
                         items.Add(new POItemForGRNDTO
                         {
                             ProductId = d.ProductId,
@@ -516,15 +549,15 @@ namespace Inventory.Infrastructure.Repositories
                             RejectedQty = 0,
                             AcceptedQty = proposedRecv, 
                             TaxAmount = (proposedRecv * d.Rate * (1 - d.DiscountPercent / 100)) * (d.GstPercent / 100),
-                            IsReplacement = returnLookup.ContainsKey(d.ProductId),
+                            IsReplacement = returnLookup.ContainsKey(d.ProductId) || rejectionLookup.ContainsKey(d.ProductId),
                             PONumber = po.PoNumber,
                             POId = po.Id,
                             SupplierId = po.SupplierId,
                             SupplierName = po.SupplierName,
                             WarehouseId = lastWhId ?? d.Product?.DefaultWarehouseId,
                             RackId = lastRackId ?? d.Product?.DefaultRackId,
-                            MfgDate = d.MfgDate,
-                            ExpDate = d.ExpDate,
+                            MfgDate = origMfg ?? d.MfgDate,
+                            ExpDate = origExp ?? d.ExpDate,
                             IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false
                         });
                     }
@@ -562,6 +595,7 @@ namespace Inventory.Infrastructure.Repositories
                 RefPO = g.PurchaseOrder.PoNumber,
                 SupplierName = g.PurchaseOrder.SupplierName,
                 SupplierId = g.SupplierId,  // For payment navigation
+                PurchaseOrderId = g.PurchaseOrderId,
                 ReceivedDate = g.ReceivedDate,
                 Status = g.Status,
                 GatePassNo = g.GatePassNo,
@@ -733,6 +767,44 @@ namespace Inventory.Infrastructure.Repositories
 
                         item.PaidAmount = totalPaidAmount;
                         // item.SupplierBalance = currentSupplierBalance; // If we wanted to show it
+
+                        // Calculate if all rejected items are settled
+                        var grnDetailsWithRejections = await _context.GRNDetails
+                            .Where(gd => gd.GRNHeaderId == item.Id && gd.RejectedQty > 0 && gd.CompanyId == companyId)
+                            .Select(gd => new { gd.ProductId })
+                            .ToListAsync();
+
+                        bool allSettled = true;
+                        if (grnDetailsWithRejections.Any())
+                        {
+                            foreach (var gdRej in grnDetailsWithRejections)
+                            {
+                                // Check replacement
+                                var hasReplacement = await _context.GRNDetails.AnyAsync(gd => 
+                                    gd.GRNHeader.PurchaseOrderId == item.PurchaseOrderId 
+                                    && gd.ProductId == gdRej.ProductId 
+                                    && gd.IsReplacement == true
+                                    && gd.CompanyId == companyId);
+
+                                if (hasReplacement) continue;
+
+                                // Check return
+                                var hasReturn = await _context.PurchaseReturnItems.AnyAsync(ri => 
+                                    ri.GrnRef == item.GRNNo 
+                                    && ri.ProductId == gdRej.ProductId 
+                                    && ri.CompanyId == companyId);
+
+                                if (hasReturn) continue;
+
+                                allSettled = false;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            allSettled = false; // No rejections, so not settled
+                        }
+                        item.IsRejectionSettled = allSettled;
                     }
                 }
                 catch (Exception ex)
@@ -1063,13 +1135,14 @@ namespace Inventory.Infrastructure.Repositories
                                                    && gd.IsReplacement == true
                                                    && gd.CompanyId == companyId
                                              orderby gh.CreatedOn ascending
-                                             select gh.GRNNumber).FirstOrDefaultAsync();
+                                             select new { gh.GRNNumber, gh.Id }).FirstOrDefaultAsync();
 
                     if (replacement != null)
                     {
-                        Console.WriteLine($"[GRNRepository] Found replacement in {replacement}");
-                        item.Resolution = $"Replaced in {replacement}";
-                        item.ResolutionGrn = replacement;
+                        Console.WriteLine($"[GRNRepository] Found replacement in {replacement.GRNNumber}");
+                        item.Resolution = $"Replaced in {replacement.GRNNumber}";
+                        item.ResolutionGrn = replacement.GRNNumber;
+                        item.ResolutionGrnId = replacement.Id;
                         item.Status = "Settled";
                         item.IsSettled = true;
                     }

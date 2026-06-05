@@ -8,10 +8,12 @@ namespace Identity.Infrastructure.Repositories;
 public class RolePermissionRepository : IRolePermissionRepository
 {
     private readonly IdentityDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
 
-    public RolePermissionRepository(IdentityDbContext context)
+    public RolePermissionRepository(IdentityDbContext context, ICurrentUserService currentUserService)
     {
         _context = context;
+        _currentUserService = currentUserService;
     }
 
     public async Task<IEnumerable<RolePermission>> GetPermissionsByRoleIdAsync(Guid roleId, Guid? userId = null)
@@ -48,7 +50,11 @@ public class RolePermissionRepository : IRolePermissionRepository
 
         foreach (var incoming in permissions)
         {
-            var existing = existingPermissions.FirstOrDefault(p => p.MenuId == incoming.MenuId && p.BranchId == incoming.BranchId);
+            var existing = existingPermissions.FirstOrDefault(p => 
+                p.MenuId == incoming.MenuId && 
+                ((p.BranchId == null && incoming.BranchId == null) || 
+                 (p.BranchId != null && incoming.BranchId != null && p.BranchId.Equals(incoming.BranchId, StringComparison.OrdinalIgnoreCase))));
+            
             if (existing != null)
             {
                 // Update existing record
@@ -69,8 +75,10 @@ public class RolePermissionRepository : IRolePermissionRepository
 
         // 2. Process Deletions (Only for the branches being updated)
         var toRemove = existingPermissions.Where(p => 
-            incomingBranchIds.Contains(p.BranchId) && 
-            !permissions.Any(ip => ip.MenuId == p.MenuId && ip.BranchId == p.BranchId)).ToList();
+            incomingBranchIds.Any(ib => (p.BranchId == null && ib == null) || (p.BranchId != null && ib != null && p.BranchId.Equals(ib, StringComparison.OrdinalIgnoreCase))) && 
+            !permissions.Any(ip => ip.MenuId == p.MenuId && 
+                                   ((p.BranchId == null && ip.BranchId == null) || 
+                                    (p.BranchId != null && ip.BranchId != null && p.BranchId.Equals(ip.BranchId, StringComparison.OrdinalIgnoreCase))))).ToList();
 
         if (toRemove.Any())
         {
@@ -101,7 +109,7 @@ public class RolePermissionRepository : IRolePermissionRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<Application.DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds, Guid? userId = null)
+    public async Task<IEnumerable<Application.DTOs.UserPermissionDto>> GetAggregatedPermissionsAsync(List<Guid> roleIds, Guid? userId = null, string? fallbackBranchId = null)
     {
         var roleNames = await _context.Roles
             .Where(r => roleIds.Contains(r.Id))
@@ -110,15 +118,40 @@ public class RolePermissionRepository : IRolePermissionRepository
             
         bool isAdmin = roleNames.Any(n => n.Contains("admin"));
 
-        var dbPermissions = await _context.RolePermissions
+        var activeBranchId = _currentUserService.BranchId;
+        if (string.IsNullOrEmpty(activeBranchId) || activeBranchId == "null")
+        {
+            activeBranchId = fallbackBranchId;
+        }
+
+        var query = _context.RolePermissions
             .IgnoreQueryFilters()
             .Include(rp => rp.Menu)
-            .Where(rp => (rp.RoleId.HasValue && roleIds.Contains(rp.RoleId.Value)) || (userId.HasValue && rp.UserId == userId.Value))
-            .ToListAsync();
+            .Where(rp => (rp.RoleId.HasValue && roleIds.Contains(rp.RoleId.Value)) || (userId.HasValue && rp.UserId == userId.Value));
 
-        var userSpecificList = userId.HasValue 
-            ? dbPermissions.Where(rp => rp.UserId == userId.Value).ToList() 
-            : new List<RolePermission>();
+        if (!string.IsNullOrEmpty(activeBranchId) && activeBranchId != "null" && activeBranchId != "undefined")
+        {
+            var branchIds = activeBranchId.Split(',').Select(b => b.Trim().ToLower()).ToList();
+            query = query.Where(rp => rp.BranchId == null || rp.BranchId == "" || rp.BranchId.ToLower() == "global" || branchIds.Contains(rp.BranchId.ToLower()));
+        }
+
+        var dbPermissions = await query.ToListAsync();
+
+        var activeBranchIdsList = !string.IsNullOrEmpty(activeBranchId) && activeBranchId != "null" && activeBranchId != "undefined"
+            ? activeBranchId.Split(',').Select(b => b.Trim().ToLower()).ToList()
+            : new List<string>();
+
+        // Local helper to find the best permission record for a target (prioritizing branch-specific over Global)
+        RolePermission? GetBestPermission(IEnumerable<RolePermission> permissionsList)
+        {
+            if (activeBranchIdsList.Any())
+            {
+                var branchSpecific = permissionsList.FirstOrDefault(p => p.BranchId != null && activeBranchIdsList.Contains(p.BranchId.ToLower()));
+                if (branchSpecific != null) return branchSpecific;
+            }
+
+            return permissionsList.FirstOrDefault(p => p.BranchId == null || p.BranchId == "" || p.BranchId.ToLower() == "global");
+        }
 
         var groupedByMenu = dbPermissions.GroupBy(rp => rp.MenuId);
         var resultList = new List<Application.DTOs.UserPermissionDto>();
@@ -126,40 +159,52 @@ public class RolePermissionRepository : IRolePermissionRepository
         foreach (var group in groupedByMenu)
         {
             var menuId = group.Key;
-            var first = group.First();
 
-            var userSpecificsForMenu = userSpecificList.Where(rp => rp.MenuId == menuId).ToList();
+            // 1. User Specific override match check
+            var userSpecificsForMenu = userId.HasValue
+                ? dbPermissions.Where(rp => rp.UserId == userId.Value && rp.MenuId == menuId).ToList()
+                : new List<RolePermission>();
 
+            RolePermission? bestUserPerm = null;
             if (userSpecificsForMenu.Any())
             {
-                var actions = userSpecificsForMenu
-                    .Where(x => !string.IsNullOrEmpty(x.AdditionalActions))
-                    .SelectMany(x => x.AdditionalActions!.Split(','))
-                    .Select(a => a.Trim())
-                    .Distinct()
-                    .ToList();
+                bestUserPerm = GetBestPermission(userSpecificsForMenu);
+            }
+
+            if (bestUserPerm != null)
+            {
+                var actions = !string.IsNullOrEmpty(bestUserPerm.AdditionalActions)
+                    ? bestUserPerm.AdditionalActions.Split(',').Select(a => a.Trim()).Distinct().ToList()
+                    : new List<string>();
 
                 var additionalActionsStr = actions.Any() ? string.Join(",", actions) : null;
 
                 resultList.Add(new Application.DTOs.UserPermissionDto
                 {
                     MenuId = menuId,
-                    MenuName = userSpecificsForMenu.First().Menu!.Title,
-                    ActionCode = userSpecificsForMenu.First().Menu!.Url ?? string.Empty, 
-                    CanView = userSpecificsForMenu.Any(x => x.CanView),
-                    CanAdd = userSpecificsForMenu.Any(x => x.CanAdd),
-                    CanEdit = userSpecificsForMenu.Any(x => x.CanEdit),
-                    CanDelete = userSpecificsForMenu.Any(x => x.CanDelete),
+                    MenuName = bestUserPerm.Menu?.Title ?? string.Empty,
+                    ActionCode = bestUserPerm.Menu?.Url ?? string.Empty, 
+                    CanView = bestUserPerm.CanView,
+                    CanAdd = bestUserPerm.CanAdd,
+                    CanEdit = bestUserPerm.CanEdit,
+                    CanDelete = bestUserPerm.CanDelete,
                     AdditionalActions = additionalActionsStr
                 });
             }
-            else if (!userId.HasValue || isAdmin)
+            else
             {
-                var rolePerms = group.Where(rp => rp.UserId == null).ToList();
-                if (rolePerms.Any())
+                // 2. Role Specific matching check
+                var rolePerms = dbPermissions.Where(rp => rp.UserId == null && rp.MenuId == menuId).ToList();
+                var bestRolePerms = rolePerms
+                    .GroupBy(rp => rp.RoleId)
+                    .Select(g => GetBestPermission(g))
+                    .Where(p => p != null)
+                    .Cast<RolePermission>()
+                    .ToList();
+
+                if (bestRolePerms.Any())
                 {
-                    var firstRolePerm = rolePerms.First();
-                    var actions = rolePerms
+                    var actions = bestRolePerms
                         .Where(x => !string.IsNullOrEmpty(x.AdditionalActions))
                         .SelectMany(x => x.AdditionalActions!.Split(','))
                         .Select(a => a.Trim())
@@ -167,16 +212,17 @@ public class RolePermissionRepository : IRolePermissionRepository
                         .ToList();
 
                     var additionalActionsStr = actions.Any() ? string.Join(",", actions) : null;
+                    var firstRolePerm = bestRolePerms.First();
 
                     resultList.Add(new Application.DTOs.UserPermissionDto
                     {
                         MenuId = menuId,
-                        MenuName = firstRolePerm.Menu!.Title,
-                        ActionCode = firstRolePerm.Menu!.Url ?? string.Empty, 
-                        CanView = rolePerms.Any(x => x.CanView),
-                        CanAdd = rolePerms.Any(x => x.CanAdd),
-                        CanEdit = rolePerms.Any(x => x.CanEdit),
-                        CanDelete = rolePerms.Any(x => x.CanDelete),
+                        MenuName = firstRolePerm.Menu?.Title ?? string.Empty,
+                        ActionCode = firstRolePerm.Menu?.Url ?? string.Empty, 
+                        CanView = bestRolePerms.Any(x => x.CanView),
+                        CanAdd = bestRolePerms.Any(x => x.CanAdd),
+                        CanEdit = bestRolePerms.Any(x => x.CanEdit),
+                        CanDelete = bestRolePerms.Any(x => x.CanDelete),
                         AdditionalActions = additionalActionsStr
                     });
                 }

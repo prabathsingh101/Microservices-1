@@ -12,5 +12,6 @@ namespace Inventory.Application.GRN.DTOs
         public string? Resolution { get; set; } // Replaced in GRN-xxxx / Returned / Pending
         public DateTime? ResolutionDate { get; set; }
         public string? ResolutionGrn { get; set; }
+        public Guid? ResolutionGrnId { get; set; }
     }
 }
