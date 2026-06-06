@@ -339,8 +339,7 @@ CREATE TABLE [SaleReturnHeaders] (
     [CreatedBy] nvarchar(max) NULL,
     [ModifiedOn] datetime2 NULL,
     [ModifiedBy] nvarchar(max) NULL,
-    CONSTRAINT [PK_SaleReturnHeaders] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_SaleReturnHeaders_SaleOrders_SaleOrderId] FOREIGN KEY ([SaleOrderId]) REFERENCES [SaleOrders] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [PK_SaleReturnHeaders] PRIMARY KEY ([Id])
 );
 GO
 
