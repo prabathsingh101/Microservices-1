@@ -86,10 +86,14 @@ public class SaleReturnService : ISaleReturnService
                 ReturnDate = h.ReturnDate,
                 CustomerId = h.CustomerId,
 
-                // Fix: SONumber asali table 'SaleOrders' se fetch ho raha hai
+                // Fix: Check both SaleOrders and SalesInvoices for reference number
                 SONumber = _context.SaleOrders
                             .Where(so => so.Id == h.SaleOrderId)
                             .Select(so => so.SONumber)
+                            .FirstOrDefault() ?? 
+                           _context.SalesInvoices
+                            .Where(si => si.Id == h.SaleOrderId)
+                            .Select(si => si.InvoiceNo)
                             .FirstOrDefault() ?? "N/A",
 
                 SubTotal = h.SubTotal,     // Database mapping

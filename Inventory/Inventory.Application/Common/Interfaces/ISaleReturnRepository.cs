@@ -26,4 +26,5 @@ public interface ISaleReturnRepository
     Task<List<PendingSRDto>> GetPendingSaleReturnsAsync();
     Task<SaleReturnHeader?> GetSaleReturnByIdAsync(Guid id);
     Task<bool> BulkInwardAsync(List<Guid> ids);
+    Task<bool> CancelSaleReturnAsync(Guid id, string? reason);
 }

@@ -41,6 +41,18 @@ namespace Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice
 
             if (invoice == null) return false;
 
+            // Check if any active Sale Return is linked to this Sales Invoice
+            var hasActiveReturn = await _context.SaleReturnHeaders
+                .AnyAsync(sr => sr.SaleOrderId == request.Id && 
+                                sr.Status != "Cancelled" && 
+                                sr.Status != "Canceled", 
+                          cancellationToken);
+
+            if (hasActiveReturn)
+            {
+                throw new Exception("An active Sale Return exists for this Sales Invoice, so it cannot be cancelled. Please cancel/delete/revert the Sale Return first.");
+            }
+
             bool deleted = false;
 
             // Strategy: Use a transaction to ensure stock, audit, ledger, and status all update together

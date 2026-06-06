@@ -41,6 +41,18 @@ namespace Inventory.Application.SaleOrders.Commands
             var order = await _repo.GetSaleOrderByIdAsync(request.Id);
             if (order == null) return false;
 
+            // Check if any active Sale Return is linked to this Sale Order
+            var hasActiveReturn = await _context.SaleReturnHeaders
+                .AnyAsync(sr => sr.SaleOrderId == request.Id && 
+                                sr.Status != "Cancelled" && 
+                                sr.Status != "Canceled", 
+                          cancellationToken);
+
+            if (hasActiveReturn)
+            {
+                throw new Exception("An active Sale Return exists for this Sale Order, so it cannot be cancelled. Please cancel/delete/revert the Sale Return first.");
+            }
+
             bool deleted = false;
 
             await _repo.ExecuteInTransactionAsync(async () =>

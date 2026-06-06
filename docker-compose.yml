@@ -17,6 +17,7 @@ services:
       dockerfile: Gateway/Gateway.API/Dockerfile
     ports:
       - "5000:8080"
+    restart: always
     environment:
       - ReverseProxy__Clusters__inventory-cluster__Destinations__destination1__Address=http://inventory.api:8080
     depends_on:
@@ -32,6 +33,7 @@ services:
     build:
       context: .
       dockerfile: Identity/Identity.API/Dockerfile
+    restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__IdentityDb=Server=sqlserver;Database=IdentityDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
@@ -44,6 +46,7 @@ services:
     build:
       context: .
       dockerfile: Customers/Customers.API/Dockerfile
+    restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__CustomersDb=Server=sqlserver;Database=CustomersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
@@ -56,6 +59,7 @@ services:
     build:
       context: .
       dockerfile: Inventory/Inventory.API/Dockerfile
+    restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__InventoryDb=Server=sqlserver;Database=InventoryDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
@@ -71,6 +75,7 @@ services:
     build:
       context: .
       dockerfile: Suppliers/Suppliers.API/Dockerfile
+    restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__SuppliersDb=Server=sqlserver;Database=SuppliersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
@@ -83,6 +88,7 @@ services:
     build:
       context: .
       dockerfile: company/Company.API/Dockerfile
+    restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__CompanyDb=Server=sqlserver;Database=CompanyDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
@@ -97,6 +103,7 @@ services:
     build:
       context: .
       dockerfile: employeepayroll/employeepayroll.api/Dockerfile
+    restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__EmployeePayrollDb=Server=sqlserver;Database=EmployeePayrollDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True

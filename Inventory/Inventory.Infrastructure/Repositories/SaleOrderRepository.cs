@@ -608,15 +608,28 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
-        return await _context.SaleOrders
+
+        var orders = await _context.SaleOrders
             .AsNoTracking()
-            .Where(x => x.CustomerId == customerId && x.Status == "Confirmed" && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)) // Sirf confirmed orders [cite: 2026-02-05]
+            .Where(x => x.CustomerId == customerId && x.Status == "Confirmed" && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(x => new SaleOrderLookupDto
             {
                 SaleOrderId = x.Id,
-                SoNumber = x.SONumber, // Display ke liye number
+                SoNumber = x.SONumber,
                 GrandTotal = x.GrandTotal
             }).ToListAsync();
+
+        var invoices = await _context.SalesInvoices
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId && x.Status == "Confirmed" && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Select(x => new SaleOrderLookupDto
+            {
+                SaleOrderId = x.Id,
+                SoNumber = x.InvoiceNo,
+                GrandTotal = x.GrandTotal
+            }).ToListAsync();
+
+        return orders.Concat(invoices).ToList();
     }
 
     public async Task<List<SaleOrderLookupDto>> GetCancelledOrdersByCustomerAsync(Guid customerId)

@@ -77,6 +77,7 @@ namespace Inventory.Infrastructure.Repositories
                 query = query.Where(x => 
                     x.ReturnNumber.ToLower().Contains(s) ||
                     (x.SaleOrder != null && x.SaleOrder.SONumber.ToLower().Contains(s)) ||
+                    (_context.SalesInvoices.Any(si => si.Id == x.SaleOrderId && si.InvoiceNo.ToLower().Contains(s))) ||
                     (x.CustomerId.HasValue && matchingCustomerIds != null && matchingCustomerIds.Contains(x.CustomerId.Value)));
             }
 
@@ -113,7 +114,7 @@ namespace Inventory.Infrastructure.Repositories
                     ReturnNumber = x.ReturnNumber,
                     ReturnDate = x.ReturnDate,
                     CustomerId = x.CustomerId,
-                    SoRef = x.SaleOrder != null ? x.SaleOrder.SONumber : string.Empty,
+                    SoRef = x.SaleOrder != null ? x.SaleOrder.SONumber : (_context.SalesInvoices.Where(si => si.Id == x.SaleOrderId).Select(si => si.InvoiceNo).FirstOrDefault() ?? string.Empty),
                     TotalAmount = x.TotalAmount,
                     Status = x.Status,
                     GatePassNo = x.GatePassNo,
@@ -334,14 +335,13 @@ namespace Inventory.Infrastructure.Repositories
             var branchId = _currentUserService.BranchId;
             return await _context.SaleReturnHeaders
                 .AsNoTracking()
-                .Include(h => h.SaleOrder) // Join for SONumber
                 .Where(h => h.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId) && (!fromDate.HasValue || h.ReturnDate >= fromDate) &&
                             (!toDate.HasValue || h.ReturnDate <= toDate))
                 .Select(h => new SaleReturnExportDto
                 {
                     ReturnNumber = h.ReturnNumber,
                     ReturnDate = h.ReturnDate.ToString("dd-MM-yyyy"),
-                    SONumber = h.SaleOrder.SONumber ?? "N/A", // From SaleOrders table
+                    SONumber = h.SaleOrder != null ? h.SaleOrder.SONumber : (_context.SalesInvoices.Where(si => si.Id == h.SaleOrderId).Select(si => si.InvoiceNo).FirstOrDefault() ?? "N/A"),
                     TotalAmount = h.TotalAmount, //
                     Status = h.Status,
                     IsQuick = h.IsQuick,
@@ -474,6 +474,101 @@ namespace Inventory.Infrastructure.Repositories
                 .Include(x => x.ReturnItems)
                 .ThenInclude(i => i.Product)
                 .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+        }
+
+        public async Task<bool> CancelSaleReturnAsync(Guid id, string? reason)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+                    var branchId = _currentUserService.BranchId;
+                    
+                    var header = await _context.SaleReturnHeaders
+                        .Include(x => x.ReturnItems)
+                        .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+
+                    if (header == null || header.Status == "Cancelled" || header.Status == "Canceled")
+                    {
+                        return false;
+                    }
+
+                    foreach (var item in header.ReturnItems)
+                    {
+                        // Reverse Warehouse Stock (Deduct the returned qty)
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                        {
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                            if (whStock != null)
+                            {
+                                whStock.Quantity -= item.ReturnQty;
+                            }
+                        }
+
+                        // Add Compensating Inventory Transaction
+                        var cancelTx = new InventoryTransaction(
+                            item.ProductId,
+                            -item.ReturnQty, // Negative to represent deducting stock
+                            (header.IsQuick ? "QuickSaleReturn" : "SaleReturn") + "-CANCELLED",
+                            header.ReturnNumber,
+                            item.WarehouseId,
+                            item.RackId,
+                            item.MfgDate,
+                            item.ExpDate,
+                            header.CompanyId,
+                            header.BranchId,
+                            item.ReferenceNumber,
+                            item.BatchNumber
+                        );
+                        await _context.InventoryTransactions.AddAsync(cancelTx);
+                    }
+
+                    // 🚨 Reverse the Ledger Entry that was generated on Sale Return creation
+                    if (header.CustomerId.HasValue && header.CustomerId.Value != Guid.Empty)
+                    {
+                        try
+                        {
+                            await _customerClient.RecordSaleAsync(
+                                header.CustomerId.Value,
+                                header.TotalAmount, // POSITIVE amount adds to the customer's bill (Debit), reversing the credit from the return receipt
+                                header.ReturnNumber,
+                                $"Reversal of Cancelled Sale Return: {header.ReturnNumber}",
+                                "System",
+                                header.BranchId,
+                                header.CompanyId
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Ledger reversion failed for cancelled sale return: {ex.Message}");
+                        }
+                    }
+
+                    header.Status = "Cancelled";
+                    if (!string.IsNullOrWhiteSpace(reason))
+                    {
+                        header.Remarks = (header.Remarks ?? "") + $" | Cancelled: {reason}";
+                    }
+                    header.ModifiedOn = DateTime.Now;
+
+                    _context.SaleReturnHeaders.Update(header);
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CancelSaleReturn] Error: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+            });
         }
     }
 }

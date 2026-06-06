@@ -158,4 +158,12 @@ namespace Inventory.API.Controllers;
         var result = await _repo.BulkInwardAsync(ids);
         return result ? Ok(new { message = $"{ids.Count} Returns Inwarded successfully" }) : BadRequest("Could not process inward");
     }
+
+    [HttpPost("cancel/{id}")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+    public async Task<IActionResult> CancelReturn(Guid id, [FromBody] Inventory.Application.SaleOrders.SaleReturn.DTOs.CancelSaleReturnDto dto)
+    {
+        var result = await _mediator.Send(new CancelSaleReturnCommand(id, dto.Reason));
+        return result ? Ok(new { message = "Sale Return has been cancelled and stock reversed successfully" }) : BadRequest("Could not cancel Sale Return. It may already be cancelled or doesn't exist.");
+    }
 }
