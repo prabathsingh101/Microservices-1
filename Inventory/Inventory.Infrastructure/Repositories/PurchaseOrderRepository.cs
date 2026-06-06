@@ -137,8 +137,13 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         // STEP 1: Base Query - AsNoTracking use karein fast read ke liye
         var query = _context.PurchaseOrders
             .AsNoTracking()
-            .Where(x => x.IsQuick == request.IsQuick && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .AsQueryable();
+
+        if (request.IsQuick.HasValue)
+        {
+            query = query.Where(x => x.IsQuick == request.IsQuick.Value);
+        }
 
         // 1. GLOBAL SEARCH FIX (Including 'Received' status logic)
         if (!string.IsNullOrWhiteSpace(request.Filter))
@@ -402,6 +407,17 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         // Id check aur fetch
         var po = await _context.PurchaseOrders.FindAsync(id);
         if (po == null) return false;
+
+        // Block cancellation if there is an active (uncancelled) GRN linked to this PO
+        if (status == "Cancelled" || status == "Canceled")
+        {
+            var hasActiveGrn = await _context.GRNHeaders
+                .AnyAsync(g => g.PurchaseOrderId == id && g.Status != "Cancelled" && g.Status != "Canceled");
+            if (hasActiveGrn)
+            {
+                throw new Exception("An active GRN exists for this Purchase Order, so it cannot be cancelled. Please cancel the GRN first.");
+            }
+        }
 
         po.Status = status; // Status database mein update hua
 

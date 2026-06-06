@@ -9,6 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using Suppliers.Application.Common.Interfaces;
+
 namespace Suppliers.API.Controllers
 {
     [Route("api/finance")]
@@ -17,10 +19,12 @@ namespace Suppliers.API.Controllers
     public class FinanceController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ICurrentUserService _currentUserService;
 
-        public FinanceController(IMediator mediator)
+        public FinanceController(IMediator mediator, ICurrentUserService currentUserService)
         {
             _mediator = mediator;
+            _currentUserService = currentUserService;
         }
 
         [HttpPost("ledger")]
@@ -35,16 +39,14 @@ namespace Suppliers.API.Controllers
         {
             try 
             {
-                // 🚀 SMART INJECTION: Get CompanyId from Claims
-                var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-                var branchIdClaim = User.FindFirst("BranchId")?.Value;
-                if (Guid.TryParse(companyIdClaim, out var companyId))
+                // 🚀 SMART INJECTION: Get CompanyId and BranchId via ICurrentUserService (prioritizing request headers)
+                if (_currentUserService.CompanyId.HasValue)
                 {
-                    paymentDto.CompanyId = companyId;
+                    paymentDto.CompanyId = _currentUserService.CompanyId.Value;
                 }
-                if (!string.IsNullOrEmpty(branchIdClaim))
+                if (!string.IsNullOrEmpty(_currentUserService.BranchId))
                 {
-                    paymentDto.BranchId = branchIdClaim;
+                    paymentDto.BranchId = _currentUserService.BranchId;
                 }
 
                 var command = new RecordSupplierPaymentCommand(paymentDto);
@@ -63,16 +65,14 @@ namespace Suppliers.API.Controllers
         [HttpPost("purchase-entry")]
         public async Task<IActionResult> RecordPurchase([FromBody] SupplierPurchaseDto purchase)
         {
-            // 🚀 SMART INJECTION: Get CompanyId from Claims
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            // 🚀 SMART INJECTION: Get CompanyId and BranchId via ICurrentUserService (prioritizing request headers)
+            if (_currentUserService.CompanyId.HasValue)
             {
-                purchase.CompanyId = companyId;
+                purchase.CompanyId = _currentUserService.CompanyId.Value;
             }
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            if (!string.IsNullOrEmpty(_currentUserService.BranchId))
             {
-                purchase.BranchId = branchIdClaim;
+                purchase.BranchId = _currentUserService.BranchId;
             }
 
             var command = new RecordSupplierPurchaseCommand(purchase);
@@ -83,16 +83,14 @@ namespace Suppliers.API.Controllers
         [HttpPost("purchase-return-entry")]
         public async Task<IActionResult> RecordPurchaseReturn([FromBody] SupplierPurchaseDto purchaseReturn)
         {
-            // 🚀 SMART INJECTION: Same as purchase
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
-            if (Guid.TryParse(companyIdClaim, out var companyId))
+            // 🚀 SMART INJECTION: Get CompanyId and BranchId via ICurrentUserService (prioritizing request headers)
+            if (_currentUserService.CompanyId.HasValue)
             {
-                purchaseReturn.CompanyId = companyId;
+                purchaseReturn.CompanyId = _currentUserService.CompanyId.Value;
             }
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            if (!string.IsNullOrEmpty(_currentUserService.BranchId))
             {
-                purchaseReturn.BranchId = branchIdClaim;
+                purchaseReturn.BranchId = _currentUserService.BranchId;
             }
 
             // Force TransactionType to DebitNote for this endpoint

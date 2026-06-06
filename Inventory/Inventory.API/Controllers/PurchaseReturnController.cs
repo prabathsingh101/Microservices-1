@@ -262,5 +262,29 @@ namespace Inventory.API.Controllers
             var result = await _repository.GetPurchaseReturnSummaryAsync(isQuick);
             return Ok(result);
         }
+
+        public class CancelDto
+        {
+            public string? Reason { get; set; }
+        }
+
+        [HttpPut("cancel/{id}")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+        public async Task<IActionResult> CancelPurchaseReturn([FromRoute] Guid id, [FromBody] CancelDto dto)
+        {
+            try
+            {
+                var success = await _repository.CancelPurchaseReturnAsync(id, dto?.Reason);
+                if (success)
+                {
+                    return Ok(new { success = true, message = "Purchase Return Cancelled & Stock Reversed Successfully" });
+                }
+                return BadRequest(new { success = false, message = "Failed to cancel Purchase Return" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

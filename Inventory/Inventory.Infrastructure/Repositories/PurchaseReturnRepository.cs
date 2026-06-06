@@ -511,7 +511,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             TotalQty = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].TotalQty : 0,
             GrnRef = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].GrnRefs : "N/A",
             TotalAmount = x.GrandTotal,
-            Status = "Completed",
+            Status = x.Status ?? "Completed",
             GatePassNo = x.GatePassNo,
             IsQuick = x.IsQuick
         }).ToList();
@@ -586,7 +586,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             ReturnDate = purchaseReturn.ReturnDate,
             SupplierId = purchaseReturn.SupplierId,
             SupplierName = sName,
-            Status = "Completed",
+            Status = purchaseReturn.Status ?? "Completed",
             Remarks = purchaseReturn.Remarks,
             Items = itemDtos,
             IsQuick = purchaseReturn.IsQuick,
@@ -742,5 +742,163 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             PendingOutwardCount = pendingOutwardCount,
             StockReducedPcs = totalPcs
         };
+    }
+
+    public async Task<bool> CancelPurchaseReturnAsync(Guid id, string? reason)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+                var branchId = _currentUserService.BranchId;
+
+                var purchaseReturn = await _context.PurchaseReturns
+                    .Include(x => x.Items)
+                    .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
+
+                if (purchaseReturn == null || purchaseReturn.Status == "Cancelled" || purchaseReturn.Status == "Canceled")
+                {
+                    return false;
+                }
+
+                // Check if it already has a Gate Pass outwarded. If so, can we cancel it?
+                if (!string.IsNullOrEmpty(purchaseReturn.GatePassNo))
+                {
+                    throw new Exception("This Purchase Return has already been dispatched/outwarded and cannot be cancelled.");
+                }
+
+                foreach (var item in purchaseReturn.Items)
+                {
+                    // To find the original GRN detail for this product to see rejection info
+                    var grnDetail = await _context.GRNDetails
+                        .IgnoreQueryFilters()
+                        .Include(gd => gd.GRNHeader)
+                        .FirstOrDefaultAsync(gd => gd.ProductId == item.ProductId
+                                             && gd.GRNHeader.GRNNumber == item.GrnRef
+                                             && gd.CompanyId == companyId);
+
+                    decimal initialRejectedQty = grnDetail?.RejectedQty ?? 0;
+                    decimal deductionFromCurrentStock = Math.Max(0, item.ReturnQty - initialRejectedQty);
+
+                    var wsWarehouseId = item.WarehouseId ?? grnDetail?.WarehouseId;
+
+                    // Reversing the stock deduction: ADD stock back for accepted items that were returned
+                    if (deductionFromCurrentStock > 0 && wsWarehouseId.HasValue)
+                    {
+                        var warehouseStock = await _context.WarehouseStocks
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                 && ws.WarehouseId == wsWarehouseId
+                                                 && ws.CompanyId == companyId);
+                                                
+                        if (warehouseStock != null)
+                        {
+                            warehouseStock.Quantity += deductionFromCurrentStock;
+                            _context.WarehouseStocks.Update(warehouseStock);
+                        }
+                    }
+
+                    // Always record inventory transaction for audit trail (positive to add stock back)
+                    var cancelTx = new InventoryTransaction(
+                        item.ProductId,
+                        item.ReturnQty, // Positive because we are RE-ADDING stock to inventory
+                        (purchaseReturn.IsQuick ? "QuickPurchaseReturn" : "PurchaseReturn") + "-CANCELLED",
+                        purchaseReturn.ReturnNumber,
+                        wsWarehouseId,
+                        item.RackId ?? grnDetail?.RackId,
+                        item.MfgDate,
+                        item.ExpDate,
+                        companyId,
+                        branchId
+                    );
+                    await _context.InventoryTransactions.AddAsync(cancelTx);
+
+                    // Reset settle status on original GRN detail if it was marked settled
+                    if (grnDetail != null && grnDetail.RejectedQty > 0)
+                    {
+                        var otherActiveReturnsExist = await _context.PurchaseReturnItems
+                            .AnyAsync(ri => ri.Id != item.Id 
+                                            && ri.GrnRef == item.GrnRef 
+                                            && ri.ProductId == item.ProductId 
+                                            && ri.PurchaseReturn.Status != "Cancelled" 
+                                            && ri.PurchaseReturn.Status != "Canceled" 
+                                            && ri.CompanyId == companyId);
+                        if (!otherActiveReturnsExist)
+                        {
+                            grnDetail.IsSettled = false;
+                            _context.GRNDetails.Update(grnDetail);
+                        }
+                    }
+                }
+
+                // Reverse the Ledger Entry (record a purchase/credit transaction to offset the return)
+                decimal totalFinancialGrandTotal = 0;
+                foreach (var item in purchaseReturn.Items)
+                {
+                    var gd = await _context.GRNDetails
+                        .IgnoreQueryFilters()
+                        .Include(x => x.GRNHeader)
+                        .FirstOrDefaultAsync(x => x.ProductId == item.ProductId && x.GRNHeader.GRNNumber == item.GrnRef && x.CompanyId == companyId);
+                    
+                    if (gd != null)
+                    {
+                        decimal financialQty = Math.Max(0, item.ReturnQty - gd.RejectedQty);
+                        if (financialQty > 0)
+                        {
+                            decimal fBase = financialQty * item.Rate;
+                            decimal fDisc = fBase * (item.DiscountPercent / 100);
+                            decimal fTaxable = fBase - fDisc;
+                            decimal fTax = fTaxable * (item.GstPercent / 100);
+                            totalFinancialGrandTotal += (fTaxable + fTax);
+                        }
+                    }
+                }
+
+                if (totalFinancialGrandTotal > 0)
+                {
+                    try 
+                    {
+                        var sNameDict = await GetSupplierNamesFromMicroservice(new List<Guid> { purchaseReturn.SupplierId });
+                        string sName = sNameDict.ContainsKey(purchaseReturn.SupplierId) ? sNameDict[purchaseReturn.SupplierId] : "Unknown";
+
+                        // Debit note reversal is recorded as a purchase transaction (Credit) to add back to the supplier balance
+                        await _supplierClient.RecordPurchaseAsync(
+                            purchaseReturn.SupplierId, 
+                            totalFinancialGrandTotal, 
+                            purchaseReturn.ReturnNumber, 
+                            $"Reversal of Cancelled Purchase Return: {purchaseReturn.ReturnNumber} ({sName})", 
+                            _currentUserService.Email ?? "System"
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ledger cancellation failed: {ex.Message}");
+                    }
+                }
+
+                purchaseReturn.Status = "Cancelled";
+                if (!string.IsNullOrWhiteSpace(reason))
+                {
+                    purchaseReturn.Remarks = (purchaseReturn.Remarks ?? "") + $" | Cancelled Reason: {reason}";
+                }
+                purchaseReturn.ModifiedOn = DateTime.Now;
+                purchaseReturn.ModifiedBy = _currentUserService.Email ?? "System";
+
+                _context.PurchaseReturns.Update(purchaseReturn);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CancelPurchaseReturn] Error: {ex.Message}");
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 }

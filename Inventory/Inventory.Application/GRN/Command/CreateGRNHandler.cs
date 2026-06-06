@@ -84,10 +84,34 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
 
                 string poDisplay = po?.PoNumber ?? "Quick";
                 string supplierDisplay = supplier?.Name ?? "N/A";
-                string description = $"GRN: {grnNumber} for PO: {poDisplay} ({supplierDisplay})";
 
-                await supplierClient.RecordPurchaseAsync(dto.SupplierId, dto.TotalAmount, grnNumber, description, dto.CreatedBy);
-                Console.WriteLine($"[CreateGRNHandler] Purchase recorded for {grnNumber}");
+                // 🛡️ REPLACEMENT AUTO-OFFSET: Calculate original value of replacement items
+                decimal replacementValue = 0;
+                if (dto.Items != null)
+                {
+                    foreach (var item in dto.Items)
+                    {
+                        if (item.IsReplacement)
+                        {
+                            decimal baseAmt = item.AcceptedQty * item.UnitRate;
+                            decimal discAmt = baseAmt * (item.DiscountPercent / 100m);
+                            decimal taxableAmt = baseAmt - discAmt;
+                            decimal taxAmt = taxableAmt * (item.GstPercent / 100m);
+                            replacementValue += taxableAmt + taxAmt;
+                        }
+                    }
+                }
+                decimal ledgerAmount = dto.TotalAmount + replacementValue;
+                ledgerAmount = Math.Round(ledgerAmount, 2, MidpointRounding.AwayFromZero);
+
+                string description = $"GRN: {grnNumber} for PO: {poDisplay} ({supplierDisplay})";
+                if (replacementValue > 0)
+                {
+                    description += $" (Includes Auto-Offset Replacement: {replacementValue:0.00})";
+                }
+
+                await supplierClient.RecordPurchaseAsync(dto.SupplierId, ledgerAmount, grnNumber, description, dto.CreatedBy);
+                Console.WriteLine($"[CreateGRNHandler] Purchase recorded for {grnNumber} with ledger amount: {ledgerAmount}");
             }
             catch (Exception ex)
             {

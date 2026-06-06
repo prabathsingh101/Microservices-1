@@ -21,30 +21,30 @@ namespace Suppliers.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly ISupplierRepository _supplierRepository;
+        private readonly ICurrentUserService _currentUserService;
 
-        public SupplierController(IMediator mediator, ISupplierRepository repository)
+        public SupplierController(IMediator mediator, ISupplierRepository repository, ICurrentUserService currentUserService)
         {
             _mediator = mediator;
             _supplierRepository = repository;
+            _currentUserService = currentUserService;
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Create([FromBody] CreateSupplierDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId via ICurrentUserService
             var userEmail = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? "System";
 
-            if (!string.IsNullOrEmpty(companyIdClaim))
+            if (_currentUserService.CompanyId.HasValue)
             {
-                dto = dto with { companyId = companyIdClaim };
+                dto = dto with { companyId = _currentUserService.CompanyId.Value.ToString() };
             }
 
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            if (!string.IsNullOrEmpty(_currentUserService.BranchId))
             {
-                dto = dto with { branchId = branchIdClaim };
+                dto = dto with { branchId = _currentUserService.BranchId };
             }
 
             dto = dto with { createdBy = userEmail };
@@ -67,19 +67,17 @@ namespace Suppliers.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<IActionResult> Update(Guid id, [FromBody] CreateSupplierDto dto)
         {
-            // 🚀 SMART INJECTION: Get CompanyId & BranchId from Claims
-            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
-            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            // 🚀 SMART INJECTION: Get CompanyId & BranchId via ICurrentUserService
             var userEmail = User.Identity?.Name ?? User.FindFirst("email")?.Value ?? "System";
 
-            if (!string.IsNullOrEmpty(companyIdClaim))
+            if (_currentUserService.CompanyId.HasValue)
             {
-                dto = dto with { companyId = companyIdClaim };
+                dto = dto with { companyId = _currentUserService.CompanyId.Value.ToString() };
             }
 
-            if (!string.IsNullOrEmpty(branchIdClaim))
+            if (!string.IsNullOrEmpty(_currentUserService.BranchId))
             {
-                dto = dto with { branchId = branchIdClaim };
+                dto = dto with { branchId = _currentUserService.BranchId };
             }
 
             dto = dto with { modifiedBy = userEmail };

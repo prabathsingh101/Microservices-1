@@ -278,6 +278,29 @@ namespace Inventory.Infrastructure.Repositories
                     _context.SaleReturnHeaders.Add(header);
 
                     await _context.SaveChangesAsync();
+
+                    // 🚨 Record the credit entry in Customer Ledger (negative amount)
+                    if (header.CustomerId.HasValue && header.CustomerId.Value != Guid.Empty)
+                    {
+                        try
+                        {
+                            string description = $"Sale Return: {header.ReturnNumber} for Sale Order: {header.SaleOrderId}";
+                            await _customerClient.RecordSaleAsync(
+                                header.CustomerId.Value,
+                                -header.TotalAmount, // NEGATIVE amount represents a Credit Note (Credit), reducing outstanding dues
+                                header.ReturnNumber,
+                                description,
+                                header.CreatedBy ?? "System",
+                                header.BranchId,
+                                header.CompanyId
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[SaleReturnRepository] WARNING: Failed to record return in customer ledger: {ex.Message}");
+                        }
+                    }
+
                     await transaction.CommitAsync();
                     return true;
                 }

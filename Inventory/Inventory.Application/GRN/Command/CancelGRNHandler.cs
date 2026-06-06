@@ -3,6 +3,7 @@ using Inventory.Application.Common.Interfaces;
 using Inventory.Application.Services;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Text;
 using System.Linq;
@@ -17,17 +18,20 @@ namespace Inventory.Application.GRN.Command
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ICompanyClient _companyClient;
         private readonly ISupplierClient _supplierClient;
+        private readonly IInventoryDbContext _context;
 
         public CancelGRNHandler(
             IGRNRepository repo,
             IServiceScopeFactory scopeFactory,
             ICompanyClient companyClient,
-            ISupplierClient supplierClient)
+            ISupplierClient supplierClient,
+            IInventoryDbContext context)
         {
             _repo = repo;
             _scopeFactory = scopeFactory;
             _companyClient = companyClient;
             _supplierClient = supplierClient;
+            _context = context;
         }
 
         public async Task<bool> Handle(CancelGRNCommand request, CancellationToken ct)
@@ -37,6 +41,18 @@ namespace Inventory.Application.GRN.Command
             if (grnHeader == null)
             {
                 throw new Exception("GRN not found");
+            }
+
+            // Validation: Check if there is an active Purchase Return linked to this GRN
+            var hasActiveReturn = await _context.PurchaseReturnItems
+                .AnyAsync(ri => ri.GrnRef == grnHeader.GRNNumber && 
+                                ri.PurchaseReturn.Status != "Cancelled" && 
+                                ri.PurchaseReturn.Status != "Canceled", 
+                          ct);
+
+            if (hasActiveReturn)
+            {
+                throw new Exception("An active Purchase Return exists for this GRN, so it cannot be cancelled. Please cancel the Purchase Return first.");
             }
 
             // Reverse stock
