@@ -160,7 +160,7 @@ namespace Inventory.API.Controllers;
     }
 
     [HttpPost("cancel/{id}")]
-    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+    [Authorize(Roles = "Super Admin, Admin, Manager")]
     public async Task<IActionResult> CancelReturn(Guid id, [FromBody] Inventory.Application.SaleOrders.SaleReturn.DTOs.CancelSaleReturnDto dto)
     {
         var result = await _mediator.Send(new CancelSaleReturnCommand(id, dto.Reason));

@@ -284,7 +284,20 @@ namespace Inventory.Infrastructure.Repositories
                     {
                         try
                         {
-                            string description = $"Sale Return: {header.ReturnNumber} for Sale Order: {header.SaleOrderId}";
+                            var saleOrder = await _context.SaleOrders.AsNoTracking()
+                                .FirstOrDefaultAsync(so => so.Id == header.SaleOrderId && so.CompanyId == header.CompanyId);
+                            string? orderNoRef = saleOrder?.SONumber;
+                            if (string.IsNullOrEmpty(orderNoRef))
+                            {
+                                var salesInvoice = await _context.SalesInvoices.AsNoTracking()
+                                    .FirstOrDefaultAsync(si => si.Id == header.SaleOrderId && si.CompanyId == header.CompanyId);
+                                orderNoRef = salesInvoice?.InvoiceNo;
+                            }
+                            if (string.IsNullOrEmpty(orderNoRef))
+                            {
+                                orderNoRef = header.SaleOrderId.ToString();
+                            }
+                            string description = $"Sale Return: {header.ReturnNumber} for Sale Order: {orderNoRef}";
                             await _customerClient.RecordSaleAsync(
                                 header.CustomerId.Value,
                                 -header.TotalAmount, // NEGATIVE amount represents a Credit Note (Credit), reducing outstanding dues

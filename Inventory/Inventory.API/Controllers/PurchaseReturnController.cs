@@ -269,7 +269,7 @@ namespace Inventory.API.Controllers
         }
 
         [HttpPut("cancel/{id}")]
-        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+        [Authorize(Roles = "Super Admin, Admin, Manager")]
         public async Task<IActionResult> CancelPurchaseReturn([FromRoute] Guid id, [FromBody] CancelDto dto)
         {
             try

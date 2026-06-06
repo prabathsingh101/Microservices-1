@@ -24,6 +24,7 @@ namespace Customers.Application.Common.Interfaces
         Task<(bool IsUnique, string Source)> IsReferenceUniqueWithSourceAsync(string referenceNumber);
         Task<PaginatedListDto<ReceiptReportDto>> GetReceiptsReportAsync(ReceiptReportRequestDto request);
         Task<bool> HasRefundOrAdjustmentAgainstReferenceAsync(Guid customerId, string referenceNumber);
+        Task<bool> DeleteReceiptAsync(Guid id);
 
         // --- NEW FEATURES ---
         Task<List<DebtorsAgeingDto>> GetDebtorsAgeingAsync(string? branchId = null);

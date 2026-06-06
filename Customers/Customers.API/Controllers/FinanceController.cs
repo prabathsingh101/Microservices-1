@@ -49,6 +49,24 @@ namespace Customers.API.Controllers
             return Ok(new { Id = id });
         }
 
+        // 2.2 Delete Receipt/Refund Entry
+        [HttpDelete("receipt/{id}")]
+        [Authorize(Roles = "Super Admin, Admin, Manager")]
+        public async Task<IActionResult> DeleteReceipt(Guid id)
+        {
+            if (id == Guid.Empty)
+            {
+                return BadRequest("Invalid Receipt Id");
+            }
+            var command = new DeleteCustomerReceiptCommand(id);
+            var success = await _mediator.Send(command);
+            if (!success)
+            {
+                return NotFound("Receipt not found");
+            }
+            return Ok(new { Success = true });
+        }
+
         // 2a. Bulk Receipt Entry
         [HttpPost("bulk-receipts")]
         public async Task<IActionResult> RecordBulkReceipts([FromBody] BulkReceiptDto bulkReceiptDto)

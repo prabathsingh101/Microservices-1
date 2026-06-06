@@ -662,7 +662,17 @@ public class SaleOrderRepository : ISaleOrderRepository
                 GrandTotal = x.GrandTotal
             }).ToListAsync();
 
-        return cancelledOrders.Concat(cancelledInvoices).ToList();
+        var saleReturns = await _context.SaleReturnHeaders
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId && (x.Status == "Confirmed" || x.Status == "INWARDED") && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Select(x => new SaleOrderLookupDto
+            {
+                SaleOrderId = x.Id,
+                SoNumber = x.ReturnNumber,
+                GrandTotal = x.TotalAmount
+            }).ToListAsync();
+
+        return cancelledOrders.Concat(cancelledInvoices).Concat(saleReturns).ToList();
     }
 
     public async Task<List<SaleOrderItemGridDto>> GetItemsForGridByOrderIdAsync(Guid saleOrderId)

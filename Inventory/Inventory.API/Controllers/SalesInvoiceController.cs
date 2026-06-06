@@ -96,7 +96,7 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        [Authorize(Roles = "Super Admin, Admin, Manager")]
         public async Task<IActionResult> Delete(Guid id, [FromQuery] string? reason)
         {
             var command = new Inventory.Application.SalesInvoices.Commands.DeleteSalesInvoice.DeleteSalesInvoiceCommand(id, reason);

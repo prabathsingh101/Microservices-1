@@ -149,7 +149,7 @@ namespace Inventory.API.Controllers
 
 
         [HttpPut("cancel/{id}")]
-        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        [Authorize(Roles = "Super Admin, Admin, Manager")]
         public async Task<IActionResult> CancelGRN([FromRoute] Guid id, [FromBody] CancelDto dto)
         {
             var command = new CancelGRNCommand

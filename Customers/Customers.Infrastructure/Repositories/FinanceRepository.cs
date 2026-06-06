@@ -753,5 +753,81 @@ namespace Customers.Infrastructure.Repositories
 
             return true;
         }
+
+        public async Task<bool> DeleteReceiptAsync(Guid id)
+        {
+            // 1. Try to find by CustomerReceipt.Id
+            var receipt = await _context.CustomerReceipts.FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == _companyId);
+            
+            CustomerLedger? ledgerEntry = null;
+
+            if (receipt == null)
+            {
+                // 2. If not found, check if the ID is a CustomerLedger.Id
+                ledgerEntry = await _context.CustomerLedgers.FirstOrDefaultAsync(l => l.Id == id && l.CompanyId == _companyId);
+                if (ledgerEntry != null)
+                {
+                    // Find matching receipt by reference, amount, and customer
+                    receipt = await _context.CustomerReceipts.FirstOrDefaultAsync(r => 
+                        r.CustomerId == ledgerEntry.CustomerId &&
+                        (r.ReferenceNumber == ledgerEntry.ReferenceId || 
+                         (string.IsNullOrEmpty(r.ReferenceNumber) && 
+                          (ledgerEntry.ReferenceId.StartsWith("REC-") || ledgerEntry.ReferenceId.StartsWith("REF-")))) &&
+                        (r.Amount == ledgerEntry.Credit || r.Amount == -ledgerEntry.Debit) &&
+                        r.CompanyId == _companyId);
+                }
+            }
+
+            if (receipt == null && ledgerEntry == null) return false;
+
+            // Delete receipt if found
+            if (receipt != null)
+            {
+                _context.CustomerReceipts.Remove(receipt);
+            }
+
+            // If we haven't resolved the ledger entry yet, find it
+            if (ledgerEntry == null && receipt != null)
+            {
+                var ledgerEntries = await _context.CustomerLedgers
+                    .Where(l => l.CustomerId == receipt.CustomerId &&
+                                (l.Credit == Math.Max(0, receipt.Amount) && l.Debit == Math.Max(0, -receipt.Amount)) &&
+                                l.CompanyId == _companyId)
+                    .ToListAsync();
+
+                ledgerEntry = ledgerEntries
+                    .OrderBy(l => l.ReferenceId == receipt.ReferenceNumber ? 0 : 1)
+                    .ThenBy(l => Math.Abs((l.TransactionDate - receipt.ReceiptDate).TotalSeconds))
+                    .FirstOrDefault();
+            }
+
+            if (ledgerEntry != null)
+            {
+                var customerId = ledgerEntry.CustomerId;
+                var deletedEntryId = ledgerEntry.Id;
+
+                // Delete the ledger entry
+                _context.CustomerLedgers.Remove(ledgerEntry);
+
+                // Save the removal first so it's not retrieved in subsequent query
+                await _context.SaveChangesAsync();
+
+                // Recalculate running balances for this customer
+                var subsequentEntries = await _context.CustomerLedgers
+                    .Where(l => l.CustomerId == customerId && l.CompanyId == _companyId)
+                    .OrderBy(l => l.CreatedOn)
+                    .ToListAsync();
+
+                decimal runningBalance = 0;
+                foreach (var entry in subsequentEntries)
+                {
+                    runningBalance = runningBalance + entry.Debit - entry.Credit;
+                    entry.Balance = runningBalance;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }
