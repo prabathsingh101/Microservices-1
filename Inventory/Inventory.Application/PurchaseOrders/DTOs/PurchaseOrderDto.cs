@@ -45,6 +45,7 @@ public class PurchaseOrderDto
     }
 
     public string? Remarks { get; set; }
+    public string? BranchId { get; set; }
     public string? GrnNumber { get; set; }
     public Guid? GrnId { get; set; }
 
@@ -83,7 +84,8 @@ public class PurchaseOrderDto
             ModifiedBy = entity.ModifiedBy,
             CreatedOn = entity.CreatedOn,
             ModifiedOn = entity.ModifiedOn,
-            IsDispatched = entity.IsDispatched
+            IsDispatched = entity.IsDispatched,
+            BranchId = entity.BranchId
         };
 
         // Mapping item list

@@ -23,5 +23,7 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public bool IsReturnable { get; set; } = true;
         public double RemainingHours { get; set; }
         public string? PoNumber { get; set; }
+        public string? Brand { get; set; }
+        public string? Sku { get; set; }
     }
 }

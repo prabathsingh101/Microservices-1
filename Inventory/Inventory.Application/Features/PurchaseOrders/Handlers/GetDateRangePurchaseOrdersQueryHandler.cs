@@ -163,6 +163,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     ModifiedOn = x.ModifiedOn,
                     Remarks = x.Remarks,
                     IsDispatched = x.IsDispatched,
+                    BranchId = x.BranchId,
                     Status = x.Status == "Cancelled" 
                              ? "Cancelled" 
                              : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))

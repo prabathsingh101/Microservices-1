@@ -78,6 +78,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 GrandTotal = po.GrandTotal,
                 PaidAmount = actualPaidAmount,
                 Status = po.Status,
+                BranchId = po.BranchId,
                 // .Select mapping ensures each item is converted properly
                 Items = po.Items.Select(i => new PurchaseOrderItemDto
                 {

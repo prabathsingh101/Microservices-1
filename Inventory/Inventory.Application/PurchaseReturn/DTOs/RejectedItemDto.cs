@@ -17,4 +17,6 @@ public class RejectedItemDto
     public string? BranchId { get; set; }
     public bool IsSettled { get; set; }
     public string? PoNumber { get; set; }
+    public string? Brand { get; set; }
+    public string? Sku { get; set; }
 }
