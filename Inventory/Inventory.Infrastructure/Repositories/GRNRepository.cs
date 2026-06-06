@@ -432,7 +432,9 @@ namespace Inventory.Infrastructure.Repositories
                 // 1. Fetch returns to check replacements
                 var returnLookup = await _context.PurchaseReturnItems
                     .Include(ri => ri.PurchaseReturn)
-                    .Where(ri => ri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId) && ri.PurchaseReturn.Items.Any(i => _context.GRNDetails.Any(gd => gd.ProductId == ri.ProductId && idList.Contains(gd.GRNHeader.PurchaseOrderId) && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId))))
+                    .Where(ri => ri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId) 
+                              && ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled"
+                              && ri.PurchaseReturn.Items.Any(i => _context.GRNDetails.Any(gd => gd.ProductId == ri.ProductId && idList.Contains(gd.GRNHeader.PurchaseOrderId) && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId))))
                     .Join(_context.GRNDetails.Where(gd => gd.CompanyId == companyId), ri => ri.GrnRef, gd => gd.GRNHeader.GRNNumber, (ri, gd) => new { ri, gd })
                     .Where(x => idList.Contains(x.gd.GRNHeader.PurchaseOrderId))
                     .GroupBy(x => x.ri.ProductId)
@@ -606,8 +608,8 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     ProductName = d.Product.Name,
                     OrderedQty = d.OrderedQty,
-                    ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                    AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
 
                     // FIX: Pending calculation for historical view
                     // Hum PO Item ki cumulative 'ReceivedQty' ke bajaye transaction level logic use karenge
@@ -623,6 +625,7 @@ namespace Inventory.Infrastructure.Repositories
                         -
                         (_context.PurchaseReturnItems
                             .Where(ri => ri.ProductId == d.ProductId &&
+                                         ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" &&
                                          _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef &&
                                                                        gh.PurchaseOrderId == g.PurchaseOrderId &&
                                                                        gh.CreatedOn <= g.CreatedOn) &&
@@ -630,8 +633,8 @@ namespace Inventory.Infrastructure.Repositories
                             .Sum(ri => (decimal?)ri.ReturnQty) ?? 0)
                     )) : 0,
 
-                    RejectedQty = d.RejectedQty - (_context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                    ReturnedQty = _context.PurchaseReturnItems.Where(ri => ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0,
+                    RejectedQty = d.RejectedQty - (_context.PurchaseReturnItems.Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                    ReturnedQty = _context.PurchaseReturnItems.Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0,
                     ActualRejectedQty = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected")))) ? 0 : d.RejectedQty,
                     ExpiredQty = (d.Rack.Name.ToLower().Contains("e1") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected")))) ? d.RejectedQty : 0,
                     UnitRate = d.UnitRate,
@@ -792,6 +795,8 @@ namespace Inventory.Infrastructure.Repositories
                                 var hasReturn = await _context.PurchaseReturnItems.AnyAsync(ri => 
                                     ri.GrnRef == item.GRNNo 
                                     && ri.ProductId == gdRej.ProductId 
+                                    && ri.PurchaseReturn.Status != "Cancelled"
+                                    && ri.PurchaseReturn.Status != "Canceled"
                                     && ri.CompanyId == companyId);
 
                                 if (hasReturn) continue;
@@ -850,8 +855,8 @@ namespace Inventory.Infrastructure.Repositories
                             Unit = d.Product.Unit,
                             OrderedQty = d.OrderedQty,
                             PendingQty = d.PendingQty,
-                            ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
-                            AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                            ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
+                            AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                             RejectedQty = d.RejectedQty,
                             UnitRate = d.UnitRate,
                             DiscountPercent = d.DiscountPercent,

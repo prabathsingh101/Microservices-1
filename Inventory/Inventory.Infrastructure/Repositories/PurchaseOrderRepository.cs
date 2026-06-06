@@ -246,7 +246,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         // Fetch all return items for these GRNs in one go
         var poGrnNumbersLower = poGrnNumbers.Select(n => n.Trim().ToLower()).ToList();
         var allReturnItems = await _context.PurchaseReturnItems
-            .Where(ri => ri.CompanyId == companyId)
+            .Where(ri => ri.CompanyId == companyId &&
+                         ri.PurchaseReturn.Status != "Cancelled" &&
+                         ri.PurchaseReturn.Status != "Canceled")
             .ToListAsync();
         
         // Filter in-memory for robust matching
@@ -477,7 +479,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         var poGrnNumbers = pos.SelectMany(x => x.GrnHeaders).Select(h => h.GRNNumber).Distinct().ToList();
         var poGrnNumbersLower = poGrnNumbers.Select(n => n.Trim().ToLower()).ToList();
         var allReturnItems = await _context.PurchaseReturnItems
-            .Where(ri => ri.CompanyId == companyId)
+            .Where(ri => ri.CompanyId == companyId &&
+                         ri.PurchaseReturn.Status != "Cancelled" &&
+                         ri.PurchaseReturn.Status != "Canceled")
             .ToListAsync();
         allReturnItems = allReturnItems.Where(ri => poGrnNumbersLower.Contains(ri.GrnRef.Trim().ToLower())).ToList();
 
@@ -543,7 +547,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .Select(x => new PurchaseOrderLookupDto 
             {
                 PurchaseOrderId = x.Id,
-                PoNumber = x.PoNumber
+                PoNumber = x.PoNumber,
+                GrandTotal = x.GrandTotal
             })
             .ToListAsync();
     }
@@ -562,7 +567,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .Select(x => new PurchaseOrderLookupDto 
             {
                 PurchaseOrderId = x.Id,
-                PoNumber = x.PoNumber
+                PoNumber = x.PoNumber,
+                GrandTotal = x.GrandTotal
             })
             .ToListAsync();
     }
@@ -1089,12 +1095,19 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .SumAsync(x => x.Qty);
 
         // 2. Calculate Net Received (current warehouse stock from this PO)
-        // Note: PurchaseReturnRepository subtracts ReturnedQty from ReceivedQty in GRNDetails
-        var netReceived = await _context.GRNDetails
+        var totalReceived = await _context.GRNDetails
             .Where(gd => gd.GRNHeader.PurchaseOrderId == poId)
             .SumAsync(gd => gd.ReceivedQty);
 
-        // 3. Difference (25 in user's case)
+        var totalReturned = await _context.PurchaseReturnItems
+            .Where(ri => ri.PurchaseReturn.Status != "Cancelled" &&
+                         ri.PurchaseReturn.Status != "Canceled" &&
+                         _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == poId))
+            .SumAsync(ri => (decimal?)ri.ReturnQty) ?? 0;
+
+        var netReceived = totalReceived - totalReturned;
+
+        // 3. Difference
         var replacementNeeded = totalOrdered - netReceived;
 
         return replacementNeeded > 0 ? replacementNeeded : 0;

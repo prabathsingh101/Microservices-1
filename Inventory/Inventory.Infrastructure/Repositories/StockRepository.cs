@@ -303,7 +303,9 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
-                var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters().AsQueryable();
+                var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters()
+                    .Where(pri => pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
+                    .AsQueryable();
                 if (!_currentUserService.IsPlatformAdmin)
                 {
                     prItemsQuery = prItemsQuery.Where(pri => pri.CompanyId == companyId);

@@ -31,8 +31,18 @@ public class PurchaseOrderDto
     public decimal TotalReturned { get; set; }
     public decimal TotalBilled { get; set; }
     public decimal PaidAmount { get; set; }
-    public decimal DueAmount => (Status == "Received" && TotalBilled > 0) ? (TotalBilled - PaidAmount) : (GrandTotal - PaidAmount);
-    public string PaymentStatus => DueAmount <= 0 ? "Paid" : (PaidAmount > 0 ? "Partial" : "Unpaid");
+    public decimal DueAmount => (Status == "Cancelled" || Status == "Canceled" || Status == "Void") ? 0 : ((Status == "Received" && TotalBilled > 0) ? (TotalBilled - PaidAmount) : (GrandTotal - PaidAmount));
+    public string PaymentStatus
+    {
+        get
+        {
+            if (Status == "Cancelled" || Status == "Canceled" || Status == "Void")
+            {
+                return "-";
+            }
+            return DueAmount <= 0 ? "Paid" : (PaidAmount > 0 ? "Partial" : "Unpaid");
+        }
+    }
 
     public string? Remarks { get; set; }
     public string? GrnNumber { get; set; }

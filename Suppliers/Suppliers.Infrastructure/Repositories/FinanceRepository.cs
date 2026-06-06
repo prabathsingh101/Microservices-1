@@ -209,14 +209,14 @@ namespace Suppliers.Infrastructure.Repositories
             // GRNs/POs are unique across the entire company, so matching payments must be resolved company-wide.
             var relevantPayments = await _context.SupplierLedgers
                 .IgnoreQueryFilters()
-                .Where(l => (l.TransactionType == "Payment" || l.TransactionType == "Debit Note") && l.Description != null && l.CompanyId == _companyId)
-                .Select(l => new { l.Description, l.ReferenceId, l.Debit })
+                .Where(l => (l.TransactionType == "Payment" || l.TransactionType == "Debit Note" || l.TransactionType == "Refund") && l.Description != null && l.CompanyId == _companyId)
+                .Select(l => new { l.Description, l.ReferenceId, l.Debit, l.Credit, l.TransactionType })
                 .ToListAsync();
 
             foreach (var grn in grnNumbers)
             {
                 string cleanGrn = grn.Trim();
-                decimal totalPaid = relevantPayments
+                var matchingTxns = relevantPayments
                     .Where(p => 
                         // Exact match in description with colon/space boundary or full match
                         (p.Description != null && (p.Description.Equals(cleanGrn, StringComparison.OrdinalIgnoreCase) || 
@@ -227,7 +227,10 @@ namespace Suppliers.Infrastructure.Repositories
                                                  p.ReferenceId.Trim().StartsWith($"{cleanGrn}-") || 
                                                  p.ReferenceId.Trim().StartsWith($"{cleanGrn}_")))
                     )
-                    .Sum(p => p.Debit);
+                    .ToList();
+
+                decimal totalPaid = matchingTxns.Where(t => t.TransactionType == "Payment" || t.TransactionType == "Debit Note").Sum(p => p.Debit)
+                                  - matchingTxns.Where(t => t.TransactionType == "Refund").Sum(p => p.Credit);
 
                 result[grn] = totalPaid;
             }

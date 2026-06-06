@@ -6,5 +6,6 @@ namespace Inventory.Application.PurchaseOrders.DTOs
     {
         public Guid PurchaseOrderId { get; set; }
         public string PoNumber { get; set; } = string.Empty;
+        public decimal GrandTotal { get; set; }
     }
 }

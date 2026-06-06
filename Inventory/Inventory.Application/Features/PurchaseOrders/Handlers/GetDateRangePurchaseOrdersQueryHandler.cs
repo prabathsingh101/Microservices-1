@@ -78,6 +78,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     // Fetch total returned quantity for this specific PO item
                     var totalReturned = _context.PurchaseReturnItems
                         .Where(ri => ri.ProductId == item.ProductId && 
+                                     ri.PurchaseReturn.Status != "Cancelled" && 
+                                     ri.PurchaseReturn.Status != "Canceled" &&
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
 
