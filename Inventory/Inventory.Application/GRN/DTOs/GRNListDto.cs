@@ -21,6 +21,7 @@ namespace Inventory.Application.GRN.DTOs
         public decimal TotalExpired { get; set; }
         public Guid PurchaseOrderId { get; set; }
         public bool IsRejectionSettled { get; set; }
+        public string? PoStatus { get; set; }
         public List<GRNItemSummaryDto> Items { get; set; } = new List<GRNItemSummaryDto>();
     }
     // Paged Response [cite: 2026-01-22]

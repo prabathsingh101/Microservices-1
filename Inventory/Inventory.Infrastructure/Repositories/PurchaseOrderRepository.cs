@@ -1132,4 +1132,15 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         _context.PurchaseOrders.RemoveRange(pos);
         return await _context.SaveChangesAsync() > 0;
     }
+
+    public async Task<bool> ShortCloseOrderAsync(Guid id)
+    {
+        var po = await _context.PurchaseOrders.FindAsync(id);
+        if (po == null) return false;
+
+        po.Status = "Closed";
+        po.ModifiedOn = DateTime.Now;
+
+        return await _context.SaveChangesAsync() > 0;
+    }
 }

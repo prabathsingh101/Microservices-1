@@ -603,6 +603,7 @@ namespace Inventory.Infrastructure.Repositories
                 GatePassNo = g.GatePassNo,
                 TotalAmount = g.TotalAmount,  // GRN Total Amount
                 PaymentStatus = "Unpaid",  // Default - To be calculated from Supplier Ledger
+                PoStatus = g.PurchaseOrder != null ? g.PurchaseOrder.Status : null,
 
                 Items = g.GRNItems.Select(d => new GRNItemSummaryDto
                 {
@@ -615,7 +616,9 @@ namespace Inventory.Infrastructure.Repositories
                     // Hum PO Item ki cumulative 'ReceivedQty' ke bajaye transaction level logic use karenge
                     // Pending = Total Ordered - Jo is GRN tak total 'Net Accepted' ho chuka tha
                     // Net Accepted = Total Received - Total Rejected
-                    PendingQty = d.OrderedQty > 0 ? Math.Max(0, d.OrderedQty - (
+                    PendingQty = (g.PurchaseOrder != null && (g.PurchaseOrder.Status == "Closed" || g.PurchaseOrder.Status == "ShortClosed" || g.PurchaseOrder.Status == "Cancelled"))
+                        ? 0
+                        : d.OrderedQty > 0 ? Math.Max(0, d.OrderedQty - (
                         (_context.GRNDetails
                             .Where(prev => prev.ProductId == d.ProductId &&
                                            prev.GRNHeader.PurchaseOrderId == g.PurchaseOrderId &&

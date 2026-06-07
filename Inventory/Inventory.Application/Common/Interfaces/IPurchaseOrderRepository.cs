@@ -54,6 +54,7 @@ namespace Inventory.Application.Common.Interfaces
         Task<PORepoPrintResponse> GeneratePOReportPdfAsync(Guid id);
         Task<bool> ToggleDispatchStatusAsync(Guid id);
         Task<decimal> GetTotalReturnedQtyAsync(Guid poId);
+        Task<bool> ShortCloseOrderAsync(Guid id);
     }
 
     public interface IUnitOfWork

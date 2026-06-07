@@ -485,6 +485,17 @@ namespace Inventory.API.Controllers
             return Ok(result);
         }
 
+        [HttpPut("{id}/short-close")]
+        [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+        public async Task<IActionResult> ShortClose(Guid id)
+        {
+            var result = await _purchaseOrderRepository.ShortCloseOrderAsync(id);
+            if (result)
+                return Ok(new { success = true, message = "Purchase Order has been short-closed successfully." });
+
+            return NotFound(new { success = false, message = "Purchase Order not found." });
+        }
+
         [HttpPost("{id}/payments")]
         public async Task<IActionResult> MakePayment(Guid id, [FromBody] Inventory.Application.PurchaseOrders.Commands.MakePayment.RecordPurchasePaymentCommand command)
         {

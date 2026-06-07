@@ -110,8 +110,10 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         RejectedQty = totalRejected,
                         ReturnQty = totalReturned,
 
-                        // Pending = (Ordered - NetAccepted)
-                        PendingQty = Math.Max(0, item.Qty - netAccepted),
+                        // Pending = (Ordered - NetAccepted) (0 if Closed or Cancelled)
+                        PendingQty = (x.Status == "Closed" || x.Status == "ShortClosed" || x.Status == "Cancelled")
+                                     ? 0
+                                     : Math.Max(0, item.Qty - netAccepted),
                         ManufacturingDate = item.MfgDate,
                         ExpiryDate = item.ExpDate,
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,
@@ -164,8 +166,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     Remarks = x.Remarks,
                     IsDispatched = x.IsDispatched,
                     BranchId = x.BranchId,
-                    Status = x.Status == "Cancelled" 
-                             ? "Cancelled" 
+                    Status = (x.Status == "Cancelled" || x.Status == "Closed" || x.Status == "ShortClosed") 
+                             ? x.Status 
                              : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
                                  ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
                                      ? "Returned"
