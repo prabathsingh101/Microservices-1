@@ -5,5 +5,5 @@ using System.Text;
 
 namespace Inventory.Application.PurchaseOrders.Queries.GetNextPoNumber
 {
-    public record GetNextPoNumberQuery() : IRequest<string>;
+    public record GetNextPoNumberQuery(bool IsQuick = false) : IRequest<string>;
 }

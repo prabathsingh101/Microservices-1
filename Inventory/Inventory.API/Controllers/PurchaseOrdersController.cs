@@ -29,10 +29,10 @@ namespace Inventory.API.Controllers
 
         [HttpGet("next-number")]
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
-        public async Task<IActionResult> GetNextNumber()
+        public async Task<IActionResult> GetNextNumber([FromQuery] bool isQuick = false)
         {
             // MediatR command bhej raha hai handler ko
-            var result = await _mediator.Send(new GetNextPoNumberQuery());
+            var result = await _mediator.Send(new GetNextPoNumberQuery(isQuick));
             return Ok(new { poNumber = result });
         }
 

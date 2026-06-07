@@ -427,7 +427,8 @@ namespace Customers.Infrastructure.Repositories
                 ReceiptMode = r.ReceiptMode,
                 ReferenceNumber = r.ReferenceNumber,
                 Remarks = r.Remarks,
-                CreatedBy = r.CreatedBy
+                CreatedBy = r.CreatedBy,
+                TransactionType = r.Amount < 0 ? "Refund" : "Receipt"
             }).ToList();
 
             return new PaginatedListDto<ReceiptReportDto>
@@ -711,7 +712,8 @@ namespace Customers.Infrastructure.Repositories
                     ReceiptMode = r.ReceiptMode,
                     ReferenceNumber = r.ReferenceNumber,
                     Remarks = r.Remarks,
-                    CreatedBy = r.CreatedBy
+                    CreatedBy = r.CreatedBy,
+                    TransactionType = r.Amount < 0 ? "Refund" : "Receipt"
                 }).ToList();
             }
 

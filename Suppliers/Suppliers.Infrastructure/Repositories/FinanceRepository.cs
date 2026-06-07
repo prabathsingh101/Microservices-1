@@ -293,7 +293,8 @@ namespace Suppliers.Infrastructure.Repositories
                 PaymentMode = x.p.PaymentMode,
                 ReferenceNumber = x.p.ReferenceNumber,
                 Remarks = x.p.Remarks,
-                CreatedBy = x.p.CreatedBy
+                CreatedBy = x.p.CreatedBy,
+                TransactionType = x.p.TransactionType
             }).ToList();
 
             return new PaginatedListDto<PaymentReportDto>
@@ -375,6 +376,74 @@ namespace Suppliers.Infrastructure.Repositories
 
             // Check if this reference is already used as a PAYMENT specifically
             return await _context.SupplierPayments.AnyAsync(r => r.ReferenceNumber == referenceNumber && r.CompanyId == _companyId && (r.BranchId == null || string.IsNullOrEmpty(_branchId) || r.BranchId == _branchId));
+        }
+
+        public async Task<bool> DeletePaymentAsync(Guid id)
+        {
+            var payment = await _context.SupplierPayments.FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == _companyId);
+            
+            SupplierLedger? ledgerEntry = null;
+
+            if (payment == null)
+            {
+                // Try to check if the ID is a SupplierLedger.Id
+                ledgerEntry = await _context.SupplierLedgers.FirstOrDefaultAsync(l => l.Id == id && l.CompanyId == _companyId);
+                if (ledgerEntry != null)
+                {
+                    payment = await _context.SupplierPayments.FirstOrDefaultAsync(p => 
+                        p.SupplierId == ledgerEntry.SupplierId &&
+                        (p.ReferenceNumber == ledgerEntry.ReferenceId ||
+                         (string.IsNullOrEmpty(p.ReferenceNumber) && 
+                          (ledgerEntry.ReferenceId.StartsWith("PAY-") || ledgerEntry.ReferenceId.StartsWith("REF-")))) &&
+                        (p.Amount == ledgerEntry.Debit || p.Amount == ledgerEntry.Credit) &&
+                        p.CompanyId == _companyId);
+                }
+            }
+
+            if (payment == null && ledgerEntry == null) return false;
+
+            if (payment != null)
+            {
+                _context.SupplierPayments.Remove(payment);
+            }
+
+            if (ledgerEntry == null && payment != null)
+            {
+                var ledgerEntries = await _context.SupplierLedgers
+                    .Where(l => l.SupplierId == payment.SupplierId &&
+                                (l.Debit == payment.Amount || l.Credit == payment.Amount) &&
+                                l.CompanyId == _companyId)
+                    .ToListAsync();
+
+                ledgerEntry = ledgerEntries
+                    .OrderBy(l => l.ReferenceId == payment.ReferenceNumber ? 0 : 1)
+                    .ThenBy(l => Math.Abs((l.TransactionDate - payment.PaymentDate).TotalSeconds))
+                    .FirstOrDefault();
+            }
+
+            if (ledgerEntry != null)
+            {
+                var supplierId = ledgerEntry.SupplierId;
+                _context.SupplierLedgers.Remove(ledgerEntry);
+
+                await _context.SaveChangesAsync();
+
+                // Recalculate running balances for this supplier
+                var subsequentEntries = await _context.SupplierLedgers
+                    .Where(l => l.SupplierId == supplierId && l.CompanyId == _companyId)
+                    .OrderBy(l => l.CreatedOn)
+                    .ToListAsync();
+
+                decimal runningBalance = 0;
+                foreach (var entry in subsequentEntries)
+                {
+                    runningBalance = runningBalance + entry.Credit - entry.Debit;
+                    entry.Balance = runningBalance;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

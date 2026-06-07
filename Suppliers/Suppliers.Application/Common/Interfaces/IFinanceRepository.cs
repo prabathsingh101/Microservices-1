@@ -23,5 +23,6 @@ namespace Suppliers.Application.Common.Interfaces
         Task<Dictionary<Guid, decimal>> GetSupplierBalancesAsync(List<Guid> supplierIds);
         Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null);
         Task<bool> ReferenceExistsAsync(string referenceNumber);
+        Task<bool> DeletePaymentAsync(Guid id);
     }
 }

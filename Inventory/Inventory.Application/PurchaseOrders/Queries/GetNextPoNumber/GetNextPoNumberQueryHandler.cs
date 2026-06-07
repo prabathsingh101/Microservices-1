@@ -16,8 +16,12 @@ namespace Inventory.Application.Queries.GetNextPoNumber
 
         public async Task<string> Handle(GetNextPoNumberQuery request, CancellationToken cancellationToken)
         {
-            // 1. Database se last PO Number nikalein
+            // If request.IsQuick is true, prefix is "QPO", else "PO"
+            string prefix = request.IsQuick ? "QPO" : "PO";
+
+            // 1. Database se last PO Number nikalein jo matching prefix ke sath ho
             var lastPoNumber = await _context.PurchaseOrders
+                .Where(p => p.PoNumber.StartsWith(prefix + "/"))
                 .OrderByDescending(p => p.CreatedOn)
                 .Select(p => p.PoNumber)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -27,7 +31,7 @@ namespace Inventory.Application.Queries.GetNextPoNumber
             // 2. Agar koi purana PO mila hai toh uska number extract karein
             if (!string.IsNullOrEmpty(lastPoNumber))
             {
-                // Format assumed: PO/25-26/0001
+                // Format assumed: PREFIX/25-26/0001
                 var parts = lastPoNumber.Split('/');
                 if (parts.Length == 3 && int.TryParse(parts[2], out int lastId))
                 {
@@ -39,7 +43,7 @@ namespace Inventory.Application.Queries.GetNextPoNumber
             string finYear = "26-27";
 
             // 4. Final String return karein (D4 means 0001 format)
-            return $"PO/{finYear}/{nextId:D4}";
+            return $"{prefix}/{finYear}/{nextId:D4}";
         }
     }
 }

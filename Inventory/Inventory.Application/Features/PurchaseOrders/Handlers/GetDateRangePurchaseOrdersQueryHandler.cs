@@ -167,7 +167,9 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     Status = x.Status == "Cancelled" 
                              ? "Cancelled" 
                              : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
-                                 ? (items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received")
+                                 ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
+                                     ? "Returned"
+                                     : (items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received"))
                                  : x.Status,
                     GrnNumber = grnNumber,
                     GrnId = x.GrnHeaders?.FirstOrDefault()?.Id,

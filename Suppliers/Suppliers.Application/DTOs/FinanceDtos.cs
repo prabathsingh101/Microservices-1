@@ -74,6 +74,7 @@ namespace Suppliers.Application.DTOs
         public string? ReferenceNumber { get; set; }
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
+        public string? TransactionType { get; set; }
     }
 
     public class PaymentReportRequestDto

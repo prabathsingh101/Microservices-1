@@ -39,7 +39,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 var dto = request.PoData;
 
                 // Calling your existing PO generation logic
-                string generatedPoNumber = await _mediator.Send(new GetNextPoNumberQuery(), ct);
+                string generatedPoNumber = await _mediator.Send(new GetNextPoNumberQuery(dto.IsQuick), ct);
 
                 var po = new PurchaseOrder
                 {

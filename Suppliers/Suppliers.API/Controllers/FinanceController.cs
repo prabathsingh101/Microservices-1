@@ -164,5 +164,14 @@ namespace Suppliers.API.Controllers
             var result = await _mediator.Send(new GetMonthlyPaymentsTrendQuery(months, branchId));
             return Ok(result);
         }
+
+        [HttpDelete("payment/{id}")]
+        public async Task<IActionResult> DeletePayment(Guid id)
+        {
+            var command = new DeleteSupplierPaymentCommand(id);
+            var result = await _mediator.Send(command);
+            if (!result) return NotFound(new { message = "Payment not found or delete failed." });
+            return Ok(new { message = "Payment deleted and running balances recalculated successfully." });
+        }
     }
 }
