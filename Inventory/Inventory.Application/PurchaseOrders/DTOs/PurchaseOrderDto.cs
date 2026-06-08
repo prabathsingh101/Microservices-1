@@ -57,6 +57,7 @@ public class PurchaseOrderDto
     }
 
     public string? Remarks { get; set; }
+    public bool HasPendingRefund { get; set; }
     public string? BranchId { get; set; }
     public string? GrnNumber { get; set; }
     public Guid? GrnId { get; set; }

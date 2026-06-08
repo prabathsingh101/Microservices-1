@@ -770,6 +770,11 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     return false;
                 }
 
+                if (purchaseReturn.Status == "Refund" || purchaseReturn.Status == "Replaced")
+                {
+                    throw new Exception($"This Purchase Return has already been {purchaseReturn.Status.ToLower()}ed and cannot be cancelled.");
+                }
+
                 // Check if it already has a Gate Pass outwarded. If so, can we cancel it?
                 if (!string.IsNullOrEmpty(purchaseReturn.GatePassNo))
                 {

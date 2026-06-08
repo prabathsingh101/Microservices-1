@@ -167,6 +167,15 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     return refunded > 0;
                 });
 
+                var hasPendingRefund = items.Any(i => {
+                    var pendingRefund = _context.PurchaseReturnItems
+                        .Where(ri => ri.ProductId == i.ProductId && 
+                                     ri.PurchaseReturn.Status == "Confirmed" &&
+                                     _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
+                        .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+                    return pendingRefund > 0;
+                });
+
                 var isFulfillmentComplete = items.All(i => {
                     var refunded = _context.PurchaseReturnItems
                         .Where(ri => ri.ProductId == i.ProductId && 
@@ -193,6 +202,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     CreatedOn = x.CreatedOn ?? DateTime.MinValue,
                     ModifiedOn = x.ModifiedOn,
                     Remarks = x.Remarks,
+                    HasPendingRefund = hasPendingRefund,
                     IsDispatched = x.IsDispatched,
                     BranchId = x.BranchId,
                     Status = (x.Status == "Cancelled") 

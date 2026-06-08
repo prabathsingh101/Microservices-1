@@ -119,6 +119,15 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 };
             }).ToList();
 
+            var hasPendingRefund = items.Any(i => {
+                var pendingRefund = _context.PurchaseReturnItems
+                    .Where(ri => ri.ProductId == i.ProductId && 
+                                 ri.PurchaseReturn.Status == "Confirmed" &&
+                                 _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == po.Id))
+                    .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+                return pendingRefund > 0;
+            });
+
             return new PurchaseOrderDto
             {
                 Id = po.Id,
@@ -129,6 +138,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 PriceListId = po.PriceListId,
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 Remarks = po.Remarks,
+                HasPendingRefund = hasPendingRefund,
                 TotalQuantity = po.TotalQuantity,
                 TotalTax = po.TotalTax,
                 SubTotal= po.SubTotal,
