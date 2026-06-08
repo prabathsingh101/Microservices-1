@@ -430,15 +430,26 @@ namespace Inventory.Infrastructure.Repositories
             {
                 // NEW GRN MODE (Single or Bulk)
                 // 1. Fetch returns to check replacements
+                // BUG FIX: Pehle in POs ke liye valid GRN numbers nikalo, phir directly un GRN numbers
+                // se PurchaseReturnItems filter karo. Puraani query mein JOIN se Cartesian product
+                // banta tha (3 items × 3 GRN details = 3x inflated ReturnQty), isliye multi-item PO
+                // mein pending qty galat aa rahi thi.
+                var grnNumbersForPos = await _context.GRNHeaders
+                    .Where(gh => idList.Contains(gh.PurchaseOrderId) 
+                              && gh.CompanyId == companyId 
+                              && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId))
+                    .Select(gh => gh.GRNNumber)
+                    .Distinct()
+                    .ToListAsync();
+
                 var returnLookup = await _context.PurchaseReturnItems
-                    .Include(ri => ri.PurchaseReturn)
-                    .Where(ri => ri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId) 
-                              && ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled"
-                              && ri.PurchaseReturn.Items.Any(i => _context.GRNDetails.Any(gd => gd.ProductId == ri.ProductId && idList.Contains(gd.GRNHeader.PurchaseOrderId) && gd.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gd.BranchId == branchId))))
-                    .Join(_context.GRNDetails.Where(gd => gd.CompanyId == companyId), ri => ri.GrnRef, gd => gd.GRNHeader.GRNNumber, (ri, gd) => new { ri, gd })
-                    .Where(x => idList.Contains(x.gd.GRNHeader.PurchaseOrderId))
-                    .GroupBy(x => x.ri.ProductId)
-                    .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ri.ReturnQty) })
+                    .Where(ri => ri.CompanyId == companyId 
+                              && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId)
+                              && ri.PurchaseReturn.Status != "Cancelled" 
+                              && ri.PurchaseReturn.Status != "Canceled"
+                              && grnNumbersForPos.Contains(ri.GrnRef))
+                    .GroupBy(ri => ri.ProductId)
+                    .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReturnQty) })
                     .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
 
                 // 1.5. Fetch unsettled rejections to check replacements (even if no return was recorded)

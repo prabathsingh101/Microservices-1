@@ -143,6 +143,12 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         if (request.IsQuick.HasValue)
         {
             query = query.Where(x => x.IsQuick == request.IsQuick.Value);
+
+            // 🎯 ShortClosed POs hide karo Quick Purchase list se
+            if (request.IsQuick.Value)
+            {
+                query = query.Where(x => x.Status != "Closed");
+            }
         }
 
         // 1. GLOBAL SEARCH FIX (Including 'Received' status logic)
