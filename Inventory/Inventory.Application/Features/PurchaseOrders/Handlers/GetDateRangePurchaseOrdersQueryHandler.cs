@@ -105,6 +105,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     return new PurchaseOrderItemDto
                     {
                         Id = item.Id,
+                        ProductId = item.ProductId,
                         Qty = item.Qty, 
                         Unit = item.Unit,
                         Rate = item.Rate,
