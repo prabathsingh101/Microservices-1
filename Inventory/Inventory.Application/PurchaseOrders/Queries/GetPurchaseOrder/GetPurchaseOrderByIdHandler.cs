@@ -9,11 +9,13 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
     {
         private readonly IPurchaseOrderRepository _repository;
         private readonly ISupplierClient _supplierClient;
+        private readonly IInventoryDbContext _context;
 
-        public GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repository, ISupplierClient supplierClient)
+        public GetPurchaseOrderByIdHandler(IPurchaseOrderRepository repository, ISupplierClient supplierClient, IInventoryDbContext context)
         {
             _repository = repository;
             _supplierClient = supplierClient;
+            _context = context;
         }
 
         public async Task<PurchaseOrderDto?> Handle(GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
@@ -62,6 +64,61 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
             decimal actualPaidAmount = paidFromPO + paidFromGRN;
             // ----------------------------------
 
+            var items = po.Items.Select(i => 
+            {
+                var totalReturned = _context.PurchaseReturnItems
+                    .Where(ri => ri.ProductId == i.ProductId && 
+                                 ri.PurchaseReturn.Status != "Cancelled" && 
+                                 ri.PurchaseReturn.Status != "Canceled" &&
+                                 _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == po.Id))
+                    .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+
+                var totalRefunded = _context.PurchaseReturnItems
+                    .Where(ri => ri.ProductId == i.ProductId && 
+                                 ri.PurchaseReturn.Status == "Refund" &&
+                                 _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == po.Id))
+                    .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+
+                var grnSummary = _context.GRNDetails
+                    .Where(gd => gd.ProductId == i.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id)
+                    .Select(gd => new { gd.ReceivedQty, gd.RejectedQty, gd.IsSettled })
+                    .ToList();
+
+                var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty);
+                var totalRejected = grnSummary.Where(s => !s.IsSettled).Sum(s => s.RejectedQty);
+                if (totalAccepted < 0) totalAccepted = 0;
+
+                var netAccepted = Math.Max(0, totalAccepted - totalReturned);
+
+                decimal singleUnitValue = i.Qty > 0 ? (i.Total / i.Qty) : 0;
+                decimal itemReturnedValue = singleUnitValue * totalReturned;
+
+                return new PurchaseOrderItemDto
+                {
+                    Id = i.Id,
+                    ProductId = i.ProductId,
+                    ProductName = i.Product?.Name ?? "N/A",
+                    Qty = i.Qty,
+                    Unit = i.Unit,
+                    Rate = i.Rate,
+                    DiscountPercent = i.DiscountPercent,
+                    GstPercent = i.GstPercent,
+                    TaxAmount = i.TaxAmount,
+                    Total = i.Total,
+                    ManufacturingDate = i.MfgDate,
+                    ExpiryDate = i.ExpDate,
+                    IsExpiryRequired = i.Product != null ? i.Product.IsExpiryRequired : false,
+                    ReceivedQty = i.ReceivedQty - totalReturned,
+                    AcceptedQty = netAccepted,
+                    RejectedQty = totalRejected,
+                    ReturnQty = totalReturned,
+                    ReturnAmount = itemReturnedValue,
+                    PendingQty = (po.Status == "Closed" || po.Status == "ShortClosed" || po.Status == "Cancelled")
+                                 ? 0
+                                 : Math.Max(0, i.Qty - netAccepted - totalRefunded)
+                };
+            }).ToList();
+
             return new PurchaseOrderDto
             {
                 Id = po.Id,
@@ -77,25 +134,14 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 SubTotal= po.SubTotal,
                 GrandTotal = po.GrandTotal,
                 PaidAmount = actualPaidAmount,
-                Status = po.Status,
+                Status = (po.Status == "Cancelled")
+                         ? po.Status
+                         : (po.Status == "Closed" || po.Status == "ShortClosed")
+                             ? (items.Sum(i => i.ReturnQty) > 0 ? "ShortClosed" : "Closed")
+                             : po.Status,
                 BranchId = po.BranchId,
-                // .Select mapping ensures each item is converted properly
-                Items = po.Items.Select(i => new PurchaseOrderItemDto
-                {
-                    Id = i.Id,
-                    ProductId = i.ProductId, // Ensure this property in DB is not null
-                    ProductName = i.Product?.Name ?? "N/A",
-                    Qty = i.Qty,
-                    Unit = i.Unit,
-                    Rate = i.Rate,
-                    DiscountPercent = i.DiscountPercent,
-                    GstPercent = i.GstPercent,
-                    TaxAmount = i.TaxAmount,
-                    Total = i.Total,
-                    ManufacturingDate = i.MfgDate,
-                    ExpiryDate = i.ExpDate,
-                    IsExpiryRequired = i.Product != null ? i.Product.IsExpiryRequired : false
-                }).ToList()
+                Items = items,
+                TotalReturnedAmount = items.Sum(i => i.ReturnAmount)
             };
         }
     }

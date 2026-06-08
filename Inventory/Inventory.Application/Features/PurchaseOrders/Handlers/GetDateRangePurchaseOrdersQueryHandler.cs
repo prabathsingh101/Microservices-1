@@ -83,6 +83,13 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
 
+                    // Fetch total refunded quantity for this specific PO item
+                    var totalRefunded = _context.PurchaseReturnItems
+                        .Where(ri => ri.ProductId == item.ProductId && 
+                                     ri.PurchaseReturn.Status == "Refund" &&
+                                     _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
+                        .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+
                     // Dynamic calculation: Accepted = Received - Rejected (Returns are tracked separately and shouldn't reduce accepted if they were already rejected)
                     var totalAccepted = grnSummary.Sum(s => s.ReceivedQty - s.RejectedQty);
                     var totalRejected = grnSummary.Where(s => !s.IsSettled).Sum(s => s.RejectedQty);
@@ -91,6 +98,9 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     var netAccepted = Math.Max(0, totalAccepted - totalReturned);
 
                     var isAlreadyPurged = grnSummary.Any() && grnSummary.All(s => s.ReceivedQty == 0 && s.RejectedQty == 0) && purgedProductIds.Contains(item.ProductId);
+
+                    decimal singleUnitValue = item.Qty > 0 ? (item.Total / item.Qty) : 0;
+                    decimal itemReturnedValue = singleUnitValue * totalReturned;
 
                     return new PurchaseOrderItemDto
                     {
@@ -109,11 +119,12 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         AcceptedQty = netAccepted,
                         RejectedQty = totalRejected,
                         ReturnQty = totalReturned,
+                        ReturnAmount = itemReturnedValue,
 
-                        // Pending = (Ordered - NetAccepted) (0 if Closed or Cancelled)
+                        // Pending = (Ordered - NetAccepted - Refunded) (0 if Closed or Cancelled)
                         PendingQty = (x.Status == "Closed" || x.Status == "ShortClosed" || x.Status == "Cancelled")
                                      ? 0
-                                     : Math.Max(0, item.Qty - netAccepted),
+                                     : Math.Max(0, item.Qty - netAccepted - totalRefunded),
                         ManufacturingDate = item.MfgDate,
                         ExpiryDate = item.ExpDate,
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,
@@ -147,6 +158,24 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 decimal totalBilled = x.GrnHeaders != null ? x.GrnHeaders.Where(g => g.Status != "Cancelled").Sum(g => g.TotalAmount) : 0;
                 decimal actualPaidAmount = paidFromPO + paidFromGRN;
 
+                var hasRefund = items.Any(i => {
+                    var refunded = _context.PurchaseReturnItems
+                        .Where(ri => ri.ProductId == i.ProductId && 
+                                     ri.PurchaseReturn.Status == "Refund" &&
+                                     _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
+                        .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+                    return refunded > 0;
+                });
+
+                var isFulfillmentComplete = items.All(i => {
+                    var refunded = _context.PurchaseReturnItems
+                        .Where(ri => ri.ProductId == i.ProductId && 
+                                     ri.PurchaseReturn.Status == "Refund" &&
+                                     _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
+                        .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
+                    return (i.ReceivedQty + refunded) >= i.Qty;
+                });
+
                 return new PurchaseOrderDto
                 {
                     Id = x.Id,
@@ -166,13 +195,15 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     Remarks = x.Remarks,
                     IsDispatched = x.IsDispatched,
                     BranchId = x.BranchId,
-                    Status = (x.Status == "Cancelled" || x.Status == "Closed" || x.Status == "ShortClosed") 
+                    Status = (x.Status == "Cancelled") 
                              ? x.Status 
-                             : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
-                                 ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
-                                     ? "Returned"
-                                     : (items.All(i => i.ReceivedQty >= i.Qty) ? "Received" : "Partially Received"))
-                                 : x.Status,
+                             : (x.Status == "Closed" || x.Status == "ShortClosed")
+                                 ? (items.Sum(i => i.ReturnQty) > 0 ? "ShortClosed" : "Closed")
+                                 : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
+                                     ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
+                                         ? "Returned"
+                                         : (isFulfillmentComplete ? (hasRefund ? "ShortClosed" : "Received") : "Partially Received"))
+                                     : x.Status,
                     GrnNumber = grnNumber,
                     GrnId = x.GrnHeaders?.FirstOrDefault()?.Id,
 
@@ -181,7 +212,8 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     TotalReceived = items.Sum(i => i.ReceivedQty),
                     TotalAccepted = items.Sum(i => i.AcceptedQty),
                     TotalRejected = items.Sum(i => i.RejectedQty),
-                    TotalReturned = items.Sum(i => i.ReturnQty)
+                    TotalReturned = items.Sum(i => i.ReturnQty),
+                    TotalReturnedAmount = items.Sum(i => i.ReturnAmount)
                 };
             }).ToList();
 

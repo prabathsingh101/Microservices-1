@@ -250,31 +250,82 @@ namespace Inventory.Infrastructure.Repositories
                         }
                     }
 
-                    // 5. Update PO Status via RAW SQL
-                    // FIX: Use Net Accepted Qty (ReceivedQty - RejectedQty) to determine if truly fully received
+                    // 5. Update PO Status
                     if (po != null)
                     {
-                        // First check if there are any rejections
-                        var hasRejections = details.Any(d => d.RejectedQty > 0);
-                        
-                        if (hasRejections)
+                        var grnRefsOfPo = await _context.GRNHeaders
+                            .Where(g => g.PurchaseOrderId == po.Id && g.CompanyId == header.CompanyId)
+                            .Select(g => g.GRNNumber)
+                            .ToListAsync();
+
+                        var returnItemsOfPo = await _context.PurchaseReturnItems
+                            .Include(ri => ri.PurchaseReturn)
+                            .Where(ri => ri.PurchaseReturn.Status != "Cancelled" &&
+                                         ri.PurchaseReturn.Status != "Canceled" &&
+                                         ri.CompanyId == header.CompanyId &&
+                                         grnRefsOfPo.Contains(ri.GrnRef))
+                            .ToListAsync();
+
+                        decimal totalReturned = returnItemsOfPo.Sum(ri => ri.ReturnQty);
+                        decimal totalRefunded = returnItemsOfPo
+                            .Where(ri => ri.PurchaseReturn.Status == "Refund")
+                            .Sum(ri => ri.ReturnQty);
+
+                        decimal totalRejected = await _context.GRNDetails
+                            .Where(gd => gd.GRNHeader.PurchaseOrderId == po.Id && !gd.IsSettled && gd.CompanyId == header.CompanyId)
+                            .SumAsync(gd => gd.RejectedQty);
+
+                        var freshItems = await _context.PurchaseOrderItems
+                            .AsNoTracking()
+                            .Where(x => x.PurchaseOrderId == po.Id && x.CompanyId == header.CompanyId)
+                            .ToListAsync();
+
+                        decimal totalOrdered = freshItems.Sum(x => x.Qty);
+                        decimal totalReceived = freshItems.Sum(x => x.ReceivedQty);
+
+                        decimal totalAccepted = totalReceived - totalRejected - totalReturned;
+                        decimal totalPending = Math.Max(0, totalOrdered - totalAccepted - totalRefunded);
+
+                        if (totalPending == 0)
                         {
-                            // With rejections: mark as Partially Received + reset isDispatched
-                            // Supplier must dispatch again for replacements (strict workflow)
-                            await _context.Database.ExecuteSqlRawAsync(
-                                @"UPDATE PurchaseOrders SET Status = 'Partially Received', IsDispatched = 0
-                                  WHERE Id = {0} AND CompanyId = {1}",
-                                header.PurchaseOrderId, header.CompanyId);
+                            po.Status = totalRefunded > 0 ? "ShortClosed" : "Received";
                         }
                         else
                         {
-                            // No rejections: update to Received only if all items fully received
-                            await _context.Database.ExecuteSqlRawAsync(
-                                @"UPDATE PurchaseOrders SET Status = 'Received', CompanyId = COALESCE(CompanyId, {0}) 
-                                  WHERE Id = {1} AND CompanyId = {0} AND NOT EXISTS (SELECT 1 FROM PurchaseOrderItems WHERE PurchaseOrderId = {1} AND ReceivedQty < Qty AND CompanyId = {0})",
-                                header.CompanyId, header.PurchaseOrderId);
+                            po.Status = "Partially Received";
+                            po.IsDispatched = false; // Reset dispatch so supplier must dispatch remaining/replacements again
+                        }
+
+                        _context.PurchaseOrders.Update(po);
+
+                        // Update PurchaseReturn status to "Replaced" if this GRN contains replacements
+                        var replacedProductIds = details.Where(d => d.IsReplacement).Select(d => d.ProductId).ToList();
+                        if (replacedProductIds.Any())
+                        {
+                            var grnNumbersOfPo = await _context.GRNHeaders
+                                .Where(gh => gh.PurchaseOrderId == header.PurchaseOrderId && gh.CompanyId == header.CompanyId)
+                                .Select(gh => gh.GRNNumber)
+                                .ToListAsync();
+
+                            if (grnNumbersOfPo.Any())
+                            {
+                                var prsToReplace = await _context.PurchaseReturns
+                                    .Include(pr => pr.Items)
+                                    .Where(pr => pr.Status == "Confirmed" && pr.CompanyId == header.CompanyId &&
+                                                 pr.Items.Any(pri => replacedProductIds.Contains(pri.ProductId) && grnNumbersOfPo.Contains(pri.GrnRef)))
+                                    .ToListAsync();
+
+                                foreach (var pr in prsToReplace)
+                                {
+                                    pr.Status = "Replaced";
+                                    pr.ModifiedOn = DateTime.Now;
+                                    pr.ModifiedBy = header.CreatedBy ?? "System";
+                                    _context.PurchaseReturns.Update(pr);
+                                }
+                            }
                         }
                     }
+
 
                     // 6. Update Gate Pass Status
                     if (!string.IsNullOrEmpty(header.GatePassNo))
@@ -447,6 +498,8 @@ namespace Inventory.Infrastructure.Repositories
                               && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId)
                               && ri.PurchaseReturn.Status != "Cancelled" 
                               && ri.PurchaseReturn.Status != "Canceled"
+                              && ri.PurchaseReturn.Status != "Refund"
+                              && ri.PurchaseReturn.Status != "Replaced"
                               && grnNumbersForPos.Contains(ri.GrnRef))
                     .GroupBy(ri => ri.ProductId)
                     .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReturnQty) })

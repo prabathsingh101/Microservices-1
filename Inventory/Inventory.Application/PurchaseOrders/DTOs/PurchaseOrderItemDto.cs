@@ -17,6 +17,7 @@ public class PurchaseOrderItemDto
     public decimal AcceptedQty {  get; set; }
     public decimal RejectedQty {  get; set; }
     public decimal ReturnQty { get; set; }
+    public decimal ReturnAmount { get; set; }
     public DateTime? ManufacturingDate { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public bool IsExpiryRequired { get; set; }

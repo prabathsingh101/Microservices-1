@@ -907,4 +907,242 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             }
         });
     }
+
+    public async Task<bool> CompleteRefundAsync(Guid? poId, string? poNumber, Guid? purchaseReturnId, string? purchaseReturnNumber)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var prsToUpdate = new List<Inventory.Domain.Entities.PurchaseReturn>();
+                var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+
+                if (purchaseReturnId.HasValue && purchaseReturnId != Guid.Empty)
+                {
+                    var pr = await _context.PurchaseReturns.FirstOrDefaultAsync(x => x.Id == purchaseReturnId.Value && x.CompanyId == companyId);
+                    if (pr != null) prsToUpdate.Add(pr);
+                }
+                else if (!string.IsNullOrEmpty(purchaseReturnNumber))
+                {
+                    var pr = await _context.PurchaseReturns.FirstOrDefaultAsync(x => x.ReturnNumber == purchaseReturnNumber && x.CompanyId == companyId);
+                    if (pr != null) prsToUpdate.Add(pr);
+                }
+                else if (poId.HasValue && poId != Guid.Empty)
+                {
+                    var grnNumbers = await _context.GRNHeaders
+                        .Where(g => g.PurchaseOrderId == poId.Value && g.CompanyId == companyId)
+                        .Select(g => g.GRNNumber)
+                        .ToListAsync();
+
+                    if (grnNumbers.Any())
+                    {
+                        var prIds = await _context.PurchaseReturnItems
+                            .Where(ri => grnNumbers.Contains(ri.GrnRef) && ri.CompanyId == companyId)
+                            .Select(ri => ri.PurchaseReturnId)
+                            .Distinct()
+                            .ToListAsync();
+
+                        prsToUpdate = await _context.PurchaseReturns
+                            .Where(pr => prIds.Contains(pr.Id) && pr.Status == "Confirmed" && pr.CompanyId == companyId)
+                            .ToListAsync();
+                    }
+                }
+                else if (!string.IsNullOrEmpty(poNumber))
+                {
+                    var po = await _context.PurchaseOrders.FirstOrDefaultAsync(p => p.PoNumber == poNumber && p.CompanyId == companyId);
+                    if (po != null)
+                    {
+                        var grnNumbers = await _context.GRNHeaders
+                            .Where(g => g.PurchaseOrderId == po.Id && g.CompanyId == companyId)
+                            .Select(g => g.GRNNumber)
+                            .ToListAsync();
+
+                        if (grnNumbers.Any())
+                        {
+                            var prIds = await _context.PurchaseReturnItems
+                                .Where(ri => grnNumbers.Contains(ri.GrnRef) && ri.CompanyId == companyId)
+                                .Select(ri => ri.PurchaseReturnId)
+                                .Distinct()
+                                .ToListAsync();
+
+                            prsToUpdate = await _context.PurchaseReturns
+                                .Where(pr => prIds.Contains(pr.Id) && pr.Status == "Confirmed" && pr.CompanyId == companyId)
+                                .ToListAsync();
+                        }
+                    }
+                }
+
+                foreach (var pr in prsToUpdate)
+                {
+                    pr.Status = "Refund";
+                    pr.ModifiedOn = DateTime.Now;
+                    pr.ModifiedBy = _currentUserService.Email ?? "System";
+                    _context.PurchaseReturns.Update(pr);
+                }
+
+                var poIdsToUpdate = new List<Guid>();
+                if (poId.HasValue && poId != Guid.Empty)
+                {
+                    poIdsToUpdate.Add(poId.Value);
+                }
+                else
+                {
+                    var updatedPrIds = prsToUpdate.Select(p => p.Id).ToList();
+                    if (updatedPrIds.Any())
+                    {
+                        var grnRefs = await _context.PurchaseReturnItems
+                            .Where(ri => updatedPrIds.Contains(ri.PurchaseReturnId) && ri.CompanyId == companyId)
+                            .Select(ri => ri.GrnRef)
+                            .Distinct()
+                            .ToListAsync();
+
+                        if (grnRefs.Any())
+                        {
+                            var poIds = await _context.GRNHeaders
+                                .Where(g => grnRefs.Contains(g.GRNNumber) && g.CompanyId == companyId)
+                                .Select(g => g.PurchaseOrderId)
+                                .Distinct()
+                                .ToListAsync();
+
+                            poIdsToUpdate.AddRange(poIds);
+                        }
+                    }
+                }
+
+                poIdsToUpdate = poIdsToUpdate.Distinct().ToList();
+
+                foreach (var pId in poIdsToUpdate)
+                {
+                    var po = await _context.PurchaseOrders
+                        .Include(p => p.Items)
+                        .Include(p => p.GrnHeaders)
+                        .ThenInclude(h => h.GRNItems)
+                        .FirstOrDefaultAsync(p => p.Id == pId && p.CompanyId == companyId);
+
+                    if (po != null)
+                    {
+                        var grnRefsOfPo = po.GrnHeaders.Select(g => g.GRNNumber).ToList();
+                        var returnItemsOfPo = await _context.PurchaseReturnItems
+                            .Include(ri => ri.PurchaseReturn)
+                            .Where(ri => ri.PurchaseReturn.Status != "Cancelled" &&
+                                         ri.PurchaseReturn.Status != "Canceled" &&
+                                         ri.CompanyId == companyId &&
+                                         grnRefsOfPo.Contains(ri.GrnRef))
+                            .ToListAsync();
+
+                        po.TotalRejected = po.GrnHeaders
+                            .SelectMany(h => h.GRNItems ?? new List<GRNDetail>())
+                            .Where(gd => !gd.IsSettled)
+                            .Sum(gd => gd.RejectedQty);
+
+                        po.TotalReturned = returnItemsOfPo.Sum(ri => ri.ReturnQty);
+                        decimal totalRefunded = returnItemsOfPo
+                            .Where(ri => ri.PurchaseReturn.Status == "Refund")
+                            .Sum(ri => ri.ReturnQty);
+
+                        decimal totalOrdered = po.Items.Sum(x => x.Qty);
+                        decimal totalReceived = po.Items.Sum(x => x.ReceivedQty);
+                        decimal totalAccepted = totalReceived - po.TotalRejected - po.TotalReturned;
+                        decimal totalPending = Math.Max(0, totalOrdered - totalAccepted - totalRefunded);
+
+                        if (totalPending == 0)
+                        {
+                            po.Status = totalRefunded > 0 ? "ShortClosed" : "Closed";
+                        }
+                        else
+                        {
+                            po.Status = "Partially Received";
+                        }
+
+                        po.ModifiedOn = DateTime.Now;
+                        po.ModifiedBy = _currentUserService.Email ?? "System";
+                        _context.PurchaseOrders.Update(po);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"Error in CompleteRefundAsync: {ex.Message}");
+                throw;
+            }
+        });
+    }
+
+    public async Task<List<PoPendingRefundDto>> GetPendingRefundsByPoIdAsync(Guid poId)
+    {
+        var companyId = _currentUserService.CompanyId ?? Guid.Empty;
+
+        // 1. Get all GRN Numbers for the PO
+        var grnNumbers = await _context.GRNHeaders
+            .Where(g => g.PurchaseOrderId == poId && g.CompanyId == companyId)
+            .Select(g => g.GRNNumber)
+            .ToListAsync();
+
+        if (!grnNumbers.Any())
+        {
+            return new List<PoPendingRefundDto>();
+        }
+
+        // 2. Find all Confirmed Purchase Returns that contain items referencing these GRNs
+        var prs = await _context.PurchaseReturns
+            .Include(pr => pr.Items)
+            .Where(pr => pr.Status == "Confirmed" &&
+                         pr.CompanyId == companyId &&
+                         pr.Items.Any(item => grnNumbers.Contains(item.GrnRef)))
+            .ToListAsync();
+
+        var result = new List<PoPendingRefundDto>();
+
+        foreach (var pr in prs)
+        {
+            var dto = new PoPendingRefundDto
+            {
+                PurchaseReturnId = pr.Id,
+                ReturnNumber = pr.ReturnNumber,
+                ReturnDate = pr.ReturnDate,
+                Remarks = pr.Remarks ?? ""
+            };
+
+            foreach (var item in pr.Items)
+            {
+                // Only include item if it belongs to this PO's GRNs
+                if (grnNumbers.Contains(item.GrnRef))
+                {
+                    // Fetch product name
+                    var product = await _context.Products
+                        .Where(p => p.Id == item.ProductId && p.CompanyId == companyId)
+                        .Select(p => p.Name)
+                        .FirstOrDefaultAsync();
+
+                    dto.Items.Add(new PoPendingRefundItemDto
+                    {
+                        PurchaseReturnId = pr.Id,
+                        PurchaseReturnNumber = pr.ReturnNumber,
+                        ProductId = item.ProductId,
+                        ProductName = product ?? "N/A",
+                        ReturnQty = item.ReturnQty,
+                        Rate = item.Rate,
+                        GstPercent = item.GstPercent,
+                        DiscountPercent = item.DiscountPercent,
+                        TotalAmount = item.TotalAmount
+                    });
+                }
+            }
+
+            if (dto.Items.Any())
+            {
+                result.Add(dto);
+            }
+        }
+
+        return result;
+    }
 }
+

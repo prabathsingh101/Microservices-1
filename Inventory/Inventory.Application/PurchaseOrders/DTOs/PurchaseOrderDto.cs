@@ -29,9 +29,21 @@ public class PurchaseOrderDto
     public decimal TotalAccepted { get; set; }
     public decimal TotalRejected { get; set; }
     public decimal TotalReturned { get; set; }
+    public decimal TotalReturnedAmount { get; set; }
     public decimal TotalBilled { get; set; }
     public decimal PaidAmount { get; set; }
-    public decimal DueAmount => (Status == "Cancelled" || Status == "Canceled" || Status == "Void") ? 0 : ((Status == "Received" && TotalBilled > 0) ? (TotalBilled - PaidAmount) : (GrandTotal - PaidAmount));
+    public decimal DueAmount
+    {
+        get
+        {
+            if (Status == "Cancelled" || Status == "Canceled" || Status == "Void")
+            {
+                return 0;
+            }
+            decimal baseAmount = (Status == "Received" && TotalBilled > 0) ? TotalBilled : GrandTotal;
+            return Math.Max(0, baseAmount - TotalReturnedAmount - PaidAmount);
+        }
+    }
     public string PaymentStatus
     {
         get

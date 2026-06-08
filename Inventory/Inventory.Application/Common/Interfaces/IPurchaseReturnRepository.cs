@@ -38,4 +38,7 @@ public interface IPurchaseReturnRepository
     Task<PurchaseReturnSummaryDto> GetPurchaseReturnSummaryAsync(bool isQuick = false);
     Task<bool> BulkOutwardAsync(List<Guid> ids);
     Task<bool> CancelPurchaseReturnAsync(Guid id, string? reason);
+    Task<bool> CompleteRefundAsync(Guid? poId, string? poNumber, Guid? purchaseReturnId, string? purchaseReturnNumber);
+    Task<List<PoPendingRefundDto>> GetPendingRefundsByPoIdAsync(Guid poId);
 }
+

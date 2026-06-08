@@ -286,5 +286,48 @@ namespace Inventory.API.Controllers
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        public class CompleteRefundDto
+        {
+            public Guid? PoId { get; set; }
+            public string? PoNumber { get; set; }
+            public Guid? PurchaseReturnId { get; set; }
+            public string? PurchaseReturnNumber { get; set; }
+        }
+
+        [HttpPut("complete-refund")]
+        [Authorize]
+        public async Task<IActionResult> CompleteRefund([FromBody] CompleteRefundDto dto)
+        {
+            try
+            {
+                var success = await _repository.CompleteRefundAsync(dto.PoId, dto.PoNumber, dto.PurchaseReturnId, dto.PurchaseReturnNumber);
+                if (success)
+                {
+                    return Ok(new { success = true, message = "Refund completed successfully." });
+                }
+                return BadRequest(new { success = false, message = "Failed to complete refund." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("pending-refunds/po/{poId}")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+        public async Task<IActionResult> GetPendingRefundsByPoId(Guid poId)
+        {
+            try
+            {
+                var result = await _repository.GetPendingRefundsByPoIdAsync(poId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "Error fetching pending refunds for PO", error = ex.Message });
+            }
+        }
     }
 }
+
