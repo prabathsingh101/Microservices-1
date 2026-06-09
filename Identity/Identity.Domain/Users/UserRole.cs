@@ -5,7 +5,7 @@ namespace Identity.Domain.Users;
 
 public class UserRole : AuditableEntity, Identity.Domain.Common.IMultiTenant
 {
-    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid Id { get; private set; }
 
     public Guid UserId { get; private set; }
     public Guid RoleId { get; private set; }

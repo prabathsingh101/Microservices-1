@@ -120,6 +120,11 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
         }
     }
 
+    public void ClearRolesCollection()
+    {
+        _userRoles.Clear();
+    }
+
     public void SetActive(bool isActive)
     {
         IsActive = isActive;

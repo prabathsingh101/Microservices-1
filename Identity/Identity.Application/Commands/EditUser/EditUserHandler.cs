@@ -54,7 +54,20 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
         // Update Roles
         if (request.RoleIds != null)
         {
-            user.UpdateRoles(request.RoleIds);
+            // 1. Detach tracked UserRole entities to prevent EF Core from trying to update/delete them
+            await _userRepository.DetachUserRolesAsync(user.Id);
+
+            // 2. Clear roles from database directly
+            await _userRepository.ClearRolesAsync(user.Id);
+
+            // 3. Clear in-memory tracked collection
+            user.ClearRolesCollection();
+
+            // 4. Assign new roles as fresh entries (forcing INSERT statements as Id is Guid.Empty)
+            foreach (var roleId in request.RoleIds)
+            {
+                user.AssignRole(roleId);
+            }
         }
 
         // Update Password if provided (Optional during edit)

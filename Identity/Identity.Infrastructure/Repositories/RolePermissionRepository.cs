@@ -165,29 +165,34 @@ public class RolePermissionRepository : IRolePermissionRepository
                 ? dbPermissions.Where(rp => rp.UserId == userId.Value && rp.MenuId == menuId).ToList()
                 : new List<RolePermission>();
 
-            RolePermission? bestUserPerm = null;
-            if (userSpecificsForMenu.Any())
-            {
-                bestUserPerm = GetBestPermission(userSpecificsForMenu);
-            }
+            var bestUserPerms = userSpecificsForMenu
+                .GroupBy(rp => rp.RoleId)
+                .Select(g => GetBestPermission(g))
+                .Where(p => p != null)
+                .Cast<RolePermission>()
+                .ToList();
 
-            if (bestUserPerm != null)
+            if (bestUserPerms.Any())
             {
-                var actions = !string.IsNullOrEmpty(bestUserPerm.AdditionalActions)
-                    ? bestUserPerm.AdditionalActions.Split(',').Select(a => a.Trim()).Distinct().ToList()
-                    : new List<string>();
+                var actions = bestUserPerms
+                    .Where(x => !string.IsNullOrEmpty(x.AdditionalActions))
+                    .SelectMany(x => x.AdditionalActions!.Split(','))
+                    .Select(a => a.Trim())
+                    .Distinct()
+                    .ToList();
 
                 var additionalActionsStr = actions.Any() ? string.Join(",", actions) : null;
+                var firstUserPerm = bestUserPerms.First();
 
                 resultList.Add(new Application.DTOs.UserPermissionDto
                 {
                     MenuId = menuId,
-                    MenuName = bestUserPerm.Menu?.Title ?? string.Empty,
-                    ActionCode = bestUserPerm.Menu?.Url ?? string.Empty, 
-                    CanView = bestUserPerm.CanView,
-                    CanAdd = bestUserPerm.CanAdd,
-                    CanEdit = bestUserPerm.CanEdit,
-                    CanDelete = bestUserPerm.CanDelete,
+                    MenuName = firstUserPerm.Menu?.Title ?? string.Empty,
+                    ActionCode = firstUserPerm.Menu?.Url ?? string.Empty, 
+                    CanView = bestUserPerms.Any(x => x.CanView),
+                    CanAdd = bestUserPerms.Any(x => x.CanAdd),
+                    CanEdit = bestUserPerms.Any(x => x.CanEdit),
+                    CanDelete = bestUserPerms.Any(x => x.CanDelete),
                     AdditionalActions = additionalActionsStr
                 });
             }

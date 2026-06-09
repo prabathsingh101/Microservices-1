@@ -151,10 +151,25 @@ public class UserRepository : IUserRepository
         }
     }
 
+    public Task DetachUserRolesAsync(Guid userId)
+    {
+        var trackedUserRoles = _context.ChangeTracker.Entries<UserRole>()
+            .Where(e => e.Entity.UserId == userId)
+            .ToList();
+        foreach (var entry in trackedUserRoles)
+        {
+            entry.State = EntityState.Detached;
+        }
+        return Task.CompletedTask;
+    }
+
+
+
     public async Task UpdateAsync(User user)
     {
         try
         {
+            _context.IgnoreCompanyFilter = true;
             await _context.SaveChangesAsync();
         }
         catch (DbUpdateConcurrencyException)
@@ -170,6 +185,10 @@ public class UserRepository : IUserRepository
             // In some EF versions, SaveChanges with IgnoreQueryFilters on the query side 
             // isn't enough; we might need to verify the user exists globally.
             await _context.SaveChangesAsync();
+        }
+        finally
+        {
+            _context.IgnoreCompanyFilter = false;
         }
     }
     public async Task DeleteAsync(Guid id)

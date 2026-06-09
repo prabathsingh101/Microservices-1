@@ -21,6 +21,8 @@ public class IdentityDbContext : DbContext
         _currentUserService = currentUserService;
     }
 
+    public bool IgnoreCompanyFilter { get; set; }
+
     private bool _isPlatformAdmin => _currentUserService.IsPlatformAdmin;
     private string? _currentBranchId => _currentUserService.BranchId;
     private Guid? _currentCompanyId => _currentUserService.CompanyId;
@@ -123,15 +125,15 @@ public class IdentityDbContext : DbContext
 
         // 🛡️ MULTI-TENANT GLOBAL QUERY FILTER
         builder.Entity<User>().HasQueryFilter(u =>
-            _isPlatformAdmin ? true : u.CompanyId == _currentCompanyId
+            IgnoreCompanyFilter || _isPlatformAdmin ? true : u.CompanyId == _currentCompanyId
         );
 
         builder.Entity<PermissionAuditLog>().HasQueryFilter(pal =>
-            _isPlatformAdmin ? true : pal.CompanyId == _currentCompanyId
+            IgnoreCompanyFilter || _isPlatformAdmin ? true : pal.CompanyId == _currentCompanyId
         );
 
         builder.Entity<Subscription>().HasQueryFilter(s =>
-            _isPlatformAdmin ? true : s.CompanyId == _currentCompanyId
+            IgnoreCompanyFilter || _isPlatformAdmin ? true : s.CompanyId == _currentCompanyId
         );
     }
 
