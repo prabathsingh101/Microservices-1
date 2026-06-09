@@ -14,15 +14,18 @@ namespace Identity.API.Controllers
         private readonly IdentityDbContext _context;
         private readonly IOnboardingService _onboardingService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IConfiguration _configuration;
 
         public SubscriptionsController(
             IdentityDbContext context, 
             IOnboardingService onboardingService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IConfiguration configuration)
         {
             _context = context;
             _onboardingService = onboardingService;
             _currentUserService = currentUserService;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -31,8 +34,8 @@ namespace Identity.API.Controllers
             var companyId = _currentUserService.CompanyId;
             var query = _context.Subscriptions.AsQueryable();
 
-            // 🚀 TENANT ISOLATION: If not Super Admin, only show own subscription
-            if (!_currentUserService.IsSuperAdmin && companyId != null && companyId != Guid.Empty)
+            // 🚀 TENANT ISOLATION: If not Super Admin AND not Platform Admin, only show own subscription
+            if (!_currentUserService.IsSuperAdmin && !_currentUserService.IsPlatformAdmin && companyId != null && companyId != Guid.Empty)
             {
                 query = query.Where(s => s.CompanyId == companyId);
             }
@@ -83,8 +86,9 @@ namespace Identity.API.Controllers
         {
             try
             {
-                // TODO: Replace with actual Razorpay Key and Secret from configuration
-                var client = new Razorpay.Api.RazorpayClient("rzp_test_SpVYOgRSFdK7do", "BKIl4idzixEF0dH4lcQzkP66");
+                var keyId = _configuration["Razorpay:KeyId"] ?? "rzp_test_SpVYOgRSFdK7do";
+                var keySecret = _configuration["Razorpay:KeySecret"] ?? "BKIl4idzixEF0dH4lcQzkP66";
+                var client = new Razorpay.Api.RazorpayClient(keyId, keySecret);
                 
                 var options = new Dictionary<string, object>
                 {
@@ -94,7 +98,7 @@ namespace Identity.API.Controllers
                 };
 
                 var order = client.Order.Create(options);
-                return Ok(new { OrderId = order["id"].ToString() });
+                return Ok(new { OrderId = order["id"].ToString(), RazorpayKey = keyId });
             }
             catch (Exception ex)
             {
@@ -107,15 +111,24 @@ namespace Identity.API.Controllers
         {
             try
             {
-                // Verify Razorpay Signature
-                string secret = "BKIl4idzixEF0dH4lcQzkP66";
+                // Verify Razorpay Signature using HMAC-SHA256
+                string secret = _configuration["Razorpay:KeySecret"] ?? "BKIl4idzixEF0dH4lcQzkP66";
                 string payload = dto.OrderId + "|" + dto.PaymentId;
-                // Signature verification is handled by the SDK utility if configured, 
-                // but for now we proceed with the transaction update logic.
+                
+                using (var hmac = new System.Security.Cryptography.HMACSHA256(System.Text.Encoding.UTF8.GetBytes(secret)))
+                {
+                    var hashBytes = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload));
+                    var hashHex = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                    
+                    if (hashHex != dto.Signature.ToLower())
+                    {
+                        return BadRequest(new { Success = false, Message = "Invalid payment signature." });
+                    }
+                }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                // return BadRequest(new { Success = false, Message = "Invalid payment signature" });
+                return BadRequest(new { Success = false, Message = "Invalid payment signature: " + ex.Message });
             }
 
             var subscription = await _context.Subscriptions

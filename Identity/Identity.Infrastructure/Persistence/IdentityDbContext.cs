@@ -13,20 +13,18 @@ namespace Identity.Infrastructure.Persistence;
 
 public class IdentityDbContext : DbContext
 {
-    private readonly bool _isPlatformAdmin;
-    private readonly string? _currentBranchId;
-    private readonly Guid? _currentCompanyId;
-    private readonly string? _currentUserId;
+    private readonly ICurrentUserService _currentUserService;
 
     public IdentityDbContext(DbContextOptions<IdentityDbContext> options, ICurrentUserService currentUserService)
         : base(options)
     {
-        // 🛡️ CAPTURE values here for stable Global Query Filter evaluation
-        _isPlatformAdmin = currentUserService.IsPlatformAdmin;
-        _currentBranchId = currentUserService.BranchId;
-        _currentCompanyId = currentUserService.CompanyId;
-        _currentUserId = currentUserService.UserId?.ToString();
+        _currentUserService = currentUserService;
     }
+
+    private bool _isPlatformAdmin => _currentUserService.IsPlatformAdmin;
+    private string? _currentBranchId => _currentUserService.BranchId;
+    private Guid? _currentCompanyId => _currentUserService.CompanyId;
+    private string? _currentUserId => _currentUserService.UserId?.ToString();
 
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
@@ -133,9 +131,7 @@ public class IdentityDbContext : DbContext
         );
 
         builder.Entity<Subscription>().HasQueryFilter(s =>
-            (_isPlatformAdmin && (string.IsNullOrEmpty(_currentBranchId) || _currentBranchId == "All Branches"))
-            ? true
-            : s.CompanyId == _currentCompanyId
+            _isPlatformAdmin ? true : s.CompanyId == _currentCompanyId
         );
     }
 
