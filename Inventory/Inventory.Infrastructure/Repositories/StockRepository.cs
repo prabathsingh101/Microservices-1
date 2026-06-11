@@ -189,6 +189,10 @@ namespace Inventory.Infrastructure.Repositories
                     TotalReceived = group.Sum(x => x.ReceivedQty),
                     TotalRejected = group.Sum(x => (x.GrnRackName != null && (
                         x.GrnRackName.ToLower().Contains("e1") || 
+                        x.GrnRackName.ToLower().Contains("expired") || 
+                        x.GrnRackName.ToLower().Contains("damaged") || 
+                        x.GrnRackName.ToLower().Contains("rejected") || 
+                        x.GrnRackName.ToLower().Contains("purged") || 
                         x.GrnRackName.ToLower().StartsWith("e -") || 
                         x.GrnRackName.ToLower().StartsWith("e-") ||
                         (x.GrnRackDescription != null && (
@@ -200,6 +204,10 @@ namespace Inventory.Infrastructure.Repositories
                     )) ? 0 : x.RejectedQty),
                     TotalExpired = group.Sum(x => (x.GrnRackName != null && (
                         x.GrnRackName.ToLower().Contains("e1") || 
+                        x.GrnRackName.ToLower().Contains("expired") || 
+                        x.GrnRackName.ToLower().Contains("damaged") || 
+                        x.GrnRackName.ToLower().Contains("rejected") || 
+                        x.GrnRackName.ToLower().Contains("purged") || 
                         x.GrnRackName.ToLower().StartsWith("e -") || 
                         x.GrnRackName.ToLower().StartsWith("e-") ||
                         (x.GrnRackDescription != null && (
@@ -522,6 +530,10 @@ namespace Inventory.Infrastructure.Repositories
                         ReceivedQty = allG.ReceivedQty,
                         ExpiredQty = (allG.Rack != null && (
                             allG.Rack.Name.ToLower().Contains("e1") || 
+                            allG.Rack.Name.ToLower().Contains("expired") || 
+                            allG.Rack.Name.ToLower().Contains("damaged") || 
+                            allG.Rack.Name.ToLower().Contains("rejected") || 
+                            allG.Rack.Name.ToLower().Contains("purged") || 
                             allG.Rack.Name.ToLower().StartsWith("e -") || 
                             allG.Rack.Name.ToLower().StartsWith("e-") ||
                             (allG.Rack.Description != null && (
@@ -533,6 +545,10 @@ namespace Inventory.Infrastructure.Repositories
                         )) ? allG.RejectedQty : 0,
                         RejectedQty = (allG.Rack != null && (
                             allG.Rack.Name.ToLower().Contains("e1") || 
+                            allG.Rack.Name.ToLower().Contains("expired") || 
+                            allG.Rack.Name.ToLower().Contains("damaged") || 
+                            allG.Rack.Name.ToLower().Contains("rejected") || 
+                            allG.Rack.Name.ToLower().Contains("purged") || 
                             allG.Rack.Name.ToLower().StartsWith("e -") || 
                             allG.Rack.Name.ToLower().StartsWith("e-") ||
                             (allG.Rack.Description != null && (

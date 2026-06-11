@@ -25,11 +25,32 @@ namespace Inventory.Application.Stock.Commands.MoveToExpiredRack
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var branchId = _currentUserService.BranchId;
             // 1. Find the Expired Rack (Rack E1 / Expired Products / Damaged / Rejected)
+            // Try to find matching rack within active branch first
             var targetRack = await _context.Racks
-                .FirstOrDefaultAsync(r => r.CompanyId == companyId && (r.Name.ToLower().Contains("e1") || 
-                                          (r.Description != null && (r.Description.ToLower().Contains("expired") || 
-                                                                     r.Description.ToLower().Contains("damaged") || 
-                                                                     r.Description.ToLower().Contains("rejected")))), ct);
+                .FirstOrDefaultAsync(r => r.CompanyId == companyId && 
+                                          (r.BranchId == branchId || string.IsNullOrEmpty(branchId)) &&
+                                          ((r.Name != null && (r.Name.ToLower().Contains("e1") || 
+                                                              r.Name.ToLower().Contains("expired") || 
+                                                              r.Name.ToLower().Contains("damaged") || 
+                                                              r.Name.ToLower().Contains("rejected"))) || 
+                                           (r.Description != null && (r.Description.ToLower().Contains("expired") || 
+                                                                      r.Description.ToLower().Contains("damaged") || 
+                                                                      r.Description.ToLower().Contains("rejected")))), ct);
+
+            if (targetRack == null)
+            {
+                // Resilient fallback: search globally in company ignoring query filters
+                targetRack = await _context.Racks
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(r => r.CompanyId == companyId && 
+                                              ((r.Name != null && (r.Name.ToLower().Contains("e1") || 
+                                                                  r.Name.ToLower().Contains("expired") || 
+                                                                  r.Name.ToLower().Contains("damaged") || 
+                                                                  r.Name.ToLower().Contains("rejected"))) || 
+                                               (r.Description != null && (r.Description.ToLower().Contains("expired") || 
+                                                                          r.Description.ToLower().Contains("damaged") || 
+                                                                          r.Description.ToLower().Contains("rejected")))), ct);
+            }
 
             if (targetRack == null)
                 throw new Exception("Destination 'Expired Rack' not found in system. Please create a rack with description 'Expired Products'.");
