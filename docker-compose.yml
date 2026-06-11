@@ -9,6 +9,10 @@ services:
       - "1433:1433"
     volumes:
       - sql-data:/var/opt/mssql
+    deploy:
+      resources:
+        limits:
+          memory: 2000M
 
   gateway.api:
     image: gatewayapi
@@ -20,6 +24,10 @@ services:
     restart: always
     environment:
       - ReverseProxy__Clusters__inventory-cluster__Destinations__destination1__Address=http://inventory.api:8080
+    deploy:
+      resources:
+        limits:
+          memory: 300M
     depends_on:
       - identity.api
       - customers.api
@@ -38,6 +46,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__IdentityDb=Server=sqlserver;Database=IdentityDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     depends_on:
       - sqlserver
 
@@ -51,6 +63,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__CustomersDb=Server=sqlserver;Database=CustomersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     depends_on:
       - sqlserver
 
@@ -67,6 +83,10 @@ services:
       - ServiceUrls__CustomerApi=http://customers.api:8080/
       - ServiceUrls__SupplierApi=http://suppliers.api:8080/
       - ServiceUrls__CompanyApi=http://company.api:8080/
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     depends_on:
       - sqlserver
 
@@ -80,6 +100,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__SuppliersDb=Server=sqlserver;Database=SuppliersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     depends_on:
       - sqlserver
 
@@ -95,6 +119,10 @@ services:
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
     volumes:
       - company-uploads:/app/wwwroot/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     depends_on:
       - sqlserver
 
@@ -108,6 +136,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__EmployeePayrollDb=Server=sqlserver;Database=EmployeePayrollDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+    deploy:
+      resources:
+        limits:
+          memory: 400M
     depends_on:
       - sqlserver
 
@@ -115,10 +147,14 @@ services:
     image: electricui
     build:
       context: ../../ElectricApps
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
       - "4201:80"
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 100M
     depends_on:
       - gateway.api
 
