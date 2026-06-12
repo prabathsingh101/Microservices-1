@@ -12,6 +12,9 @@ namespace Suppliers.Domain.Entities
         public string? Address { get; private set; }
         public string? Email { get; private set; }
         public string? DrugLicenseNo { get; private set; }
+        public string? SupplierType { get; private set; }
+        public string? FssaiLicenseNo { get; private set; }
+        public string? AgriLicenseNo { get; private set; }
 
         public Guid? DefaultPriceListId { get; private set; }
 
@@ -30,7 +33,10 @@ namespace Suppliers.Domain.Entities
             Guid? companyId,
             string? branchId,
             Guid? defaultPriceListId = null,
-            string? drugLicenseNo = null
+            string? drugLicenseNo = null,
+            string? supplierType = null,
+            string? fssaiLicenseNo = null,
+            string? agriLicenseNo = null
             )
         {
             Name = name;
@@ -44,6 +50,9 @@ namespace Suppliers.Domain.Entities
             BranchId = branchId;
             DefaultPriceListId = defaultPriceListId;
             DrugLicenseNo = drugLicenseNo;
+            SupplierType = supplierType;
+            FssaiLicenseNo = fssaiLicenseNo;
+            AgriLicenseNo = agriLicenseNo;
             CreatedOn = DateTime.Now;
         }
 
@@ -55,7 +64,21 @@ namespace Suppliers.Domain.Entities
             ModifiedOn = DateTime.UtcNow;
         }
 
-        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId, Guid? companyId, string? branchId, string? modifiedBy, string? drugLicenseNo)
+        public void UpdateDetails(
+            string name, 
+            string phone, 
+            string? gstIn, 
+            string? address, 
+            string? email, 
+            bool isActive, 
+            Guid? defaultPriceListId, 
+            Guid? companyId, 
+            string? branchId, 
+            string? modifiedBy, 
+            string? drugLicenseNo,
+            string? supplierType,
+            string? fssaiLicenseNo,
+            string? agriLicenseNo)
         {
             Name = name;
             Phone = phone;
@@ -68,6 +91,9 @@ namespace Suppliers.Domain.Entities
             ModifiedBy = modifiedBy;
             ModifiedOn = DateTime.Now;
             DrugLicenseNo = drugLicenseNo;
+            SupplierType = supplierType;
+            FssaiLicenseNo = fssaiLicenseNo;
+            AgriLicenseNo = agriLicenseNo;
             
             if (defaultPriceListId.HasValue && defaultPriceListId == Guid.Empty)
                  throw new ArgumentException("Invalid Price List ID");

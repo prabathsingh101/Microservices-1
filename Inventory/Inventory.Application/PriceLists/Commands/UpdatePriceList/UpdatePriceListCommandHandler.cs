@@ -43,6 +43,8 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
         }
 
         // 2. Global Validation: Kya koi aur list ACTIVE hai?
+        // [DISABLED] Allowed products to be active in multiple price lists because different suppliers can supply the same product at different rates.
+        /*
         if (request.isActive)
         {
             foreach (var item in request.priceListItems)
@@ -60,6 +62,7 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                 }
             }
         }
+        */
 
         // 3. Header Update
         entity.Name = request.name;

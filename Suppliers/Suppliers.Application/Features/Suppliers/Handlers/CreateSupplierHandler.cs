@@ -61,7 +61,10 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 companyId,
                 request.SupplierData.branchId,
                 request.SupplierData.defaultpricelistId,
-                request.SupplierData.drugLicenseNo
+                request.SupplierData.drugLicenseNo,
+                request.SupplierData.supplierType,
+                request.SupplierData.fssaiLicenseNo,
+                request.SupplierData.agriLicenseNo
             );
 
             await _repository.AddAsync(supplier);

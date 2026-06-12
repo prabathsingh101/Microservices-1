@@ -50,7 +50,8 @@ public sealed class CreatePriceListCommandHandler
         }
 
         // 2. Database Validation Rule (Inventory Standard)
-        // Hum check kar rahe hain ki kya koi aisi list pehle se DB mein hai jo Active hai
+        // [DISABLED] Allowed products to be active in multiple price lists because different suppliers can supply the same product at different rates.
+        /*
         if (request.isActive)
         {
             foreach (var item in request.priceListItems)
@@ -69,6 +70,7 @@ public sealed class CreatePriceListCommandHandler
                 }
             }
         }
+        */
 
         // 3. Mapping and Saving logic
         var priceList = new PriceList(

@@ -60,6 +60,9 @@ internal sealed class GetProductsPagedQueryHandler
                     "sku" => query.Where(x => x.Sku.ToLower().Contains(val)),
                     "hsncode" => query.Where(x => x.HSNCode.ToLower().Contains(val)),
                     "unit" => query.Where(x => x.Unit.ToLower().Contains(val)),
+                    "pricelistid" => Guid.TryParse(val, out var plId) 
+                        ? query.Where(x => _context.PriceListItems.Any(pi => pi.PriceListId == plId && pi.ProductId == x.Id)) 
+                        : query,
                     _ => query
                 };
             }
