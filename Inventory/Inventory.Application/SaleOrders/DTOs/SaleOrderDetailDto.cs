@@ -31,6 +31,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public Guid CompanyId { get; set; }
         public bool IsQuick { get; set; }
         public string? CancelReason { get; set; }
+        public string? DoctorName { get; set; }
+        public string? DoctorRegNo { get; set; }
 
         public List<SaleOrderItemDto> Items { get; set; } = new();
     }

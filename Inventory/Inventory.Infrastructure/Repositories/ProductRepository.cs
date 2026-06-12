@@ -131,7 +131,8 @@ public sealed class ProductRepository : IProductRepository
 
         var products = await _db.Products
          .AsNoTracking()
-         .Where(p => p.CompanyId == companyId && p.IsActive && (p.Name.Contains(term) || (p.Sku != null && p.Sku.Contains(term))))
+         .Where(p => p.CompanyId == companyId && p.IsActive && 
+             (p.Name.Contains(term) || (p.Sku != null && p.Sku.Contains(term)) || (p.GenericName != null && p.GenericName.Contains(term))))
          .Take(20)
          .ToListAsync();
 

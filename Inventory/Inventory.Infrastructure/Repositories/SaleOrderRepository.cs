@@ -139,6 +139,8 @@ public class SaleOrderRepository : ISaleOrderRepository
             existingOrder.SgstAmount = order.SgstAmount;
             existingOrder.GuestName = order.GuestName;
             existingOrder.GuestPhone = order.GuestPhone;
+            existingOrder.DoctorName = order.DoctorName;
+            existingOrder.DoctorRegNo = order.DoctorRegNo;
 
             // Remove old items and add new ones (Sync)
             _context.SaleOrderItems.RemoveRange(existingOrder.Items);
@@ -300,6 +302,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 SgstAmount = o.SgstAmount,
                 GuestName = o.GuestName,
                 GuestPhone = o.GuestPhone,
+                DoctorName = o.DoctorName,
+                DoctorRegNo = o.DoctorRegNo,
                 TotalQty = o.Items.Sum(i => i.Qty),
                 CreatedBy = o.CreatedBy,
                 Remarks = o.Remarks,
@@ -553,6 +557,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 GuestPhone = o.GuestPhone,
                 Remarks = o.Remarks,
                 ExpectedDeliveryDate = o.ExpectedDeliveryDate,
+                DoctorName = o.DoctorName,
+                DoctorRegNo = o.DoctorRegNo,
                 BranchId = o.BranchId,
                 CompanyId = o.CompanyId,
                 IsQuick = o.IsQuick,

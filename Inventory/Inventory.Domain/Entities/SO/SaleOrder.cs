@@ -63,6 +63,8 @@ namespace Inventory.Domain.Entities.SO
         
         [StringLength(500)]
         public string? CancelReason { get; set; }
+        public string? DoctorName { get; set; }
+        public string? DoctorRegNo { get; set; }
 
         // Relationship: One SaleOrder has many SaleOrderItems
         public virtual ICollection<SaleOrderItem> Items { get; set; }

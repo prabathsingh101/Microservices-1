@@ -102,6 +102,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             IsQuick = dto.IsQuick, // Map flag from DTO
             GuestName = dto.GuestName,
             GuestPhone = dto.GuestPhone,
+            DoctorName = dto.DoctorName,
+            DoctorRegNo = dto.DoctorRegNo,
             Items = dto.Items.Select(i => new SaleOrderItem
             {
                 ProductId = i.ProductId,

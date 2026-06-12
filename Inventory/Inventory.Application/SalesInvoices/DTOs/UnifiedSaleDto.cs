@@ -20,5 +20,7 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public bool IsQuick { get; set; }
         public decimal TotalQty { get; set; }
         public string? GatePassNo { get; set; }
+        public string? DoctorName { get; set; }
+        public string? DoctorRegNo { get; set; }
     }
 }

@@ -49,6 +49,8 @@ namespace Inventory.Domain.Entities.SalesInvoice
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
         public Guid? DeliveryChallanId { get; set; }
+        public string? DoctorName { get; set; }
+        public string? DoctorRegNo { get; set; }
 
         public virtual ICollection<SalesInvoiceItem> Items { get; set; }
     }

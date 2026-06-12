@@ -54,7 +54,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
                     ChallanNo = null,
                     IsQuick = x.IsQuick,
                     TotalQty = x.Items.Sum(i => i.Qty),
-                    GatePassNo = x.GatePassNo
+                    GatePassNo = x.GatePassNo,
+                    DoctorName = x.DoctorName,
+                    DoctorRegNo = x.DoctorRegNo
                 });
 
             // 2. Projection for Tax Invoices
@@ -81,7 +83,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
                         .FirstOrDefault(),
                     IsQuick = x.IsQuick,
                     TotalQty = x.Items.Sum(i => i.Qty),
-                    GatePassNo = null
+                    GatePassNo = null,
+                    DoctorName = x.DoctorName,
+                    DoctorRegNo = x.DoctorRegNo
                 });
 
             // 3. UNION & Source Filter

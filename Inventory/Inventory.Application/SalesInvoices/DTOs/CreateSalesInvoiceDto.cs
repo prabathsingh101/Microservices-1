@@ -23,6 +23,8 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public string? GuestPhone { get; set; }
         public Guid? DeliveryChallanId { get; set; }
         public List<Guid>? DeliveryChallanIds { get; set; }
+        public string? DoctorName { get; set; }
+        public string? DoctorRegNo { get; set; }
         
         public Guid? CompanyId { get; set; }
         public string? BranchId { get; set; }

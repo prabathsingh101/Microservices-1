@@ -31,6 +31,8 @@ namespace Inventory.Application.SaleOrders.DTOs
         public bool IsQuick { get; set; } = false;
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
+        public string? DoctorName { get; set; }
+        public string? DoctorRegNo { get; set; }
         public List<SaleOrderItemDto> Items { get; set; }
     }
 

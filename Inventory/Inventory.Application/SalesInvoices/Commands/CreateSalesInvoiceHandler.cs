@@ -79,6 +79,8 @@ namespace Inventory.Application.SalesInvoices.Commands
                 GuestName = dto.GuestName,
                 GuestPhone = dto.GuestPhone,
                 DeliveryChallanId = dto.DeliveryChallanId ?? (dto.DeliveryChallanIds != null && dto.DeliveryChallanIds.Any() ? dto.DeliveryChallanIds.First() : null),
+                DoctorName = dto.DoctorName,
+                DoctorRegNo = dto.DoctorRegNo,
                 CompanyId = dto.CompanyId ?? Guid.Empty,
                 BranchId = dto.BranchId,
                 CreatedBy = dto.CreatedBy,
