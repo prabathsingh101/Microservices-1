@@ -1,4 +1,4 @@
-﻿using Customers.Domain.Entities;
+using Customers.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -34,6 +34,9 @@ namespace Customers.Infrastructure.Persistence
 
             builder.Property(x => x.Status)
                    .HasMaxLength(20);
+
+            builder.Property(x => x.DrugLicenseNo)
+                   .HasMaxLength(100);
 
             // Value Objects
             builder.OwnsOne(x => x.BillingAddress, a =>

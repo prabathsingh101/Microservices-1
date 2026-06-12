@@ -26,5 +26,8 @@ namespace Inventory.Application.Products.DTOs
         public DateTime? manufacturingDate { get; set; }
         public DateTime? expiryDate { get; set; }
         public string? imageUrl { get; set; }
+        public string? genericName { get; set; }
+        public string? manufacturer { get; set; }
+        public string? scheduleClass { get; set; }
     }
 }

@@ -39,4 +39,7 @@ public sealed class ProductDto
     public decimal discountPercent {  get; set; }
     public DateTime? manufacturingDate { get; set; }
     public DateTime? expiryDate { get; set; }
+    public string? genericName { get; set; }
+    public string? manufacturer { get; set; }
+    public string? scheduleClass { get; set; }
 }

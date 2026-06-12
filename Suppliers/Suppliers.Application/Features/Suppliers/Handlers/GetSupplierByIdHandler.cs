@@ -33,7 +33,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 s.CreatedBy,
                 s.DefaultPriceListId,
                 s.CompanyId?.ToString(),
-                s.BranchId
+                s.BranchId,
+                s.DrugLicenseNo
             );
         }
     }

@@ -34,7 +34,8 @@ namespace Customers.Application.Features.Handlers
                 CreditLimit = customer.CreditLimit,
                 BillingAddressLine = customer.BillingAddress?.AddressLine, // Updated naming
                 ShippingAddressLine = customer.ShippingAddress?.AddressLine, // Updated naming
-                Status = customer.Status
+                Status = customer.Status,
+                DrugLicenseNo = customer.DrugLicenseNo
             };
         }
     }

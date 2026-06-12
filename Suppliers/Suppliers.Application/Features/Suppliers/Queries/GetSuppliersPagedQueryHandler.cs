@@ -84,7 +84,8 @@ internal sealed class GetSuppliersPagedQueryHandler
                 x.CreatedBy,
                 x.DefaultPriceListId,
                 x.CompanyId.HasValue ? x.CompanyId.ToString() : null,
-                x.BranchId
+                x.BranchId,
+                x.DrugLicenseNo
             ))
             .ToListAsync(cancellationToken);
 

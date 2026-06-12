@@ -45,6 +45,18 @@ public sealed class ProductConfiguration
         builder.Property(x => x.DamagedStock)
                .HasPrecision(18, 2);
 
+        builder.Property(x => x.GenericName)
+               .HasMaxLength(250)
+               .IsRequired(false);
+
+        builder.Property(x => x.Manufacturer)
+               .HasMaxLength(150)
+               .IsRequired(false);
+
+        builder.Property(x => x.ScheduleClass)
+               .HasMaxLength(50)
+               .IsRequired(false);
+
         builder.Property(x => x.Description)
                .HasMaxLength(500);
 

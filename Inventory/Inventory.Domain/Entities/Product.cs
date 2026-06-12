@@ -40,6 +40,9 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
     public Guid? DefaultRackId { get; set; }
     public virtual Rack? DefaultRack { get; set; }
     public string? ImageUrl { get; set; }
+    public string? GenericName { get; private set; }
+    public string? Manufacturer { get; private set; }
+    public string? ScheduleClass { get; private set; }
 
     private Product() { }
 
@@ -63,6 +66,9 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         decimal saleRate,
         string productType,
         decimal damagedStock,
+        string? genericName,
+        string? manufacturer,
+        string? scheduleClass,
         Guid? defaultWarehouseId = null,
         Guid? defaultRackId = null,
         bool isExpiryRequired = false,
@@ -91,6 +97,9 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         CreatedBy = createdby;
         ProductType = productType;
         DamagedStock = damagedStock;
+        GenericName = genericName;
+        Manufacturer = manufacturer;
+        ScheduleClass = scheduleClass;
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;
@@ -119,6 +128,9 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         string? ModifiedBy,
         string ? productType,
         decimal damagedStock,
+        string? genericName,
+        string? manufacturer,
+        string? scheduleClass,
         Guid? defaultWarehouseId = null,
         Guid? defaultRackId = null,
         bool isExpiryRequired = false,
@@ -147,6 +159,9 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         ModifiedBy = ModifiedBy;
         ProductType = productType; 
         DamagedStock = damagedStock;
+        GenericName = genericName;
+        Manufacturer = manufacturer;
+        ScheduleClass = scheduleClass;
         DefaultWarehouseId = defaultWarehouseId;
         DefaultRackId = defaultRackId;
         IsExpiryRequired = isExpiryRequired;

@@ -62,7 +62,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.defaultpricelistId,
                 companyId,
                 request.SupplierData.branchId,
-                request.SupplierData.modifiedBy
+                request.SupplierData.modifiedBy,
+                request.SupplierData.drugLicenseNo
             );
 
             await _repository.UpdateAsync(supplier);

@@ -60,7 +60,8 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.isActive,
                 companyId,
                 request.SupplierData.branchId,
-                request.SupplierData.defaultpricelistId
+                request.SupplierData.defaultpricelistId,
+                request.SupplierData.drugLicenseNo
             );
 
             await _repository.AddAsync(supplier);

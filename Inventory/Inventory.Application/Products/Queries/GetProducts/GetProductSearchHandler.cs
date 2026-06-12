@@ -23,7 +23,7 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
             .AsNoTracking()
             .Include(p => p.DefaultRack) // Include Rack for naming
             .Where(p => p.IsActive &&
-                        (p.Name.Contains(request.Term) || p.Sku.Contains(request.Term)))
+                        (p.Name.Contains(request.Term) || p.Sku.Contains(request.Term) || (p.GenericName != null && p.GenericName.Contains(request.Term))))
             .ToListAsync(cancellationToken);
 
         var productDtos = new List<ProductSearchResponseDto>();
@@ -74,7 +74,10 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
                     .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
                     .Select(g => g.ExpDate)
                     .FirstOrDefaultAsync(cancellationToken),
-                imageUrl = p.ImageUrl
+                imageUrl = p.ImageUrl,
+                genericName = p.GenericName,
+                manufacturer = p.Manufacturer,
+                scheduleClass = p.ScheduleClass
             });
         }
 

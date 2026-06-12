@@ -37,7 +37,8 @@ internal sealed class GetProductsPagedQueryHandler
                 x.HSNCode.ToLower().Contains(search) ||
                 x.Sku.ToLower().Contains(search) ||
                 x.Category.CategoryName.ToLower().Contains(search) ||
-                x.Subcategory.SubcategoryName.ToLower().Contains(search)
+                x.Subcategory.SubcategoryName.ToLower().Contains(search) ||
+                (x.GenericName != null && x.GenericName.ToLower().Contains(search))
             );
         }
 
@@ -165,6 +166,9 @@ internal sealed class GetProductsPagedQueryHandler
                 imageUrl = p.ImageUrl,
                 createdOn = p.CreatedOn,
                 modifiedOn = p.ModifiedOn,
+                genericName = p.GenericName,
+                manufacturer = p.Manufacturer,
+                scheduleClass = p.ScheduleClass,
                 manufacturingDate = batchLookup.TryGetValue(p.Id, out var batch) ? batch.MfgDate : null,
                 expiryDate = batchLookup.TryGetValue(p.Id, out var b) ? b.ExpDate : null
             };

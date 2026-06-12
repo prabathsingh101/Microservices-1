@@ -14,5 +14,6 @@ namespace Customers.Application.DTOs
         public string? BillingAddressLine { get; set; }
         public string? ShippingAddressLine { get; set; }
         public string? Status { get; set; }
+        public string? DrugLicenseNo { get; set; }
     }
 }

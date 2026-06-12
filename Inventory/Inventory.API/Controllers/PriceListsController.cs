@@ -61,7 +61,7 @@ namespace Inventory.API.Controllers
 
         [HttpPut("{id:guid}")]
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
-        public async Task<IActionResult> Update(Guid id, UpdatePriceListCommand command)
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePriceListCommand command)
         {
             if (id != command.id) return BadRequest("ID Mismatch");
 

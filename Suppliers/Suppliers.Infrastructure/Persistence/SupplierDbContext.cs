@@ -45,6 +45,7 @@ namespace Suppliers.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Phone).IsRequired().HasMaxLength(15);
+                entity.Property(e => e.DrugLicenseNo).HasMaxLength(100);
             });
 
             modelBuilder.Entity<SupplierPayment>(entity =>

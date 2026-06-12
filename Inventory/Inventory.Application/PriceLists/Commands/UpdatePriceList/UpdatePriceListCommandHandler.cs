@@ -65,6 +65,8 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
         entity.Name = request.name;
         entity.Code = request.code;
         entity.PriceType = request.priceType;
+        entity.ApplicableGroup = request.applicableGroup;
+        entity.Currency = request.currency;
         entity.ValidFrom = request.validFrom;
         entity.ValidTo = request.validTo;
         entity.IsActive = request.isActive;

@@ -32,7 +32,8 @@ public class GetCustomersHandler
             CreditLimit = x.CreditLimit,
             BillingAddressLine = x.BillingAddress != null ? x.BillingAddress.AddressLine : null,
             ShippingAddressLine = x.ShippingAddress != null ? x.ShippingAddress.AddressLine : null,
-            Status = x.Status
+            Status = x.Status,
+            DrugLicenseNo = x.DrugLicenseNo
         }).ToList();
     }
 }

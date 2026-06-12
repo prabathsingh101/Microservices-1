@@ -19,6 +19,7 @@ namespace Customers.Domain.Entities
 
         public string? GstNumber { get; private set; }
         public decimal? CreditLimit { get; private set; }
+        public string? DrugLicenseNo { get; private set; }
 
         public Address? BillingAddress { get; private set; }
         public Address? ShippingAddress { get; private set; }
@@ -38,7 +39,8 @@ namespace Customers.Domain.Entities
             Address billingAddress,
             Address? shippingAddress,
             string customerStatus,
-            string createdBy)
+            string createdBy,
+            string? drugLicenseNo = null)
         {
             
             CustomerName = customerName;
@@ -52,6 +54,7 @@ namespace Customers.Domain.Entities
             Status = customerStatus;
             CreatedBy = createdBy;
             CreatedOn = DateTime.UtcNow;
+            DrugLicenseNo = drugLicenseNo;
         }
 
         public void Update(
@@ -63,7 +66,8 @@ namespace Customers.Domain.Entities
             decimal? creditLimit,
             Address billingAddress,
             Address? shippingAddress,
-            string? status)
+            string? status,
+            string? drugLicenseNo)
         {
             CustomerName = customerName;
             CustomerType = customerType;
@@ -73,6 +77,7 @@ namespace Customers.Domain.Entities
             CreditLimit = creditLimit;
             Status = status;
             ModifiedOn = DateTime.UtcNow;
+            DrugLicenseNo = drugLicenseNo;
 
             if (BillingAddress == null)
                 BillingAddress = billingAddress;

@@ -44,6 +44,9 @@ public sealed class GetProductsQueryHandler
             createdOn = p.CreatedOn,
             modifiedBy = p.ModifiedBy,
             modifiedOn = p.ModifiedOn,
+            genericName = p.GenericName,
+            manufacturer = p.Manufacturer,
+            scheduleClass = p.ScheduleClass,
             isExpiryRequired = p.IsExpiryRequired,
             imageUrl = p.ImageUrl
         }).ToList();

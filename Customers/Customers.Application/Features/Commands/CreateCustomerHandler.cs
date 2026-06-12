@@ -65,7 +65,8 @@ public class CreateCustomerHandler
                 ? null
                 : new Address(dto.ShippingAddress),
             dto.CustomerStatus ?? "Active",
-            dto.CreatedBy ?? "System"
+            dto.CreatedBy ?? "System",
+            dto.DrugLicenseNo
         );
 
         await _repo.AddAsync(customer);

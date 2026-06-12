@@ -13,7 +13,8 @@ public record SupplierDto(
     string? createdBy,
     Guid? defaultpricelistId,
     string? companyId,
-    string? branchId
+    string? branchId,
+    string? drugLicenseNo = null
 );
 
 public record CreateSupplierDto(
@@ -27,5 +28,6 @@ public record CreateSupplierDto(
     Guid? defaultpricelistId,
     bool isActive,
     string? companyId,
-    string? branchId
+    string? branchId,
+    string? drugLicenseNo = null
 );

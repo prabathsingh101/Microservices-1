@@ -63,7 +63,8 @@ namespace Customers.Application.Features.Handlers
                 dto.CreditLimit, // Changed from dto.CreditLimit ?? 0m because it's not nullable
                 new Address(dto.BillingAddress ?? string.Empty),
                 string.IsNullOrWhiteSpace(dto.ShippingAddress) ? null : new Address(dto.ShippingAddress),
-                dto.CustomerStatus ?? "Active"
+                dto.CustomerStatus ?? "Active",
+                dto.DrugLicenseNo
             );
 
             await _repo.UpdateAsync(customer);

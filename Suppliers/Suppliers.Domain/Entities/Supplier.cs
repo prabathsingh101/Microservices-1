@@ -11,6 +11,7 @@ namespace Suppliers.Domain.Entities
         public string? GstIn { get; private set; }
         public string? Address { get; private set; }
         public string? Email { get; private set; }
+        public string? DrugLicenseNo { get; private set; }
 
         public Guid? DefaultPriceListId { get; private set; }
 
@@ -28,7 +29,8 @@ namespace Suppliers.Domain.Entities
             bool isActive,
             Guid? companyId,
             string? branchId,
-            Guid? defaultPriceListId = null
+            Guid? defaultPriceListId = null,
+            string? drugLicenseNo = null
             )
         {
             Name = name;
@@ -41,6 +43,7 @@ namespace Suppliers.Domain.Entities
             CompanyId = companyId;
             BranchId = branchId;
             DefaultPriceListId = defaultPriceListId;
+            DrugLicenseNo = drugLicenseNo;
             CreatedOn = DateTime.Now;
         }
 
@@ -52,7 +55,7 @@ namespace Suppliers.Domain.Entities
             ModifiedOn = DateTime.UtcNow;
         }
 
-        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId, Guid? companyId, string? branchId, string? modifiedBy)
+        public void UpdateDetails(string name, string phone, string? gstIn, string? address, string? email, bool isActive, Guid? defaultPriceListId, Guid? companyId, string? branchId, string? modifiedBy, string? drugLicenseNo)
         {
             Name = name;
             Phone = phone;
@@ -64,6 +67,7 @@ namespace Suppliers.Domain.Entities
             BranchId = branchId;
             ModifiedBy = modifiedBy;
             ModifiedOn = DateTime.Now;
+            DrugLicenseNo = drugLicenseNo;
             
             if (defaultPriceListId.HasValue && defaultPriceListId == Guid.Empty)
                  throw new ArgumentException("Invalid Price List ID");
