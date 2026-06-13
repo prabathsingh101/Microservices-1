@@ -182,7 +182,12 @@ namespace Inventory.Application.Services
                         {
                             using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
                             {
-                                var attachment = new Attachment(ms, $"GRN_{grnNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                string attachmentName = grnNumber.Replace("/", "_");
+                                if (!attachmentName.StartsWith("GRN", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    attachmentName = $"GRN_{attachmentName}";
+                                }
+                                var attachment = new Attachment(ms, $"{attachmentName}.pdf", "application/pdf");
                                 message.Attachments.Add(attachment);
                                 await smtp.SendMailAsync(message);
                             }
@@ -245,7 +250,12 @@ namespace Inventory.Application.Services
                         {
                             using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
                             {
-                                var attachment = new Attachment(ms, $"Cancelled_GRN_{grnNumber.Replace("/", "_")}.pdf", "application/pdf");
+                                string attachmentName = grnNumber.Replace("/", "_");
+                                if (!attachmentName.StartsWith("GRN", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    attachmentName = $"GRN_{attachmentName}";
+                                }
+                                var attachment = new Attachment(ms, $"Cancelled_{attachmentName}.pdf", "application/pdf");
                                 message.Attachments.Add(attachment);
                                 await smtp.SendMailAsync(message);
                             }
@@ -606,6 +616,74 @@ namespace Inventory.Application.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"[EmailService] Stock Transfer Email fail: {ex.Message} | {ex.InnerException?.Message}");
+            }
+        }
+
+        public async Task SendRfqEmailAsync(CompanyProfileDto company, string supplierEmail, string rfqNumber, string supplierName, byte[] pdfAttachmentBytes = null)
+        {
+            if (string.IsNullOrEmpty(company.SmtpHost) || string.IsNullOrEmpty(company.SmtpEmail) || string.IsNullOrEmpty(company.SmtpPassword))
+            {
+                Console.WriteLine("[EmailService] SMTP settings missing. Skipping RFQ email.");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(supplierEmail))
+            {
+                Console.WriteLine("[EmailService] Supplier email missing. Skipping RFQ email.");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+
+                var fromAddress = new MailAddress(company.SmtpEmail, company.Name);
+                var toAddress = new MailAddress(supplierEmail);
+                string subject = $"Request for Quotation: {rfqNumber} from {company.Name}";
+                string body = $@"<html><body><h2>Dear {supplierName},</h2><p>Please find attached our Request for Quotation (RFQ) document.</p><p><strong>RFQ Number:</strong> {rfqNumber}</p><p>Please review the details in the attached document and send us your quotation at your earliest convenience.</p><br/><p>Regards,</p><p><strong>{company.Name}</strong></p></body></html>";
+
+                Console.WriteLine($"[EmailService] Attempting to send RFQ email via {company.SmtpHost}:{company.SmtpPort}");
+
+                using (var smtp = new SmtpClient(company.SmtpHost, company.SmtpPort ?? 587))
+                {
+                    smtp.EnableSsl = company.SmtpUseSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = new NetworkCredential(company.SmtpEmail, company.SmtpPassword);
+                    smtp.Timeout = 20000;
+
+                    using (var message = new MailMessage(fromAddress, toAddress)
+                    {
+                        Subject = subject,
+                        Body = body,
+                        IsBodyHtml = true
+                    })
+                    {
+                        if (pdfAttachmentBytes != null && pdfAttachmentBytes.Length > 0)
+                        {
+                            using (var ms = new System.IO.MemoryStream(pdfAttachmentBytes))
+                            {
+                                string attachmentName = rfqNumber.Replace("/", "_");
+                                if (!attachmentName.StartsWith("RFQ", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    attachmentName = $"RFQ_{attachmentName}";
+                                }
+                                var attachment = new Attachment(ms, $"{attachmentName}.pdf", "application/pdf");
+                                message.Attachments.Add(attachment);
+                                await smtp.SendMailAsync(message);
+                            }
+                        }
+                        else
+                        {
+                            await smtp.SendMailAsync(message);
+                        }
+                    }
+                }
+                Console.WriteLine($"[EmailService] RFQ Email sent to {supplierEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EmailService] RFQ Email fail: {ex.Message} | {ex.InnerException?.Message}");
             }
         }
     }

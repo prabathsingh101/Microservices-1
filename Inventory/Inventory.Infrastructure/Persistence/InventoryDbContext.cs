@@ -34,6 +34,8 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>(); 
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();  
+    public DbSet<RequestForQuotation> RequestForQuotations => Set<RequestForQuotation>();
+    public DbSet<RequestForQuotationItem> RequestForQuotationItems => Set<RequestForQuotationItem>();
     public DbSet<GRNHeader> GRNHeaders => Set<GRNHeader>(); 
     public DbSet<GRNDetail> GRNDetails => Set<GRNDetail>();
     public DbSet<SaleOrder> SaleOrders { get; set; }

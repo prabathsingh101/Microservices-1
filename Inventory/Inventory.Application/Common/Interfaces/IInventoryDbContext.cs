@@ -31,8 +31,9 @@ namespace Inventory.Application.Common.Interfaces
         // Interface mein 'public' keyword hatayein
         DbSet<PurchaseOrder> PurchaseOrders { get; }
         DbSet<PurchaseOrderItem> PurchaseOrderItems { get; }
-
-        public DbSet<AppNotification> AppNotifications { get; }
+        DbSet<RequestForQuotation> RequestForQuotations { get; }
+        DbSet<RequestForQuotationItem> RequestForQuotationItems { get; }
+        DbSet<AppNotification> AppNotifications { get; }
 
         DbSet<Product> Products { get; }
         DbSet<ExpenseCategory> ExpenseCategories { get; }

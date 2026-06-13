@@ -166,4 +166,18 @@ namespace Inventory.API.Controllers;
         var result = await _mediator.Send(new CancelSaleReturnCommand(id, dto.Reason));
         return result ? Ok(new { message = "Sale Return has been cancelled and stock reversed successfully" }) : BadRequest("Could not cancel Sale Return. It may already be cancelled or doesn't exist.");
     }
+
+    [HttpPatch("mark-refunded/{returnNumber}")]
+    [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+    public async Task<IActionResult> MarkAsRefunded(string returnNumber)
+    {
+        if (string.IsNullOrWhiteSpace(returnNumber))
+            return BadRequest("Return number is required.");
+
+        var result = await _repo.MarkAsRefundedAsync(returnNumber);
+        return result
+            ? Ok(new { message = $"Sale Return {returnNumber} marked as Refunded." })
+            : NotFound(new { message = $"Sale Return {returnNumber} not found." });
+    }
 }
+

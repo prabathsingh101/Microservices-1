@@ -27,4 +27,6 @@ public interface ISaleReturnRepository
     Task<SaleReturnHeader?> GetSaleReturnByIdAsync(Guid id);
     Task<bool> BulkInwardAsync(List<Guid> ids);
     Task<bool> CancelSaleReturnAsync(Guid id, string? reason);
+    Task<bool> MarkAsRefundedAsync(string returnNumber);
+
 }

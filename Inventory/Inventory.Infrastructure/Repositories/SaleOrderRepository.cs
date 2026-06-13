@@ -670,13 +670,18 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         var saleReturns = await _context.SaleReturnHeaders
             .AsNoTracking()
-            .Where(x => x.CustomerId == customerId && (x.Status == "Confirmed" || x.Status == "INWARDED") && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
+            .Where(x => x.CustomerId == customerId
+                && (x.Status == "Confirmed" || x.Status == "INWARDED")
+                && x.Status != "Refunded"
+                && x.CompanyId == companyId
+                && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(x => new SaleOrderLookupDto
             {
                 SaleOrderId = x.Id,
                 SoNumber = x.ReturnNumber,
                 GrandTotal = x.TotalAmount
             }).ToListAsync();
+
 
         return cancelledOrders.Concat(cancelledInvoices).Concat(saleReturns).ToList();
     }
@@ -752,8 +757,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
                                  sr.CompanyId == companyId &&
                                  (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
-                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
-                                 (x.ExpDate == null || sr.ExpDate == x.ExpDate))
+                                 (x.MfgDate == null || (sr.MfgDate.HasValue && sr.MfgDate.Value.Date == x.MfgDate.Value.Date)) &&
+                                 (x.ExpDate == null || (sr.ExpDate.HasValue && sr.ExpDate.Value.Date == x.ExpDate.Value.Date)))
                     .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;
                 
                 dto.SoldQty = x.Qty - returnedQty;
@@ -766,8 +771,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                                 g.WarehouseId == x.WarehouseId &&
                                 g.RackId == x.RackId &&
                                 g.CompanyId == companyId &&
-                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
-                                (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
+                                (!x.MfgDate.HasValue || (g.MfgDate.HasValue && g.MfgDate.Value.AddHours(12).Date == x.MfgDate.Value.AddHours(12).Date)) &&
+                                (!x.ExpDate.HasValue || (g.ExpDate.HasValue && g.ExpDate.Value.AddHours(12).Date == x.ExpDate.Value.AddHours(12).Date)))
                     .OrderByDescending(g => g.Id)
                     .FirstOrDefaultAsync();
 
@@ -829,8 +834,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
                                  sr.CompanyId == companyId &&
                                  (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
-                                 (x.MfgDate == null || sr.MfgDate == x.MfgDate) &&
-                                 (x.ExpDate == null || sr.ExpDate == x.ExpDate))
+                                 (x.MfgDate == null || (sr.MfgDate.HasValue && sr.MfgDate.Value.Date == x.MfgDate.Value.Date)) &&
+                                 (x.ExpDate == null || (sr.ExpDate.HasValue && sr.ExpDate.Value.Date == x.ExpDate.Value.Date)))
                     .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;
                 
                 dto.SoldQty = x.Qty - returnedQty;
@@ -843,8 +848,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                                 g.WarehouseId == x.WarehouseId &&
                                 g.RackId == x.RackId &&
                                 g.CompanyId == companyId &&
-                                (!x.MfgDate.HasValue || g.MfgDate.Value.Date == x.MfgDate.Value.Date) &&
-                                (!x.ExpDate.HasValue || g.ExpDate.Value.Date == x.ExpDate.Value.Date))
+                                (!x.MfgDate.HasValue || (g.MfgDate.HasValue && g.MfgDate.Value.AddHours(12).Date == x.MfgDate.Value.AddHours(12).Date)) &&
+                                (!x.ExpDate.HasValue || (g.ExpDate.HasValue && g.ExpDate.Value.AddHours(12).Date == x.ExpDate.Value.AddHours(12).Date)))
                     .OrderByDescending(g => g.Id)
                     .FirstOrDefaultAsync();
 

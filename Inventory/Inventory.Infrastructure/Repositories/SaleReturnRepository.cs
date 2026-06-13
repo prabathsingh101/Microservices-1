@@ -334,8 +334,8 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(soi => soi.SaleOrderId == saleOrderId &&
                               soi.ProductId == productId &&
                               soi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || soi.BranchId == branchId) &&
-                              (!mfgDate.HasValue || soi.MfgDate == mfgDate) &&
-                              (!expDate.HasValue || soi.ExpDate == expDate))
+                              (!mfgDate.HasValue || (soi.MfgDate.HasValue && soi.MfgDate.Value.Date == mfgDate.Value.Date)) &&
+                              (!expDate.HasValue || (soi.ExpDate.HasValue && soi.ExpDate.Value.Date == expDate.Value.Date)))
                 .SumAsync(soi => (decimal?)soi.Qty) ?? 0;
 
             var totalSoldFromInvoices = await _context.SalesInvoiceItems
@@ -343,8 +343,8 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(sii => sii.SalesInvoiceId == saleOrderId &&
                               sii.ProductId == productId &&
                               sii.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || sii.BranchId == branchId) &&
-                              (!mfgDate.HasValue || sii.MfgDate == mfgDate) &&
-                              (!expDate.HasValue || sii.ExpDate == expDate))
+                              (!mfgDate.HasValue || (sii.MfgDate.HasValue && sii.MfgDate.Value.Date == mfgDate.Value.Date)) &&
+                              (!expDate.HasValue || (sii.ExpDate.HasValue && sii.ExpDate.Value.Date == expDate.Value.Date)))
                 .SumAsync(sii => (decimal?)sii.Qty) ?? 0;
 
             var totalSold = totalSoldFromOrders + totalSoldFromInvoices;
@@ -357,8 +357,8 @@ namespace Inventory.Infrastructure.Repositories
                               sri.ProductId == productId &&
                               sri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || sri.BranchId == branchId) &&
                               (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED") &&
-                              (!mfgDate.HasValue || sri.MfgDate == mfgDate) &&
-                              (!expDate.HasValue || sri.ExpDate == expDate))
+                              (!mfgDate.HasValue || (sri.MfgDate.HasValue && sri.MfgDate.Value.Date == mfgDate.Value.Date)) &&
+                              (!expDate.HasValue || (sri.ExpDate.HasValue && sri.ExpDate.Value.Date == expDate.Value.Date)))
                 .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
             var remaining = totalSold - totalReturned;
@@ -594,7 +594,7 @@ namespace Inventory.Infrastructure.Repositories
 
                     _context.SaleReturnHeaders.Update(header);
 
-                    await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     return true;
                 }
@@ -605,6 +605,26 @@ namespace Inventory.Infrastructure.Repositories
                     return false;
                 }
             });
+        }
+
+        public async Task<bool> MarkAsRefundedAsync(string returnNumber)
+        {
+            if (string.IsNullOrWhiteSpace(returnNumber)) return false;
+
+            // Strip timestamp suffix if present (e.g. "SR-202606131530-6612" -> "SR-202606131530")
+            var cleanNumber = System.Text.RegularExpressions.Regex.Replace(returnNumber.Trim(), @"-\d{4}$", "");
+
+            var header = await _context.SaleReturnHeaders
+                .FirstOrDefaultAsync(x => x.ReturnNumber == cleanNumber);
+
+            if (header == null) return false;
+
+            header.Status = "Refunded";
+            header.ModifiedOn = DateTime.Now;
+
+            _context.SaleReturnHeaders.Update(header);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }
