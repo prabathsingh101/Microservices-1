@@ -14,6 +14,8 @@ public class Menu : AuditableEntity, IMultiTenant
     public Guid? ParentId { get; set; }
     public int Order { get; set; }
 
+    public string? Tooltip { get; set; }
+
     public Guid? CompanyId { get; set; }
     public string? BranchId { get; set; }
 
@@ -23,7 +25,7 @@ public class Menu : AuditableEntity, IMultiTenant
 
     public Menu() { }
 
-    public Menu(string title, string url, string? icon, Guid? parentId, int order)
+    public Menu(string title, string url, string? icon, Guid? parentId, int order, string? tooltip = null)
     {
         Id = Guid.NewGuid();
         Title = title;
@@ -31,13 +33,15 @@ public class Menu : AuditableEntity, IMultiTenant
         Icon = icon;
         ParentId = parentId;
         Order = order;
+        Tooltip = tooltip;
     }
-    public void Update(string title, string url, string? icon, Guid? parentId, int order)
+    public void Update(string title, string url, string? icon, Guid? parentId, int order, string? tooltip = null)
     {
         Title = title;
         Url = url;
         Icon = icon;
         ParentId = parentId;
         Order = order;
+        Tooltip = tooltip;
     }
 }

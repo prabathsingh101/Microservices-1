@@ -38,7 +38,8 @@ public class MenusController : ControllerBase
             ParentId = m.ParentId,
             Order = m.Order,
             CompanyId = m.CompanyId,
-            BranchId = m.BranchId
+            BranchId = m.BranchId,
+            Tooltip = m.Tooltip
         });
         return Ok(menuDtos);
     }

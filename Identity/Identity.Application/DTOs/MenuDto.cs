@@ -12,6 +12,7 @@ namespace Identity.Application.DTOs
         public int Order { get; set; }
         public Guid? CompanyId { get; set; }
         public string? BranchId { get; set; }
+        public string? Tooltip { get; set; }
         public List<MenuDto> Children { get; set; } = new List<MenuDto>();
     }
 }
