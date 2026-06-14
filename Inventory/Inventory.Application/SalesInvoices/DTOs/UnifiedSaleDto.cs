@@ -22,5 +22,6 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public string? GatePassNo { get; set; }
         public string? DoctorName { get; set; }
         public string? DoctorRegNo { get; set; }
+        public bool IsReturnable { get; set; } = true;
     }
 }

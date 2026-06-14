@@ -356,7 +356,7 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(sri => sri.SaleReturnHeader.SaleOrderId == saleOrderId &&
                               sri.ProductId == productId &&
                               sri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || sri.BranchId == branchId) &&
-                              (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED") &&
+                              (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded") &&
                               (!mfgDate.HasValue || (sri.MfgDate.HasValue && sri.MfgDate.Value.Date == mfgDate.Value.Date)) &&
                               (!expDate.HasValue || (sri.ExpDate.HasValue && sri.ExpDate.Value.Date == expDate.Value.Date)))
                 .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
@@ -400,7 +400,7 @@ namespace Inventory.Infrastructure.Repositories
 
             // 2. Confirmed/Inwarded returns ka count aur refund value (DB Side Aggregation)
             var confirmedQuery = queryBase
-                .Where(x => x.Status.ToUpper() == "CONFIRMED" || x.Status.ToUpper() == "INWARDED");
+                .Where(x => x.Status.ToUpper() == "CONFIRMED" || x.Status.ToUpper() == "INWARDED" || x.Status.ToUpper() == "REFUNDED");
 
             var totalRefundValue = await confirmedQuery.SumAsync(x => (decimal?)x.TotalAmount) ?? 0;
             var confirmedCount = await confirmedQuery.CountAsync();
@@ -534,22 +534,16 @@ namespace Inventory.Infrastructure.Repositories
 
                     foreach (var item in header.ReturnItems)
                     {
-                        // Reverse Warehouse Stock (Deduct the returned qty)
-                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
-                        {
-                            var whStock = await _context.WarehouseStocks
-                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+                        // ✅ DO NOT reverse WarehouseStock on SR cancellation.
+                        // Reason: When an SR is created, the customer physically returns the goods to the warehouse.
+                        // Those goods are already present in the warehouse. Cancelling the SR paperwork
+                        // does NOT mean goods go back to the customer — so stock MUST remain as-is (10 qty).
+                        // Only the LEDGER entry (credit note) is reversed below.
 
-                            if (whStock != null)
-                            {
-                                whStock.Quantity -= item.ReturnQty;
-                            }
-                        }
-
-                        // Add Compensating Inventory Transaction
+                        // 📋 Add audit-only InventoryTransaction (zero-effect, for traceability)
                         var cancelTx = new InventoryTransaction(
                             item.ProductId,
-                            -item.ReturnQty, // Negative to represent deducting stock
+                            0, // Zero quantity — no actual stock movement on cancel
                             (header.IsQuick ? "QuickSaleReturn" : "SaleReturn") + "-CANCELLED",
                             header.ReturnNumber,
                             item.WarehouseId,

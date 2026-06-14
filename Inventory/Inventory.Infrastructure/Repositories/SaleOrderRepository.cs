@@ -339,7 +339,7 @@ public class SaleOrderRepository : ISaleOrderRepository
         var orderIds = orders.Select(o => o.Id).ToList();
         var returnedQuantities = await _context.SaleReturnItems
             .Where(ri => orderIds.Contains(ri.SaleReturnHeader.SaleOrderId) && 
-                         (ri.SaleReturnHeader.Status == "Confirmed" || ri.SaleReturnHeader.Status == "INWARDED"))
+                         (ri.SaleReturnHeader.Status == "Confirmed" || ri.SaleReturnHeader.Status == "INWARDED" || ri.SaleReturnHeader.Status == "Refunded"))
             .GroupBy(ri => ri.SaleReturnHeader.SaleOrderId)
             .Select(g => new { SaleOrderId = g.Key, TotalReturned = g.Sum(ri => ri.ReturnQty) })
             .ToDictionaryAsync(x => x.SaleOrderId, x => x.TotalReturned);
@@ -756,7 +756,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                     .Where(sr => sr.ProductId == x.ProductId &&
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
                                  sr.CompanyId == companyId &&
-                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
+                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED" || sr.SaleReturnHeader.Status == "Refunded") &&
                                  (x.MfgDate == null || (sr.MfgDate.HasValue && sr.MfgDate.Value.Date == x.MfgDate.Value.Date)) &&
                                  (x.ExpDate == null || (sr.ExpDate.HasValue && sr.ExpDate.Value.Date == x.ExpDate.Value.Date)))
                     .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;
@@ -833,7 +833,7 @@ public class SaleOrderRepository : ISaleOrderRepository
                     .Where(sr => sr.ProductId == x.ProductId &&
                                  sr.SaleReturnHeader.SaleOrderId == saleOrderId &&
                                  sr.CompanyId == companyId &&
-                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED") &&
+                                 (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED" || sr.SaleReturnHeader.Status == "Refunded") &&
                                  (x.MfgDate == null || (sr.MfgDate.HasValue && sr.MfgDate.Value.Date == x.MfgDate.Value.Date)) &&
                                  (x.ExpDate == null || (sr.ExpDate.HasValue && sr.ExpDate.Value.Date == x.ExpDate.Value.Date)))
                     .SumAsync(sr => (decimal?)sr.ReturnQty) ?? 0;

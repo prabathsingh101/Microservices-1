@@ -308,7 +308,7 @@ namespace Inventory.Infrastructure.Repositories
                 grossSold += quickSold;
 
                 var totalSaleReturn = await returnsQuery
-                    .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED"))
+                    .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
                 var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters()

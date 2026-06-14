@@ -41,7 +41,7 @@ namespace Inventory.Application.Stock.Commands
             var saleReturnStock = await _context.SaleReturnItems
                 .IgnoreQueryFilters()
                 .Where(sr => sr.CompanyId == companyId && sr.WarehouseId != null
-                    && (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED"))
+                    && (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED" || sr.SaleReturnHeader.Status == "Refunded"))
                 .GroupBy(sr => new { sr.ProductId, sr.WarehouseId })
                 .Select(sr => new { ProductId = (Guid)sr.Key.ProductId, WarehouseId = (Guid)sr.Key.WarehouseId.Value, Qty = sr.Sum(x => x.ReturnQty) })
                 .ToListAsync(ct);

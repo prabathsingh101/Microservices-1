@@ -186,6 +186,15 @@ namespace Inventory.Application.SalesInvoices.Handlers
             var relationGroup = relations.GroupBy(r => r.SalesInvoiceId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            // Get returned quantities to calculate if the order is fully returned
+            var saleOrderIds = pagedData.Select(x => x.Id).ToList();
+            var returnedQuantities = await _context.SaleReturnItems
+                .Where(ri => saleOrderIds.Contains(ri.SaleReturnHeader.SaleOrderId) && 
+                             (ri.SaleReturnHeader.Status == "Confirmed" || ri.SaleReturnHeader.Status == "INWARDED" || ri.SaleReturnHeader.Status == "Refunded"))
+                .GroupBy(ri => ri.SaleReturnHeader.SaleOrderId)
+                .Select(g => new { SaleOrderId = g.Key, TotalReturned = g.Sum(ri => ri.ReturnQty) })
+                .ToDictionaryAsync(x => x.SaleOrderId, x => x.TotalReturned, cancellationToken);
+
             foreach (var item in pagedData)
             {
                 // Customer Name
@@ -204,6 +213,10 @@ namespace Inventory.Application.SalesInvoices.Handlers
                     item.ChallanNo = string.Join(", ", linkedChallans.Select(c => c.ChallanNo).Where(c => !string.IsNullOrEmpty(c)));
                     item.DeliveryChallanId = linkedChallans.First().DeliveryChallanId;
                 }
+
+                // Set IsReturnable
+                var returnedQty = returnedQuantities.ContainsKey(item.Id) ? returnedQuantities[item.Id] : 0;
+                item.IsReturnable = returnedQty < item.TotalQty;
             }
 
             return new UnifiedSalesPagedResultDto

@@ -59,7 +59,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         DiscountPercent = gd.DiscountPercent,
                         CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == gd.ProductId && g.CompanyId == companyId && g.GRNHeader.Status != "Cancelled" && g.GRNHeader.Status != "Canceled").Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
                                        (_context.SaleOrderItems.Where(si => si.ProductId == gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                                       (_context.SaleReturnItems.Where(sri => sri.ProductId == gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
+                                       (_context.SaleReturnItems.Where(sri => sri.ProductId == gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
                                        (_context.PurchaseReturnItems.Where(pri => pri.ProductId == gd.ProductId && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled").Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
                         WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
                         RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
@@ -153,7 +153,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 ReceivedDate = x.gh.ReceivedDate,
                 CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.gd.ProductId && g.CompanyId == companyId && g.GRNHeader.Status != "Cancelled" && g.GRNHeader.Status != "Canceled").Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
                                (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
+                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
                                (_context.PurchaseReturnItems.Where(pri => pri.ProductId == x.gd.ProductId && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled").Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
                 WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : "N/A",
                 RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
