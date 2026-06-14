@@ -9,6 +9,8 @@ public class SaleOrderItemGridDto
     public decimal DiscountPercent { get; set; } // Table "Disc %" column
     public decimal DiscountAmount { get; set; } // Table "Disc (Amt)" column
     public decimal TaxPercentage { get; set; } // Table "Tax %" column
+    public decimal GSTPercent { get; set; } // Map to gstPercent in frontend
+    public decimal TaxAmount { get; set; } // Map to taxAmount in frontend
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
     public Guid? WarehouseId { get; set; }

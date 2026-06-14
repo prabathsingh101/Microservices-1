@@ -730,6 +730,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                     DiscountPercent = x.DiscountPercent,
                     DiscountAmount = x.DiscountAmount,
                     TaxPercentage = x.GSTPercent,
+                    GSTPercent = x.GSTPercent,
+                    TaxAmount = x.TaxAmount,
                     MfgDate = x.MfgDate,
                     ExpDate = x.ExpDate,
                     WarehouseId = x.WarehouseId,
@@ -779,10 +781,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 dto.GrnNumber = grn?.GRNHeader?.GRNNumber;
                 dto.RefNo = grn?.GRNHeader?.PurchaseOrder?.PoNumber;
 
-                if (dto.SoldQty > 0)
-                {
-                    result.Add(dto);
-                }
+                // Add standard sale order items unconditionally to grid so that fully returned items are not hidden
+                result.Add(dto);
             }
         }
         else
@@ -810,6 +810,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                     DiscountPercent = x.DiscountPercent,
                     DiscountAmount = x.DiscountAmount,
                     TaxPercentage = x.GSTPercent,
+                    GSTPercent = x.GSTPercent,
+                    TaxAmount = x.TaxAmount,
                     MfgDate = x.MfgDate,
                     ExpDate = x.ExpDate,
                     WarehouseId = x.WarehouseId,
@@ -859,10 +861,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 dto.GrnNumber = grn?.GRNHeader?.GRNNumber;
                 dto.RefNo = grn?.GRNHeader?.PurchaseOrder?.PoNumber;
 
-                if (dto.SoldQty > 0)
-                {
-                    result.Add(dto);
-                }
+                // Add standard sale items unconditionally to grid so that fully returned items are not hidden
+                result.Add(dto);
             }
         }
 
