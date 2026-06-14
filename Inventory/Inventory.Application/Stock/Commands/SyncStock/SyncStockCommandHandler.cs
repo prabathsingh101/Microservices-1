@@ -41,9 +41,17 @@ namespace Inventory.Application.Stock.Commands
             var saleReturnStock = await _context.SaleReturnItems
                 .IgnoreQueryFilters()
                 .Where(sr => sr.CompanyId == companyId && sr.WarehouseId != null
-                    && (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED" || sr.SaleReturnHeader.Status == "Refunded"))
+                    && (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED" || sr.SaleReturnHeader.Status == "Refunded" || sr.SaleReturnHeader.Status == "Exchanged"))
                 .GroupBy(sr => new { sr.ProductId, sr.WarehouseId })
                 .Select(sr => new { ProductId = (Guid)sr.Key.ProductId, WarehouseId = (Guid)sr.Key.WarehouseId.Value, Qty = sr.Sum(x => x.ReturnQty) })
+                .ToListAsync(ct);
+
+            var saleExchangeStock = await _context.SaleExchangeItems
+                .IgnoreQueryFilters()
+                .Where(se => se.CompanyId == companyId && se.WarehouseId != null
+                    && (se.SaleReturnHeader.Status == "Confirmed" || se.SaleReturnHeader.Status == "INWARDED" || se.SaleReturnHeader.Status == "Refunded" || se.SaleReturnHeader.Status == "Exchanged"))
+                .GroupBy(se => new { se.ProductId, se.WarehouseId })
+                .Select(se => new { ProductId = (Guid)se.Key.ProductId, WarehouseId = (Guid)se.Key.WarehouseId.Value, Qty = se.Sum(x => x.Qty) })
                 .ToListAsync(ct);
 
             var purchaseReturnStock = await _context.PurchaseReturnItems
@@ -85,6 +93,13 @@ namespace Inventory.Application.Stock.Commands
                 var key = $"{item.ProductId}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] += item.Qty;
                 else stockMap[key] = item.Qty;
+            }
+
+            foreach (var item in saleExchangeStock)
+            {
+                var key = $"{item.ProductId}_{item.WarehouseId}";
+                if (stockMap.ContainsKey(key)) stockMap[key] -= item.Qty;
+                else stockMap[key] = -item.Qty;
             }
 
             foreach (var item in purchaseReturnStock)

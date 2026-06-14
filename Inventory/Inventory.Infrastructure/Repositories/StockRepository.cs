@@ -308,8 +308,23 @@ namespace Inventory.Infrastructure.Repositories
                 grossSold += quickSold;
 
                 var totalSaleReturn = await returnsQuery
-                    .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded"))
+                    .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged"))
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
+
+                var exchangeQuery = _context.SaleExchangeItems.IgnoreQueryFilters().AsQueryable();
+                if (!_currentUserService.IsPlatformAdmin)
+                {
+                    exchangeQuery = exchangeQuery.Where(sei => sei.CompanyId == companyId);
+                }
+                exchangeQuery = exchangeQuery.Where(sei => sei.ProductId == item.ProductId);
+                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+                {
+                    exchangeQuery = exchangeQuery.Where(sei => sei.BranchId == finalBranchId);
+                }
+
+                var totalExchanged = await exchangeQuery
+                    .Where(sei => sei.WarehouseId == item.WarehouseId && sei.RackId == item.RackId && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged"))
+                    .SumAsync(sei => (decimal?)sei.Qty) ?? 0;
 
                 var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters()
                     .Where(pri => pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
@@ -447,7 +462,7 @@ namespace Inventory.Infrastructure.Repositories
                         && (dci.DeliveryChallan.Status == "Pending" || dci.DeliveryChallan.Status == "Draft"))
                     .SumAsync(dci => (decimal?)dci.Qty) ?? 0;
 
-                item.TotalSold = grossSold + adjustment - totalSaleReturn + pendingChallanQty;
+                item.TotalSold = grossSold + adjustment - totalSaleReturn + pendingChallanQty + totalExchanged;
                 item.TotalReturned = totalPurchaseReturn;
                 item.TotalTransferredOut = transferredOut;
                 item.TotalTransferredIn = transferredIn;

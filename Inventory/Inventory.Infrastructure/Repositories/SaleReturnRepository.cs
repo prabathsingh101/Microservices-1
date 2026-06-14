@@ -268,10 +268,86 @@ namespace Inventory.Infrastructure.Repositories
                         calculatedTaxAmount += item.TaxAmount;
                     }
 
+                    decimal calculatedExchangeSubTotal = 0;
+                    decimal calculatedExchangeTaxAmount = 0;
+
+                    if (header.ExchangeItems != null)
+                    {
+                        foreach (var item in header.ExchangeItems)
+                        {
+                            var companyId = header.CompanyId;
+                            var branchId = header.BranchId;
+
+                            if (string.IsNullOrEmpty(branchId) && item.WarehouseId.HasValue)
+                            {
+                                var warehouse = await _context.Warehouses.AsNoTracking()
+                                    .FirstOrDefaultAsync(w => w.Id == item.WarehouseId && w.CompanyId == companyId);
+                                if (warehouse != null)
+                                {
+                                    branchId = warehouse.BranchId;
+                                    if (string.IsNullOrEmpty(header.BranchId)) header.BranchId = branchId;
+                                }
+                            }
+                            if (string.IsNullOrEmpty(item.BranchId)) item.BranchId = branchId;
+
+                            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId && p.CompanyId == companyId);
+                            if (product != null)
+                            {
+                                product.ModifiedOn = DateTime.Now;
+                                product.ModifiedBy = header.CreatedBy ?? "system";
+
+                                // 🚀 UPDATE WAREHOUSE SPECIFIC STOCK (MINUS)
+                                if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                                {
+                                    var whStock = await _context.WarehouseStocks
+                                        .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                                    if (whStock != null)
+                                    {
+                                        if (whStock.Quantity < item.Qty)
+                                        {
+                                            throw new Exception($"Insufficient stock for product '{product.Name}' in selected warehouse. Available: {whStock.Quantity}, Required: {item.Qty}");
+                                        }
+                                        whStock.Quantity -= item.Qty;
+                                    }
+                                    else
+                                    {
+                                        throw new Exception($"Product '{product.Name}' stock record not found in selected warehouse.");
+                                    }
+                                }
+
+                                // 🆕 Record Inventory Transaction
+                                var exchangeTx = new InventoryTransaction(
+                                    item.ProductId,
+                                    -item.Qty, // Negative for issuing / stock out
+                                    header.IsQuick ? "QuickSaleExchange" : "SaleExchange",
+                                    header.ReturnNumber,
+                                    item.WarehouseId, 
+                                    item.RackId,
+                                    item.MfgDate,
+                                    item.ExpDate,
+                                    companyId,
+                                    branchId,
+                                    item.ReferenceNumber,
+                                    item.BatchNumber
+                                );
+                                await _context.InventoryTransactions.AddAsync(exchangeTx);
+                            }
+
+                            calculatedExchangeSubTotal += (item.TotalAmount - item.TaxAmount);
+                            calculatedExchangeTaxAmount += item.TaxAmount;
+                        }
+                    }
+
                     // 3. Header table columns update
-                    header.SubTotal = calculatedSubTotal;
-                    header.TaxAmount = calculatedTaxAmount;
-                    header.TotalAmount = header.ReturnItems.Sum(i => i.TotalAmount); // Final sync
+                    header.SubTotal = calculatedSubTotal - calculatedExchangeSubTotal;
+                    header.TaxAmount = calculatedTaxAmount - calculatedExchangeTaxAmount;
+                    
+                    var totalReturn = header.ReturnItems.Sum(i => i.TotalAmount);
+                    var totalExchange = header.ExchangeItems != null ? header.ExchangeItems.Sum(i => i.TotalAmount) : 0;
+                    header.TotalReturnAmount = totalReturn;
+                    header.TotalExchangeAmount = totalExchange;
+                    header.TotalAmount = totalReturn - totalExchange; // Net sync
                     header.CreatedOn = DateTime.Now;
 
                     // 4. Save Sale Return
@@ -317,10 +393,11 @@ namespace Inventory.Infrastructure.Repositories
                     await transaction.CommitAsync();
                     return true;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    return false;
+                    Console.WriteLine($"[SaleReturnRepository] Exception during CreateSaleReturnAsync: {ex}");
+                    throw;
                 }
             });
         }
@@ -356,7 +433,7 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(sri => sri.SaleReturnHeader.SaleOrderId == saleOrderId &&
                               sri.ProductId == productId &&
                               sri.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || sri.BranchId == branchId) &&
-                              (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded") &&
+                              (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged") &&
                               (!mfgDate.HasValue || (sri.MfgDate.HasValue && sri.MfgDate.Value.Date == mfgDate.Value.Date)) &&
                               (!expDate.HasValue || (sri.ExpDate.HasValue && sri.ExpDate.Value.Date == expDate.Value.Date)))
                 .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
@@ -509,6 +586,8 @@ namespace Inventory.Infrastructure.Repositories
             return await _context.SaleReturnHeaders
                 .Include(x => x.ReturnItems)
                 .ThenInclude(i => i.Product)
+                .Include(x => x.ExchangeItems)
+                .ThenInclude(i => i.Product)
                 .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
@@ -525,6 +604,7 @@ namespace Inventory.Infrastructure.Repositories
                     
                     var header = await _context.SaleReturnHeaders
                         .Include(x => x.ReturnItems)
+                        .Include(x => x.ExchangeItems)
                         .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
 
                     if (header == null || header.Status == "Cancelled" || header.Status == "Canceled")
@@ -556,6 +636,28 @@ namespace Inventory.Infrastructure.Repositories
                             item.BatchNumber
                         );
                         await _context.InventoryTransactions.AddAsync(cancelTx);
+                    }
+
+                    if (header.ExchangeItems != null)
+                    {
+                        foreach (var item in header.ExchangeItems)
+                        {
+                            var cancelTx = new InventoryTransaction(
+                                item.ProductId,
+                                0, // Zero quantity — no actual stock movement on cancel
+                                (header.IsQuick ? "QuickSaleExchange" : "SaleExchange") + "-CANCELLED",
+                                header.ReturnNumber,
+                                item.WarehouseId,
+                                item.RackId,
+                                item.MfgDate,
+                                item.ExpDate,
+                                header.CompanyId,
+                                header.BranchId,
+                                item.ReferenceNumber,
+                                item.BatchNumber
+                            );
+                            await _context.InventoryTransactions.AddAsync(cancelTx);
+                        }
                     }
 
                     // 🚨 Reverse the Ledger Entry that was generated on Sale Return creation
@@ -613,7 +715,7 @@ namespace Inventory.Infrastructure.Repositories
 
             if (header == null) return false;
 
-            header.Status = "Refunded";
+            header.Status = (header.ReturnMode == "Exchange" || header.ReturnMode == "Refund & Exchange") ? "Exchanged" : "Refunded";
             header.ModifiedOn = DateTime.Now;
 
             _context.SaleReturnHeaders.Update(header);

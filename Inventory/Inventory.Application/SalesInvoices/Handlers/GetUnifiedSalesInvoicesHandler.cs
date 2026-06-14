@@ -190,7 +190,7 @@ namespace Inventory.Application.SalesInvoices.Handlers
             var saleOrderIds = pagedData.Select(x => x.Id).ToList();
             var returnedQuantities = await _context.SaleReturnItems
                 .Where(ri => saleOrderIds.Contains(ri.SaleReturnHeader.SaleOrderId) && 
-                             (ri.SaleReturnHeader.Status == "Confirmed" || ri.SaleReturnHeader.Status == "INWARDED" || ri.SaleReturnHeader.Status == "Refunded"))
+                             (ri.SaleReturnHeader.Status == "Confirmed" || ri.SaleReturnHeader.Status == "INWARDED" || ri.SaleReturnHeader.Status == "Refunded" || ri.SaleReturnHeader.Status == "Exchanged"))
                 .GroupBy(ri => ri.SaleReturnHeader.SaleOrderId)
                 .Select(g => new { SaleOrderId = g.Key, TotalReturned = g.Sum(ri => ri.ReturnQty) })
                 .ToDictionaryAsync(x => x.SaleOrderId, x => x.TotalReturned, cancellationToken);

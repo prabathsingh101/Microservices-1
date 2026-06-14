@@ -69,6 +69,36 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 };
             }).ToList();
 
+            var exchangeItems = dto.ExchangeItems != null ? dto.ExchangeItems.Select(e =>
+            {
+                var totalAmount = e.TotalAmount;
+                var taxAmount = totalAmount - (totalAmount * 100m / (100m + e.TaxPercentage));
+
+                return new SaleExchangeItem
+                {
+                    CompanyId = dto.CompanyId ?? Guid.Empty,
+                    BranchId = dto.BranchId,
+                    ProductId = e.ProductId,
+                    Qty = e.Qty,
+                    UnitPrice = e.UnitPrice,
+                    DiscountPercent = e.DiscountPercent,
+                    DiscountAmount = e.DiscountAmount,
+                    TaxPercentage = e.TaxPercentage,
+                    TaxAmount = taxAmount,
+                    TotalAmount = totalAmount,
+                    MfgDate = e.MfgDate,
+                    ExpDate = e.ExpDate,
+                    WarehouseId = e.WarehouseId,
+                    RackId = e.RackId,
+                    BatchNumber = e.BatchNumber,
+                    ReferenceNumber = e.ReferenceNumber,
+                    CreatedOn = DateTime.Now,
+                    CreatedBy = e.CreatedBy ?? dto.CreatedBy,
+                    ModifiedBy = e.ModifiedBy ?? dto.ModifiedBy,
+                    ModifiedOn = DateTime.Now
+                };
+            }).ToList() : new List<SaleExchangeItem>();
+
             var header = new SaleReturnHeader
             {
                 CompanyId = dto.CompanyId ?? Guid.Empty,
@@ -80,18 +110,23 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 ReturnNumber = "SR-" + DateTime.Now.ToString("yyyyMMddHHmm"),
                 Status = "Confirmed",
                 IsQuick = dto.IsQuick,
+                ReturnMode = dto.ReturnMode,
                 CreatedOn = DateTime.Now,
                 CreatedBy = dto.CreatedBy,
                 ModifiedBy = dto.ModifiedBy,
                 ModifiedOn = DateTime.Now,
                 
                 // Header Level Aggregations
-                SubTotal = items.Sum(x => x.TotalAmount - x.TaxAmount),
-                DiscountAmount = items.Sum(x => x.DiscountAmount),
-                TaxAmount = items.Sum(x => x.TaxAmount),
-                TotalAmount = items.Sum(x => x.TotalAmount),
+                TotalReturnAmount = items.Sum(x => x.TotalAmount),
+                TotalExchangeAmount = exchangeItems.Sum(x => x.TotalAmount),
 
-                ReturnItems = items
+                SubTotal = items.Sum(x => x.TotalAmount - x.TaxAmount) - exchangeItems.Sum(x => x.TotalAmount - x.TaxAmount),
+                DiscountAmount = items.Sum(x => x.DiscountAmount) - exchangeItems.Sum(x => x.DiscountAmount),
+                TaxAmount = items.Sum(x => x.TaxAmount) - exchangeItems.Sum(x => x.TaxAmount),
+                TotalAmount = items.Sum(x => x.TotalAmount) - exchangeItems.Sum(x => x.TotalAmount),
+
+                ReturnItems = items,
+                ExchangeItems = exchangeItems
             };
 
             return await _repo.CreateSaleReturnAsync(header);

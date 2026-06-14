@@ -82,8 +82,17 @@ namespace Inventory.API.Controllers;
             dto.BranchId = finalBranchId;
         }
 
-        var result = await _mediator.Send(new CreateSaleReturnCommand(dto));
-        return result ? Ok(new { message = "Return Saved & Stock Updated" }) : BadRequest();
+        try
+        {
+            var result = await _mediator.Send(new CreateSaleReturnCommand(dto));
+            return result ? Ok(new { message = "Return Saved & Stock Updated" }) : BadRequest(new { message = "Failed to save return." });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SaleReturnController] Error: {ex}");
+            var innerMessage = ex.InnerException != null ? $"\nInner: {ex.InnerException.Message}" : "";
+            return BadRequest(new { message = $"{ex.Message}{innerMessage}" });
+        }
     }
 
     [HttpGet("print/{id}")]

@@ -44,6 +44,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     public DbSet<Inventory.Domain.Entities.PurchaseReturnItem> PurchaseReturnItems { get; set; }
     public DbSet<SaleReturnHeader> SaleReturnHeaders { get; set; }
     public DbSet<SaleReturnItem> SaleReturnItems { get; set; }
+    public DbSet<SaleExchangeItem> SaleExchangeItems { get; set; }
     public DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoice> SalesInvoices { get; set; }
     public DbSet<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceItem> SalesInvoiceItems { get; set; }
     public DbSet<Inventory.Domain.Entities.SalesInvoice.DeliveryChallan> DeliveryChallans { get; set; }

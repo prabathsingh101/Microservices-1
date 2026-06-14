@@ -30,10 +30,15 @@ public class SaleReturnHeader : BaseAuditableEntity // Agar aap BaseAuditableEnt
     public decimal DiscountAmount { get; set; }
     public decimal TotalAmount { get; set; }
 
+    public decimal TotalReturnAmount { get; set; }
+    public decimal TotalExchangeAmount { get; set; }
+    public string ReturnMode { get; set; } = "RefundOnly";
+
     public string? Remarks { get; set; }
     public string Status { get; set; } = "Draft"; // Draft, Confirmed, Cancelled
     public string? GatePassNo { get; set; }
     public bool IsQuick { get; set; }
 
     public virtual ICollection<SaleReturnItem> ReturnItems { get; set; } = new List<SaleReturnItem>();
+    public virtual ICollection<SaleExchangeItem> ExchangeItems { get; set; } = new List<SaleExchangeItem>();
 }
