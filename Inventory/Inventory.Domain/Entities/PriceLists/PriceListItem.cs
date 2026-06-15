@@ -13,6 +13,7 @@ public class PriceListItem : BaseAuditableEntity
     public decimal Rate { get;  set; }
     public string Unit { get; set; }
     public decimal DiscountPercent { get;  set; } // UI: Disc (%)
+    public decimal Discount { get; set; } // UI: Disc (₹)
     public int MinQty { get;  set; }
     public int MaxQty { get;  set; }
 

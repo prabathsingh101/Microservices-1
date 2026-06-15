@@ -34,6 +34,8 @@ public sealed class GetProductsQueryHandler
             hsnCode =p.HSNCode,
             basePurchasePrice = p.BasePurchasePrice,
             mrp = p.MRP,
+            discount = p.Discount,
+            discountPercent = p.DiscountPercent,
             minStock =p.MinStock,
             currentStock = p.CurrentStock,
             defaultGst = p.DefaultGst,

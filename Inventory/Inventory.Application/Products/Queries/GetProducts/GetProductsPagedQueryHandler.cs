@@ -158,6 +158,7 @@ internal sealed class GetProductsPagedQueryHandler
                 damagedStock = p.DamagedStock,
                 defaultGst = p.DefaultGst,
                 discount = p.Discount,
+                discountPercent = p.DiscountPercent,
                 isExpiryRequired = p.IsExpiryRequired,
                 productType = int.TryParse(p.ProductType, out var type) ? type : 1,
                 description = p.Description,

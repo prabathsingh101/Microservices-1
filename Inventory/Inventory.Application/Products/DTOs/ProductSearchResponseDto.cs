@@ -21,6 +21,7 @@ namespace Inventory.Application.Products.DTOs
         public string? defaultRackName { get; set; }
 
         public decimal gstPercent { get; set; } = 0;
+        public decimal discount { get; set; }
         public decimal discountPercent { get; set; }
         public bool isExpiryRequired { get; set; }
         public DateTime? manufacturingDate { get; set; }

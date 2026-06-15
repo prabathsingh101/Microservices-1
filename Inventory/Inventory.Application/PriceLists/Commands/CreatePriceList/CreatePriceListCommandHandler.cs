@@ -105,6 +105,7 @@ public sealed class CreatePriceListCommandHandler
                 itemDto.maxQty,
                 request.companyId
             );
+            item.Discount = itemDto.discount;
             // 🚀 JWT se inject hone wali branchId item par bhi set karo
             if (!string.IsNullOrEmpty(request.branchId))
             {

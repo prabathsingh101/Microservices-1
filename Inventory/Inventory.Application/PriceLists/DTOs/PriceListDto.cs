@@ -38,6 +38,8 @@ public sealed class PriceListItemDetailDto
     public decimal price { get; set; } // UI: Rate
     public decimal rate { get; set; } // UI: Rate
     public decimal discountPercent { get; set; } // UI: Disc (%)
+    public decimal discount { get; set; } // UI: Disc (₹)
+    public decimal gstPercent { get; set; } // UI: GST (%)
     public int minQty { get; set; }
     public int maxQty { get; set; }
 }

@@ -5,4 +5,5 @@ public class ProductPriceDto
     public string Unit { get; set; } = string.Empty;
     public decimal GstPercent { get; set; } // Map to DefaultGst from Products
     public decimal DiscountPercent { get; set; } // From Price List
+    public decimal Discount { get; set; } // From Price List
 }

@@ -11,6 +11,7 @@ public sealed record CreateProductCommand(
     decimal BasePurchasePrice,
     decimal Mrp,
     decimal Discount,
+    decimal DiscountPercent,
     decimal SaleRate,
     decimal DefaultGst,
     int MinStock,

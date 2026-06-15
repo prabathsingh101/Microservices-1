@@ -31,6 +31,7 @@ public sealed class CreateProductCommandHandler
             basepurchaseprice: request.BasePurchasePrice,
             mrp: request.Mrp,
             discount: request.Discount,
+            discountPercent: request.DiscountPercent,
             defaultgst: request.DefaultGst,
             minstock: request.MinStock,
             trackinventory: request.TrackInventory,

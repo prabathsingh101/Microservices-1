@@ -103,6 +103,7 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                 // Purana item hai? Toh sirf rate/qty update karein
                 existingItem.Rate = itemDto.rate;
                 existingItem.DiscountPercent = itemDto.discountPercent;
+                existingItem.Discount = itemDto.discount;
                 existingItem.MinQty = itemDto.minQty;
                 existingItem.MaxQty = itemDto.maxQty;
                 existingItem.Unit = itemDto.unit;
@@ -117,6 +118,7 @@ public class UpdatePriceListCommandHandler : IRequestHandler<UpdatePriceListComm
                     ProductId = itemDto.productId,
                     Rate = itemDto.rate,
                     DiscountPercent = itemDto.discountPercent,
+                    Discount = itemDto.discount,
                     MinQty = itemDto.minQty,
                     MaxQty = itemDto.maxQty,
                     Unit = itemDto.unit,

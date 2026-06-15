@@ -14,6 +14,7 @@ public sealed record UpdateProductCommand(
     decimal BasePurchasePrice,
     decimal Mrp,
     decimal Discount,
+    decimal DiscountPercent,
     decimal DefaultGst,
     int MinStock,
     bool TrackInventory,

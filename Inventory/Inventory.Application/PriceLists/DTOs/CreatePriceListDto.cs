@@ -24,6 +24,7 @@ public sealed class CreatePriceListItemDto
     public decimal rate { get; set; }
     public string unit { get; set; }
     public decimal discountPercent { get; set; }
+    public decimal discount { get; set; }
     public int minQty { get; set; }
     public int maxQty { get; set; }
 }

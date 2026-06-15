@@ -34,6 +34,7 @@ internal sealed class UpdateProductCommandHandler
             sku: request.Sku,
             saleRate: request.SaleRate,
             discount: request.Discount,
+            discountPercent: request.DiscountPercent,
             brand: request.Brand,
             unit: request.Unit,
             hsncode: request.HsnCode,

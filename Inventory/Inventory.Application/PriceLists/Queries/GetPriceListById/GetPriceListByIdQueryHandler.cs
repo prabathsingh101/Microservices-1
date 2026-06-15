@@ -51,7 +51,9 @@ public class GetPriceListByIdQueryHandler : IRequestHandler<GetPriceListByIdQuer
                     productName = item.Product?.Name ?? "Unknown Product",
                     unit = item.Unit,
                     rate = item.Rate,
-                    discountPercent = item.DiscountPercent,
+                    discountPercent = item.Product != null ? item.Product.DiscountPercent : item.DiscountPercent,
+                    discount = item.Product != null ? item.Product.Discount : item.Discount,
+                    gstPercent = item.Product != null ? (item.Product.DefaultGst ?? 0) : 0,
                     minQty = item.MinQty,
                     maxQty = item.MaxQty
                 }).ToList()

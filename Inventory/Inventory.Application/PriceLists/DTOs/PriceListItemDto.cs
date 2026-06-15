@@ -22,5 +22,6 @@ namespace Inventory.Application.PriceLists.DTOs
         public decimal? GstPercent { get; set; }
 
         public decimal DiscountPercent { get; set; }
+        public decimal Discount { get; set; }
     }
 }

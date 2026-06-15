@@ -30,14 +30,6 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
 
         foreach (var p in products)
         {
-            // 🆕 STEP 2: Fetch Discount from PriceListItems
-            // Ye PriceList se discount uthayega, aur agar nahi hai toh 0 rakhega
-            var discountPercent = await _context.PriceListItems
-                .AsNoTracking()
-                .Where(di => di.ProductId == p.Id)
-                .Select(di => di.DiscountPercent)
-                .FirstOrDefaultAsync(cancellationToken);
-
             productDtos.Add(new ProductSearchResponseDto
             {
                 id = p.Id,
@@ -51,10 +43,11 @@ public class GetProductSearchHandler : IRequestHandler<GetProductSearchQuery, Li
                 mrp = p.MRP,
                 saleRate = p.SaleRate ?? 0,
 
-                // 🆕 GST Product Master se aur Discount PriceList se
+                // GST and Discount directly from Product Master
                 gstPercent = p.DefaultGst ?? 0,
                 defaultGst = p.DefaultGst ?? 0,
-                discountPercent = discountPercent,
+                discount = p.Discount,
+                discountPercent = p.DiscountPercent,
 
                 // STEP 3: DIRECT BINDING WITH DATABASE COLUMN
                 currentStock = (decimal)p.CurrentStock,

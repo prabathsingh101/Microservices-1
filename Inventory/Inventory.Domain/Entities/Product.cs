@@ -16,6 +16,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
     public decimal BasePurchasePrice { get; set; }=0;
     public decimal MRP { get; set; }=0;
     public decimal Discount { get; set; } = 0;
+    public decimal DiscountPercent { get; set; } = 0;
     public decimal? SaleRate { get; set; }
 
     public decimal? DefaultGst { get; set; }
@@ -57,6 +58,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         decimal basepurchaseprice,
         decimal mrp,
         decimal discount,
+        decimal discountPercent,
         decimal defaultgst,
         int minstock,
         bool trackinventory,
@@ -83,6 +85,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         Name = productname;
         Sku = sku;
         Discount = discount;
+        DiscountPercent = discountPercent;
         SaleRate = saleRate;
         Brand = brand;
         Unit = unit;
@@ -115,6 +118,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         string sku,
         decimal saleRate,
         decimal discount,
+        decimal discountPercent,
         string brand,
         string unit,
         string hsncode,
@@ -145,6 +149,7 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         Name = name;
         Sku = sku;
         Discount = discount;
+        DiscountPercent = discountPercent;
         SaleRate = saleRate;
         Brand = brand;        
         Unit = unit;
