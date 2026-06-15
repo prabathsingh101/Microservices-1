@@ -313,7 +313,7 @@ public sealed class ProductRepository : IProductRepository
             .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Select(so => new StockMovementDto
             {
-                Product = "SO: " + so.Id,
+                Product = "SO: " + so.SONumber,
                 Type = "Sale",
                 Qty = so.GrandTotal,
                 Date = so.CreatedOn,
