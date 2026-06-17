@@ -52,7 +52,8 @@ namespace Inventory.Infrastructure.Repositories
                         .Sum(ws => (decimal?)ws.Quantity) ?? 0) <= p.MinStock),
                 TotalStockValue = await _context.WarehouseStocks
                     .Where(ws => (_currentUserService.IsPlatformAdmin || (ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))))
-                    .SumAsync(ws => ws.Quantity * ws.Product.BasePurchasePrice)
+                    .SumAsync(ws => ws.Quantity * ws.Product.BasePurchasePrice),
+                TotalPurchases = await purchaseOrders.SumAsync(x => x.GrandTotal)
             };
         }
 

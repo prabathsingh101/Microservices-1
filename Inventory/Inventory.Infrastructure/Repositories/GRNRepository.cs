@@ -176,6 +176,49 @@ namespace Inventory.Infrastructure.Repositories
                         
                         header.GRNItems.Add(item);
 
+                        // 🚀 UPDATE PRODUCT DEFAULT GST IF IT IS NULL OR 0
+                        var prod = products.FirstOrDefault(p => p.Id == item.ProductId);
+                        if (prod != null && (prod.DefaultGst == null || prod.DefaultGst == 0) && item.GstPercent > 0)
+                        {
+                            prod.DefaultGst = item.GstPercent;
+                        }
+
+                        // 🚀 UPDATE SUPPLIER PRICE LIST WITH NEW RATES ON GRN RECEIPT
+                        if (po != null && po.PriceListId != Guid.Empty)
+                        {
+                            var priceListItem = await _context.PriceListItems
+                                .FirstOrDefaultAsync(pi => pi.PriceListId == po.PriceListId && pi.ProductId == item.ProductId && pi.CompanyId == companyId);
+                            
+                            if (priceListItem != null)
+                            {
+                                priceListItem.Rate = item.UnitRate;
+                                priceListItem.DiscountPercent = item.DiscountPercent;
+                                priceListItem.Discount = item.DiscountPercent > 0 ? (item.UnitRate * (item.DiscountPercent / 100m)) : 0;
+                                priceListItem.ModifiedOn = DateTime.UtcNow;
+                                priceListItem.ModifiedBy = header.CreatedBy ?? "System";
+                                _context.PriceListItems.Update(priceListItem);
+                            }
+                            else
+                            {
+                                await _context.PriceListItems.AddAsync(new Inventory.Domain.PriceLists.PriceListItem
+                                {
+                                    Id = Guid.NewGuid(),
+                                    PriceListId = po.PriceListId,
+                                    ProductId = item.ProductId,
+                                    Rate = item.UnitRate,
+                                    DiscountPercent = item.DiscountPercent,
+                                    Discount = item.DiscountPercent > 0 ? (item.UnitRate * (item.DiscountPercent / 100m)) : 0,
+                                    Unit = prod?.Unit ?? "PCS",
+                                    MinQty = 0,
+                                    MaxQty = 999999,
+                                    CompanyId = companyId,
+                                    BranchId = branchId,
+                                    CreatedOn = DateTime.UtcNow,
+                                    CreatedBy = header.CreatedBy ?? "System"
+                                });
+                            }
+                        }
+
                         // ⚡ REDUNDANT: Products.CurrentStock is no longer used for displays.
                         decimal qtyToIncrease = item.ReceivedQty - item.RejectedQty;
 
