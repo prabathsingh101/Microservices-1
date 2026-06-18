@@ -42,11 +42,12 @@ namespace Inventory.Infrastructure.Repositories
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
+            var isGlobalAdmin = _currentUserService.IsPlatformAdmin && companyId == Guid.Empty;
 
             // STEP 1: Base Query - Start from Products to ensure all items are included
             var baseQuery = _context.Products.IgnoreQueryFilters().Include(p => p.Category).AsNoTracking().AsQueryable();
 
-            if (!_currentUserService.IsPlatformAdmin)
+            if (!isGlobalAdmin)
             {
                 baseQuery = baseQuery.Where(p => p.CompanyId == companyId);
             }
@@ -128,7 +129,7 @@ namespace Inventory.Infrastructure.Repositories
                     GrnBatchNumber = x.ri.GrnBatchNumber
                 });
 
-            if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+            if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
             {
                 finalQuery = finalQuery.Where(x => x.BranchId == finalBranchId || x.BranchId == null);
             }
@@ -274,7 +275,7 @@ namespace Inventory.Infrastructure.Repositories
                     .Where(g => g.GRNHeader.Status != "Cancelled")
                     .AsQueryable();
 
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     salesQuery = salesQuery.Where(si => si.CompanyId == companyId);
                     invoiceQuery = invoiceQuery.Where(ii => ii.CompanyId == companyId);
@@ -287,7 +288,7 @@ namespace Inventory.Infrastructure.Repositories
                 returnsQuery = returnsQuery.Where(sri => sri.ProductId == item.ProductId);
                 grnQuery = grnQuery.Where(g => g.ProductId == item.ProductId);
 
-                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+                if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
                 {
                     salesQuery = salesQuery.Where(si => si.BranchId == finalBranchId);
                     invoiceQuery = invoiceQuery.Where(ii => ii.BranchId == finalBranchId);
@@ -312,12 +313,12 @@ namespace Inventory.Infrastructure.Repositories
                     .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
 
                 var exchangeQuery = _context.SaleExchangeItems.IgnoreQueryFilters().AsQueryable();
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     exchangeQuery = exchangeQuery.Where(sei => sei.CompanyId == companyId);
                 }
                 exchangeQuery = exchangeQuery.Where(sei => sei.ProductId == item.ProductId);
-                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+                if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
                 {
                     exchangeQuery = exchangeQuery.Where(sei => sei.BranchId == finalBranchId);
                 }
@@ -329,7 +330,7 @@ namespace Inventory.Infrastructure.Repositories
                 var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters()
                     .Where(pri => pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
                     .AsQueryable();
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     prItemsQuery = prItemsQuery.Where(pri => pri.CompanyId == companyId);
                 }
@@ -355,7 +356,7 @@ namespace Inventory.Infrastructure.Repositories
                 }
 
                 var transactionsQuery = _context.InventoryTransactions.IgnoreQueryFilters().AsQueryable();
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     transactionsQuery = transactionsQuery.Where(tx => tx.CompanyId == companyId);
                 }
@@ -385,7 +386,7 @@ namespace Inventory.Infrastructure.Repositories
                 var transfersOutQuery = _context.StockTransferDetails.IgnoreQueryFilters()
                     .Where(td => td.StockTransferHeader.Status == "Dispatched" || td.StockTransferHeader.Status == "Completed")
                     .AsQueryable();
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     transfersOutQuery = transfersOutQuery.Where(td => td.CompanyId == companyId);
                 }
@@ -417,7 +418,7 @@ namespace Inventory.Infrastructure.Repositories
                 var transfersInQuery = _context.StockTransferDetails.IgnoreQueryFilters()
                     .Where(td => td.StockTransferHeader.Status == "Completed")
                     .AsQueryable();
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     transfersInQuery = transfersInQuery.Where(td => td.CompanyId == companyId);
                 }
@@ -447,12 +448,12 @@ namespace Inventory.Infrastructure.Repositories
 
                 // Deduct pending/draft Delivery Challans that have not yet been invoiced (to prevent double deduction and show instant stock drop)
                 var challanQuery = _context.DeliveryChallanItems.IgnoreQueryFilters().AsQueryable();
-                if (!_currentUserService.IsPlatformAdmin)
+                if (!isGlobalAdmin)
                 {
                     challanQuery = challanQuery.Where(dci => dci.CompanyId == companyId);
                 }
                 challanQuery = challanQuery.Where(dci => dci.ProductId == item.ProductId);
-                if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+                if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
                 {
                     challanQuery = challanQuery.Where(dci => dci.BranchId == finalBranchId);
                 }
@@ -781,7 +782,8 @@ namespace Inventory.Infrastructure.Repositories
                 .Include(ws => ws.Warehouse)
                 .Where(ws => productIds.Contains(ws.ProductId));
 
-            if (!_currentUserService.IsPlatformAdmin)
+            var isGlobalAdmin = _currentUserService.IsPlatformAdmin && companyId == Guid.Empty;
+            if (!isGlobalAdmin)
             {
                 query = query.Where(ws => ws.CompanyId == companyId);
             }
@@ -851,7 +853,8 @@ namespace Inventory.Infrastructure.Repositories
                 .Include(ws => ws.Warehouse)
                 .AsQueryable();
 
-            if (!_currentUserService.IsPlatformAdmin)
+            var isGlobalAdmin = _currentUserService.IsPlatformAdmin && companyId == Guid.Empty;
+            if (!isGlobalAdmin)
             {
                 query = query.Where(ws => ws.CompanyId == companyId);
             }
@@ -866,7 +869,7 @@ namespace Inventory.Infrastructure.Repositories
                 query = query.Where(ws => ws.WarehouseId == warehouseId);
             }
 
-            if (!_currentUserService.IsPlatformAdmin && !string.IsNullOrEmpty(finalBranchId))
+            if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
             {
                 query = query.Where(ws => ws.BranchId == finalBranchId);
             }
@@ -931,7 +934,8 @@ namespace Inventory.Infrastructure.Repositories
                 .Include(tx => tx.Rack)
                 .Where(tx => tx.ProductId == productId && tx.WarehouseId == warehouseId && tx.RackId == rackId);
 
-            if (!_currentUserService.IsPlatformAdmin)
+            var isGlobalAdmin = _currentUserService.IsPlatformAdmin && companyId == Guid.Empty;
+            if (!isGlobalAdmin)
             {
                 query = query.Where(tx => tx.CompanyId == companyId);
                 if (!string.IsNullOrEmpty(finalBranchId))

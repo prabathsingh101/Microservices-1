@@ -22,16 +22,23 @@ namespace employeepayroll.API.Services
                 var httpContext = _httpContextAccessor.HttpContext;
                 if (httpContext == null) return null;
 
-                // 1. Try JWT Claim
-                var claimValue = httpContext.User.Claims.FirstOrDefault(c => 
-                    c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
-                    c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
-
-                if (Guid.TryParse(claimValue, out var claimGuid)) return claimGuid;
-
-                // 2. Fallback: Request Header (Important for Super Admin)
+                // 1. Try X-Company-Id header first for company context switching
                 var headerValue = httpContext.Request.Headers["X-Company-Id"].ToString();
-                if (Guid.TryParse(headerValue, out var headerGuid)) return headerGuid;
+                if (!string.IsNullOrEmpty(headerValue) && headerValue != "null")
+                {
+                    if (Guid.TryParse(headerValue, out var headerGuid)) return headerGuid;
+                }
+
+                // 2. Fallback to JWT Claim
+                var claims = httpContext.User?.Claims;
+                if (claims != null)
+                {
+                    var claimValue = claims.FirstOrDefault(c => 
+                        c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
+                        c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
+
+                    if (Guid.TryParse(claimValue, out var claimGuid)) return claimGuid;
+                }
 
                 return null;
             }

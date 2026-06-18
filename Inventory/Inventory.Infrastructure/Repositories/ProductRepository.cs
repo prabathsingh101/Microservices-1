@@ -112,9 +112,8 @@ public sealed class ProductRepository : IProductRepository
     public async Task<List<Product>> GetByIdsAsync(List<Guid> ids)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-        var branchId = _currentUserService.BranchId;
         return await _db.Products
-            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+            .Where(x => ids.Contains(x.Id) && x.CompanyId == companyId)
             .ToListAsync();
     }
 
@@ -404,7 +403,7 @@ public sealed class ProductRepository : IProductRepository
 
                     // 2. Pre-fetch dependencies
                     var categoriesList = await _db.Categories
-                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .Where(x => x.CompanyId == companyId)
                         .AsNoTracking().ToListAsync();
                     
                     var categories = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
@@ -415,15 +414,15 @@ public sealed class ProductRepository : IProductRepository
                     }
                     
                     var subcategoriesList = await _db.Subcategories
-                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .Where(x => x.CompanyId == companyId)
                         .ToListAsync();
                     
                     var warehousesList = await _db.Warehouses
-                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .Where(x => x.CompanyId == companyId)
                         .ToListAsync();
                     
                     var racks = await _db.Racks
-                        .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                        .Where(x => x.CompanyId == companyId)
                         .ToListAsync();
                     
                     // 3. Pre-fetch existing products (company-wide, bypassing branch restrictions)
@@ -730,9 +729,8 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<bool> ExistsByNameAsync(string name, Guid companyId, Guid? excludeId = null)
     {
-        var branchId = _currentUserService.BranchId;
         var query = _db.Products.AsNoTracking()
-            .Where(p => p.CompanyId == companyId && p.Name.ToLower().Trim() == name.ToLower().Trim() && (string.IsNullOrEmpty(branchId) || p.BranchId == branchId || p.BranchId == null));
+            .Where(p => p.CompanyId == companyId && p.Name.ToLower().Trim() == name.ToLower().Trim());
 
         if (excludeId.HasValue && excludeId != Guid.Empty)
         {

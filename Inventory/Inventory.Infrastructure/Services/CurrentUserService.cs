@@ -17,17 +17,26 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            var claims = _httpContextAccessor.HttpContext?.User?.Claims;
-            if (claims == null) return null;
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return null;
 
-            var claimValue = claims.FirstOrDefault(c => 
-                c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
-                c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
+            // 1. Try X-Company-Id header first for company context switching
+            var headerValue = httpContext.Request.Headers["X-Company-Id"].ToString();
+            if (!string.IsNullOrEmpty(headerValue) && headerValue != "null")
+            {
+                if (Guid.TryParse(headerValue, out var headerId)) return headerId;
+            }
 
-            if (Guid.TryParse(claimValue, out var companyId)) return companyId;
+            // 2. Fallback to JWT Claim
+            var claims = httpContext.User?.Claims;
+            if (claims != null)
+            {
+                var claimValue = claims.FirstOrDefault(c => 
+                    c.Type.Equals("CompanyId", StringComparison.OrdinalIgnoreCase) || 
+                    c.Type.Equals("companyid", StringComparison.OrdinalIgnoreCase))?.Value;
 
-            var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Company-Id"].ToString();
-            if (Guid.TryParse(headerValue, out var headerId)) return headerId;
+                if (Guid.TryParse(claimValue, out var companyId)) return companyId;
+            }
 
             return null;
         }

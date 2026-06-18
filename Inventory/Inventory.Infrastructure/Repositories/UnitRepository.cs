@@ -20,8 +20,7 @@ namespace Inventory.Infrastructure.Repositories
         public async Task DeleteAsync(Guid id)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
-            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || u.BranchId == branchId || u.BranchId == null));
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId);
             if (unit != null)
             {
                 _context.Units.Remove(unit);
@@ -31,18 +30,16 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<IEnumerable<UnitMaster>> GetAllAsync()
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
             return await _context.Units
                          .AsNoTracking()
-                         .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null))
+                         .Where(x => x.CompanyId == companyId)
                          .ToListAsync();
         }
 
         public async Task<UnitMaster> GetByIdAsync(Guid id) 
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
-            return await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || u.BranchId == branchId || u.BranchId == null));
+            return await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.CompanyId == companyId);
         }
 
         public Task UpdateAsync(UnitMaster unit)
@@ -54,15 +51,13 @@ namespace Inventory.Infrastructure.Repositories
         public async Task<bool> ExistsAsync(string name)
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
-            return await _context.Units.AnyAsync(u => u.Name.ToLower() == name.ToLower() && u.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || u.BranchId == branchId || u.BranchId == null));
+            return await _context.Units.AnyAsync(u => u.Name.ToLower() == name.ToLower() && u.CompanyId == companyId);
         }
 
         public IQueryable<UnitMaster> Query() 
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            var branchId = _currentUserService.BranchId;
-            return _context.Units.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId || x.BranchId == null)).AsQueryable();
+            return _context.Units.Where(x => x.CompanyId == companyId).AsQueryable();
         }
 
         public async Task<(int successCount, List<string> errors)> UploadUnitsAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid companyId, string? branchId = null)

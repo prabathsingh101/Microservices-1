@@ -88,7 +88,12 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
         {
             if (typeof(Inventory.Domain.Common.IMultiTenant).IsAssignableFrom(entityType.ClrType))
             {
-                if (entityType.ClrType == typeof(PriceList) || entityType.ClrType == typeof(PriceListItem))
+                if (entityType.ClrType == typeof(PriceList) || 
+                    entityType.ClrType == typeof(PriceListItem) ||
+                    entityType.ClrType == typeof(Category) ||
+                    entityType.ClrType == typeof(Subcategory) ||
+                    entityType.ClrType == typeof(Product) ||
+                    entityType.ClrType == typeof(UnitMaster))
                 {
                     var method = typeof(InventoryDbContext)
                         .GetMethod(nameof(SetCompanyOnlyQueryFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
@@ -111,7 +116,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
         // 🚀 COMPANY-ONLY FILTER FOR GLOBAL PRICELISTS
         // Price lists are company-wide and should be shared across all branches.
         modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-            _isPlatformAdmin 
+            (_isPlatformAdmin && (_currentCompanyId == null || _currentCompanyId == Guid.Empty))
             ? true 
             : e.CompanyId == _currentCompanyId
         );
@@ -120,13 +125,13 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     private void SetGlobalQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, Inventory.Domain.Common.IMultiTenant
     {
         // 🚀 GLOBAL MULTI-TENANT FILTER
-        // 1. If Platform Admin -> No Filter (they see all companies and all branches)
-        // 2. Otherwise -> Filter by CompanyId AND (SuperAdmin OR specific BranchId)
+        // 1. If Platform Admin and not switched -> No Filter (they see all companies and all branches)
+        // 2. Otherwise -> Filter by CompanyId AND (specific BranchId or All Branches)
         modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
-            _isPlatformAdmin 
+            (_isPlatformAdmin && (_currentCompanyId == null || _currentCompanyId == Guid.Empty))
             ? true 
             : (e.CompanyId == _currentCompanyId && 
-               (_isSuperAdmin || e.BranchId == null || string.IsNullOrEmpty(_currentBranchId) || _currentBranchId == "All Branches" || e.BranchId == _currentBranchId))
+               (e.BranchId == null || string.IsNullOrEmpty(_currentBranchId) || _currentBranchId == "All Branches" || e.BranchId == _currentBranchId))
         );
     }
 
@@ -169,8 +174,17 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
                 if (tenantEntity.CompanyId == Guid.Empty)
                     tenantEntity.CompanyId = _currentCompanyId ?? Guid.Empty;
 
-                if (string.IsNullOrEmpty(tenantEntity.BranchId))
+                var isMasterEntity = entry.Entity is Category || 
+                                     entry.Entity is Subcategory || 
+                                     entry.Entity is Product || 
+                                     entry.Entity is UnitMaster ||
+                                     entry.Entity is PriceList ||
+                                     entry.Entity is PriceListItem;
+
+                if (!isMasterEntity && string.IsNullOrEmpty(tenantEntity.BranchId))
                     tenantEntity.BranchId = _currentBranchId;
+                else if (isMasterEntity)
+                    tenantEntity.BranchId = null;
             }
         }
     }
