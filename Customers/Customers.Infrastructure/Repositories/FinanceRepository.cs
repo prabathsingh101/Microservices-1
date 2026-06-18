@@ -302,7 +302,8 @@ namespace Customers.Infrastructure.Repositories
                     PendingAmount = l.Balance,
                     TotalAmount = l.Balance,
                     Status = (l.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
-                    DueDate = l.TransactionDate.AddDays(15)
+                    DueDate = l.TransactionDate.AddDays(15),
+                    LastReferenceId = l.ReferenceId
                 };
             }).ToList();
         }

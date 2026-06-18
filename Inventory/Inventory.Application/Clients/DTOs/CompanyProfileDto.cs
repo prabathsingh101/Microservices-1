@@ -30,6 +30,10 @@ namespace Inventory.Application.Clients.DTOs
         public List<AddressDto> Addresses { get; set; } = new();
         public AddressDto Address => Addresses.Count > 0 ? Addresses[0] : new AddressDto();
         public BankDetailDto BankInfo { get; set; }
+        public string? PurchaseOrderCreationMessage { get; set; }
+        public string? PurchaseOrderStatusUpdateMessage { get; set; }
+        public string? SaleOrderCreationMessage { get; set; }
+        public string? SaleOrderConfirmationMessage { get; set; }
     }
 
     public class AddressDto

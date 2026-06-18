@@ -784,7 +784,21 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
                             // 2. WhatsApp
                             if (!string.IsNullOrEmpty(supplier.Phone))
                             {
-                                string msg = $"New Purchase Order from {company.Name}:\nPO Number: {poData.PoNumber}\nAmount: {poData.GrandTotal}\nPlease check your email for details.";
+                                string template = company.PurchaseOrderCreationMessage;
+                                if (string.IsNullOrEmpty(template))
+                                {
+                                    template = "Hi [SupplierName], PO #[PONo] of [Amount] is created by [CompanyName]. Please confirm delivery. Thanks!";
+                                }
+                                string msg = template
+                                    .Replace("[SupplierName]", supplier.Name, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[Supplier Name]", supplier.Name, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[PONo]", poData.PoNumber, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[PO No]", poData.PoNumber, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[CompanyName]", company.Name, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[Company Name]", company.Name, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[Amount]", "₹" + poData.GrandTotal.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                    .Replace("[GrandTotal]", "₹" + poData.GrandTotal.ToString("N0"), StringComparison.OrdinalIgnoreCase);
+
                                 await whatsAppService.SendMessageAsync(supplier.Phone, msg);
                             }
                         }

@@ -35,6 +35,7 @@ public class IdentityDbContext : DbContext
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<PermissionAuditLog> PermissionAuditLogs { get; set; }
     public DbSet<Subscription> Subscriptions { get; set; }
+    public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<RolePrintSetting> RolePrintSettings { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
@@ -97,6 +98,12 @@ public class IdentityDbContext : DbContext
         {
             entity.ToTable("Subscriptions");
             entity.HasKey(s => s.Id);
+        });
+
+        builder.Entity<SubscriptionPlan>(entity =>
+        {
+            entity.ToTable("SubscriptionPlans");
+            entity.HasKey(sp => sp.Id);
         });
 
         builder.Entity<RefreshToken>(entity =>

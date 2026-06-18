@@ -353,7 +353,27 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         }
                         if (!string.IsNullOrEmpty(customer.Phone))
                         {
-                            string msg = $"Order Confirmed! 🚀\nFrom: {company.Name}\nOrder No: {finalSONo}\nAmount: {saleOrder.GrandTotal}\nThank you for shopping with us!";
+                            string template = company.SaleOrderConfirmationMessage;
+                            if (string.IsNullOrEmpty(template))
+                            {
+                                template = "Hi [CustomerName], Sale Order #[SONo] is confirmed by [CompanyName]. Total: [Amount]. Expected delivery: [EstimatedDate]. Thanks!";
+                            }
+                            string msg = template
+                                .Replace("[CustomerName]", customer.CustomerName, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Customer Name]", customer.CustomerName, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[SONo]", finalSONo, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[SO No]", finalSONo, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[OrderNo]", finalSONo, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Order No]", finalSONo, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[CompanyName]", company.Name, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Company Name]", company.Name, StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Amount]", "₹" + saleOrder.GrandTotal.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Total]", "₹" + saleOrder.GrandTotal.ToString("N0"), StringComparison.OrdinalIgnoreCase)
+                                .Replace("[EstimatedDate]", saleOrder.ExpectedDeliveryDate?.ToString("dd MMM yyyy") ?? "N/A", StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Estimated Date]", saleOrder.ExpectedDeliveryDate?.ToString("dd MMM yyyy") ?? "N/A", StringComparison.OrdinalIgnoreCase)
+                                .Replace("[DeliveryDate]", saleOrder.ExpectedDeliveryDate?.ToString("dd MMM yyyy") ?? "N/A", StringComparison.OrdinalIgnoreCase)
+                                .Replace("[Delivery Date]", saleOrder.ExpectedDeliveryDate?.ToString("dd MMM yyyy") ?? "N/A", StringComparison.OrdinalIgnoreCase);
+
                             await whatsAppService.SendMessageAsync(customer.Phone, msg);
                         }
                     }
