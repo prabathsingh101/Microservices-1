@@ -12,6 +12,8 @@ namespace Company.Application.Common.Interfaces
         Task<CompanyProfile?> GetCompanyProfileAsync();
         Task<CompanyProfile?> GetByIdAsync(Guid id);
         Task<CompanyProfile?> GetByNameAsync(string name);
+        Task<CompanyProfile?> GetByEmailAsync(string email);
+        Task<CompanyProfile?> GetByPhoneAsync(string phone);
         Task<bool> DeleteCompanyProfileAsync(Guid id);
         Task<Guid> InsertCompanyAsync(CompanyProfile company);
         Task<Guid> UpsertCompanyProfileAsync(CompanyProfile profile);

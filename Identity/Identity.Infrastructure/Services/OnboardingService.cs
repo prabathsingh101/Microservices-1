@@ -65,6 +65,27 @@ public class OnboardingService : IOnboardingService
         
         foreach (var menu in allMenus)
         {
+            // 🛡️ SECURITY: Exclude global platform-level menus from standard tenant role permissions
+            if (!string.IsNullOrEmpty(menu.Url) && (
+                menu.Url.Contains("plans", StringComparison.OrdinalIgnoreCase) || 
+                menu.Url.Contains("subscriptions", StringComparison.OrdinalIgnoreCase) ||
+                menu.Url.Contains("companies", StringComparison.OrdinalIgnoreCase) ||
+                menu.Url.Contains("system-logs", StringComparison.OrdinalIgnoreCase) ||
+                menu.Url.Contains("permission-audit-logs", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(menu.Title) && (
+                menu.Title.Contains("Plans", StringComparison.OrdinalIgnoreCase) || 
+                menu.Title.Contains("Subscriptions", StringComparison.OrdinalIgnoreCase) ||
+                menu.Title.Contains("Companies", StringComparison.OrdinalIgnoreCase) ||
+                menu.Title.Contains("System Logs", StringComparison.OrdinalIgnoreCase) ||
+                menu.Title.Contains("Audit Logs", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
             // Give Admin full access to everything
             var adminPermission = new RolePermission(
                 adminRole.Id, 
@@ -120,7 +141,7 @@ public class OnboardingService : IOnboardingService
                 purchaseReturnWindowValue = 7,
                 purchaseReturnWindowUnit = "Days",
                 addresses = new[] { new { branchName = "Head Office", addressLine1 = "Update your address", city = "Update City", state = "State", stateCode = "00", pinCode = "000000", country = "India", isHeadOffice = true } },
-                bankInfo = new { id = 0, bankName = "Update Bank", branchName = "Update Branch", accountNumber = "0000", ifscCode = "IFSC000", accountType = "Current" },
+                bankInfo = new { id = 0, bankName = "Update Bank", branchName = "Update Branch", accountNumber = "", ifscCode = "", accountType = "Current" },
                 authorizedSignatories = new List<object>()
             };
 

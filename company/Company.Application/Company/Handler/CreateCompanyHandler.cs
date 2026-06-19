@@ -76,6 +76,26 @@ namespace Company.Application.Company.Commands.Create.Handler
                 throw new Exception($"Company with name '{cmd.Request.Name}' already exists.");
             }
 
+            // 🔍 DUPLICATE EMAIL CHECK:
+            if (!string.IsNullOrEmpty(cmd.Request.PrimaryEmail))
+            {
+                var byEmail = await _repo.GetByEmailAsync(cmd.Request.PrimaryEmail);
+                if (byEmail != null && byEmail.Id != targetId)
+                {
+                    throw new Exception($"Company with business email '{cmd.Request.PrimaryEmail}' already exists.");
+                }
+            }
+
+            // 🔍 DUPLICATE PHONE CHECK:
+            if (!string.IsNullOrEmpty(cmd.Request.PrimaryPhone))
+            {
+                var byPhone = await _repo.GetByPhoneAsync(cmd.Request.PrimaryPhone);
+                if (byPhone != null && byPhone.Id != targetId)
+                {
+                    throw new Exception($"Company with business phone '{cmd.Request.PrimaryPhone}' already exists.");
+                }
+            }
+
             var existing = await _repo.GetByIdAsync(targetId);
 
             // 🔍 DUPLICATE BANK ACCOUNT CHECK:

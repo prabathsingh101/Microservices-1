@@ -51,6 +51,7 @@ namespace Company.Infrastructure.Repositories
         public async Task<CompanyProfile?> GetByIdAsync(Guid id)
         {
             return await _context.CompanyProfiles
+                .IgnoreQueryFilters()
                 .Include(c => c.Addresses)
                 .Include(c => c.BankDetails)
                 .Include(c => c.AuthorizedSignatories) // Signatories load karein
@@ -60,7 +61,24 @@ namespace Company.Infrastructure.Repositories
         public async Task<CompanyProfile?> GetByNameAsync(string name)
         {
             return await _context.CompanyProfiles
+                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower());
+        }
+
+        public async Task<CompanyProfile?> GetByEmailAsync(string email)
+        {
+            return await _context.CompanyProfiles
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => 
+                    (c.PrimaryEmail != null && c.PrimaryEmail.ToLower() == email.ToLower()) || 
+                    (c.Email != null && c.Email.ToLower() == email.ToLower()));
+        }
+
+        public async Task<CompanyProfile?> GetByPhoneAsync(string phone)
+        {
+            return await _context.CompanyProfiles
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.PrimaryPhone != null && c.PrimaryPhone == phone);
         }
 
 

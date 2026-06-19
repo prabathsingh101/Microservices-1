@@ -23,6 +23,33 @@ namespace Company.Application.Company.Commands.Update.Handler
 
             if (profile == null) return Guid.Empty;
 
+            // 🔍 DUPLICATE NAME CHECK:
+            var byName = await _repo.GetByNameAsync(cmd.Request.Name);
+            if (byName != null && byName.Id != cmd.Id)
+            {
+                throw new Exception($"Company with name '{cmd.Request.Name}' already exists.");
+            }
+
+            // 🔍 DUPLICATE EMAIL CHECK:
+            if (!string.IsNullOrEmpty(cmd.Request.PrimaryEmail))
+            {
+                var byEmail = await _repo.GetByEmailAsync(cmd.Request.PrimaryEmail);
+                if (byEmail != null && byEmail.Id != cmd.Id)
+                {
+                    throw new Exception($"Company with business email '{cmd.Request.PrimaryEmail}' already exists.");
+                }
+            }
+
+            // 🔍 DUPLICATE PHONE CHECK:
+            if (!string.IsNullOrEmpty(cmd.Request.PrimaryPhone))
+            {
+                var byPhone = await _repo.GetByPhoneAsync(cmd.Request.PrimaryPhone);
+                if (byPhone != null && byPhone.Id != cmd.Id)
+                {
+                    throw new Exception($"Company with business phone '{cmd.Request.PrimaryPhone}' already exists.");
+                }
+            }
+
             // 🔍 DUPLICATE BANK ACCOUNT CHECK:
             if (cmd.Request.BankInfo != null && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.AccountNumber) && !string.IsNullOrWhiteSpace(cmd.Request.BankInfo.IfscCode))
             {

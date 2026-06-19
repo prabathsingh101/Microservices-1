@@ -29,7 +29,7 @@ namespace Company.API.Controllers
         }
 
         [HttpPost("create")]
-        [Authorize(Roles = "Default Admin, Admin, User, Manager, Employee, Warehouse,Super Admin, Salesman")]
+        [AllowAnonymous]
         public async Task<IActionResult> Create([FromBody] UpsertCompanyRequest req)
         {
             var id = await _mediator.Send(new CreateCompanyCommand(req));
@@ -54,7 +54,7 @@ namespace Company.API.Controllers
 
         // 2. Get By ID
         [HttpGet("{id}")]
-        [Authorize(Roles = "Default Admin, Admin, User, Manager, Employee, Warehouse,Super Admin, Salesman")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _mediator.Send(new GetCompanyByIdQuery(id));
@@ -160,7 +160,7 @@ namespace Company.API.Controllers
                     return BadRequest("Field and value are required.");
                 }
 
-                var query = _dbContext.CompanyProfiles.AsNoTracking().AsQueryable();
+                var query = _dbContext.CompanyProfiles.IgnoreQueryFilters().AsNoTracking().AsQueryable();
                 
                 if (excludeId.HasValue && excludeId.Value != Guid.Empty)
                 {
