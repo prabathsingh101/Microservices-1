@@ -120,11 +120,14 @@ public class UsersController : ControllerBase
         var allUsers = await query.ToListAsync();
 
         var totalCount = allUsers.Count;
+        var activeCount = allUsers.Count(u => u.IsActive);
+        var inactiveCount = allUsers.Count(u => !u.IsActive);
 
         // In-Memory Sorting
         if (!string.IsNullOrEmpty(request.SortColumn))
         {
-            var prop = typeof(User).GetProperty(request.SortColumn);
+            var prop = typeof(User).GetProperties()
+                .FirstOrDefault(p => p.Name.Equals(request.SortColumn, StringComparison.OrdinalIgnoreCase));
             if (prop != null)
             {
                 allUsers = request.SortOrder?.ToLower() == "desc"
@@ -164,7 +167,7 @@ public class UsersController : ControllerBase
             u.LastModifiedDate
         });
 
-        return Ok(new { items = result, totalCount });
+        return Ok(new { items = result, totalCount, activeCount, inactiveCount });
     }
 
     [HttpGet("check-duplicate")]
