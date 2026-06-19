@@ -128,7 +128,7 @@ namespace Identity.API.Controllers
             try
             {
                 using var connection = new SqlConnection(_connectionString);
-                await connection.ExecuteAsync("DELETE FROM dbo.AppLogs");
+                await connection.ExecuteAsync("TRUNCATE TABLE dbo.AppLogs", commandTimeout: 60);
                 return Ok(new { message = "Logs cleared successfully." });
             }
             catch (Exception ex)
