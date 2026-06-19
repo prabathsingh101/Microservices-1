@@ -102,6 +102,7 @@ public class LoginUserQueryHandler
         Console.WriteLine("[DEBUG-HANDLER] Checking subscription...");
         string? companyName = null;
         string? companyTagline = null;
+        string? companyCode = null;
         bool isExpired = false;
         string subStatus = "Active";
 
@@ -112,6 +113,7 @@ public class LoginUserQueryHandler
             {
                 companyName = subscription.CompanyName;
                 companyTagline = subscription.CompanyTagline ?? subscription.CompanyName; // Dynamic from DB
+                companyCode = subscription.CompanyCode;
                 if (!subscription.IsActive || DateTime.UtcNow > subscription.EndDate)
                 {
                     isExpired = true;
@@ -133,6 +135,7 @@ public class LoginUserQueryHandler
             {
                 companyName = systemSub.CompanyName;
                 companyTagline = systemSub.CompanyTagline ?? systemSub.CompanyName; 
+                companyCode = systemSub.CompanyCode;
             }
             else
             {
@@ -169,6 +172,7 @@ public class LoginUserQueryHandler
 
         // 7. Additional mapping
         auth.CompanyTagline = companyTagline;
+        auth.CompanyCode = companyCode;
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();

@@ -10,6 +10,7 @@ namespace Identity.Application.DTOs
         public List<string> Roles { get; init; } = new();
         public string? CompanyName { get; set; }
         public string? CompanyTagline { get; set; }
+        public string? CompanyCode { get; set; }
         public Guid? CompanyId { get; set; }
         public string? BranchId { get; set; }
         public string? BranchName { get; set; }

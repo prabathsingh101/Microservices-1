@@ -41,7 +41,7 @@ namespace Company.Application.Company.Commands.Update.Handler
             }
 
             // 🔍 DUPLICATE PHONE CHECK:
-            if (!string.IsNullOrEmpty(cmd.Request.PrimaryPhone))
+            if (!string.IsNullOrEmpty(cmd.Request.PrimaryPhone) && cmd.Request.PrimaryPhone != "0000000000")
             {
                 var byPhone = await _repo.GetByPhoneAsync(cmd.Request.PrimaryPhone);
                 if (byPhone != null && byPhone.Id != cmd.Id)

@@ -167,6 +167,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         // Subscription info
         string? companyName = null;
         string? companyTagline = null;
+        string? companyCode = null;
         bool isExpired = false;
         string subStatus = "Active";
 
@@ -177,6 +178,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
             {
                 companyName = sub.CompanyName;
                 companyTagline = sub.CompanyTagline ?? sub.CompanyName;
+                companyCode = sub.CompanyCode;
                 if (!sub.IsActive || DateTime.UtcNow > sub.EndDate)
                 {
                     isExpired = true;
@@ -209,6 +211,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         // Generate JWT
         var auth = _jwt.Generate(user, rolesStrings, companyName);
         auth.CompanyTagline = companyTagline;
+        auth.CompanyCode = companyCode;
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
         auth.Permissions = aggregatedPermissions.ToList();
