@@ -14,5 +14,6 @@ namespace Company.Domain.Entities
         public string? IfscCode { get; set; }
         public string? AccountType { get; set; } = "Current"; // Savings/Current
         public string? Email { get; set; }
+        public string? UpiId { get; set; }
     }
 }

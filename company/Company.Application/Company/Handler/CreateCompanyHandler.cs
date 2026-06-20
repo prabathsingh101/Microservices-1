@@ -207,6 +207,7 @@ namespace Company.Application.Company.Commands.Create.Handler
                     bank.IfscCode = cmd.Request.BankInfo.IfscCode;
                     bank.AccountType = cmd.Request.BankInfo.AccountType ?? "Current";
                     bank.Email = cmd.Request.BankInfo.Email;
+                    bank.UpiId = cmd.Request.BankInfo.UpiId;
                 }
                 else
                 {
@@ -217,7 +218,8 @@ namespace Company.Application.Company.Commands.Create.Handler
                         AccountNumber = cmd.Request.BankInfo.AccountNumber,
                         IfscCode = cmd.Request.BankInfo.IfscCode,
                         AccountType = cmd.Request.BankInfo.AccountType ?? "Current",
-                        Email = cmd.Request.BankInfo.Email
+                        Email = cmd.Request.BankInfo.Email,
+                        UpiId = cmd.Request.BankInfo.UpiId
                     });
                 }
 
@@ -287,7 +289,8 @@ namespace Company.Application.Company.Commands.Create.Handler
                         AccountNumber = cmd.Request.BankInfo.AccountNumber,
                         IfscCode = cmd.Request.BankInfo.IfscCode,
                         AccountType = cmd.Request.BankInfo.AccountType ?? "Current",
-                        Email = cmd.Request.BankInfo.Email
+                        Email = cmd.Request.BankInfo.Email,
+                        UpiId = cmd.Request.BankInfo.UpiId
                     }
                 },
 

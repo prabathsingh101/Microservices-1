@@ -200,6 +200,7 @@ namespace Company.Application.Company.Commands.Update.Handler
                 bank.IfscCode = cmd.Request.BankInfo.IfscCode;
                 bank.AccountType = cmd.Request.BankInfo.AccountType;
                 bank.Email = cmd.Request.BankInfo.Email;
+                bank.UpiId = cmd.Request.BankInfo.UpiId;
             }
             else
             {
@@ -210,7 +211,8 @@ namespace Company.Application.Company.Commands.Update.Handler
                     AccountNumber = cmd.Request.BankInfo.AccountNumber,
                     IfscCode = cmd.Request.BankInfo.IfscCode,
                     AccountType = cmd.Request.BankInfo.AccountType,
-                    Email = cmd.Request.BankInfo.Email
+                    Email = cmd.Request.BankInfo.Email,
+                    UpiId = cmd.Request.BankInfo.UpiId
                 });
             }
 

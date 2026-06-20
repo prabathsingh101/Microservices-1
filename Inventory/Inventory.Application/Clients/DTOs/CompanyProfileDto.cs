@@ -64,5 +64,6 @@ namespace Inventory.Application.Clients.DTOs
         public string IfscCode { get; set; }
         public string AccountType { get; set; }
         public string Email { get; set; }
+        public string? UpiId { get; set; }
     }
 }

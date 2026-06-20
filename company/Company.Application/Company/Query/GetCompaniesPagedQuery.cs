@@ -75,7 +75,8 @@ namespace Company.Application.Company.Queries
                     data.BankDetails.FirstOrDefault()?.AccountNumber ?? "",
                     data.BankDetails.FirstOrDefault()?.IfscCode ?? "",
                     data.BankDetails.FirstOrDefault()?.AccountType ?? "Current",
-                    data.BankDetails.FirstOrDefault()?.Email
+                    data.BankDetails.FirstOrDefault()?.Email,
+                    data.BankDetails.FirstOrDefault()?.UpiId
                 ),
                 data.AuthorizedSignatories.Select(s => new AuthorizedSignatoryDto(
                     s.Id,

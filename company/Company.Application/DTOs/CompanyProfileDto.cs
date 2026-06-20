@@ -66,7 +66,8 @@ namespace Company.Application.DTOs
         string AccountNumber = "", 
         string IfscCode = "", 
         string AccountType = "Current",
-        string? Email = null
+        string? Email = null,
+        string? UpiId = null
     );
 
     public record AuthorizedSignatoryDto(
