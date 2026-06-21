@@ -69,7 +69,6 @@ public class OnboardingService : IOnboardingService
             if (!string.IsNullOrEmpty(menu.Url) && (
                 menu.Url.Contains("plans", StringComparison.OrdinalIgnoreCase) || 
                 menu.Url.Contains("subscriptions", StringComparison.OrdinalIgnoreCase) ||
-                menu.Url.Contains("companies", StringComparison.OrdinalIgnoreCase) ||
                 menu.Url.Contains("system-logs", StringComparison.OrdinalIgnoreCase) ||
                 menu.Url.Contains("permission-audit-logs", StringComparison.OrdinalIgnoreCase)))
             {
@@ -79,7 +78,6 @@ public class OnboardingService : IOnboardingService
             if (!string.IsNullOrEmpty(menu.Title) && (
                 menu.Title.Contains("Plans", StringComparison.OrdinalIgnoreCase) || 
                 menu.Title.Contains("Subscriptions", StringComparison.OrdinalIgnoreCase) ||
-                menu.Title.Contains("Companies", StringComparison.OrdinalIgnoreCase) ||
                 menu.Title.Contains("System Logs", StringComparison.OrdinalIgnoreCase) ||
                 menu.Title.Contains("Audit Logs", StringComparison.OrdinalIgnoreCase)))
             {

@@ -198,6 +198,7 @@ public class ExpenseEntriesController : ControllerBase
             var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
             branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" ? branchIdHeader : branchIdClaim;
         }
+        if (branchId == "All Branches") branchId = null;
 
         if (!string.IsNullOrEmpty(branchId))
         {
@@ -239,6 +240,7 @@ public class ExpenseEntriesController : ControllerBase
             var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
             branchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" ? branchIdHeader : branchIdClaim;
         }
+        if (branchId == "All Branches") branchId = null;
 
         var startDate = DateTime.Today.AddMonths(-(months - 1));
         startDate = new DateTime(startDate.Year, startDate.Month, 1);

@@ -70,9 +70,18 @@ namespace Suppliers.Infrastructure.Persistence
                 {
                     if (typeof(IMultiTenant).IsAssignableFrom(entityType.ClrType))
                     {
-                        var method = typeof(SupplierDbContext).GetMethod(nameof(SetGlobalQueryFilter), BindingFlags.NonPublic | BindingFlags.Instance)
-                            ?.MakeGenericMethod(entityType.ClrType);
-                        method?.Invoke(this, new object[] { modelBuilder });
+                        if (entityType.ClrType == typeof(Supplier))
+                        {
+                            var method = typeof(SupplierDbContext).GetMethod(nameof(SetCompanyOnlyQueryFilter), BindingFlags.NonPublic | BindingFlags.Instance)
+                                ?.MakeGenericMethod(entityType.ClrType);
+                            method?.Invoke(this, new object[] { modelBuilder });
+                        }
+                        else
+                        {
+                            var method = typeof(SupplierDbContext).GetMethod(nameof(SetGlobalQueryFilter), BindingFlags.NonPublic | BindingFlags.Instance)
+                                ?.MakeGenericMethod(entityType.ClrType);
+                            method?.Invoke(this, new object[] { modelBuilder });
+                        }
                     }
                 }
             }
@@ -88,6 +97,13 @@ namespace Suppliers.Infrastructure.Persistence
                  _currentUserService.BranchId == "All Branches" || 
                  e.BranchId == _currentUserService.BranchId || 
                  _currentUserService.BranchId.Contains(e.BranchId)));
+        }
+
+        private void SetCompanyOnlyQueryFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class, IMultiTenant
+        {
+            modelBuilder.Entity<TEntity>().HasQueryFilter(e => 
+                _currentUserService != null && 
+                e.CompanyId == _currentUserService.CompanyId);
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

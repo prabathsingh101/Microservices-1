@@ -22,7 +22,7 @@ namespace Customers.Infrastructure.Repositories
             _context = context;
             _currentUserService = currentUserService;
             _companyId = _currentUserService.CompanyId ?? Guid.Empty;
-            _branchId = _currentUserService.BranchId;
+            _branchId = _currentUserService.BranchId == "All Branches" ? null : _currentUserService.BranchId;
         }
 
         public async Task AddReceiptAsync(CustomerReceipt receipt)
@@ -209,6 +209,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<decimal> GetTotalReceiptsAsync(DateRangeDto dateRange)
         {
             string? branchGuid = string.IsNullOrEmpty(dateRange.BranchId) ? _branchId : dateRange.BranchId;
+            if (branchGuid == "All Branches") branchGuid = null;
 
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
@@ -223,6 +224,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<AdjustmentsSummaryDto> GetTotalAdjustmentsAsync(DateRangeDto dateRange)
         {
             string? branchGuid = string.IsNullOrEmpty(dateRange.BranchId) ? _branchId : dateRange.BranchId;
+            if (branchGuid == "All Branches") branchGuid = null;
 
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
@@ -253,6 +255,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<decimal> GetTotalOutstandingAsync(string? branchId = null, string? companyId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
@@ -277,6 +280,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<OutstandingDto>> GetPendingDuesAsync(string? branchId = null, string? companyId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
@@ -311,6 +315,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
@@ -445,6 +450,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<DebtorsAgeingDto>> GetDebtorsAgeingAsync(string? branchId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             var ledgers = await _context.CustomerLedgers
                 .Where(l => l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
@@ -559,6 +565,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<PaymentReminderLogDto>> GetPaymentReminderLogsAsync(Guid? customerId = null, string? branchId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             var query = _context.PaymentReminderLogs
                 .Where(l => l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId));
@@ -600,6 +607,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<ContraEntryDto>> GetContraEntriesAsync(string? branchId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             return await _context.ContraEntries
                 .Where(c => c.CompanyId == _companyId && (c.BranchId == null || string.IsNullOrEmpty(finalBranchId) || c.BranchId == finalBranchId))
@@ -645,6 +653,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<BankStatementDto>> GetBankStatementsAsync(string? branchId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             return await _context.BankStatements
                 .Where(s => s.CompanyId == _companyId && (s.BranchId == null || string.IsNullOrEmpty(finalBranchId) || s.BranchId == finalBranchId))
@@ -686,6 +695,7 @@ namespace Customers.Infrastructure.Repositories
         public async Task<List<ReceiptReportDto>> GetUnmatchedSystemTransactionsAsync(string transactionType, string? branchId = null)
         {
             string? finalBranchId = string.IsNullOrEmpty(branchId) ? _branchId : branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
 
             var matchedIds = await _context.BankStatementLines
                 .Where(l => l.ReconciliationStatus == "Matched" && l.MatchedTransactionType == transactionType && l.MatchedTransactionId != null)

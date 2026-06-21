@@ -133,6 +133,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = !string.IsNullOrEmpty(request.BranchId) ? request.BranchId : _currentUserService.BranchId;
+        if (branchId == "All Branches") branchId = null;
 
         // STEP 1: Base Query - AsNoTracking use karein fast read ke liye
         var query = _context.PurchaseOrders

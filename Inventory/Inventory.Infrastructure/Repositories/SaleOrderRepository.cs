@@ -199,6 +199,7 @@ public class SaleOrderRepository : ISaleOrderRepository
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _currentUserService.BranchId;
+        if (finalBranchId == "All Branches") finalBranchId = null;
 
         // 1. Optimized Base Query
         var query = _context.SaleOrders

@@ -16,7 +16,7 @@ namespace Suppliers.Infrastructure.Repositories
         private readonly ICurrentUserService _currentUserService = currentUserService;
 
         private Guid _companyId => _currentUserService.CompanyId ?? Guid.Empty;
-        private string? _branchId => _currentUserService.BranchId;
+        private string? _branchId => _currentUserService.BranchId == "All Branches" ? null : _currentUserService.BranchId;
 
         public async Task AddPaymentAsync(SupplierPayment payment)
         {
@@ -127,6 +127,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<List<PendingDueDto>> GetPendingDuesAsync(string? branchId = null, string? companyId = null)
         {
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
@@ -162,6 +163,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<decimal> GetTotalPaymentsAsync(DateRangeDto dateRange)
         {
             var branchId = !string.IsNullOrEmpty(dateRange.BranchId) ? dateRange.BranchId : _branchId;
+            if (branchId == "All Branches") branchId = null;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
 
@@ -173,6 +175,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<AdjustmentsSummaryDto> GetTotalAdjustmentsAsync(DateRangeDto dateRange)
         {
             var branchId = !string.IsNullOrEmpty(dateRange.BranchId) ? dateRange.BranchId : _branchId;
+            if (branchId == "All Branches") branchId = null;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(dateRange.CompanyId) && Guid.TryParse(dateRange.CompanyId, out var cg)) finalCompanyId = cg;
 
@@ -241,6 +244,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<PaginatedListDto<PaymentReportDto>> GetPaymentsReportAsync(PaymentReportRequestDto request)
         {
             var branchId = !string.IsNullOrEmpty(request.BranchId) ? request.BranchId : _branchId;
+            if (branchId == "All Branches") branchId = null;
 
             var query = from p in _context.SupplierPayments
                         join s in _context.Suppliers on p.SupplierId equals s.Id
@@ -309,6 +313,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<decimal> GetTotalPendingDuesAsync(string? branchId = null, string? companyId = null)
         {
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
@@ -349,6 +354,7 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null)
         {
             var finalBranchId = !string.IsNullOrEmpty(branchId) ? branchId : _branchId;
+            if (finalBranchId == "All Branches") finalBranchId = null;
             Guid finalCompanyId = _companyId;
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
