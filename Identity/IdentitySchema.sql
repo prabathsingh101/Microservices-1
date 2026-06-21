@@ -66,6 +66,20 @@ CREATE TABLE [Users] (
     [CreatedDate] datetime2 NOT NULL,
     [LastModifiedBy] nvarchar(max) NULL,
     [LastModifiedDate] datetime2 NULL,
+    [ProfileImage] nvarchar(max) NULL,
+    [FirstName] nvarchar(100) NULL,
+    [LastName] nvarchar(100) NULL,
+    [PhoneNumber] nvarchar(20) NULL,
+    [Designation] nvarchar(100) NULL,
+    [Department] nvarchar(100) NULL,
+    [Address] nvarchar(500) NULL,
+    [City] nvarchar(100) NULL,
+    [State] nvarchar(100) NULL,
+    [Pincode] nvarchar(20) NULL,
+    [Gender] nvarchar(20) NULL,
+    [DateOfBirth] datetime2 NULL,
+    [AadhaarUrl] nvarchar(max) NULL,
+    [PanCardUrl] nvarchar(max) NULL,
     CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
 );
 GO

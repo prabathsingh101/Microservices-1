@@ -33,6 +33,36 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.IsActive)
             .IsRequired();
 
+        builder.Property(x => x.FirstName)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.LastName)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.PhoneNumber)
+            .HasMaxLength(20);
+
+        builder.Property(x => x.Designation)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.Department)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.Address)
+            .HasMaxLength(500);
+
+        builder.Property(x => x.City)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.State)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.Pincode)
+            .HasMaxLength(20);
+
+        builder.Property(x => x.Gender)
+            .HasMaxLength(20);
+
         // 🔗 User → UserRoles (1:N)
         builder.HasMany(x => x.UserRoles)
             .WithOne(ur => ur.User)

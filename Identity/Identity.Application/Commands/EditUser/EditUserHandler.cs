@@ -51,6 +51,27 @@ public class EditUserHandler : IRequestHandler<EditUserCommand, Result<Guid>>
             user.SetBranchId(targetBid);
         }
 
+        // Update ProfileImage if provided
+        if (request.ProfileImage != user.ProfileImage)
+        {
+            user.SetProfileImage(request.ProfileImage);
+        }
+
+        user.UpdateExtendedProfile(
+            request.FirstName,
+            request.LastName,
+            request.PhoneNumber,
+            request.Designation,
+            request.Department,
+            request.Address,
+            request.City,
+            request.State,
+            request.Pincode,
+            request.Gender,
+            request.DateOfBirth,
+            request.AadhaarUrl,
+            request.PanCardUrl);
+
         // Update Roles
         if (request.RoleIds != null)
         {

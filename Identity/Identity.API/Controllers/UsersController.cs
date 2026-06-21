@@ -77,7 +77,21 @@ public class UsersController : ControllerBase
             u.CreatedBy,
             u.CreatedDate,
             u.LastModifiedBy,
-            u.LastModifiedDate
+            u.LastModifiedDate,
+            u.ProfileImage,
+            u.FirstName,
+            u.LastName,
+            u.PhoneNumber,
+            u.Designation,
+            u.Department,
+            u.Address,
+            u.City,
+            u.State,
+            u.Pincode,
+            u.Gender,
+            u.DateOfBirth,
+            u.AadhaarUrl,
+            u.PanCardUrl
         });
 
         return Ok(result);
@@ -164,7 +178,21 @@ public class UsersController : ControllerBase
             u.CreatedBy,
             u.CreatedDate,
             u.LastModifiedBy,
-            u.LastModifiedDate
+            u.LastModifiedDate,
+            u.ProfileImage,
+            u.FirstName,
+            u.LastName,
+            u.PhoneNumber,
+            u.Designation,
+            u.Department,
+            u.Address,
+            u.City,
+            u.State,
+            u.Pincode,
+            u.Gender,
+            u.DateOfBirth,
+            u.AadhaarUrl,
+            u.PanCardUrl
         });
 
         return Ok(new { items = result, totalCount, activeCount, inactiveCount });
@@ -206,7 +234,21 @@ public class UsersController : ControllerBase
             user.CompanyId,
             user.BranchId,
             Roles = user.UserRoles.Select(ur => ur.Role.RoleName).ToList(),
-            RoleIds = user.UserRoles.Select(ur => ur.RoleId).ToList()
+            RoleIds = user.UserRoles.Select(ur => ur.RoleId).ToList(),
+            user.ProfileImage,
+            user.FirstName,
+            user.LastName,
+            user.PhoneNumber,
+            user.Designation,
+            user.Department,
+            user.Address,
+            user.City,
+            user.State,
+            user.Pincode,
+            user.Gender,
+            user.DateOfBirth,
+            user.AadhaarUrl,
+            user.PanCardUrl
         });
     }
 

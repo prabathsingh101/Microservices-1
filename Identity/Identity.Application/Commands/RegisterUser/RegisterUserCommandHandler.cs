@@ -78,6 +78,22 @@ public class RegisterUserHandler
         var user = new User(request.UserName, request.Email);
         if (targetCompanyId.HasValue) user.SetCompanyId(targetCompanyId.Value);
         if (!string.IsNullOrEmpty(targetBranchId)) user.SetBranchId(targetBranchId);
+        if (!string.IsNullOrEmpty(request.ProfileImage)) user.SetProfileImage(request.ProfileImage);
+
+        user.UpdateExtendedProfile(
+            request.FirstName,
+            request.LastName,
+            request.PhoneNumber,
+            request.Designation,
+            request.Department,
+            request.Address,
+            request.City,
+            request.State,
+            request.Pincode,
+            request.Gender,
+            request.DateOfBirth,
+            request.AadhaarUrl,
+            request.PanCardUrl);
 
         // ✅ Step 2: Hash Password
         var hash = _passwordHasher.HashPassword(user, request.Password);

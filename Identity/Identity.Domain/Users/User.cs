@@ -18,6 +18,22 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
     public string AuthProvider { get; private set; } = "local"; // "local" or "google"
     public string? GoogleId { get; private set; }
     public bool IsActive { get; private set; } = true;
+    public string? ProfileImage { get; set; }
+
+    // Extended profile fields (optional)
+    public string? FirstName { get; private set; }
+    public string? LastName { get; private set; }
+    public string? PhoneNumber { get; private set; }
+    public string? Designation { get; private set; }
+    public string? Department { get; private set; }
+    public string? Address { get; private set; }
+    public string? City { get; private set; }
+    public string? State { get; private set; }
+    public string? Pincode { get; private set; }
+    public string? Gender { get; private set; }
+    public DateTime? DateOfBirth { get; private set; }
+    public string? AadhaarUrl { get; private set; }
+    public string? PanCardUrl { get; private set; }
 
     // Reset Token
     public string? ResetToken { get; private set; }
@@ -62,6 +78,11 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
         BranchId = branchId;
     }
 
+    public void SetProfileImage(string? profileImage)
+    {
+        ProfileImage = profileImage;
+    }
+
     public void AssignRole(Guid roleId)
     {
         if (_userRoles.Any(r => r.RoleId == roleId))
@@ -93,6 +114,36 @@ public class User : AuditableEntity, Identity.Domain.Common.IMultiTenant
         UserName = userName;
         Email = email;
         IsActive = isActive;
+    }
+
+    public void UpdateExtendedProfile(
+        string? firstName,
+        string? lastName,
+        string? phoneNumber,
+        string? designation,
+        string? department,
+        string? address,
+        string? city,
+        string? state,
+        string? pincode,
+        string? gender,
+        DateTime? dateOfBirth,
+        string? aadhaarUrl,
+        string? panCardUrl)
+    {
+        FirstName = firstName;
+        LastName = lastName;
+        PhoneNumber = phoneNumber;
+        Designation = designation;
+        Department = department;
+        Address = address;
+        City = city;
+        State = state;
+        Pincode = pincode;
+        Gender = gender;
+        DateOfBirth = dateOfBirth;
+        AadhaarUrl = aadhaarUrl;
+        PanCardUrl = panCardUrl;
     }
 
     public void UpdateRoles(List<Guid> roleIds)

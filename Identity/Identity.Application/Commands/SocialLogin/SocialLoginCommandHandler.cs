@@ -76,6 +76,13 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         {
             Console.WriteLine($"[SOCIAL-LOGIN] Existing user found. ID: {existingUser.Id}. Logging in directly.");
 
+            if (existingUser.ProfileImage != googleUser.Picture)
+            {
+                existingUser.SetProfileImage(googleUser.Picture);
+                await _users.UpdateAsync(existingUser);
+                await _uow.SaveChangesAsync(ct);
+            }
+
             // ── Existing user → Sirf login karo, koi nayi entry nahi ──
             return await GenerateLoginResponse(existingUser, ct);
         }
@@ -127,6 +134,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         newUser.SetCompanyId(companyId);
         newUser.SetAuthProvider("google");
         newUser.SetGoogleId(googleUser.GoogleId);
+        newUser.SetProfileImage(googleUser.Picture);
         // Note: PasswordHash intentionally NOT set (null) for social users
         
         if (adminRole != null)
@@ -214,6 +222,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         auth.CompanyCode = companyCode;
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
+        auth.ProfileImage = user.ProfileImage;
         auth.Permissions = aggregatedPermissions.ToList();
 
         // Add new Refresh Token

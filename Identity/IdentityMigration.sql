@@ -1,4 +1,4 @@
-﻿IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
 BEGIN
     CREATE TABLE [__EFMigrationsHistory] (
         [MigrationId] nvarchar(150) NOT NULL,
@@ -23,6 +23,7 @@ CREATE TABLE [Users] (
     [IsActive] bit NOT NULL,
     [CreatedAt] datetime2 NOT NULL,
     [ModifiedAt] datetime2 NULL,
+    [ProfileImage] nvarchar(max) NULL,
     CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
 );
 

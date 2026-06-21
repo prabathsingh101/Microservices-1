@@ -32,6 +32,18 @@ namespace Company.Infrastructure.Repositories
         {
             _context.CompanyProfiles.Update(profile);
             await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE IdentityDb.dbo.Subscriptions SET CompanyName = {0} WHERE CompanyId = {1}", 
+                    profile.Name, profile.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DB-SYNC-ERROR] Failed to sync CompanyName to IdentityDb: {ex.Message}");
+            }
+
             return profile.Id;
         }
 

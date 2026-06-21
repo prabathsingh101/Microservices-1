@@ -170,6 +170,11 @@ public class UserRepository : IUserRepository
         try
         {
             _context.IgnoreCompanyFilter = true;
+            var entry = _context.Entry(user);
+            if (entry.State == EntityState.Detached)
+            {
+                entry.State = EntityState.Modified;
+            }
             await _context.SaveChangesAsync();
         }
         catch (DbUpdateConcurrencyException)
@@ -179,7 +184,7 @@ public class UserRepository : IUserRepository
             var entry = _context.Entry(user);
             if (entry.State == EntityState.Detached)
             {
-                _context.Users.Update(user);
+                entry.State = EntityState.Modified;
             }
             
             // In some EF versions, SaveChanges with IgnoreQueryFilters on the query side 

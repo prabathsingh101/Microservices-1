@@ -175,6 +175,7 @@ public class LoginUserQueryHandler
         auth.CompanyCode = companyCode;
         auth.IsSubscriptionExpired = isExpired;
         auth.SubscriptionStatus = subStatus;
+        auth.ProfileImage = user.ProfileImage;
         auth.Permissions = aggregatedPermissions.ToList();
 
         // 8. Add Refresh Token directly via repository to avoid untracked entity tracking issues

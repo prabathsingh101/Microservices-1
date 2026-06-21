@@ -16,6 +16,7 @@ namespace Identity.Application.DTOs
         public string? BranchName { get; set; }
         public string SubscriptionStatus { get; set; } = "Active";
         public bool IsSubscriptionExpired { get; set; } = false;
+        public string? ProfileImage { get; set; }
         public IEnumerable<UserPermissionDto> Permissions { get; set; } = new List<UserPermissionDto>();
     }
 
