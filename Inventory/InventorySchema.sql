@@ -177,6 +177,18 @@ CREATE TABLE [SaleOrders] (
     [CreatedBy] nvarchar(max) NULL,
     [ModifiedOn] datetime2 NULL,
     [ModifiedBy] nvarchar(max) NULL,
+    [DeliveryType] varchar(50) NULL,
+    [DeliveryAddress] nvarchar(500) NULL,
+    [DeliverySlot] varchar(100) NULL,
+    [DeliveryBoyId] varchar(100) NULL,
+    [DeliveryBoyName] nvarchar(200) NULL,
+    [DeliveryCharges] decimal(18,2) NOT NULL DEFAULT 0.00,
+    [DeliveryStatus] varchar(50) NULL,
+    [CodCollectedAmount] decimal(18,2) NULL,
+    [CodPaymentMode] varchar(50) NULL,
+    [CashSettled] bit NOT NULL DEFAULT 0,
+    [CashSettledDate] datetime2 NULL,
+    [CashSettledBy] nvarchar(200) NULL,
     CONSTRAINT [PK_SaleOrders] PRIMARY KEY ([Id])
 );
 GO

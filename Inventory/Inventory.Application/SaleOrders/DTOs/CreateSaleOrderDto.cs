@@ -33,6 +33,13 @@ namespace Inventory.Application.SaleOrders.DTOs
         public string? GuestPhone { get; set; }
         public string? DoctorName { get; set; }
         public string? DoctorRegNo { get; set; }
+        public string? DeliveryType { get; set; }
+        public string? DeliveryAddress { get; set; }
+        public string? DeliverySlot { get; set; }
+        public string? DeliveryBoyId { get; set; }
+        public string? DeliveryBoyName { get; set; }
+        public decimal DeliveryCharges { get; set; }
+        public string? DeliveryStatus { get; set; }
         public List<SaleOrderItemDto> Items { get; set; }
     }
 

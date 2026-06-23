@@ -66,6 +66,39 @@ namespace Inventory.Domain.Entities.SO
         public string? DoctorName { get; set; }
         public string? DoctorRegNo { get; set; }
 
+        [StringLength(50)]
+        public string? DeliveryType { get; set; } // StorePickup, HomeDelivery
+        
+        [StringLength(500)]
+        public string? DeliveryAddress { get; set; }
+        
+        [StringLength(100)]
+        public string? DeliverySlot { get; set; }
+        
+        [StringLength(100)]
+        public string? DeliveryBoyId { get; set; }
+        
+        [StringLength(200)]
+        public string? DeliveryBoyName { get; set; }
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DeliveryCharges { get; set; } = 0;
+        
+        [StringLength(50)]
+        public string? DeliveryStatus { get; set; } // Pending, Assigned, OutForDelivery, Delivered, Returned, Cancelled
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? CodCollectedAmount { get; set; }
+        
+        [StringLength(50)]
+        public string? CodPaymentMode { get; set; } // Cash, UPI
+        
+        public bool CashSettled { get; set; } = false;
+        public DateTime? CashSettledDate { get; set; }
+        
+        [StringLength(200)]
+        public string? CashSettledBy { get; set; }
+
         // Relationship: One SaleOrder has many SaleOrderItems
         public virtual ICollection<SaleOrderItem> Items { get; set; }
     }

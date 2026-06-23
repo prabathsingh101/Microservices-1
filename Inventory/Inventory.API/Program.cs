@@ -150,6 +150,38 @@ using (var scope = app.Services.CreateScope())
 }
 */
 
+// Safe Database Schema migration for Home Delivery columns
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+    try
+    {
+        var sql = @"
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleOrders]') AND name = N'DeliveryType')
+        BEGIN
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliveryType] VARCHAR(50) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliveryAddress] NVARCHAR(500) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliverySlot] VARCHAR(100) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliveryBoyId] VARCHAR(100) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliveryBoyName] NVARCHAR(200) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliveryCharges] DECIMAL(18,2) NOT NULL DEFAULT 0.00;
+            ALTER TABLE [dbo].[SaleOrders] ADD [DeliveryStatus] VARCHAR(50) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [CodCollectedAmount] DECIMAL(18,2) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [CodPaymentMode] VARCHAR(50) NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [CashSettled] BIT NOT NULL DEFAULT 0;
+            ALTER TABLE [dbo].[SaleOrders] ADD [CashSettledDate] DATETIME2 NULL;
+            ALTER TABLE [dbo].[SaleOrders] ADD [CashSettledBy] NVARCHAR(200) NULL;
+        END";
+        
+        context.Database.ExecuteSqlRaw(sql);
+        Log.Information("Home Delivery DB Schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run Home Delivery DB Schema migration. It might already exist or DB is offline.");
+    }
+}
+
 app.MapControllers();
 
 try

@@ -104,6 +104,13 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             GuestPhone = dto.GuestPhone,
             DoctorName = dto.DoctorName,
             DoctorRegNo = dto.DoctorRegNo,
+            DeliveryType = dto.DeliveryType ?? "StorePickup",
+            DeliveryAddress = dto.DeliveryAddress,
+            DeliverySlot = dto.DeliverySlot,
+            DeliveryBoyId = dto.DeliveryBoyId,
+            DeliveryBoyName = dto.DeliveryBoyName,
+            DeliveryCharges = dto.DeliveryCharges,
+            DeliveryStatus = dto.DeliveryType == "HomeDelivery" ? (dto.DeliveryStatus ?? "Pending") : null,
             Items = dto.Items.Select(i => new SaleOrderItem
             {
                 ProductId = i.ProductId,

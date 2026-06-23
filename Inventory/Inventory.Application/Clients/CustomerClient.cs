@@ -114,6 +114,33 @@ public class CustomerClient : ICustomerClient
         }
     }
 
+    public async Task RecordReceiptAsync(Guid? customerId, decimal amount, string paymentMode, string referenceNumber, string remarks, string createdBy, string? branchId, Guid? companyId)
+    {
+        var client = _httpClientFactory.CreateClient("CustomerService");
+        AddAuthorizationHeader(client);
+
+        var payload = new
+        {
+            CustomerId = customerId,
+            Amount = amount,
+            paymentDate = DateTime.Now,
+            paymentMode = paymentMode,
+            ReferenceNumber = referenceNumber,
+            Remarks = remarks,
+            CreatedBy = createdBy,
+            BranchId = branchId,
+            CompanyId = companyId
+        };
+
+        var response = await client.PostAsJsonAsync("api/finance/receipt", payload);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to record receipt in customer service: {error}");
+        }
+    }
+
     public async Task<CustomerLookupDto?> GetCustomerByIdAsync(Guid id)
     {
         var client = _httpClientFactory.CreateClient("CustomerService");

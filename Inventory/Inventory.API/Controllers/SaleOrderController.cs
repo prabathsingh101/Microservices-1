@@ -7,6 +7,13 @@ using Inventory.Application.SaleOrders.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Application.Clients;
+using Inventory.Domain.Entities;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
+using System;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -15,11 +22,18 @@ public class SaleOrderController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ISaleOrderRepository _saleRepo;
+    private readonly IInventoryDbContext _context;
+    private readonly ICustomerClient _customerClient;
+
     public SaleOrderController(IMediator mediator, 
-        ISaleOrderRepository stockRepo) 
+        ISaleOrderRepository stockRepo,
+        IInventoryDbContext context,
+        ICustomerClient customerClient) 
     {  
         _mediator = mediator;
         _saleRepo = stockRepo;
+        _context = context;
+        _customerClient = customerClient;
     }
 
     [HttpPost("save")]
@@ -330,5 +344,282 @@ public class SaleOrderController : ControllerBase
         }
 
         return BadRequest("Company context missing");
+    }
+
+    // --- HOME DELIVERY SYSTEM ENDPOINTS ---
+
+    [HttpGet("delivery-list")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    public async Task<IActionResult> GetDeliveryList(
+        [FromQuery] string? deliveryBoyId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] bool? cashSettled = null,
+        [FromQuery] string? branchId = null)
+    {
+        var activeCompanyIdClaim = User.FindFirst("CompanyId")?.Value;
+        if (!Guid.TryParse(activeCompanyIdClaim, out var companyId))
+        {
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            Guid.TryParse(companyIdHeader, out companyId);
+        }
+
+        var query = _context.SaleOrders
+            .Where(x => x.DeliveryType == "HomeDelivery")
+            .AsNoTracking();
+
+        if (companyId != Guid.Empty)
+        {
+            query = query.Where(x => x.CompanyId == companyId);
+        }
+
+        if (!string.IsNullOrEmpty(branchId))
+        {
+            query = query.Where(x => x.BranchId == branchId);
+        }
+
+        if (!string.IsNullOrEmpty(deliveryBoyId))
+        {
+            query = query.Where(x => x.DeliveryBoyId == deliveryBoyId);
+        }
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(x => x.DeliveryStatus == status);
+        }
+
+        if (cashSettled.HasValue)
+        {
+            query = query.Where(x => x.CashSettled == cashSettled.Value);
+        }
+
+        var orders = await query
+            .OrderByDescending(x => x.SODate)
+            .ToListAsync();
+
+        return Ok(orders);
+    }
+
+    public class AssignDeliveryDto
+    {
+        public List<Guid> OrderIds { get; set; } = new();
+        public string DeliveryBoyId { get; set; } = null!;
+        public string DeliveryBoyName { get; set; } = null!;
+        public string DeliverySlot { get; set; } = null!;
+        public decimal DeliveryCharges { get; set; }
+    }
+
+    [HttpPost("assign-delivery")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    public async Task<IActionResult> AssignDelivery([FromBody] AssignDeliveryDto request)
+    {
+        if (request == null || request.OrderIds == null || !request.OrderIds.Any())
+            return BadRequest("Order IDs are required.");
+
+        var orders = await _context.SaleOrders
+            .Where(x => request.OrderIds.Contains(x.Id))
+            .ToListAsync();
+
+        foreach (var order in orders)
+        {
+            order.DeliveryBoyId = request.DeliveryBoyId;
+            order.DeliveryBoyName = request.DeliveryBoyName;
+            order.DeliverySlot = request.DeliverySlot;
+            
+            decimal oldCharges = order.DeliveryCharges;
+            order.DeliveryCharges = request.DeliveryCharges;
+            order.GrandTotal = (order.GrandTotal - oldCharges) + request.DeliveryCharges;
+            
+            order.DeliveryStatus = "Assigned";
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = "Delivery agent assigned successfully!" });
+    }
+
+    public class UpdateDeliveryStatusDto
+    {
+        public Guid OrderId { get; set; }
+        public string Status { get; set; } = null!; // Delivered, Returned, Cancelled, OutForDelivery
+        public decimal? CodCollectedAmount { get; set; }
+        public string? CodPaymentMode { get; set; } // Cash, UPI
+    }
+
+    [HttpPost("update-delivery-status")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    public async Task<IActionResult> UpdateDeliveryStatus([FromBody] UpdateDeliveryStatusDto request)
+    {
+        if (request == null)
+            return BadRequest("Data is required.");
+
+        var order = await _context.SaleOrders
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == request.OrderId);
+
+        if (order == null)
+            return NotFound("Order not found.");
+
+        order.DeliveryStatus = request.Status;
+
+        if (request.Status == "Delivered")
+        {
+            order.CodCollectedAmount = request.CodCollectedAmount ?? order.GrandTotal;
+            order.CodPaymentMode = request.CodPaymentMode ?? "Cash";
+            await _context.SaveChangesAsync();
+        }
+        else if (request.Status == "Returned" || request.Status == "Cancelled")
+        {
+            order.CodCollectedAmount = 0;
+            order.CodPaymentMode = null;
+
+            if (order.Status == "Confirmed" || order.Status == "Delivered" || order.Status == "Completed")
+            {
+                var cancelledBy = User.Identity?.Name ?? "Delivery Boy";
+
+                await _saleRepo.ExecuteInTransactionAsync(async () =>
+                {
+                    // 1. Revert Stock
+                    foreach (var item in order.Items)
+                    {
+                        var reversalTx = new InventoryTransaction(
+                            item.ProductId,
+                            item.Qty, // Positive because it is READDING stock
+                            (order.IsQuick ? "QuickSale" : "Sale") + "-DELETED",
+                            order.SONumber,
+                            item.WarehouseId,
+                            item.RackId,
+                            item.MfgDate,
+                            item.ExpDate,
+                            order.CompanyId,
+                            order.BranchId
+                        );
+                        await _context.InventoryTransactions.AddAsync(reversalTx);
+
+                        if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
+                        {
+                            var whStock = await _context.WarehouseStocks
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+
+                            if (whStock != null)
+                            {
+                                whStock.Quantity += item.Qty;
+                            }
+                        }
+                    }
+
+                    // 2. Ledger Sync (Reverse Sale)
+                    if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty)
+                    {
+                        try
+                        {
+                            string ledgerNote = $"Sale Order Cancelled/Returned via Delivery Portal. Order: {order.SONumber}";
+                            await _customerClient.RecordSaleAsync(
+                                order.CustomerId.Value,
+                                -order.GrandTotal, // Negative amount
+                                order.SONumber,
+                                ledgerNote,
+                                cancelledBy,
+                                order.BranchId,
+                                order.CompanyId
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Ledger reversion failed in delivery update: {ex.Message}");
+                        }
+                    }
+
+                    // 3. Update Order Status
+                    order.Status = "Cancelled";
+                    order.CancelReason = $"Delivery status updated to {request.Status}";
+
+                    await _context.SaveChangesAsync();
+                });
+            }
+            else
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+        else
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { success = true, message = $"Delivery status updated to {request.Status}." });
+    }
+
+    public class SettleDeliveryCashDto
+    {
+        public List<Guid> OrderIds { get; set; } = new();
+    }
+
+    [HttpPost("settle-delivery-cash")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    public async Task<IActionResult> SettleDeliveryCash([FromBody] SettleDeliveryCashDto request)
+    {
+        if (request == null || request.OrderIds == null || !request.OrderIds.Any())
+            return BadRequest("Order IDs are required.");
+
+        var settledBy = User.Identity?.Name ?? "Manager";
+
+        var orders = await _context.SaleOrders
+            .Where(x => request.OrderIds.Contains(x.Id) && x.DeliveryType == "HomeDelivery" && x.DeliveryStatus == "Delivered" && !x.CashSettled)
+            .ToListAsync();
+
+        int settledCount = 0;
+
+        foreach (var order in orders)
+        {
+            order.CashSettled = true;
+            order.CashSettledDate = DateTime.Now;
+            order.CashSettledBy = settledBy;
+            settledCount++;
+
+            // 1. Permanent Customer: If CustomerId is set and amount collected > 0, post Customer Receipt to credit their ledger
+            if (order.CustomerId.HasValue && order.CustomerId.Value != Guid.Empty && (order.CodCollectedAmount ?? 0) > 0)
+            {
+                try
+                {
+                    await _customerClient.RecordReceiptAsync(
+                        order.CustomerId.Value,
+                        order.CodCollectedAmount.Value,
+                        order.CodPaymentMode ?? "Cash",
+                        $"SETTLE-{order.SONumber}",
+                        $"Home Delivery Cash Settle for order: {order.SONumber}",
+                        settledBy,
+                        order.BranchId,
+                        order.CompanyId
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"COD ledger receipt posting failed for order {order.SONumber}: {ex.Message}");
+                }
+            }
+            // 2. Walking Customer: If guest name is present and amount collected > 0, post Customer Receipt to log cash inflow
+            else if (!order.CustomerId.HasValue && (order.CodCollectedAmount ?? 0) > 0)
+            {
+                try
+                {
+                    await _customerClient.RecordReceiptAsync(
+                        null,
+                        order.CodCollectedAmount.Value,
+                        order.CodPaymentMode ?? "Cash",
+                        $"SETTLE-{order.SONumber}",
+                        $"Home Delivery Cash Settle (Guest: {order.GuestName}): {order.SONumber}",
+                        settledBy,
+                        order.BranchId,
+                        order.CompanyId
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"COD guest receipt posting failed for order {order.SONumber}: {ex.Message}");
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = $"Successfully settled cash for {settledCount} orders." });
     }
 }
