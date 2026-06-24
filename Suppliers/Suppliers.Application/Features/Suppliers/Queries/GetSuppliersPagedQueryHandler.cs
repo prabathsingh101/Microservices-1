@@ -88,7 +88,12 @@ internal sealed class GetSuppliersPagedQueryHandler
                 x.DrugLicenseNo,
                 x.SupplierType,
                 x.FssaiLicenseNo,
-                x.AgriLicenseNo
+                x.AgriLicenseNo,
+                x.GstFilingFrequency,
+                x.GstComplianceScore,
+                x.GstFilingStatus,
+                x.LastFiledMonth,
+                x.LastFilingDate
             ))
             .ToListAsync(cancellationToken);
 

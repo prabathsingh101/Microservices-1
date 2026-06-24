@@ -46,6 +46,17 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
             po.IgstAmount = dto.IgstAmount;
             po.CgstAmount = dto.CgstAmount;
             po.SgstAmount = dto.SgstAmount;
+            
+            // Map RCM Properties
+            po.IsRcm = dto.IsRcm;
+            po.RcmGstRate = dto.RcmGstRate;
+            po.RcmTaxAmount = dto.RcmTaxAmount;
+            po.RcmCgstAmount = dto.RcmCgstAmount;
+            po.RcmSgstAmount = dto.RcmSgstAmount;
+            po.RcmIgstAmount = dto.RcmIgstAmount;
+            po.RcmPaid = dto.RcmPaid;
+            po.RcmPaidDate = dto.RcmPaidDate;
+
             // Audit tracking: Update updated fields, leave CreatedBy unchanged
             po.ModifiedOn = DateTime.UtcNow;
             po.ModifiedBy = dto.ModifiedBy;

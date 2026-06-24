@@ -29,6 +29,14 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public decimal? IgstAmount { get; set; }
         public decimal? CgstAmount { get; set; }
         public decimal? SgstAmount { get; set; }
+        public bool IsRcm { get; set; }
+        public decimal? RcmGstRate { get; set; }
+        public decimal? RcmTaxAmount { get; set; }
+        public decimal? RcmCgstAmount { get; set; }
+        public decimal? RcmSgstAmount { get; set; }
+        public decimal? RcmIgstAmount { get; set; }
+        public bool RcmPaid { get; set; }
+        public DateTime? RcmPaidDate { get; set; }
         public List<UpdatePurchaseOrderItemDto>? Items { get; set; }
     }
 

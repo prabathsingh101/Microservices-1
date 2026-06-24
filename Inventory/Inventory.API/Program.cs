@@ -152,7 +152,7 @@ using (var scope = app.Services.CreateScope())
 }
 */
 
-// Safe Database Schema migration for Home Delivery columns
+// Safe Database Schema migration for Home Delivery and Expense RCM columns
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
@@ -181,6 +181,50 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         Log.Error(ex, "Failed to run Home Delivery DB Schema migration. It might already exist or DB is offline.");
+    }
+
+    try
+    {
+        var sqlRcm = @"
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'IsRcm')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [IsRcm] BIT NOT NULL DEFAULT 0;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmGstRate')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmGstRate] DECIMAL(18,2) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmTaxableValue')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmTaxableValue] DECIMAL(18,2) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmTaxAmount')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmTaxAmount] DECIMAL(18,2) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmCgstAmount')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmCgstAmount] DECIMAL(18,2) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmSgstAmount')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmSgstAmount] DECIMAL(18,2) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmIgstAmount')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmIgstAmount] DECIMAL(18,2) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmPaid')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmPaid] BIT NOT NULL DEFAULT 0;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'RcmPaidDate')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [RcmPaidDate] DATETIME2 NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'SupplierName')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [SupplierName] NVARCHAR(200) NULL;
+
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'SupplierGstin')
+            ALTER TABLE [dbo].[ExpenseEntries] ADD [SupplierGstin] VARCHAR(50) NULL;";
+        
+        context.Database.ExecuteSqlRaw(sqlRcm);
+        Log.Information("Expense RCM DB Schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run Expense RCM DB Schema migration. It might already exist or DB is offline.");
     }
 }
 

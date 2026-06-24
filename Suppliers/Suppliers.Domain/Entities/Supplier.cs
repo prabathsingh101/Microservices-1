@@ -15,10 +15,27 @@ namespace Suppliers.Domain.Entities
         public string? SupplierType { get; private set; }
         public string? FssaiLicenseNo { get; private set; }
         public string? AgriLicenseNo { get; private set; }
+        
+        // --- GST Compliance Columns ---
+        public string? GstFilingFrequency { get; private set; }
+        public decimal? GstComplianceScore { get; private set; }
+        public string? GstFilingStatus { get; private set; }
+        public string? LastFiledMonth { get; private set; }
+        public DateTime? LastFilingDate { get; private set; }
 
         public Guid? DefaultPriceListId { get; private set; }
 
         public bool IsActive { get; private set; } = true;
+
+        public void UpdateGstCompliance(string? frequency, decimal? score, string? status, string? month, DateTime? filingDate)
+        {
+            GstFilingFrequency = frequency;
+            GstComplianceScore = score;
+            GstFilingStatus = status;
+            LastFiledMonth = month;
+            LastFilingDate = filingDate;
+            ModifiedOn = DateTime.Now;
+        }
 
         private Supplier() { Name = null!; Phone = null!; }
 

@@ -136,6 +136,18 @@ public class ExpenseEntriesController : ControllerBase
         existing.AttachmentPath = entry.AttachmentPath;
         existing.ModifiedOn = DateTime.Now;
 
+        // RCM Properties mapping
+        existing.IsRcm = entry.IsRcm;
+        existing.RcmGstRate = entry.RcmGstRate;
+        existing.RcmTaxAmount = entry.RcmTaxAmount;
+        existing.RcmCgstAmount = entry.RcmCgstAmount;
+        existing.RcmSgstAmount = entry.RcmSgstAmount;
+        existing.RcmIgstAmount = entry.RcmIgstAmount;
+        existing.RcmPaid = entry.RcmPaid;
+        existing.RcmPaidDate = entry.RcmPaidDate;
+        existing.SupplierName = entry.SupplierName;
+        existing.SupplierGstin = entry.SupplierGstin;
+
         // 🚀 SMART INJECTION: Ensure CompanyId & BranchId are safe on update
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var companyIdHeader = Request.Headers["X-Company-Id"].ToString();

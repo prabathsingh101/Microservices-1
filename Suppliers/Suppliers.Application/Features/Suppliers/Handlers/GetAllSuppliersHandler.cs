@@ -36,7 +36,12 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 s.DrugLicenseNo,
                 s.SupplierType,
                 s.FssaiLicenseNo,
-                s.AgriLicenseNo
+                s.AgriLicenseNo,
+                s.GstFilingFrequency,
+                s.GstComplianceScore,
+                s.GstFilingStatus,
+                s.LastFiledMonth,
+                s.LastFilingDate
             ));
         }
     }

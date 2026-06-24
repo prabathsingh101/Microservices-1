@@ -32,6 +32,17 @@ public class PurchaseOrder : Inventory.Domain.Common.BaseAuditableEntity
     public string? SupplierInvoiceNo { get; set; }
     public DateTime? SupplierInvoiceDate { get; set; }
     public string? SupplierGstIn { get; set; }
+    
+    // --- RCM (Reverse Charge Mechanism) Tracker ---
+    public bool IsRcm { get; set; } = false;
+    public decimal? RcmGstRate { get; set; }
+    public decimal? RcmTaxAmount { get; set; }
+    public decimal? RcmCgstAmount { get; set; }
+    public decimal? RcmSgstAmount { get; set; }
+    public decimal? RcmIgstAmount { get; set; }
+    public bool RcmPaid { get; set; } = false;
+    public DateTime? RcmPaidDate { get; set; }
+
     public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     public virtual ICollection<GRNHeader> GrnHeaders { get; set; } = new List<GRNHeader>();
 

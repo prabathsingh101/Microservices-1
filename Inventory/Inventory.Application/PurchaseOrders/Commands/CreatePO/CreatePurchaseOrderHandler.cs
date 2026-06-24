@@ -70,6 +70,14 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     SupplierInvoiceNo = dto.SupplierInvoiceNo,
                     SupplierInvoiceDate = dto.SupplierInvoiceDate,
                     SupplierGstIn = dto.SupplierGstIn,
+                    IsRcm = dto.IsRcm,
+                    RcmGstRate = dto.RcmGstRate,
+                    RcmTaxAmount = dto.RcmTaxAmount,
+                    RcmCgstAmount = dto.RcmCgstAmount,
+                    RcmSgstAmount = dto.RcmSgstAmount,
+                    RcmIgstAmount = dto.RcmIgstAmount,
+                    RcmPaid = dto.RcmPaid,
+                    RcmPaidDate = dto.RcmPaidDate,
                     Items = dto.Items.Select(i => new PurchaseOrderItem
                     {
                         ProductId = i.ProductId,

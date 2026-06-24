@@ -24,7 +24,15 @@ public record CreatePurchaseOrderDto(
     List<PoItemDto> Items,
     string? SupplierInvoiceNo = null,
     DateTime? SupplierInvoiceDate = null,
-    string? SupplierGstIn = null);
+    string? SupplierGstIn = null,
+    bool IsRcm = false,
+    decimal? RcmGstRate = null,
+    decimal? RcmTaxAmount = null,
+    decimal? RcmCgstAmount = null,
+    decimal? RcmSgstAmount = null,
+    decimal? RcmIgstAmount = null,
+    bool RcmPaid = false,
+    DateTime? RcmPaidDate = null);
 
 public record PoItemDto(
     Guid ProductId,

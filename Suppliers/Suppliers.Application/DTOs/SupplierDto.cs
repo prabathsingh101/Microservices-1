@@ -17,7 +17,12 @@ public record SupplierDto(
     string? drugLicenseNo = null,
     string? supplierType = null,
     string? fssaiLicenseNo = null,
-    string? agriLicenseNo = null
+    string? agriLicenseNo = null,
+    string? gstFilingFrequency = null,
+    decimal? gstComplianceScore = null,
+    string? gstFilingStatus = null,
+    string? lastFiledMonth = null,
+    DateTime? lastFilingDate = null
 );
 
 public record CreateSupplierDto(
