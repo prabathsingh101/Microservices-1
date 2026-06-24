@@ -48,6 +48,9 @@ namespace Inventory.Domain.Entities.SalesInvoice
         public bool IsQuick { get; set; }
         public string? GuestName { get; set; }
         public string? GuestPhone { get; set; }
+        public string? CustomerGstIn { get; set; }
+        public string? CustomerName { get; set; }
+        public string? PlaceOfSupply { get; set; }
         public Guid? DeliveryChallanId { get; set; }
         public string? DoctorName { get; set; }
         public string? DoctorRegNo { get; set; }

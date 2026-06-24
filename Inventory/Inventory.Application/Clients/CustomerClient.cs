@@ -56,6 +56,22 @@ public class CustomerClient : ICustomerClient
         return new Dictionary<Guid, string>();
     }
 
+    public async Task<Dictionary<Guid, CustomerLookupDto>> GetCustomerDetailsByIdsAsync(List<Guid> customerIds)
+    {
+        var client = _httpClientFactory.CreateClient("CustomerService");
+        AddAuthorizationHeader(client);
+
+        // Batch API call: Customer Microservice ko IDs bhejein aur details payenge
+        var response = await client.PostAsJsonAsync("api/customers/get-details", customerIds);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<Dictionary<Guid, CustomerLookupDto>>() ?? new();
+        }
+
+        return new Dictionary<Guid, CustomerLookupDto>();
+    }
+
     public async Task<List<CustomerLookupDto>> GetCustomersForLookupAsync()
     {
         var client = _httpClientFactory.CreateClient("CustomerService");

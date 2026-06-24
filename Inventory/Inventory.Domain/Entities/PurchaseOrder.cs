@@ -29,6 +29,9 @@ public class PurchaseOrder : Inventory.Domain.Common.BaseAuditableEntity
     public string Status { get; set; } = "Draft";
     public bool IsQuick { get; set; } // Flag for Quick vs Standard Purchase
     public bool IsDispatched { get; set; } = false; // Flag for In-Transit tracking
+    public string? SupplierInvoiceNo { get; set; }
+    public DateTime? SupplierInvoiceDate { get; set; }
+    public string? SupplierGstIn { get; set; }
     public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     public virtual ICollection<GRNHeader> GrnHeaders { get; set; } = new List<GRNHeader>();
 

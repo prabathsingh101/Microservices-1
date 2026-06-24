@@ -6,5 +6,7 @@ namespace Suppliers.Application.DTOs
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
+        public string? GstIn { get; set; }
+        public string? Phone { get; set; }
     }
 }

@@ -67,6 +67,9 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
                     IsQuick = dto.IsQuick, // Map flag from DTO
                     Status = "Draft", // Always start as Draft
+                    SupplierInvoiceNo = dto.SupplierInvoiceNo,
+                    SupplierInvoiceDate = dto.SupplierInvoiceDate,
+                    SupplierGstIn = dto.SupplierGstIn,
                     Items = dto.Items.Select(i => new PurchaseOrderItem
                     {
                         ProductId = i.ProductId,

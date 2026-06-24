@@ -69,6 +69,28 @@ namespace Customers.Infrastructure.Repositories
                 .ToDictionaryAsync(x => x.Id, x => x.CustomerName ?? string.Empty);
         }
 
+        public async Task<Dictionary<Guid, CustomerDto>> GetCustomerDetailsByIdsAsync(List<Guid> ids)
+        {
+            if (ids == null || !ids.Any())
+                return new Dictionary<Guid, CustomerDto>();
+
+            var distinctIds = ids.Distinct().ToList();
+
+            return await _context.Customers.AsNoTracking()
+                .Where(c => c.CompanyId == _companyId && distinctIds.Contains(c.Id))
+                .Select(c => new CustomerDto
+                {
+                    Id = c.Id,
+                    CustomerName = c.CustomerName,
+                    Phone = c.Phone,
+                    Email = c.Email,
+                    GstNumber = c.GstNumber,
+                    BillingAddressLine = c.BillingAddress != null ? c.BillingAddress.AddressLine : null,
+                    ShippingAddressLine = c.ShippingAddress != null ? c.ShippingAddress.AddressLine : null
+                })
+                .ToDictionaryAsync(x => x.Id, x => x);
+        }
+
         public async Task<string?> GetCustomerNameByIdAsync(Guid id)
         {
             return await _context.Customers.AsNoTracking()

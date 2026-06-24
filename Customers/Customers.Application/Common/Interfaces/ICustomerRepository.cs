@@ -19,6 +19,7 @@ namespace Customers.Application.Common.Interfaces
 
         //bulk customer call
         Task<Dictionary<Guid, string>> GetCustomerNamesByIdsAsync(List<Guid> ids);
+        Task<Dictionary<Guid, CustomerDto>> GetCustomerDetailsByIdsAsync(List<Guid> ids);
 
         //single cusomer call
         Task<string?> GetCustomerNameByIdAsync(Guid id);

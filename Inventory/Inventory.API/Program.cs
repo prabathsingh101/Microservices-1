@@ -84,6 +84,8 @@ builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
      .WithExposedHeaders("Content-Disposition"); // <-- important
 }));
 
+builder.Services.AddSignalR();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -183,6 +185,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
+app.MapHub<Inventory.API.Hubs.DeliveryHub>("/api/hubs/delivery");
 
 try
 {

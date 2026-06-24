@@ -21,7 +21,10 @@ public record CreatePurchaseOrderDto(
     bool IsQuick, // Quick Purchase flag
     Guid CompanyId,
     string? BranchId,
-    List<PoItemDto> Items);
+    List<PoItemDto> Items,
+    string? SupplierInvoiceNo = null,
+    DateTime? SupplierInvoiceDate = null,
+    string? SupplierGstIn = null);
 
 public record PoItemDto(
     Guid ProductId,

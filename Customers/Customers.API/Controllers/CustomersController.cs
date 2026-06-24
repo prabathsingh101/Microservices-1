@@ -58,6 +58,15 @@ public class CustomersController : ControllerBase
         return Ok(names);
     }
 
+    [HttpPost("get-details")]
+    public async Task<IActionResult> GetCustomerDetails([FromBody] List<Guid> ids)
+    {
+        if (ids == null || !ids.Any()) return BadRequest("No IDs provided");
+
+        var details = await _customerRepo.GetCustomerDetailsByIdsAsync(ids);
+        return Ok(details);
+    }
+
     [HttpGet("{id}/name")]
     public async Task<IActionResult> GetCustomerNameById(Guid id)
     {

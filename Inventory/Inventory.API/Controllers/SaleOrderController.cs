@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System;
+using Microsoft.AspNetCore.SignalR;
+using Inventory.API.Hubs;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -24,16 +26,19 @@ public class SaleOrderController : ControllerBase
     private readonly ISaleOrderRepository _saleRepo;
     private readonly IInventoryDbContext _context;
     private readonly ICustomerClient _customerClient;
+    private readonly IHubContext<DeliveryHub> _hubContext;
 
     public SaleOrderController(IMediator mediator, 
         ISaleOrderRepository stockRepo,
         IInventoryDbContext context,
-        ICustomerClient customerClient) 
+        ICustomerClient customerClient,
+        IHubContext<DeliveryHub> hubContext) 
     {  
         _mediator = mediator;
         _saleRepo = stockRepo;
         _context = context;
         _customerClient = customerClient;
+        _hubContext = hubContext;
     }
 
     [HttpPost("save")]
@@ -64,7 +69,14 @@ public class SaleOrderController : ControllerBase
         // 1. Mediator ab pura object return karega (Id aur SONumber)
         var result = await _mediator.Send(new CreateSaleOrderCommand(dto));
 
-        // 2. Result ko as it is return karein taaki frontend ko result.soNumber mil sake
+        // 2. Real-time broadcast if this is a HomeDelivery order
+        if (dto.DeliveryType == "HomeDelivery" && !string.IsNullOrEmpty(dto.BranchId))
+        {
+            string initialStatus = !string.IsNullOrEmpty(dto.DeliveryBoyId) ? "Assigned" : "Pending";
+            await _hubContext.Clients.Group(dto.BranchId).SendAsync("ReceiveDeliveryUpdate", new { status = initialStatus });
+        }
+
+        // 3. Result ko as it is return karein taaki frontend ko result.soNumber mil sake
         return Ok(result);
     }
 
@@ -396,7 +408,54 @@ public class SaleOrderController : ControllerBase
             .OrderByDescending(x => x.SODate)
             .ToListAsync();
 
-        return Ok(orders);
+        var customerIds = orders
+            .Where(x => x.CustomerId.HasValue)
+            .Select(x => x.CustomerId!.Value)
+            .Distinct()
+            .ToList();
+
+        var customerDetails = customerIds.Any()
+            ? await _customerClient.GetCustomerDetailsByIdsAsync(customerIds)
+            : new Dictionary<Guid, CustomerLookupDto>();
+
+        var result = orders.Select(o => new
+        {
+            o.Id,
+            o.SONumber,
+            o.CustomerId,
+            CustomerName = o.CustomerId.HasValue && customerDetails.TryGetValue(o.CustomerId.Value, out var c) ? c.CustomerName : null,
+            CustomerPhone = o.CustomerId.HasValue && customerDetails.TryGetValue(o.CustomerId.Value, out var c2) ? c2.Phone : null,
+            o.PriceListId,
+            o.SODate,
+            o.ExpectedDeliveryDate,
+            o.SubTotal,
+            o.TotalTax,
+            o.GrandTotal,
+            o.TaxType,
+            o.Remarks,
+            o.Status,
+            o.GatePassNo,
+            o.IsQuick,
+            o.GuestName,
+            o.GuestPhone,
+            o.CancelReason,
+            o.DoctorName,
+            o.DoctorRegNo,
+            o.DeliveryType,
+            o.DeliveryAddress,
+            o.DeliverySlot,
+            o.DeliveryBoyId,
+            o.DeliveryBoyName,
+            o.DeliveryCharges,
+            o.DeliveryStatus,
+            o.CodCollectedAmount,
+            o.CodPaymentMode,
+            o.CashSettled,
+            o.CashSettledDate,
+            o.CashSettledBy
+        });
+
+        return Ok(result);
     }
 
     public class AssignDeliveryDto
@@ -433,6 +492,15 @@ public class SaleOrderController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        foreach (var order in orders)
+        {
+            if (!string.IsNullOrEmpty(order.BranchId))
+            {
+                await _hubContext.Clients.Group(order.BranchId).SendAsync("ReceiveDeliveryUpdate", new { orderId = order.Id, status = "Assigned" });
+            }
+        }
+
         return Ok(new { success = true, message = "Delivery agent assigned successfully!" });
     }
 
@@ -545,6 +613,11 @@ public class SaleOrderController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        if (!string.IsNullOrEmpty(order.BranchId))
+        {
+            await _hubContext.Clients.Group(order.BranchId).SendAsync("ReceiveDeliveryUpdate", new { orderId = order.Id, status = request.Status });
+        }
+
         return Ok(new { success = true, message = $"Delivery status updated to {request.Status}." });
     }
 
@@ -620,6 +693,15 @@ public class SaleOrderController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        foreach (var order in orders)
+        {
+            if (!string.IsNullOrEmpty(order.BranchId))
+            {
+                await _hubContext.Clients.Group(order.BranchId).SendAsync("ReceiveDeliveryUpdate", new { orderId = order.Id, status = "Settled" });
+            }
+        }
+
         return Ok(new { success = true, message = $"Successfully settled cash for {settledCount} orders." });
     }
 }

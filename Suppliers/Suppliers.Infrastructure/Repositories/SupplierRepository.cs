@@ -73,7 +73,9 @@ namespace Suppliers.Infrastructure.Repositories
                 .Select(s => new SupplierSelectDto
                 {
                     Id = s.Id,
-                    Name = s.Name
+                    Name = s.Name,
+                    GstIn = s.GstIn,
+                    Phone = s.Phone
                 })
                 .ToListAsync();
 

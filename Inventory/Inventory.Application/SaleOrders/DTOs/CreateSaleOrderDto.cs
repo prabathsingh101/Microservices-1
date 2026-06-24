@@ -40,6 +40,7 @@ namespace Inventory.Application.SaleOrders.DTOs
         public string? DeliveryBoyName { get; set; }
         public decimal DeliveryCharges { get; set; }
         public string? DeliveryStatus { get; set; }
+        public bool CashSettled { get; set; } = false;
         public List<SaleOrderItemDto> Items { get; set; }
     }
 

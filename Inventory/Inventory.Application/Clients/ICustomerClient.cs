@@ -7,6 +7,7 @@ namespace Inventory.Application.Clients
     public interface ICustomerClient
     {
         Task<Dictionary<Guid, string>> GetCustomerNamesAsync(List<Guid> customerIds);
+        Task<Dictionary<Guid, CustomerLookupDto>> GetCustomerDetailsByIdsAsync(List<Guid> customerIds);
         Task<List<CustomerLookupDto>> GetCustomersForLookupAsync();
         Task<List<Guid>> SearchCustomerIdsByNameAsync(string searchName);
         Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy, string? branchId, Guid? companyId);
