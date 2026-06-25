@@ -23,6 +23,7 @@ namespace Company.Application.Company.Queries
             return new CompanyProfileDto(
                 data.Id,
                 data.CompanyCode,
+                data.CompanyType,
                 data.Name,
                 data.Tagline,
                 data.RegistrationNumber,

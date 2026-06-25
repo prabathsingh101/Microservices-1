@@ -9,6 +9,7 @@ namespace Company.Domain.Entities
     {
         public Guid Id { get; set; }
         public string? CompanyCode { get; set; }
+        public string? CompanyType { get; set; }
         public string? Name { get; set; }
         public string? Tagline { get; set; }
         public string? RegistrationNumber { get; set; }

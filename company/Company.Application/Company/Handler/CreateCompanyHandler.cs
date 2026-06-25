@@ -124,6 +124,7 @@ namespace Company.Application.Company.Commands.Create.Handler
             {
                 // If exists, perform an UPDATE instead of skip
                 existing.CompanyCode = cmd.Request.CompanyCode;
+                existing.CompanyType = cmd.Request.CompanyType;
                 existing.Name = cmd.Request.Name;
                 existing.Tagline = cmd.Request.Tagline;
                 existing.RegistrationNumber = cmd.Request.RegistrationNumber;
@@ -232,6 +233,7 @@ namespace Company.Application.Company.Commands.Create.Handler
             {
                 Id = targetId,
                 CompanyCode = cmd.Request.CompanyCode,
+                CompanyType = cmd.Request.CompanyType,
                 Name = cmd.Request.Name,
                 Tagline = cmd.Request.Tagline,
                 RegistrationNumber = cmd.Request.RegistrationNumber,

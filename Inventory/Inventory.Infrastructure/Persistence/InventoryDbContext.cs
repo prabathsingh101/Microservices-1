@@ -62,11 +62,14 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     public DbSet<WarehouseStock> WarehouseStocks => Set<WarehouseStock>();
     public DbSet<StockTransferHeader> StockTransferHeaders => Set<StockTransferHeader>();
     public DbSet<StockTransferDetail> StockTransferDetails => Set<StockTransferDetail>();
+    public DbSet<Configuration> Configurations => Set<Configuration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly);
+
+        modelBuilder.Entity<Configuration>().ToTable("Configurations");
 
         modelBuilder.Entity<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceDeliveryChallan>(entity =>
         {

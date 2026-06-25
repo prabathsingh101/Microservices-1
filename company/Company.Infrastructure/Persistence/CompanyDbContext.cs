@@ -23,10 +23,15 @@ public class CompanyDbContext : DbContext
     public DbSet<BankDetail> BankDetails { get; set; }
     public DbSet<AuthorizedSignatory> AuthorizedSignatories { get; set; }
     public DbSet<State> States { get; set; }
+    public DbSet<Configuration> Configurations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Configurations Mapping
+        modelBuilder.Entity<Configuration>()
+            .ToTable("Configurations");
 
         // 🛡️ MULTI-TENANT GLOBAL QUERY FILTER
         // Platform Admin: Sees all companies.
