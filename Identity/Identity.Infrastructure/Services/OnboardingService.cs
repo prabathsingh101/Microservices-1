@@ -192,11 +192,40 @@ public class OnboardingService : IOnboardingService
             {
                 var error = await response.Content.ReadAsStringAsync();
                 System.Console.WriteLine($"[CRITICAL] Company Profile Creation Failed: {response.StatusCode} - {error}");
+                throw new Exception($"Company Profile Onboarding failed: {error}");
             }
         }
         catch (Exception ex)
         {
             System.Console.WriteLine($"[CRITICAL] Company Profile Sync Exception: {ex.Message}");
+            throw;
         }
     }
+
+    public async Task<bool> IsCompanyNameDuplicateAsync(string name)
+    {
+        try
+        {
+            var companyApiUrl = _configuration["ServiceUrls:CompanyApi"];
+            if (string.IsNullOrEmpty(companyApiUrl)) companyApiUrl = "http://company.api:8080";
+
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.GetAsync($"{companyApiUrl.TrimEnd('/')}/api/Company/check-duplicate?field=name&value={Uri.EscapeDataString(name)}");
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadFromJsonAsync<DuplicateCheckResponse>();
+                return content?.IsDuplicate ?? false;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[WARNING] Failed to check duplicate company name: {ex.Message}");
+        }
+        return false;
+    }
+}
+
+public class DuplicateCheckResponse
+{
+    public bool IsDuplicate { get; set; }
 }

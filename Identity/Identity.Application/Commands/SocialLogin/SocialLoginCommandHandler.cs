@@ -279,7 +279,7 @@ public class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, Res
         var all = await _subscriptions.GetAllAsync();
         var existingNames = all.Select(s => s.CompanyName?.ToLower()).ToHashSet();
 
-        while (existingNames.Contains(candidate.ToLower()))
+        while (existingNames.Contains(candidate.ToLower()) || await _onboarding.IsCompanyNameDuplicateAsync(candidate))
         {
             candidate = baseName + " " + counter;
             counter++;
