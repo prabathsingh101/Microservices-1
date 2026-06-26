@@ -49,6 +49,21 @@ public class ConfigurationController : ControllerBase
             await _dbContext.SaveChangesAsync();
             values = defaults;
         }
+        else if (!values.Any() && key == "SupplierType")
+        {
+            var defaults = new List<Configuration>
+            {
+                new Configuration { ConfigKey = "SupplierType", ConfigValue = "General / Kirana", IsActive = true },
+                new Configuration { ConfigKey = "SupplierType", ConfigValue = "Pharmacy / Drug", IsActive = true },
+                new Configuration { ConfigKey = "SupplierType", ConfigValue = "Hardware", IsActive = true },
+                new Configuration { ConfigKey = "SupplierType", ConfigValue = "Electrical / Electronics", IsActive = true },
+                new Configuration { ConfigKey = "SupplierType", ConfigValue = "Furniture", IsActive = true },
+                new Configuration { ConfigKey = "SupplierType", ConfigValue = "Composite (Both)", IsActive = true }
+            };
+            _dbContext.Configurations.AddRange(defaults);
+            await _dbContext.SaveChangesAsync();
+            values = defaults;
+        }
 
         return Ok(values);
     }

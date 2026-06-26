@@ -69,7 +69,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly);
 
-        modelBuilder.Entity<Configuration>().ToTable("Configurations");
+        modelBuilder.Entity<Configuration>().ToTable("Configurations", "dbo");
 
         modelBuilder.Entity<Inventory.Domain.Entities.SalesInvoice.SalesInvoiceDeliveryChallan>(entity =>
         {

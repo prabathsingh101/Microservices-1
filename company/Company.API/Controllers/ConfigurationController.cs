@@ -47,6 +47,39 @@ namespace Company.API.Controllers
                 await _dbContext.SaveChangesAsync();
                 values = defaults;
             }
+            else if (!values.Any() && key == "SupplierType")
+            {
+                var defaults = new List<Configuration>
+                {
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "General / Kirana", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Pharmacy / Drug", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Hardware", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Electrical / Electronics", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Furniture", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Composite (Both)", IsActive = true }
+                };
+                _dbContext.Configurations.AddRange(defaults);
+                await _dbContext.SaveChangesAsync();
+                values = defaults;
+            }
+            else if (!values.Any() && key == "ProductType")
+            {
+                var defaults = new List<Configuration>
+                {
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Finished", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Goods", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Raw Material", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Sofa/Couch", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Table/Desk", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Chair/Seating", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Bed/Mattress", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Cabinet/Wardrobe", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Generic Item", IsActive = true }
+                };
+                _dbContext.Configurations.AddRange(defaults);
+                await _dbContext.SaveChangesAsync();
+                values = defaults;
+            }
 
             return Ok(values);
         }
@@ -55,7 +88,65 @@ namespace Company.API.Controllers
         [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
         public async Task<ActionResult<IEnumerable<Configuration>>> GetAll()
         {
-            return Ok(await _dbContext.Configurations.ToListAsync());
+            var all = await _dbContext.Configurations.ToListAsync();
+            bool changed = false;
+
+            if (!all.Any(c => c.ConfigKey == "CompanyType"))
+            {
+                var defaults = new List<Configuration>
+                {
+                    new Configuration { ConfigKey = "CompanyType", ConfigValue = "Kirana Store", IsActive = true },
+                    new Configuration { ConfigKey = "CompanyType", ConfigValue = "Medico/Pharmacy", IsActive = true },
+                    new Configuration { ConfigKey = "CompanyType", ConfigValue = "Furniture Store", IsActive = true },
+                    new Configuration { ConfigKey = "CompanyType", ConfigValue = "Electric Shop", IsActive = true },
+                    new Configuration { ConfigKey = "CompanyType", ConfigValue = "Hardware Shop", IsActive = true }
+                };
+                _dbContext.Configurations.AddRange(defaults);
+                all.AddRange(defaults);
+                changed = true;
+            }
+
+            if (!all.Any(c => c.ConfigKey == "SupplierType"))
+            {
+                var defaults = new List<Configuration>
+                {
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "General / Kirana", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Pharmacy / Drug", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Hardware", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Electrical / Electronics", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Furniture", IsActive = true },
+                    new Configuration { ConfigKey = "SupplierType", ConfigValue = "Composite (Both)", IsActive = true }
+                };
+                _dbContext.Configurations.AddRange(defaults);
+                all.AddRange(defaults);
+                changed = true;
+            }
+
+            if (!all.Any(c => c.ConfigKey == "ProductType"))
+            {
+                var defaults = new List<Configuration>
+                {
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Finished", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Goods", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Raw Material", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Sofa/Couch", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Table/Desk", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Chair/Seating", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Bed/Mattress", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Cabinet/Wardrobe", IsActive = true },
+                    new Configuration { ConfigKey = "ProductType", ConfigValue = "Generic Item", IsActive = true }
+                };
+                _dbContext.Configurations.AddRange(defaults);
+                all.AddRange(defaults);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+
+            return Ok(all);
         }
 
         [HttpGet("getbyid/{id}")]
@@ -81,7 +172,13 @@ namespace Company.API.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] Configuration config)
         {
             if (id != config.Id) return BadRequest();
-            _dbContext.Entry(config).State = EntityState.Modified;
+            var existing = await _dbContext.Configurations.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            existing.ConfigKey = config.ConfigKey;
+            existing.ConfigValue = config.ConfigValue;
+            existing.IsActive = config.IsActive;
+
             try
             {
                 await _dbContext.SaveChangesAsync();

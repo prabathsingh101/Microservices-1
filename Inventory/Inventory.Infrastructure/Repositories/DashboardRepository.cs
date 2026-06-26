@@ -94,12 +94,32 @@ namespace Inventory.Infrastructure.Repositories
                 chart.PurchaseData.Add(purchaseTrends.FirstOrDefault(x => x.Month == i)?.Total ?? 0);
             }
 
-            chart.FinishedGoods = (int)(await _context.WarehouseStocks
-                .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId) && ws.Product.IsActive && ws.Product.ProductType == "1")
-                .SumAsync(x => (decimal?)x.Quantity) ?? 0);
+            var rawMaterialsId = await _context.Configurations
+                .Where(c => c.ConfigKey == "ProductType" && c.ConfigValue == "Raw Material" && c.IsActive)
+                .Select(c => c.Id.ToString())
+                .FirstOrDefaultAsync() ?? "14";
+
+            var productTypeIds = await _context.Configurations
+                .Where(c => c.ConfigKey == "ProductType" && c.IsActive)
+                .Select(c => c.Id.ToString())
+                .ToListAsync();
+
+            var finishedGoodsIds = productTypeIds.Where(id => id != rawMaterialsId).ToList();
+
+            chart.FinishedGoods = finishedGoodsIds.Any()
+                ? (int)(await _context.WarehouseStocks
+                    .Where(ws => ws.CompanyId == companyId 
+                        && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId) 
+                        && ws.Product.IsActive 
+                        && finishedGoodsIds.Contains(ws.Product.ProductType))
+                    .SumAsync(x => (decimal?)x.Quantity) ?? 0)
+                : 0;
 
             chart.RawMaterials = (int)(await _context.WarehouseStocks
-                .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId) && ws.Product.IsActive && ws.Product.ProductType == "2")
+                .Where(ws => ws.CompanyId == companyId 
+                    && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId) 
+                    && ws.Product.IsActive 
+                    && ws.Product.ProductType == rawMaterialsId)
                 .SumAsync(x => (decimal?)x.Quantity) ?? 0);
 
             chart.DamagedItems = (int)await _context.Products
