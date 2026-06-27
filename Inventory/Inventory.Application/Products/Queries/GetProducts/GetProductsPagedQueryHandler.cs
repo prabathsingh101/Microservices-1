@@ -37,8 +37,7 @@ internal sealed class GetProductsPagedQueryHandler
                 x.HSNCode.ToLower().Contains(search) ||
                 x.Sku.ToLower().Contains(search) ||
                 x.Category.CategoryName.ToLower().Contains(search) ||
-                x.Subcategory.SubcategoryName.ToLower().Contains(search) ||
-                (x.GenericName != null && x.GenericName.ToLower().Contains(search))
+                x.Subcategory.SubcategoryName.ToLower().Contains(search)
             );
         }
 
@@ -124,17 +123,25 @@ internal sealed class GetProductsPagedQueryHandler
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
 
-        // 🚀 SMART BATCH DATE LOOKUP (For Earliest Batch)
-        var batchLookup = await _context.GRNDetails
+        // 🚀 SMART BATCH DATE LOOKUP (For Earliest Batch - Optimized in-memory query)
+        var grnDetails = await _context.GRNDetails
+            .AsNoTracking()
+            .Include(g => g.GRNHeader)
             .Where(g => productIds.Contains(g.ProductId) && g.GRNHeader.Status != "Cancelled")
+            .ToListAsync(cancellationToken);
+
+        var batchLookup = grnDetails
             .GroupBy(g => g.ProductId)
-            .Select(g => new
-            {
-                ProductId = g.Key,
-                MfgDate = g.OrderBy(x => x.ExpDate ?? DateTime.MaxValue).ThenBy(x => x.GRNHeader.ReceivedDate).Select(x => x.MfgDate).FirstOrDefault(),
-                ExpDate = g.OrderBy(x => x.ExpDate ?? DateTime.MaxValue).ThenBy(x => x.GRNHeader.ReceivedDate).Select(x => x.ExpDate).FirstOrDefault()
-            })
-            .ToDictionaryAsync(x => x.ProductId, x => new { x.MfgDate, x.ExpDate }, cancellationToken);
+            .ToDictionary(
+                g => g.Key,
+                g => {
+                    var earliest = g.OrderBy(x => x.ExpDate ?? DateTime.MaxValue)
+                                    .ThenBy(x => x.GRNHeader != null ? x.GRNHeader.ReceivedDate : DateTime.MinValue)
+                                    .FirstOrDefault();
+                    return new { MfgDate = earliest?.MfgDate, ExpDate = earliest?.ExpDate };
+                }
+            );
+
 
         var items = itemsData.Select(p => {
             var actualStock = stockLookup.GetValueOrDefault(p.Id, 0);
@@ -158,7 +165,6 @@ internal sealed class GetProductsPagedQueryHandler
                 damagedStock = p.DamagedStock,
                 defaultGst = p.DefaultGst,
                 discount = p.Discount,
-                discountPercent = p.DiscountPercent,
                 isExpiryRequired = p.IsExpiryRequired,
                 productType = int.TryParse(p.ProductType, out var type) ? type : 1,
                 description = p.Description,
@@ -170,9 +176,6 @@ internal sealed class GetProductsPagedQueryHandler
                 imageUrl = p.ImageUrl,
                 createdOn = p.CreatedOn,
                 modifiedOn = p.ModifiedOn,
-                genericName = p.GenericName,
-                manufacturer = p.Manufacturer,
-                scheduleClass = p.ScheduleClass,
                 manufacturingDate = batchLookup.TryGetValue(p.Id, out var batch) ? batch.MfgDate : null,
                 expiryDate = batchLookup.TryGetValue(p.Id, out var b) ? b.ExpDate : null
             };

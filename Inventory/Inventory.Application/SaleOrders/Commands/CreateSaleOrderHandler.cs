@@ -292,7 +292,24 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                 }
                 else
                 {
-                    Console.WriteLine($"[CreateSaleOrderHandler] Skipping ledger sync for Walking Customer: {saleOrder.GuestName}");
+                    Console.WriteLine($"[CreateSaleOrderHandler] Recording receipt for Walking Customer: {saleOrder.GuestName}");
+                    try
+                    {
+                        await _customerClient.RecordReceiptAsync(
+                            null,
+                            saleOrder.GrandTotal,
+                            "Cash",
+                            $"RECEIPT-{saleOrder.SONumber}",
+                            $"Cash received for Direct Sale: {saleOrder.SONumber} (Guest: {saleOrder.GuestName})",
+                            saleOrder.CreatedBy ?? "System",
+                            saleOrder.BranchId,
+                            saleOrder.CompanyId
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[CreateSaleOrderHandler] Walking customer receipt posting failed: {ex.Message}");
+                    }
                 }
 
                 result = new { Id = savedId, SONumber = finalSONo };
