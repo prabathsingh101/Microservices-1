@@ -66,7 +66,7 @@ public class SaleOrderController : ControllerBase
             dto.BranchId = finalBranchId;
         }
 
-        // 1. Mediator ab pura object return karega (Id aur SONumber)
+        // 1. Mediator ab pura object return kareगा (Id aur SONumber)
         var result = await _mediator.Send(new CreateSaleOrderCommand(dto));
 
         // 2. Real-time broadcast if this is a HomeDelivery order
@@ -74,6 +74,16 @@ public class SaleOrderController : ControllerBase
         {
             string initialStatus = !string.IsNullOrEmpty(dto.DeliveryBoyId) ? "Assigned" : "Pending";
             await _hubContext.Clients.Group(dto.BranchId).SendAsync("ReceiveDeliveryUpdate", new { status = initialStatus });
+        }
+
+        // Broadcast inventory update to all terminals
+        if (!string.IsNullOrEmpty(dto.BranchId))
+        {
+            await _hubContext.Clients.Group(dto.BranchId).SendAsync("ReceiveInventoryUpdate");
+        }
+        else
+        {
+            await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
         }
 
         // 3. Result ko as it is return karein taaki frontend ko result.soNumber mil sake
@@ -198,6 +208,7 @@ public class SaleOrderController : ControllerBase
         var result = await _mediator.Send(new DeleteSaleOrderCommand(id, reason));
         if (result)
         {
+            await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
             return Ok(new { success = true, message = "Sale Order canceled and stock reverted!" });
         }
         return BadRequest(new { success = false, message = "Cancel failed or order not found." });

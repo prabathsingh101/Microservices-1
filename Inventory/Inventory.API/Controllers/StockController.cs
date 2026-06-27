@@ -7,6 +7,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using Inventory.API.Hubs;
 
 namespace Inventory.API.Controllers
 {
@@ -16,11 +18,13 @@ namespace Inventory.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly IStockRepository _stockRepo;
+        private readonly IHubContext<DeliveryHub> _hubContext;
 
-        public StockController(IMediator mediator, IStockRepository stockRepo)
+        public StockController(IMediator mediator, IStockRepository stockRepo, IHubContext<DeliveryHub> hubContext)
         {
             _mediator = mediator;
             _stockRepo = stockRepo;
+            _hubContext = hubContext;
         }
 
         [HttpGet("current-stock")]
@@ -73,6 +77,17 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> AdjustStock([FromBody] RejectStockCommand command)
         {
             var result = await _mediator.Send(command);
+            if (result)
+            {
+                if (!string.IsNullOrEmpty(command.BranchId))
+                {
+                    await _hubContext.Clients.Group(command.BranchId).SendAsync("ReceiveInventoryUpdate");
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+                }
+            }
             return Ok(new { success = result, message = result ? "Stock adjusted successfully" : "Failed to adjust stock. Item not found or insufficient quantity." });
         }
 
@@ -83,6 +98,10 @@ namespace Inventory.API.Controllers
             try
             {
                 var result = await _mediator.Send(command);
+                if (result)
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+                }
                 return Ok(new { success = result, message = "Batch moved to Expired Rack successfully." });
             }
             catch (Exception ex)
@@ -111,6 +130,10 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> Sync()
         {
             var result = await _mediator.Send(new SyncStockCommand());
+            if (result)
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+            }
             return Ok(new { success = result, message = "Stock synchronized successfully." });
         }
 

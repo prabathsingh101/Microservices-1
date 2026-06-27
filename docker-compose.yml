@@ -44,8 +44,8 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__IdentityDb=Server=sqlserver;Database=IdentityDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__IdentityDb=Server=sqlserver;Database=IdentityDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
     deploy:
       resources:
         limits:
@@ -61,8 +61,8 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__CustomersDb=Server=sqlserver;Database=CustomersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__CustomersDb=Server=sqlserver;Database=CustomersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
     deploy:
       resources:
         limits:
@@ -78,8 +78,8 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__InventoryDb=Server=sqlserver;Database=InventoryDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__InventoryDb=Server=sqlserver;Database=InventoryDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
       - ServiceUrls__CustomerApi=http://customers.api:8080/
       - ServiceUrls__SupplierApi=http://suppliers.api:8080/
       - ServiceUrls__CompanyApi=http://company.api:8080/
@@ -98,8 +98,8 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__SuppliersDb=Server=sqlserver;Database=SuppliersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__SuppliersDb=Server=sqlserver;Database=SuppliersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
     deploy:
       resources:
         limits:
@@ -115,8 +115,8 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__CompanyDb=Server=sqlserver;Database=CompanyDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__CompanyDb=Server=sqlserver;Database=CompanyDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
     volumes:
       - company-uploads:/app/wwwroot/uploads
     deploy:
@@ -134,8 +134,8 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__EmployeePayrollDb=Server=sqlserver;Database=EmployeePayrollDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__EmployeePayrollDb=Server=sqlserver;Database=EmployeePayrollDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
     deploy:
       resources:
         limits:

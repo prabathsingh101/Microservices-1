@@ -4,6 +4,8 @@ using Inventory.Application.GRN.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Inventory.API.Hubs;
 
 namespace Inventory.API.Controllers
 {
@@ -12,12 +14,16 @@ namespace Inventory.API.Controllers
     public class GRNController : ControllerBase
     {
         private readonly IMediator _mediator;
-
         private readonly IGRNRepository _grnRepository; 
+        private readonly IHubContext<DeliveryHub> _hubContext;
+
         public GRNController(IMediator mediator, 
-            IGRNRepository gRNRepository)  
-        {_mediator = mediator; 
+            IGRNRepository gRNRepository,
+            IHubContext<DeliveryHub> hubContext)  
+        {
+            _mediator = mediator; 
             _grnRepository = gRNRepository;
+            _hubContext = hubContext;
         }
 
         [HttpPost("Save")]
@@ -49,6 +55,15 @@ namespace Inventory.API.Controllers
 
             if (!string.IsNullOrEmpty(newGrnNumber))
             {
+                if (!string.IsNullOrEmpty(command.Data.BranchId))
+                {
+                    await _hubContext.Clients.Group(command.Data.BranchId).SendAsync("ReceiveInventoryUpdate");
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+                }
+
                 return Ok(new
                 {
                     success = true,
@@ -129,7 +144,18 @@ namespace Inventory.API.Controllers
             var result = await _grnRepository.CreateBulkGrnFromPoAsync(request);
 
             if (result)
+            {
+                if (!string.IsNullOrEmpty(request.BranchId))
+                {
+                    await _hubContext.Clients.Group(request.BranchId).SendAsync("ReceiveInventoryUpdate");
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+                }
+
                 return Ok(new { message = "Multiple GRNs created successfully!" });
+            }
 
             return StatusCode(500, "Error processing bulk GRNs.");
         }
@@ -163,6 +189,7 @@ namespace Inventory.API.Controllers
 
             if (success)
             {
+                await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
                 return Ok(new { success = true, message = "Invoice Cancelled & Stock Reversed Successfully" });
             }
 
