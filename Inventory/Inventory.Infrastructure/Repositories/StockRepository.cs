@@ -97,6 +97,12 @@ namespace Inventory.Infrastructure.Repositories
             var finalQuery = rawInputs
                 .Join(_context.Products.IgnoreQueryFilters().Include(p => p.Category).AsNoTracking(), 
                     ri => ri.ProductId, p => p.Id, (ri, p) => new { ri, p })
+                .GroupJoin(_context.Warehouses.IgnoreQueryFilters().AsNoTracking(),
+                    x => x.ri.WarehouseId, w => w.Id, (x, warehouses) => new { x.ri, x.p, warehouses })
+                .SelectMany(x => x.warehouses.DefaultIfEmpty(), (x, w) => new { x.ri, x.p, w })
+                .GroupJoin(_context.Racks.IgnoreQueryFilters().AsNoTracking(),
+                    x => x.ri.RackId, r => r.Id, (x, racks) => new { x.ri, x.p, x.w, racks })
+                .SelectMany(x => x.racks.DefaultIfEmpty(), (x, r) => new { x.ri, x.p, x.w, r })
                 .Select(x => new
                 {
                     ProductId = x.p.Id,
@@ -105,9 +111,9 @@ namespace Inventory.Infrastructure.Repositories
                     UnitName = x.p.Unit,
                     MinStock = x.p.MinStock,
                     WarehouseId = x.ri.WarehouseId,
-                    WarehouseName = _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == x.ri.WarehouseId).Select(w => w.Name).FirstOrDefault() ?? "N/A",
+                    WarehouseName = x.w != null ? x.w.Name : "N/A",
                     RackId = x.ri.RackId,
-                    RackName = _context.Racks.IgnoreQueryFilters().Where(r => r.Id == x.ri.RackId).Select(r => r.Name).FirstOrDefault() ?? "N/A",
+                    RackName = x.r != null ? x.r.Name : "N/A",
                     Sku = x.p.Sku,
                     GstPercent = x.p.DefaultGst ?? 0M,
                     HSNCode = x.p.HSNCode,
