@@ -265,109 +265,227 @@ namespace Inventory.Infrastructure.Repositories
             var totalCount = await groupedQuery.CountAsync();
             var items = await groupedQuery.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync();
 
-            // STEP 4: Real-Time Stats (Net Sale Calculation)
+            // PRE-FETCH BULK AGGREGATES TO ELIMINATE N+1 QUERIES
+            var salesGroup = await _context.SaleOrderItems.IgnoreQueryFilters().AsNoTracking()
+                .Where(si => si.CompanyId == companyId 
+                    && (string.IsNullOrEmpty(finalBranchId) || si.BranchId == finalBranchId)
+                    && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled" && si.SaleOrder.Status != "Canceled")
+                .GroupBy(si => new { si.ProductId, si.WarehouseId, si.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .ToListAsync();
+
+            var salesLookup = salesGroup.ToDictionary(
+                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => x.Qty
+            );
+
+            var unlinkedSalesLookup = salesGroup
+                .Where(x => x.WarehouseId == null || x.RackId == null)
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
+
+            var invoicesGroup = await _context.SalesInvoiceItems.IgnoreQueryFilters().AsNoTracking()
+                .Where(ii => ii.CompanyId == companyId 
+                    && (string.IsNullOrEmpty(finalBranchId) || ii.BranchId == finalBranchId)
+                    && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled" && ii.SalesInvoice.Status != "Canceled")
+                .GroupBy(ii => new { ii.ProductId, ii.WarehouseId, ii.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .ToListAsync();
+
+            var invoicesLookup = invoicesGroup.ToDictionary(
+                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => x.Qty
+            );
+
+            var unlinkedInvoicesLookup = invoicesGroup
+                .Where(x => x.WarehouseId == null || x.RackId == null)
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
+
+            var returnsGroup = await _context.SaleReturnItems.IgnoreQueryFilters().AsNoTracking()
+                .Where(sri => sri.CompanyId == companyId 
+                    && (string.IsNullOrEmpty(finalBranchId) || sri.BranchId == finalBranchId)
+                    && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged"))
+                .GroupBy(sri => new { sri.ProductId, sri.WarehouseId, sri.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0M })
+                .ToListAsync();
+
+            var returnsLookup = returnsGroup.ToDictionary(
+                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => x.Qty
+            );
+
+            var exchangeGroup = await _context.SaleExchangeItems.IgnoreQueryFilters().AsNoTracking()
+                .Where(sei => sei.CompanyId == companyId 
+                    && (string.IsNullOrEmpty(finalBranchId) || sei.BranchId == finalBranchId)
+                    && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged"))
+                .GroupBy(sei => new { sei.ProductId, sei.WarehouseId, sei.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .ToListAsync();
+
+            var exchangeLookup = exchangeGroup.ToDictionary(
+                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => x.Qty
+            );
+
+            var prItemsGroup = await _context.PurchaseReturnItems.IgnoreQueryFilters().AsNoTracking()
+                .Where(pri => pri.CompanyId == companyId 
+                    && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
+                .Select(pri => new { pri.ProductId, pri.WarehouseId, pri.RackId, ReturnQty = pri.ReturnQty, pri.GrnRef })
+                .ToListAsync();
+
+            var prItemsLookup = prItemsGroup
+                .GroupBy(x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var grnDetailsQuery = _context.GRNDetails.IgnoreQueryFilters().AsNoTracking()
+                .Where(g => g.CompanyId == companyId && g.GRNHeader.Status != "Cancelled");
+
+            if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
+            {
+                grnDetailsQuery = grnDetailsQuery.Where(g => g.BranchId == finalBranchId);
+            }
+
+            var grnDetailsList = await grnDetailsQuery
+                .Select(g => new
+                {
+                    g.Id,
+                    g.ProductId,
+                    g.WarehouseId,
+                    g.RackId,
+                    g.ReceivedQty,
+                    g.RejectedQty,
+                    g.MfgDate,
+                    g.ExpDate,
+                    ReceivedDate = g.GRNHeader.ReceivedDate,
+                    BatchNumber = g.GRNHeader.GRNNumber,
+                    GrnUnitRate = g.UnitRate,
+                    GrnPurchaseOrderId = (Guid?)g.GRNHeader.PurchaseOrderId,
+                    GrnBatchNumber = g.BatchNumber,
+                    PONumber = g.GRNHeader.PurchaseOrder.PoNumber,
+                    SupplierName = g.GRNHeader.PurchaseOrder.SupplierName ?? "N/A",
+                    IsQuick = g.GRNHeader.IsQuick,
+                    RackName = g.Rack != null ? g.Rack.Name : "N/A",
+                    RackDescription = g.Rack != null ? g.Rack.Description : "N/A",
+                    WarehouseName = g.Warehouse != null ? g.Warehouse.Name : "N/A",
+                    ReferenceNumber = g.ReferenceNumber ?? g.GRNHeader.PurchaseOrder.PoNumber,
+                    g.BranchId
+                })
+                .ToListAsync();
+
+            var grnLookup = grnDetailsList
+                .GroupBy(x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var grnByNumberLookup = grnDetailsList
+                .GroupBy(x => x.BatchNumber)
+                .ToDictionary(g => g.Key, g => g.FirstOrDefault());
+
+            var oldestGrnLookup = grnDetailsList
+                .GroupBy(g => g.ProductId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(x => x.ReceivedDate).Select(x => new { x.WarehouseId, x.RackId }).FirstOrDefault()
+                );
+
+            var transactionsList = await _context.InventoryTransactions.IgnoreQueryFilters().AsNoTracking()
+                .Where(tx => tx.CompanyId == companyId)
+                .Select(tx => new { tx.ProductId, tx.WarehouseId, tx.RackId, tx.Quantity, tx.TransactionType, tx.ExpDate, tx.BatchNumber })
+                .ToListAsync();
+
+            var transactionsLookup = transactionsList
+                .GroupBy(x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var transfersOutList = await _context.StockTransferDetails.IgnoreQueryFilters().AsNoTracking()
+                .Where(td => td.CompanyId == companyId && (td.StockTransferHeader.Status == "Dispatched" || td.StockTransferHeader.Status == "Completed"))
+                .Select(td => new 
+                { 
+                    td.ProductId, 
+                    td.Quantity, 
+                    td.BatchNumber, 
+                    FromWarehouseId = td.StockTransferHeader.FromWarehouseId, 
+                    ToBranchId = td.StockTransferHeader.ToBranchId,
+                    TransferDate = td.StockTransferHeader.TransferDate,
+                    TransferNumber = td.StockTransferHeader.TransferNumber,
+                    SourceWarehouseName = td.StockTransferHeader.FromWarehouse.Name,
+                    DestinationWarehouseName = td.StockTransferHeader.ToWarehouse.Name,
+                    SourceBranchId = td.StockTransferHeader.FromWarehouse.BranchId
+                })
+                .ToListAsync();
+
+            var transfersOutLookup = transfersOutList
+                .GroupBy(x => (x.ProductId, (Guid?)x.FromWarehouseId))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var transfersInList = await _context.StockTransferDetails.IgnoreQueryFilters().AsNoTracking()
+                .Where(td => td.CompanyId == companyId && td.StockTransferHeader.Status == "Completed")
+                .Select(td => new 
+                { 
+                    td.ProductId, 
+                    td.Quantity, 
+                    td.BatchNumber, 
+                    ToWarehouseId = td.StockTransferHeader.ToWarehouseId, 
+                    SourceWarehouseName = td.StockTransferHeader.FromWarehouse.Name, 
+                    TransferNumber = td.StockTransferHeader.TransferNumber, 
+                    TransferDate = td.StockTransferHeader.TransferDate, 
+                    ToBranchId = td.StockTransferHeader.ToBranchId, 
+                    FromBranchId = td.StockTransferHeader.FromBranchId 
+                })
+                .ToListAsync();
+
+            var transfersInLookup = transfersInList
+                .GroupBy(x => (x.ProductId, (Guid?)x.ToWarehouseId))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var challansGroup = await _context.DeliveryChallanItems.IgnoreQueryFilters().AsNoTracking()
+                .Where(dci => dci.CompanyId == companyId && (string.IsNullOrEmpty(finalBranchId) || dci.BranchId == finalBranchId)
+                    && (dci.DeliveryChallan.Status == "Pending" || dci.DeliveryChallan.Status == "Draft"))
+                .GroupBy(dci => new { dci.ProductId, dci.WarehouseId, dci.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .ToListAsync();
+
+            var challansLookup = challansGroup.ToDictionary(
+                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => x.Qty
+            );
+
+            // STEP 3: In-Memory Calculations
             foreach (var item in items)
             {
-                var salesQuery = _context.SaleOrderItems.IgnoreQueryFilters().AsQueryable();
-                var invoiceQuery = _context.SalesInvoiceItems.IgnoreQueryFilters().AsQueryable();
-                var returnsQuery = _context.SaleReturnItems.IgnoreQueryFilters().AsQueryable();
-                var grnQuery = _context.GRNDetails.IgnoreQueryFilters()
-                    .Where(g => g.GRNHeader.Status != "Cancelled")
-                    .AsQueryable();
+                var lookupKey = (item.ProductId, item.WarehouseId, item.RackId);
 
-                if (!isGlobalAdmin)
-                {
-                    salesQuery = salesQuery.Where(si => si.CompanyId == companyId);
-                    invoiceQuery = invoiceQuery.Where(ii => ii.CompanyId == companyId);
-                    returnsQuery = returnsQuery.Where(sri => sri.CompanyId == companyId);
-                    grnQuery = grnQuery.Where(g => g.CompanyId == companyId);
-                }
-
-                salesQuery = salesQuery.Where(si => si.ProductId == item.ProductId);
-                invoiceQuery = invoiceQuery.Where(ii => ii.ProductId == item.ProductId);
-                returnsQuery = returnsQuery.Where(sri => sri.ProductId == item.ProductId);
-                grnQuery = grnQuery.Where(g => g.ProductId == item.ProductId);
-
-                if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
-                {
-                    salesQuery = salesQuery.Where(si => si.BranchId == finalBranchId);
-                    invoiceQuery = invoiceQuery.Where(ii => ii.BranchId == finalBranchId);
-                    returnsQuery = returnsQuery.Where(sri => sri.BranchId == finalBranchId);
-                    grnQuery = grnQuery.Where(g => g.BranchId == finalBranchId);
-                }
-
-                var grossSold = await salesQuery
-                    .Where(si => si.WarehouseId == item.WarehouseId && si.RackId == item.RackId 
-                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled" && si.SaleOrder.Status != "Canceled")
-                    .SumAsync(si => (decimal?)si.Qty) ?? 0;
-
-                var quickSold = await invoiceQuery
-                    .Where(ii => ii.WarehouseId == item.WarehouseId && ii.RackId == item.RackId 
-                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled" && ii.SalesInvoice.Status != "Canceled")
-                    .SumAsync(ii => (decimal?)ii.Qty) ?? 0;
-
+                var grossSold = salesLookup.GetValueOrDefault(lookupKey, 0M);
+                var quickSold = invoicesLookup.GetValueOrDefault(lookupKey, 0M);
                 grossSold += quickSold;
 
-                var totalSaleReturn = await returnsQuery
-                    .Where(sri => sri.WarehouseId == item.WarehouseId && sri.RackId == item.RackId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged"))
-                    .SumAsync(sri => (decimal?)sri.ReturnQty) ?? 0;
+                var totalSaleReturn = returnsLookup.GetValueOrDefault(lookupKey, 0M);
+                var totalExchanged = exchangeLookup.GetValueOrDefault(lookupKey, 0M);
 
-                var exchangeQuery = _context.SaleExchangeItems.IgnoreQueryFilters().AsQueryable();
-                if (!isGlobalAdmin)
-                {
-                    exchangeQuery = exchangeQuery.Where(sei => sei.CompanyId == companyId);
-                }
-                exchangeQuery = exchangeQuery.Where(sei => sei.ProductId == item.ProductId);
-                if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
-                {
-                    exchangeQuery = exchangeQuery.Where(sei => sei.BranchId == finalBranchId);
-                }
-
-                var totalExchanged = await exchangeQuery
-                    .Where(sei => sei.WarehouseId == item.WarehouseId && sei.RackId == item.RackId && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged"))
-                    .SumAsync(sei => (decimal?)sei.Qty) ?? 0;
-
-                var prItemsQuery = _context.PurchaseReturnItems.IgnoreQueryFilters()
-                    .Where(pri => pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
-                    .AsQueryable();
-                if (!isGlobalAdmin)
-                {
-                    prItemsQuery = prItemsQuery.Where(pri => pri.CompanyId == companyId);
-                }
-
-                var purchaseReturns = await prItemsQuery
-                    .Where(pri => pri.ProductId == item.ProductId && pri.WarehouseId == item.WarehouseId && pri.RackId == item.RackId)
-                    .Select(pri => new { pri.ReturnQty, pri.GrnRef })
-                    .ToListAsync();
-
+                var purchaseReturns = prItemsLookup.GetValueOrDefault(lookupKey);
                 decimal totalPurchaseReturn = 0;
                 decimal totalDeductibleReturn = 0;
 
-                foreach(var pr in purchaseReturns)
+                if (purchaseReturns != null)
                 {
-                    totalPurchaseReturn += (decimal)pr.ReturnQty;
-                    
-                    // Find the original GRN to check if this was a rejected item
-                    var gd = await grnQuery.FirstOrDefaultAsync(g => g.GRNHeader.GRNNumber == pr.GrnRef);
-                    decimal rejected = gd?.RejectedQty ?? 0;
-                    
-                    // Only deduct from stock if the returned quantity exceeds the rejected quantity
-                    totalDeductibleReturn += Math.Max(0, (decimal)pr.ReturnQty - rejected);
+                    foreach (var pr in purchaseReturns)
+                    {
+                        totalPurchaseReturn += pr.ReturnQty;
+                        var gd = grnByNumberLookup.GetValueOrDefault(pr.GrnRef);
+                        decimal rejected = gd?.RejectedQty ?? 0M;
+                        totalDeductibleReturn += Math.Max(0M, pr.ReturnQty - rejected);
+                    }
                 }
 
-                var transactionsQuery = _context.InventoryTransactions.IgnoreQueryFilters().AsQueryable();
-                if (!isGlobalAdmin)
+                var itemTransactions = transactionsLookup.GetValueOrDefault(lookupKey);
+                decimal totalPurged = 0M;
+
+                if (itemTransactions != null)
                 {
-                    transactionsQuery = transactionsQuery.Where(tx => tx.CompanyId == companyId);
+                    totalPurged = Math.Abs(itemTransactions
+                        .Where(tx => tx.TransactionType == "StockPurge-OUT")
+                        .Sum(tx => (decimal)tx.Quantity));
                 }
-
-                var itemTransactions = await transactionsQuery
-                    .Where(tx => tx.ProductId == item.ProductId && tx.WarehouseId == item.WarehouseId && tx.RackId == item.RackId)
-                    .ToListAsync();
-
-                var totalPurged = Math.Abs(itemTransactions
-                    .Where(tx => tx.TransactionType == "StockPurge-OUT")
-                    .Sum(tx => tx.Quantity));
 
                 if (totalPurged > 0)
                 {
@@ -382,97 +500,41 @@ namespace Inventory.Infrastructure.Repositories
                     }
                 }
 
-                // 🚀 TRANSFER CALCULATION
-                var transfersOutQuery = _context.StockTransferDetails.IgnoreQueryFilters()
-                    .Where(td => td.StockTransferHeader.Status == "Dispatched" || td.StockTransferHeader.Status == "Completed")
-                    .AsQueryable();
-                if (!isGlobalAdmin)
+                // TRANSFER OUT
+                var currentTransfersOut = transfersOutLookup.GetValueOrDefault((item.ProductId, item.WarehouseId));
+                var curGrns = grnLookup.GetValueOrDefault(lookupKey);
+
+                decimal transferredOut = 0M;
+                if (currentTransfersOut != null)
                 {
-                    transfersOutQuery = transfersOutQuery.Where(td => td.CompanyId == companyId);
+                    transferredOut = currentTransfersOut
+                        .Where(td => curGrns != null && curGrns.Any(g => g.GrnBatchNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber))
+                        .Sum(td => (decimal)td.Quantity);
                 }
 
-                var transferredOut = await transfersOutQuery
-                    .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
-                    .Where(td => 
-                        _context.GRNDetails.IgnoreQueryFilters().Any(g => 
-                            g.ProductId == td.ProductId && 
-                            g.WarehouseId == item.WarehouseId && 
-                            g.RackId == item.RackId && 
-                            (g.GRNHeader.GRNNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber)
-                        ) ||
-                        (item.RackId == null && 
-                         !_context.GRNDetails.IgnoreQueryFilters().Any(g => 
-                             g.ProductId == td.ProductId && 
-                             g.WarehouseId == item.WarehouseId && 
-                             (g.GRNHeader.GRNNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber)
-                         ) &&
-                         _context.StockTransferDetails.IgnoreQueryFilters().Any(tin =>
-                             tin.ProductId == td.ProductId &&
-                             tin.StockTransferHeader.ToWarehouseId == item.WarehouseId &&
-                             tin.StockTransferHeader.Status == "Completed" &&
-                             tin.BatchNumber == td.BatchNumber
-                         ))
-                    )
-                    .SumAsync(td => (decimal?)td.Quantity) ?? 0;
-
-                var transfersInQuery = _context.StockTransferDetails.IgnoreQueryFilters()
-                    .Where(td => td.StockTransferHeader.Status == "Completed")
-                    .AsQueryable();
-                if (!isGlobalAdmin)
+                // TRANSFER IN
+                var currentTransfersIn = transfersInLookup.GetValueOrDefault((item.ProductId, item.WarehouseId));
+                decimal transferredIn = 0M;
+                if (currentTransfersIn != null && item.RackId == null)
                 {
-                    transfersInQuery = transfersInQuery.Where(td => td.CompanyId == companyId);
+                    transferredIn = currentTransfersIn.Sum(td => (decimal)td.Quantity);
                 }
 
-                var transferredIn = (item.RackId == null) ? (await transfersInQuery
-                    .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
-                    .SumAsync(td => (decimal?)td.Quantity) ?? 0) : 0;
+                var unlinkedSales = unlinkedSalesLookup.GetValueOrDefault(item.ProductId, 0M) + unlinkedInvoicesLookup.GetValueOrDefault(item.ProductId, 0M);
+                var isOldest = oldestGrnLookup.GetValueOrDefault(item.ProductId);
+                var adjustment = (isOldest != null && isOldest.WarehouseId == item.WarehouseId && isOldest.RackId == item.RackId) ? unlinkedSales : 0M;
 
-                var unlinkedSales = await salesQuery
-                    .Where(si => (si.WarehouseId == null || si.RackId == null) 
-                        && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled" && si.SaleOrder.Status != "Canceled")
-                    .SumAsync(si => (decimal?)si.Qty) ?? 0;
-
-                var unlinkedQuickSold = await invoiceQuery
-                    .Where(ii => (ii.WarehouseId == null || ii.RackId == null) 
-                        && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled" && ii.SalesInvoice.Status != "Canceled")
-                    .SumAsync(ii => (decimal?)ii.Qty) ?? 0;
-
-                unlinkedSales += unlinkedQuickSold;
-
-                var isOldest = await grnQuery
-                    .OrderBy(g => g.GRNHeader.ReceivedDate)
-                    .Select(g => new { g.WarehouseId, g.RackId })
-                    .FirstOrDefaultAsync();
-
-                var adjustment = (isOldest != null && isOldest.WarehouseId == item.WarehouseId && isOldest.RackId == item.RackId) ? unlinkedSales : 0;
-
-                // Deduct pending/draft Delivery Challans that have not yet been invoiced (to prevent double deduction and show instant stock drop)
-                var challanQuery = _context.DeliveryChallanItems.IgnoreQueryFilters().AsQueryable();
-                if (!isGlobalAdmin)
-                {
-                    challanQuery = challanQuery.Where(dci => dci.CompanyId == companyId);
-                }
-                challanQuery = challanQuery.Where(dci => dci.ProductId == item.ProductId);
-                if (!isGlobalAdmin && !string.IsNullOrEmpty(finalBranchId))
-                {
-                    challanQuery = challanQuery.Where(dci => dci.BranchId == finalBranchId);
-                }
-
-                var pendingChallanQty = await challanQuery
-                    .Where(dci => dci.WarehouseId == item.WarehouseId && dci.RackId == item.RackId
-                        && (dci.DeliveryChallan.Status == "Pending" || dci.DeliveryChallan.Status == "Draft"))
-                    .SumAsync(dci => (decimal?)dci.Qty) ?? 0;
+                var pendingChallanQty = challansLookup.GetValueOrDefault(lookupKey, 0M);
 
                 item.TotalSold = grossSold + adjustment - totalSaleReturn + pendingChallanQty + totalExchanged;
                 item.TotalReturned = totalPurchaseReturn;
                 item.TotalTransferredOut = transferredOut;
                 item.TotalTransferredIn = transferredIn;
-                if (transferredOut > 0)
+                if (transferredOut > 0 && currentTransfersOut != null)
                 {
-                    item.TransferredBranchId = await transfersOutQuery
-                        .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
-                        .Select(td => td.StockTransferHeader.ToBranchId)
-                        .FirstOrDefaultAsync();
+                    item.TransferredBranchId = currentTransfersOut
+                        .Select(td => (string)td.ToBranchId)
+                        .FirstOrDefault();
                 }
                 item.AvailableStock = item.TotalReceived - item.TotalRejected - item.TotalSold - totalDeductibleReturn - transferredOut + transferredIn - totalPurged;
                 if (item.AvailableStock < 0)
@@ -490,36 +552,29 @@ namespace Inventory.Infrastructure.Repositories
                     item.RackName = "Transferred In";
                 }
 
-                var earliestBatch = await grnQuery
-                    .Where(g => g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
+                var earliestBatch = curGrns != null ? curGrns
                     .OrderBy(g => g.ExpDate ?? DateTime.MaxValue)
-                    .ThenBy(g => g.GRNHeader.ReceivedDate)
-                    .Select(g => new { g.MfgDate, g.ExpDate, ReceivedDate = g.GRNHeader.ReceivedDate, BatchNumber = g.GRNHeader.GRNNumber })
-                    .FirstOrDefaultAsync();
+                    .ThenBy(g => g.ReceivedDate)
+                    .Select(g => new { g.MfgDate, g.ExpDate, g.ReceivedDate, BatchNumber = g.BatchNumber })
+                    .FirstOrDefault() : null;
 
                 if (earliestBatch != null)
                 {
                     item.ManufacturingDate = earliestBatch.MfgDate;
                     item.ExpiryDate = earliestBatch.ExpDate;
                     item.ReceivedDate = earliestBatch.ReceivedDate;
-                    item.BatchNumber = earliestBatch.BatchNumber; // Use GRN/Batch number
+                    item.BatchNumber = earliestBatch.BatchNumber;
                 }
-                else if (transferredIn > 0)
+                else if (transferredIn > 0 && currentTransfersIn != null)
                 {
-                    // Find the earliest active transfer-in detail to populate dates
-                    var earliestTransfer = await transfersInQuery
-                        .Where(td => td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
-                        .OrderBy(td => td.StockTransferHeader.TransferDate)
-                        .Select(td => new { td.BatchNumber, td.StockTransferHeader.TransferDate })
-                        .FirstOrDefaultAsync();
+                    var earliestTransfer = currentTransfersIn
+                        .OrderBy(td => td.TransferDate)
+                        .Select(td => new { td.BatchNumber, td.TransferDate })
+                        .FirstOrDefault();
 
                     if (earliestTransfer != null)
                     {
-                        var originalBatch = await _context.GRNDetails.IgnoreQueryFilters()
-                            .Where(g => g.ProductId == item.ProductId && (g.GRNHeader.GRNNumber == earliestTransfer.BatchNumber || g.BatchNumber == earliestTransfer.BatchNumber))
-                            .Select(g => new { g.MfgDate, g.ExpDate })
-                            .FirstOrDefaultAsync();
-
+                        var originalBatch = grnByNumberLookup.GetValueOrDefault(earliestTransfer.BatchNumber);
                         if (originalBatch != null)
                         {
                             item.ManufacturingDate = originalBatch.MfgDate;
@@ -530,113 +585,98 @@ namespace Inventory.Infrastructure.Repositories
                     }
                 }
 
-                var grnHistory = await grnQuery
-                    .Where(g => g.ProductId == item.ProductId && g.WarehouseId == item.WarehouseId && g.RackId == item.RackId)
-                    .Select(allG => new StockHistoryDto
-                    {
-                        ProductId = allG.ProductId,
-                        WarehouseId = allG.WarehouseId,
-                        RackId = allG.RackId,
-                        ReceivedDate = allG.GRNHeader.ReceivedDate,
-                        PONumber = allG.GRNHeader.PurchaseOrder.PoNumber,
-                        GRNNumber = allG.GRNHeader.GRNNumber,
-                        SupplierName = allG.GRNHeader.PurchaseOrder.SupplierName ?? "N/A",
-                        TransactionType = allG.GRNHeader.IsQuick ? "QuickGRN" : "GRN",
-                        ProductName = allG.Product.Name,
-                        ReceivedQty = allG.ReceivedQty,
-                        ExpiredQty = (allG.Rack != null && (
-                            allG.Rack.Name.ToLower().Contains("e1") || 
-                            allG.Rack.Name.ToLower().Contains("expired") || 
-                            allG.Rack.Name.ToLower().Contains("damaged") || 
-                            allG.Rack.Name.ToLower().Contains("rejected") || 
-                            allG.Rack.Name.ToLower().Contains("purged") || 
-                            allG.Rack.Name.ToLower().StartsWith("e -") || 
-                            allG.Rack.Name.ToLower().StartsWith("e-") ||
-                            (allG.Rack.Description != null && (
-                                allG.Rack.Description.ToLower().Contains("expired") || 
-                                allG.Rack.Description.ToLower().Contains("damaged") || 
-                                allG.Rack.Description.ToLower().Contains("rejected") ||
-                                allG.Rack.Description.ToLower().Contains("purged")
-                            ))
-                        )) ? allG.RejectedQty : 0,
-                        RejectedQty = (allG.Rack != null && (
-                            allG.Rack.Name.ToLower().Contains("e1") || 
-                            allG.Rack.Name.ToLower().Contains("expired") || 
-                            allG.Rack.Name.ToLower().Contains("damaged") || 
-                            allG.Rack.Name.ToLower().Contains("rejected") || 
-                            allG.Rack.Name.ToLower().Contains("purged") || 
-                            allG.Rack.Name.ToLower().StartsWith("e -") || 
-                            allG.Rack.Name.ToLower().StartsWith("e-") ||
-                            (allG.Rack.Description != null && (
-                                allG.Rack.Description.ToLower().Contains("expired") || 
-                                allG.Rack.Description.ToLower().Contains("damaged") || 
-                                allG.Rack.Description.ToLower().Contains("rejected") ||
-                                allG.Rack.Description.ToLower().Contains("purged")
-                            ))
-                        )) ? 0 : allG.RejectedQty,
-                        ManufacturingDate = allG.MfgDate,
-                        ExpiryDate = allG.ExpDate,
-                        IsExpiryRequired = allG.Product.IsExpiryRequired,
-                        WarehouseName = allG.Warehouse != null ? allG.Warehouse.Name : "N/A",
-                        RackName = allG.Rack != null ? allG.Rack.Name : "N/A",
-                        AvailableQty = allG.ReceivedQty - allG.RejectedQty, 
-                        CurrentStock = item.AvailableStock, 
-                        TotalReturned = totalPurchaseReturn,
-                        BranchId = allG.BranchId,
-                        BranchName = allG.BranchId,
-                        BatchNumber = allG.BatchNumber,
-                        ReferenceNumber = allG.ReferenceNumber ?? allG.GRNHeader.PurchaseOrder.PoNumber,
-                        IsAlreadyPurged = allG.ReceivedQty == 0 && allG.RejectedQty == 0
-                    })
-                    .ToListAsync();
+                var grnHistory = curGrns != null ? curGrns.Select(allG => new StockHistoryDto
+                {
+                    ProductId = allG.ProductId,
+                    WarehouseId = allG.WarehouseId,
+                    RackId = allG.RackId,
+                    ReceivedDate = allG.ReceivedDate,
+                    PONumber = allG.PONumber,
+                    GRNNumber = allG.BatchNumber,
+                    SupplierName = allG.SupplierName,
+                    TransactionType = allG.IsQuick ? "QuickGRN" : "GRN",
+                    ProductName = item.ProductName,
+                    ReceivedQty = allG.ReceivedQty,
+                    ExpiredQty = (allG.RackName.ToLower().Contains("e1") || 
+                                  allG.RackName.ToLower().Contains("expired") || 
+                                  allG.RackName.ToLower().Contains("damaged") || 
+                                  allG.RackName.ToLower().Contains("rejected") || 
+                                  allG.RackName.ToLower().Contains("purged") || 
+                                  allG.RackName.ToLower().StartsWith("e -") || 
+                                  allG.RackName.ToLower().StartsWith("e-") ||
+                                  (allG.RackDescription != null && (
+                                      allG.RackDescription.ToLower().Contains("expired") || 
+                                      allG.RackDescription.ToLower().Contains("damaged") || 
+                                      allG.RackDescription.ToLower().Contains("rejected") ||
+                                      allG.RackDescription.ToLower().Contains("purged")
+                                  ))
+                                 ) ? allG.RejectedQty : 0,
+                    RejectedQty = (allG.RackName.ToLower().Contains("e1") || 
+                                   allG.RackName.ToLower().Contains("expired") || 
+                                   allG.RackName.ToLower().Contains("damaged") || 
+                                   allG.RackName.ToLower().Contains("rejected") || 
+                                   allG.RackName.ToLower().Contains("purged") || 
+                                   allG.RackName.ToLower().StartsWith("e -") || 
+                                   allG.RackName.ToLower().StartsWith("e-") ||
+                                   (allG.RackDescription != null && (
+                                       allG.RackDescription.ToLower().Contains("expired") || 
+                                       allG.RackDescription.ToLower().Contains("damaged") || 
+                                       allG.RackDescription.ToLower().Contains("rejected") ||
+                                       allG.RackDescription.ToLower().Contains("purged")
+                                   ))
+                                  ) ? 0 : allG.RejectedQty,
+                    ManufacturingDate = allG.MfgDate,
+                    ExpiryDate = allG.ExpDate,
+                    IsExpiryRequired = item.IsExpiryRequired,
+                    WarehouseName = allG.WarehouseName,
+                    RackName = allG.RackName,
+                    AvailableQty = allG.ReceivedQty - allG.RejectedQty, 
+                    CurrentStock = item.AvailableStock, 
+                    TotalReturned = totalPurchaseReturn,
+                    BranchId = allG.BranchId,
+                    BranchName = allG.BranchId,
+                    BatchNumber = allG.GrnBatchNumber,
+                    ReferenceNumber = allG.ReferenceNumber,
+                    IsAlreadyPurged = allG.ReceivedQty == 0 && allG.RejectedQty == 0
+                }).ToList() : new List<StockHistoryDto>();
 
-                // 🚀 ADD TRANSFERS TO HISTORY
-                var transferInHistory = item.RackId == null ? await _context.StockTransferDetails.IgnoreQueryFilters()
-                    .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.ToWarehouseId == item.WarehouseId)
+                var transferInHistory = (item.RackId == null && currentTransfersIn != null) ? currentTransfersIn.Select(td => new StockHistoryDto
+                {
+                    ProductId = td.ProductId,
+                    WarehouseId = item.WarehouseId,
+                    ReceivedDate = td.TransferDate,
+                    PONumber = td.TransferNumber,
+                    GRNNumber = "TRANSFER-IN",
+                    SupplierName = "From: " + td.SourceWarehouseName,
+                    TransactionType = "Transfer",
+                    ProductName = item.ProductName,
+                    ReceivedQty = td.Quantity,
+                    TransferredQty = td.Quantity,
+                    AvailableQty = td.Quantity,
+                    WarehouseName = td.SourceWarehouseName,
+                    RackName = "Transferred In",
+                    BranchId = td.ToBranchId,
+                    BranchName = td.ToBranchId,
+                    TransferredFromBranchId = td.FromBranchId,
+                    TransferredFromBranchName = td.FromBranchId,
+                    IsExpiryRequired = item.IsExpiryRequired,
+                    ExpiryDate = grnByNumberLookup.GetValueOrDefault(td.BatchNumber)?.ExpDate,
+                    ManufacturingDate = grnByNumberLookup.GetValueOrDefault(td.BatchNumber)?.MfgDate,
+                    BatchNumber = td.BatchNumber,
+                    ReferenceNumber = td.TransferNumber,
+                    CurrentStock = item.AvailableStock
+                }).ToList() : new List<StockHistoryDto>();
+
+                var transferOutHistory = (currentTransfersOut != null) ? currentTransfersOut
+                    .Where(td => curGrns != null && curGrns.Any(g => g.GrnBatchNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber))
                     .Select(td => new StockHistoryDto
                     {
                         ProductId = td.ProductId,
                         WarehouseId = item.WarehouseId,
-                        ReceivedDate = td.StockTransferHeader.TransferDate,
-                        PONumber = td.StockTransferHeader.TransferNumber,
-                        GRNNumber = "TRANSFER-IN",
-                        SupplierName = "From: " + td.StockTransferHeader.FromWarehouse.Name,
-                        TransactionType = "Transfer",
-                        ProductName = item.ProductName,
-                        ReceivedQty = td.Quantity,
-                        TransferredQty = td.Quantity,
-                        AvailableQty = td.Quantity,
-                        WarehouseName = td.StockTransferHeader.ToWarehouse.Name, // 🎯 Display Destination Warehouse Name (Bhagwanpur)
-                        RackName = "Transferred In",
-                        BranchId = td.StockTransferHeader.ToBranchId, // 🎯 Destination Branch ID
-                        BranchName = td.StockTransferHeader.ToBranchId, // 🎯 Destination Branch Name
-                        TransferredFromBranchId = td.StockTransferHeader.FromBranchId, // 🎯 Source Branch ID
-                        TransferredFromBranchName = td.StockTransferHeader.FromBranchId, // 🎯 Source Branch Name
-                        IsExpiryRequired = _context.Products.Where(p => p.Id == td.ProductId).Select(p => p.IsExpiryRequired).FirstOrDefault(),
-                        ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
-                        ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
-                        BatchNumber = td.BatchNumber,
-                        ReferenceNumber = td.StockTransferHeader.TransferNumber,
-                        CurrentStock = item.AvailableStock
-                    })
-                    .ToListAsync() : new List<StockHistoryDto>();
-
-                var transferOutHistory = await _context.StockTransferDetails.IgnoreQueryFilters()
-                    .Where(td => td.CompanyId == companyId && td.ProductId == item.ProductId && td.StockTransferHeader.FromWarehouseId == item.WarehouseId)
-                    .Where(td => _context.GRNDetails.IgnoreQueryFilters().Any(g => 
-                        g.ProductId == td.ProductId && 
-                        g.WarehouseId == item.WarehouseId && 
-                        g.RackId == item.RackId && 
-                        (g.GRNHeader.GRNNumber == td.BatchNumber || g.BatchNumber == td.BatchNumber)
-                    ))
-                    .Select(td => new StockHistoryDto
-                    {
-                        ProductId = td.ProductId,
-                        WarehouseId = item.WarehouseId,
-                        ReceivedDate = td.StockTransferHeader.TransferDate,
-                        PONumber = td.StockTransferHeader.TransferNumber,
+                        ReceivedDate = td.TransferDate,
+                        PONumber = td.TransferNumber,
                         GRNNumber = "TRANSFER-OUT",
-                        SupplierName = "To: " + td.StockTransferHeader.ToWarehouse.Name,
+                        SupplierName = "To: " + td.DestinationWarehouseName,
                         TransactionType = "Transfer",
                         ProductName = item.ProductName,
                         ReceivedQty = 0,
@@ -645,39 +685,36 @@ namespace Inventory.Infrastructure.Repositories
                         AvailableQty = -td.Quantity,
                         WarehouseName = item.WarehouseName,
                         RackName = item.RackName,
-                        BranchId = td.BranchId ?? td.StockTransferHeader.FromWarehouse.BranchId, // Fallback to warehouse branch
-                        BranchName = td.BranchId ?? td.StockTransferHeader.FromWarehouse.BranchId,
-                        TransferredToBranchId = td.StockTransferHeader.ToBranchId,
-                        TransferredToBranchName = td.StockTransferHeader.ToBranchId,
-                        ExpiryDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.ExpDate).FirstOrDefault(),
-                        ManufacturingDate = _context.GRNDetails.Where(g => g.ProductId == td.ProductId && g.GRNHeader.GRNNumber == td.BatchNumber).Select(g => g.MfgDate).FirstOrDefault(),
+                        BranchId = td.SourceBranchId,
+                        BranchName = td.SourceBranchId,
+                        TransferredToBranchId = td.ToBranchId,
+                        TransferredToBranchName = td.ToBranchId,
+                        ExpiryDate = grnByNumberLookup.GetValueOrDefault(td.BatchNumber)?.ExpDate,
+                        ManufacturingDate = grnByNumberLookup.GetValueOrDefault(td.BatchNumber)?.MfgDate,
                         BatchNumber = td.BatchNumber,
-                        ReferenceNumber = td.StockTransferHeader.TransferNumber,
+                        ReferenceNumber = td.TransferNumber,
                         CurrentStock = item.AvailableStock
-                    })
-                    .ToListAsync();
+                    }).ToList() : new List<StockHistoryDto>();
 
                 var history = grnHistory.Concat(transferInHistory).Concat(transferOutHistory)
                     .OrderBy(h => h.ReceivedDate)
                     .ToList();
 
-                // EXACT BATCH MATCHING for Sales
-                var exactBatchSoldMap = itemTransactions
+                var exactBatchSoldMap = itemTransactions != null ? itemTransactions
                     .Where(tx => tx.TransactionType.Contains("Sale") && !tx.TransactionType.Contains("REVERSED") && !string.IsNullOrEmpty(tx.BatchNumber))
                     .GroupBy(tx => tx.BatchNumber)
-                    .ToDictionary(g => g.Key, g => g.Sum(tx => -tx.Quantity)); // Sale quantity is negative in InventoryTransaction, so -tx.Quantity gives positive sold amount
+                    .ToDictionary(g => (string)g.Key, g => g.Sum(tx => -(decimal)tx.Quantity)) : new Dictionary<string, decimal>();
 
-                var exactBatchSaleReversals = itemTransactions
+                var exactBatchSaleReversals = itemTransactions != null ? itemTransactions
                     .Where(tx => tx.TransactionType.Contains("Sale") && tx.TransactionType.Contains("REVERSED") && !string.IsNullOrEmpty(tx.BatchNumber))
                     .GroupBy(tx => tx.BatchNumber)
-                    .ToDictionary(g => g.Key, g => g.Sum(tx => tx.Quantity)); // Reversal is positive
+                    .ToDictionary(g => (string)g.Key, g => g.Sum(tx => (decimal)tx.Quantity)) : new Dictionary<string, decimal>();
 
-                // Calculate Net Exact Sold per Batch
                 var netExactBatchSold = new Dictionary<string, decimal>();
                 foreach (var kvp in exactBatchSoldMap)
                 {
                     decimal sold = kvp.Value;
-                    decimal reversed = exactBatchSaleReversals.ContainsKey(kvp.Key) ? exactBatchSaleReversals[kvp.Key] : 0;
+                    decimal reversed = exactBatchSaleReversals.ContainsKey(kvp.Key) ? exactBatchSaleReversals[kvp.Key] : 0M;
                     decimal netSold = sold - reversed;
                     if (netSold > 0)
                     {
@@ -685,17 +722,14 @@ namespace Inventory.Infrastructure.Repositories
                     }
                 }
 
-                // Calculate how much we need to distribute overall
                 decimal totalSoldToDistribute = item.TotalSold;
                 decimal remainingReturn = totalDeductibleReturn;
                 decimal remainingTransfer = item.TotalTransferredOut;
 
-                // PASS 1: Exact matches and Returns
                 foreach (var h in history)
                 {
                     h.AvailableQty = h.ReceivedQty - h.RejectedQty;
                     
-                    // Deduct Purchase Returns (FIFO)
                     if (remainingReturn > 0 && h.AvailableQty > 0)
                     {
                         decimal toReturn = Math.Min(remainingReturn, h.AvailableQty);
@@ -704,7 +738,6 @@ namespace Inventory.Infrastructure.Repositories
                         remainingReturn -= toReturn;
                     }
 
-                    // Deduct Exact Sales for this Batch
                     if (h.BatchNumber != null && netExactBatchSold.ContainsKey(h.BatchNumber) && h.AvailableQty > 0)
                     {
                         decimal exactSold = netExactBatchSold[h.BatchNumber];
@@ -716,7 +749,6 @@ namespace Inventory.Infrastructure.Repositories
                     }
                 }
 
-                // PASS 2: Distribute leftover sales and transfers (FIFO)
                 foreach (var h in history)
                 {
                     if (totalSoldToDistribute > 0 && h.AvailableQty > 0)
@@ -735,19 +767,17 @@ namespace Inventory.Infrastructure.Repositories
                         remainingTransfer -= toTransfer;
                     }
 
-                    if (h.IsAlreadyPurged)
+                    if (h.IsAlreadyPurged && itemTransactions != null)
                     {
                         var batchPurged = itemTransactions
                             .Where(tx => tx.TransactionType == "StockPurge-OUT" && tx.ExpDate?.Date == h.ExpiryDate?.Date)
-                            .Sum(tx => Math.Abs(tx.Quantity));
+                            .Sum(tx => Math.Abs((decimal)tx.Quantity));
                         h.ExpiredQty = batchPurged;
                         h.ReceivedQty = batchPurged;
                     }
                 }
                 item.History = history;
-            }
-
-            return new StockPagedResponseDto
+            }            return new StockPagedResponseDto
             {
                 Items = items,
                 TotalCount = totalCount
