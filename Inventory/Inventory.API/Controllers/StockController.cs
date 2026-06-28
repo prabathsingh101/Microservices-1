@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using Inventory.API.Hubs;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Domain.Entities;
 
 namespace Inventory.API.Controllers
 {
@@ -19,12 +21,14 @@ namespace Inventory.API.Controllers
         private readonly IMediator _mediator;
         private readonly IStockRepository _stockRepo;
         private readonly IHubContext<DeliveryHub> _hubContext;
+        private readonly IInventoryDbContext _context;
 
-        public StockController(IMediator mediator, IStockRepository stockRepo, IHubContext<DeliveryHub> hubContext)
+        public StockController(IMediator mediator, IStockRepository stockRepo, IHubContext<DeliveryHub> hubContext, IInventoryDbContext context)
         {
             _mediator = mediator;
             _stockRepo = stockRepo;
             _hubContext = hubContext;
+            _context = context;
         }
 
         [HttpGet("current-stock")]
@@ -79,14 +83,14 @@ namespace Inventory.API.Controllers
             var result = await _mediator.Send(command);
             if (result)
             {
-                if (!string.IsNullOrEmpty(command.BranchId))
+                var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+                Guid companyId = Guid.Empty;
+                if (Guid.TryParse(companyIdHeader, out var parsedCompanyId) || Guid.TryParse(companyIdClaim, out parsedCompanyId))
                 {
-                    await _hubContext.Clients.Group(command.BranchId).SendAsync("ReceiveInventoryUpdate");
+                    companyId = parsedCompanyId;
                 }
-                else
-                {
-                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
-                }
+                await BroadcastStockUpdatesAsync(new[] { command.ProductId }, command.BranchId, companyId);
             }
             return Ok(new { success = result, message = result ? "Stock adjusted successfully" : "Failed to adjust stock. Item not found or insufficient quantity." });
         }
@@ -169,6 +173,50 @@ namespace Inventory.API.Controllers
         {
             var result = await _stockRepo.GetDisposedStockAsync(search, sortField, sortOrder, pageIndex, pageSize, startDate, endDate, warehouseId, rackId, branchId);
             return Ok(result);
+        }
+
+        private async Task BroadcastStockUpdatesAsync(IEnumerable<Guid> productIds, string? branchId, Guid companyId)
+        {
+            try
+            {
+                var pIds = productIds.Distinct().ToList();
+                if (!pIds.Any()) return;
+
+                var stockQuery = _context.WarehouseStocks
+                    .IgnoreQueryFilters()
+                    .Where(ws => ws.CompanyId == companyId && pIds.Contains(ws.ProductId));
+
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                    stockQuery = stockQuery.Where(ws => ws.BranchId == branchId);
+                }
+
+                var stockList = await stockQuery
+                    .GroupBy(ws => ws.ProductId)
+                    .Select(g => new { ProductId = g.Key, CurrentStock = g.Sum(x => x.Quantity) })
+                    .ToListAsync();
+
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                    await _hubContext.Clients.Group(branchId).SendAsync("ReceiveInventoryUpdate", stockList);
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate", stockList);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error broadcasting stock updates: {ex.Message}");
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                    await _hubContext.Clients.Group(branchId).SendAsync("ReceiveInventoryUpdate");
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+                }
+            }
         }
     }
 }

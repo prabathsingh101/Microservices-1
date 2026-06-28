@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Inventory.API.Hubs;
+using Microsoft.EntityFrameworkCore;
+using Inventory.Domain.Entities;
 
 namespace Inventory.API.Controllers
 {
@@ -16,14 +18,17 @@ namespace Inventory.API.Controllers
         private readonly IMediator _mediator;
         private readonly IGRNRepository _grnRepository; 
         private readonly IHubContext<DeliveryHub> _hubContext;
+        private readonly IInventoryDbContext _context;
 
         public GRNController(IMediator mediator, 
             IGRNRepository gRNRepository,
-            IHubContext<DeliveryHub> hubContext)  
+            IHubContext<DeliveryHub> hubContext,
+            IInventoryDbContext context)  
         {
             _mediator = mediator; 
             _grnRepository = gRNRepository;
             _hubContext = hubContext;
+            _context = context;
         }
 
         [HttpPost("Save")]
@@ -55,14 +60,8 @@ namespace Inventory.API.Controllers
 
             if (!string.IsNullOrEmpty(newGrnNumber))
             {
-                if (!string.IsNullOrEmpty(command.Data.BranchId))
-                {
-                    await _hubContext.Clients.Group(command.Data.BranchId).SendAsync("ReceiveInventoryUpdate");
-                }
-                else
-                {
-                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
-                }
+                var productIds = command.Data.Items != null ? command.Data.Items.Select(i => i.ProductId).ToList() : new List<Guid>();
+                await BroadcastStockUpdatesAsync(productIds, command.Data.BranchId, companyId);
 
                 return Ok(new
                 {
@@ -145,14 +144,8 @@ namespace Inventory.API.Controllers
 
             if (result)
             {
-                if (!string.IsNullOrEmpty(request.BranchId))
-                {
-                    await _hubContext.Clients.Group(request.BranchId).SendAsync("ReceiveInventoryUpdate");
-                }
-                else
-                {
-                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
-                }
+                var productIds = request.Items != null ? request.Items.Select(i => i.ProductId).ToList() : new List<Guid>();
+                await BroadcastStockUpdatesAsync(productIds, request.BranchId, companyId);
 
                 return Ok(new { message = "Multiple GRNs created successfully!" });
             }
@@ -195,6 +188,49 @@ namespace Inventory.API.Controllers
 
             return BadRequest(new { success = false, message = "Failed to cancel invoice" });
         }
-    }
 
+        private async Task BroadcastStockUpdatesAsync(IEnumerable<Guid> productIds, string? branchId, Guid companyId)
+        {
+            try
+            {
+                var pIds = productIds.Distinct().ToList();
+                if (!pIds.Any()) return;
+
+                var stockQuery = _context.WarehouseStocks
+                    .IgnoreQueryFilters()
+                    .Where(ws => ws.CompanyId == companyId && pIds.Contains(ws.ProductId));
+
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                    stockQuery = stockQuery.Where(ws => ws.BranchId == branchId);
+                }
+
+                var stockList = await stockQuery
+                    .GroupBy(ws => ws.ProductId)
+                    .Select(g => new { ProductId = g.Key, CurrentStock = g.Sum(x => x.Quantity) })
+                    .ToListAsync();
+
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                    await _hubContext.Clients.Group(branchId).SendAsync("ReceiveInventoryUpdate", stockList);
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate", stockList);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error broadcasting stock updates: {ex.Message}");
+                if (!string.IsNullOrEmpty(branchId))
+                {
+                    await _hubContext.Clients.Group(branchId).SendAsync("ReceiveInventoryUpdate");
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+                }
+            }
+        }
+    }
 }

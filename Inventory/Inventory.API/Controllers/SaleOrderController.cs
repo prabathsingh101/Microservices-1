@@ -48,8 +48,9 @@ public class SaleOrderController : ControllerBase
         // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims
         var companyIdClaim = User.FindFirst("CompanyId")?.Value;
         var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+        Guid companyId = Guid.Empty;
         
-        if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
+        if (Guid.TryParse(companyIdHeader, out companyId) || Guid.TryParse(companyIdClaim, out companyId))
         {
             dto.CompanyId = companyId;
         }
@@ -76,15 +77,9 @@ public class SaleOrderController : ControllerBase
             await _hubContext.Clients.Group(dto.BranchId).SendAsync("ReceiveDeliveryUpdate", new { status = initialStatus });
         }
 
-        // Broadcast inventory update to all terminals
-        if (!string.IsNullOrEmpty(dto.BranchId))
-        {
-            await _hubContext.Clients.Group(dto.BranchId).SendAsync("ReceiveInventoryUpdate");
-        }
-        else
-        {
-            await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
-        }
+        // Broadcast inventory update to all terminals with specific stock updates
+        var productIds = dto.Items != null ? dto.Items.Select(i => i.ProductId).ToList() : new List<Guid>();
+        await BroadcastStockUpdatesAsync(productIds, dto.BranchId, companyId);
 
         // 3. Result ko as it is return karein taaki frontend ko result.soNumber mil sake
         return Ok(result);
@@ -714,5 +709,49 @@ public class SaleOrderController : ControllerBase
         }
 
         return Ok(new { success = true, message = $"Successfully settled cash for {settledCount} orders." });
+    }
+
+    private async Task BroadcastStockUpdatesAsync(IEnumerable<Guid> productIds, string? branchId, Guid companyId)
+    {
+        try
+        {
+            var pIds = productIds.Distinct().ToList();
+            if (!pIds.Any()) return;
+
+            var stockQuery = _context.WarehouseStocks
+                .IgnoreQueryFilters()
+                .Where(ws => ws.CompanyId == companyId && pIds.Contains(ws.ProductId));
+
+            if (!string.IsNullOrEmpty(branchId))
+            {
+                stockQuery = stockQuery.Where(ws => ws.BranchId == branchId);
+            }
+
+            var stockList = await stockQuery
+                .GroupBy(ws => ws.ProductId)
+                .Select(g => new { ProductId = g.Key, CurrentStock = g.Sum(x => x.Quantity) })
+                .ToListAsync();
+
+            if (!string.IsNullOrEmpty(branchId))
+            {
+                await _hubContext.Clients.Group(branchId).SendAsync("ReceiveInventoryUpdate", stockList);
+            }
+            else
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate", stockList);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error broadcasting stock updates: {ex.Message}");
+            if (!string.IsNullOrEmpty(branchId))
+            {
+                await _hubContext.Clients.Group(branchId).SendAsync("ReceiveInventoryUpdate");
+            }
+            else
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
+            }
+        }
     }
 }
