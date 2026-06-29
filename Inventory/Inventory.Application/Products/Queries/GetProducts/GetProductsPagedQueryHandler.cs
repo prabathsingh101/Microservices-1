@@ -26,7 +26,7 @@ internal sealed class GetProductsPagedQueryHandler
             GetProductsPagedQuery request,
             CancellationToken cancellationToken)
     {
-        var query = _repository.Query();
+        var query = _repository.Query().AsNoTracking();
 
         // 🔍 SEARCH (Global) - Existing logic preserved
         if (!string.IsNullOrWhiteSpace(request.Request.Search))
@@ -117,6 +117,7 @@ internal sealed class GetProductsPagedQueryHandler
 
         var stockLookup = await _context.WarehouseStocks
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .Where(ws => ws.CompanyId == companyIdClaim && productIds.Contains(ws.ProductId))
             .Where(ws => string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)
             .GroupBy(ws => ws.ProductId)

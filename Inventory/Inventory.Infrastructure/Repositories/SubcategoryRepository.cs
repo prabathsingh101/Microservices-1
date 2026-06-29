@@ -44,6 +44,7 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.Subcategories
+            .AsNoTracking()
             .Include(s => s.Category)
             .Where(x => x.CompanyId == companyId)
             .ToListAsync();
@@ -54,6 +55,7 @@ internal sealed class SubcategoryRepository : ISubcategoryRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         return await _context.Subcategories
+            .AsNoTracking()
             .Include(s => s.Category)
             .Where(s => s.CategoryId == categoryId && s.CompanyId == companyId)
             .ToListAsync();

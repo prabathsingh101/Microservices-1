@@ -237,27 +237,53 @@ public sealed class ProductRepository : IProductRepository
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
 
-        var query = _db.Products
+        // 1. Fetch stock lookup grouped by ProductId in bulk (DB Side Aggregation)
+        var stockLookup = await _db.WarehouseStocks
+            .IgnoreQueryFilters()
             .AsNoTracking()
-            .Where(p => p.CompanyId == companyId && p.IsActive);
+            .Where(ws => ws.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
+            .GroupBy(ws => ws.ProductId)
+            .Select(g => new { ProductId = g.Key, TotalQty = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.ProductId, x => x.TotalQty);
 
-        var products = await query.Select(p => new LowStockProductDto
-        {
-            Id = p.Id,
-            CategoryName = p.Category.CategoryName,
-            SubCategoryName = p.Subcategory.SubcategoryName,
-            ProductName = p.Name,
-            SKU = p.Sku,
-            Unit = p.Unit,
-            BasePurchasePrice = p.BasePurchasePrice,
-            MinStock = p.MinStock,
-            CurrentStock = _db.WarehouseStocks
-                .Where(ws => ws.ProductId == p.Id && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId))
-                .Sum(ws => (decimal?)ws.Quantity) ?? 0
-        }).ToListAsync();
+        // 2. Fetch all active products
+        var activeProducts = await _db.Products
+            .AsNoTracking()
+            .Where(p => p.CompanyId == companyId && p.IsActive)
+            .Select(p => new {
+                p.Id,
+                CategoryName = p.Category.CategoryName,
+                SubCategoryName = p.Subcategory.SubcategoryName,
+                p.Name,
+                p.Sku,
+                p.Unit,
+                p.BasePurchasePrice,
+                p.MinStock
+            })
+            .ToListAsync();
 
-        // Filter by low stock condition after getting the branch/global quantity
-        return products.Where(p => p.CurrentStock <= p.MinStock).ToList();
+        // 3. Map stock, filter low stock condition, and sort (Available stocks > 0 on top, Out of stock at bottom)
+        var products = activeProducts.Select(p => {
+            var currentStock = stockLookup.GetValueOrDefault(p.Id, 0);
+            return new LowStockProductDto
+            {
+                Id = p.Id,
+                CategoryName = p.CategoryName,
+                SubCategoryName = p.SubCategoryName,
+                ProductName = p.Name,
+                SKU = p.Sku,
+                Unit = p.Unit,
+                BasePurchasePrice = p.BasePurchasePrice,
+                MinStock = p.MinStock,
+                CurrentStock = currentStock
+            };
+        })
+        .Where(p => p.CurrentStock <= p.MinStock)
+        .OrderByDescending(p => p.CurrentStock > 0)
+        .ThenByDescending(p => p.CurrentStock)
+        .ToList();
+
+        return products;
     }
 
     public async Task<List<ExcelExportDto>> GetLowStockExportDataAsync()

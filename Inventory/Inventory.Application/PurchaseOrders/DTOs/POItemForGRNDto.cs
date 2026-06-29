@@ -14,5 +14,9 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public bool IsExpiryRequired { get; set; }
+        public decimal DiscountPercent { get; set; }
+        public decimal GstPercent { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal Total { get; set; }
     }
 }

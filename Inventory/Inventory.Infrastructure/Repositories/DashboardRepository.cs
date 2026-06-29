@@ -90,27 +90,80 @@ namespace Inventory.Infrastructure.Repositories
                 chart.PurchaseData.Add(purchaseTrends.FirstOrDefault(x => x.Month == i)?.Total ?? 0);
             }
 
-            // 🚀 Optimized to query WarehouseStocks directly, avoiding [NotMapped] CurrentStock property translation exception in EF Core
-            chart.FinishedGoods = (int)(await _context.WarehouseStocks
+            // 🎯 1. Load active configurations for ProductType to resolve ID string to display labels
+            var productTypes = await _context.Configurations
+                .AsNoTracking()
+                .Where(c => c.ConfigKey == "ProductType" && c.IsActive)
+                .ToDictionaryAsync(c => c.Id.ToString(), c => c.ConfigValue);
+
+            // 🎯 2. Query stocks grouped by ProductType using optimized AsNoTracking query
+            var stockByType = await _context.WarehouseStocks
                 .AsNoTracking()
                 .Where(ws => ws.CompanyId == companyId 
                     && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)
-                    && ws.Product.IsActive 
-                    && ws.Product.ProductType == "1")
-                .SumAsync(x => (decimal?)x.Quantity) ?? 0);
+                    && ws.Product.IsActive)
+                .GroupBy(ws => ws.Product.ProductType)
+                .Select(g => new { ProductType = g.Key, TotalQty = g.Sum(x => (decimal?)x.Quantity) ?? 0 })
+                .ToListAsync();
 
-            chart.RawMaterials = (int)(await _context.WarehouseStocks
-                .AsNoTracking()
-                .Where(ws => ws.CompanyId == companyId 
-                    && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)
-                    && ws.Product.IsActive 
-                    && ws.Product.ProductType == "2")
-                .SumAsync(x => (decimal?)x.Quantity) ?? 0);
+            var labelMap = new Dictionary<string, decimal>();
+            foreach (var item in stockByType)
+            {
+                var typeId = (item.ProductType ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(typeId)) continue;
 
-            chart.DamagedItems = (int)await _context.Products
+                // Resolve type label, fallback to ID or "Unknown"
+                var label = productTypes.TryGetValue(typeId, out var val) ? val : typeId;
+                if (label.Equals("goods", StringComparison.OrdinalIgnoreCase))
+                {
+                    label = "Finished Goods"; // standard label representation
+                }
+
+                if (labelMap.ContainsKey(label))
+                {
+                    labelMap[label] += item.TotalQty;
+                }
+                else
+                {
+                    labelMap[label] = item.TotalQty;
+                }
+            }
+
+            // 🎯 3. Damaged stock summation
+            var damagedSum = await _context.Products
                 .AsNoTracking()
                 .Where(x => x.CompanyId == companyId && (x.BranchId == null || string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
                 .SumAsync(x => x.DamagedStock);
+
+            if (damagedSum > 0)
+            {
+                labelMap["Damaged"] = damagedSum;
+            }
+
+            chart.StockStatusLabels = labelMap.Keys.ToList();
+            chart.StockStatusValues = labelMap.Values.ToList();
+
+            // Keep legacy properties populated for backward compatibility (where ProductType is "1" or "2")
+            chart.FinishedGoods = (int)(labelMap.TryGetValue("Finished Goods", out var fg) ? fg : (labelMap.TryGetValue("Finished", out var f) ? f : (labelMap.TryGetValue("Goods", out var g) ? g : 0)));
+            chart.RawMaterials = (int)(labelMap.TryGetValue("Raw Material", out var rm) ? rm : (labelMap.TryGetValue("Raw Materials", out var rms) ? rms : 0));
+            chart.DamagedItems = (int)damagedSum;
+
+            // 🎯 4. Most Selling Items for the current tenant
+            var topSelling = await _context.SaleOrderItems
+                .AsNoTracking()
+                .Where(x => x.CompanyId == companyId && (x.SaleOrder.BranchId == null || string.IsNullOrEmpty(branchId) || x.SaleOrder.BranchId == branchId))
+                .GroupBy(x => x.ProductName)
+                .Select(g => new
+                {
+                    ProductName = g.Key,
+                    TotalQty = g.Sum(x => x.Qty)
+                })
+                .OrderByDescending(x => x.TotalQty)
+                .Take(5)
+                .ToListAsync();
+
+            chart.TopSellingProducts = topSelling.Select(x => x.ProductName ?? "Unknown").ToList();
+            chart.TopSellingQtys = topSelling.Select(x => x.TotalQty).ToList();
 
             return chart;
         }

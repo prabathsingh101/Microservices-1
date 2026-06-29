@@ -15,4 +15,8 @@ public class DashboardChartDto
     // Most Selling Items (Bar Chart)
     public List<string> TopSellingProducts { get; set; } = new();
     public List<decimal> TopSellingQtys { get; set; } = new();
+
+    // Dynamic Stock Status
+    public List<string> StockStatusLabels { get; set; } = new();
+    public List<decimal> StockStatusValues { get; set; } = new();
 }
