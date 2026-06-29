@@ -158,6 +158,8 @@ namespace Inventory.API.Controllers;
         return Ok(result);
     }
 
+
+
     [HttpPost("bulk-inward")]
     [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
     public async Task<IActionResult> BulkInward([FromBody] List<Guid> ids)

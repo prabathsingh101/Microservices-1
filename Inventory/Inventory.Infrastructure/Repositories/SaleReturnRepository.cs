@@ -591,6 +591,8 @@ namespace Inventory.Infrastructure.Repositories
                 .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 
+
+
         public async Task<bool> CancelSaleReturnAsync(Guid id, string? reason)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
