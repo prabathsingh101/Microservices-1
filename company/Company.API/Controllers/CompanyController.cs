@@ -61,6 +61,23 @@ namespace Company.API.Controllers
             return result != null ? Ok(result) : NotFound();
         }
 
+        [HttpGet("public-by-code/{code}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPublicByCode(string code)
+        {
+            var company = await _dbContext.CompanyProfiles
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.CompanyCode.ToLower() == code.ToLower());
+            if (company == null) return NotFound("Company not found.");
+            return Ok(new { 
+                id = company.Id,
+                name = company.Name, 
+                logoUrl = company.LogoUrl,
+                companyCode = company.CompanyCode
+            });
+        }
+
         [HttpPost("paged")]
         [Authorize(Roles = "Default Admin, Admin, User, Manager, Employee, Warehouse,Super Admin, Salesman")]
         public async Task<IActionResult> GetPaged([FromBody] GridRequest request)
