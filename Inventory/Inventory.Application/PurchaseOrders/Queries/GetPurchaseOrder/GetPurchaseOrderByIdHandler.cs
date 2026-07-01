@@ -48,6 +48,20 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                     Console.WriteLine($"Payment Status Sync Error: {ex.Message}");
                 }
             }
+
+            decimal? supplierBalance = null;
+            try
+            {
+                var balances = await _supplierClient.GetSupplierBalancesAsync(new List<Guid> { po.SupplierId });
+                if (balances.ContainsKey(po.SupplierId))
+                {
+                    supplierBalance = balances[po.SupplierId];
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Supplier Balance Sync Error: {ex.Message}");
+            }
             
             decimal paidFromPO = (!string.IsNullOrEmpty(po.PoNumber) && paymentStatuses.ContainsKey(po.PoNumber)) ? paymentStatuses[po.PoNumber] : 0;
             decimal paidFromGRN = 0;
@@ -144,6 +158,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 SubTotal= po.SubTotal,
                 GrandTotal = po.GrandTotal,
                 PaidAmount = actualPaidAmount,
+                SupplierBalance = supplierBalance,
                 Status = (po.Status == "Cancelled")
                          ? po.Status
                          : (po.Status == "Closed" || po.Status == "ShortClosed")

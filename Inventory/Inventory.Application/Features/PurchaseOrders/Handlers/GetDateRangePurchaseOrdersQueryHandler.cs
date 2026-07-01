@@ -64,6 +64,20 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     Console.WriteLine($"Payment Status Sync Error: {ex.Message}");
                 }
             }
+
+            var supplierBalances = new Dictionary<Guid, decimal>();
+            var supplierIds = result.Data.Select(po => po.SupplierId).Distinct().ToList();
+            if (supplierIds.Any())
+            {
+                try
+                {
+                    supplierBalances = await _supplierClient.GetSupplierBalancesAsync(supplierIds);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Supplier Balance Sync Error: {ex.Message}");
+                }
+            }
             // ----------------------------------
 
             // 2. Mapping with Net Quantity Logic
@@ -198,6 +212,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     SubTotal = x.SubTotal,
                     TotalBilled = totalBilled,
                     PaidAmount = actualPaidAmount, // Dynamically mapped from Ledger payments
+                    SupplierBalance = supplierBalances.ContainsKey(x.SupplierId) ? supplierBalances[x.SupplierId] : null,
                     ExpectedDeliveryDate = x.ExpectedDeliveryDate,
                     CreatedBy = x.CreatedBy,
                     CreatedOn = x.CreatedOn ?? DateTime.MinValue,

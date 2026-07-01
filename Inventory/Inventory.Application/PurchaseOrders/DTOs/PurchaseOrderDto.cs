@@ -40,6 +40,10 @@ public class PurchaseOrderDto
             {
                 return 0;
             }
+            if (SupplierBalance.HasValue && SupplierBalance.Value <= 0.01m)
+            {
+                return 0;
+            }
             decimal baseAmount = (Status == "Received" && TotalBilled > 0) ? TotalBilled : GrandTotal;
             return Math.Max(0, baseAmount - TotalReturnedAmount - PaidAmount);
         }
@@ -52,10 +56,15 @@ public class PurchaseOrderDto
             {
                 return "-";
             }
+            if (SupplierBalance.HasValue && SupplierBalance.Value <= 0.01m)
+            {
+                return "Paid";
+            }
             return DueAmount <= 0 ? "Paid" : (PaidAmount > 0 ? "Partial" : "Unpaid");
         }
     }
 
+    public decimal? SupplierBalance { get; set; }
     public string? Remarks { get; set; }
     public bool HasPendingRefund { get; set; }
     public string? BranchId { get; set; }
