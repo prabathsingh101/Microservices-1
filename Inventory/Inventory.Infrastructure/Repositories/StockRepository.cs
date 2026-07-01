@@ -989,7 +989,9 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     TransactionDate = tx.CreatedOn ?? DateTime.Now,
                     TransactionType = tx.TransactionType,
-                    Quantity = tx.Quantity,
+                    ReferenceId = tx.ReferenceId,
+                    Quantity = tx.Quantity < 0 ? -tx.Quantity : tx.Quantity, // Use absolute value
+                    Category = tx.Quantity > 0 ? "IN" : "OUT",
                     RemainingStock = 0, // Placeholder
                     ReferenceNumber = tx.ReferenceNumber,
                     BatchNumber = tx.BatchNumber,

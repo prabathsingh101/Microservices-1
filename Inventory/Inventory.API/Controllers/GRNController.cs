@@ -63,11 +63,18 @@ namespace Inventory.API.Controllers
                 var productIds = command.Data.Items != null ? command.Data.Items.Select(i => i.ProductId).ToList() : new List<Guid>();
                 await BroadcastStockUpdatesAsync(productIds, command.Data.BranchId, companyId);
 
+                // Fetch newly created GRN list item to get calculated PaymentStatus and PaidAmount [cite: 2026-05-04]
+                var queryResult = await _mediator.Send(new GetGRNListQuery(newGrnNumber, "id", "desc", 0, 1, false));
+                var grnItem = queryResult.Items?.FirstOrDefault();
+
                 return Ok(new
                 {
                     success = true,
                     message = "Stock Updated Successfully",
-                    grnNumber = newGrnNumber 
+                    grnNumber = newGrnNumber,
+                    paymentStatus = grnItem?.PaymentStatus ?? "Unpaid",
+                    paidAmount = grnItem?.PaidAmount ?? 0,
+                    totalAmount = grnItem?.TotalAmount ?? command.Data.TotalAmount
                 });
             }
 

@@ -512,6 +512,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         var items = pagedData.Select(x => new PurchaseReturnListDto
         {
             Id = x.Id,
+            SupplierId = x.SupplierId,
             ReturnNumber = x.ReturnNumber,
             ReturnDate = x.ReturnDate,
             SupplierName = supplierNames.GetValueOrDefault(x.SupplierId, "Unknown"),

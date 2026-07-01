@@ -2,6 +2,7 @@
 public class PurchaseReturnListDto
 {
     public Guid Id { get; set; }
+    public Guid SupplierId { get; set; }
     public string ReturnNumber { get; set; } = string.Empty; // PR-20260204...
     public DateTime ReturnDate { get; set; }
     public string SupplierName { get; set; } = string.Empty;
