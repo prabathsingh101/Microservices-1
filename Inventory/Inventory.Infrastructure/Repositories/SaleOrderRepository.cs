@@ -236,6 +236,8 @@ public class SaleOrderRepository : ISaleOrderRepository
                 (o.GatePassNo != null && o.GatePassNo.ToLower().Contains(searchTerm)) ||
                 o.Status.ToLower().Contains(searchTerm) ||
                 o.GrandTotal.ToString().Contains(searchTerm) ||
+                (o.GuestPhone != null && o.GuestPhone.ToLower().Contains(searchTerm)) ||
+                (o.GuestName != null && o.GuestName.ToLower().Contains(searchTerm)) ||
                 (o.CustomerId.HasValue && matchingCustomerIds.Contains(o.CustomerId.Value)));
         }
 
