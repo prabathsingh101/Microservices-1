@@ -89,7 +89,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
 
                 var totalRefunded = _context.PurchaseReturnItems
                     .Where(ri => ri.ProductId == i.ProductId && 
-                                 ri.PurchaseReturn.Status == "Refund" &&
+                                 (ri.PurchaseReturn.Status == "Refund" || ri.PurchaseReturn.Status == "Confirmed") &&
                                  _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == po.Id))
                     .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
 

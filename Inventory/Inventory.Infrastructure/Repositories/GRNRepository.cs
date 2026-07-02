@@ -311,7 +311,7 @@ namespace Inventory.Infrastructure.Repositories
 
                         decimal totalReturned = returnItemsOfPo.Sum(ri => ri.ReturnQty);
                         decimal totalRefunded = returnItemsOfPo
-                            .Where(ri => ri.PurchaseReturn.Status == "Refund")
+                            .Where(ri => ri.PurchaseReturn.Status == "Refund" || ri.PurchaseReturn.Status == "Confirmed")
                             .Sum(ri => ri.ReturnQty);
 
                         decimal totalRejected = await _context.GRNDetails

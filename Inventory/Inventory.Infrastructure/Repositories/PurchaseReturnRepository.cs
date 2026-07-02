@@ -509,20 +509,121 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 ProductName = g.Count() == 1 ? g.First().ProductName : (g.Count() > 1 ? "Multiple Items" : "N/A")
             });
 
-        var items = pagedData.Select(x => new PurchaseReturnListDto
+        var grnRefs = returnItemsList.Select(ri => ri.GrnRef).Where(g => !string.IsNullOrEmpty(g)).Distinct().ToList();
+        var paymentStatuses = new Dictionary<string, decimal>();
+        var grnDetailsMap = new Dictionary<string, decimal>();
+        var grnPoInfo = new List<dynamic>();
+        var grnToPoMap = new Dictionary<string, string>();
+        if (grnRefs.Any())
         {
-            Id = x.Id,
-            SupplierId = x.SupplierId,
-            ReturnNumber = x.ReturnNumber,
-            ReturnDate = x.ReturnDate,
-            SupplierName = supplierNames.GetValueOrDefault(x.SupplierId, "Unknown"),
-            ProductName = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].ProductName : "N/A",
-            TotalQty = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].TotalQty : 0,
-            GrnRef = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].GrnRefs : "N/A",
-            TotalAmount = x.GrandTotal,
-            Status = x.Status ?? "Completed",
-            GatePassNo = x.GatePassNo,
-            IsQuick = x.IsQuick
+            try
+            {
+                paymentStatuses = await _supplierClient.GetGRNPaymentStatusesAsync(grnRefs);
+                grnDetailsMap = await _context.GRNHeaders
+                    .Where(g => grnRefs.Contains(g.GRNNumber) && g.CompanyId == companyId)
+                    .ToDictionaryAsync(g => g.GRNNumber, g => g.TotalAmount);
+                    
+                var rawGrnPoInfo = await _context.GRNHeaders
+                    .Where(g => grnRefs.Contains(g.GRNNumber) && g.CompanyId == companyId)
+                    .Select(g => new { 
+                        g.GRNNumber, 
+                        g.TotalAmount, 
+                        PoNumber = g.PurchaseOrder != null ? g.PurchaseOrder.PoNumber : null, 
+                        PoTotal = g.PurchaseOrder != null ? (decimal?)g.PurchaseOrder.GrandTotal : null 
+                    })
+                    .ToListAsync();
+                grnPoInfo = rawGrnPoInfo.Select(g => (dynamic)g).ToList();
+                grnToPoMap = rawGrnPoInfo
+                    .Where(x => !string.IsNullOrEmpty(x.PoNumber))
+                    .GroupBy(x => x.GRNNumber)
+                    .ToDictionary(g => g.Key, g => g.First().PoNumber!);
+                
+                // Add PO numbers to payment status search terms to get payments recorded against POs
+                var poNumbers = rawGrnPoInfo.Select(g => g.PoNumber).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+                if (poNumbers.Any())
+                {
+                    var poPaymentStatuses = await _supplierClient.GetGRNPaymentStatusesAsync(poNumbers);
+                    foreach (var kvp in poPaymentStatuses)
+                    {
+                        paymentStatuses[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Supplier Payment Status Sync Error in PR list: {ex.Message}");
+            }
+        }
+
+        var supplierBalances = new Dictionary<Guid, decimal>();
+        if (supplierIds.Any())
+        {
+            try
+            {
+                supplierBalances = await _supplierClient.GetSupplierBalancesAsync(supplierIds);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Supplier Balance Sync Error in PR list: {ex.Message}");
+            }
+        }
+
+        var items = pagedData.Select(x => {
+            var refs = returnItemsList.Where(ri => ri.PurchaseReturnId == x.Id).Select(ri => ri.GrnRef).Distinct().ToList();
+            
+            bool isSettled = false;
+            if (supplierBalances.ContainsKey(x.SupplierId))
+            {
+                isSettled = supplierBalances[x.SupplierId] >= -0.05m;
+            }
+            else
+            {
+                decimal totalPaidForGrns = refs.Sum(gRef => paymentStatuses.ContainsKey(gRef) ? paymentStatuses[gRef] : 0);
+                decimal totalBilledForGrns = refs.Sum(gRef => grnDetailsMap.ContainsKey(gRef) ? grnDetailsMap[gRef] : 0);
+                
+                var matchingGrns = grnPoInfo.Where(g => refs.Contains(g.GRNNumber)).ToList();
+                var parentPoNumbers = matchingGrns.Select(g => (string)g.PoNumber).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+                decimal totalPaidForPos = parentPoNumbers.Sum(poNum => paymentStatuses.ContainsKey(poNum) ? paymentStatuses[poNum] : 0);
+                
+                decimal totalPaidCombined = totalPaidForGrns + totalPaidForPos;
+
+                isSettled = totalPaidCombined < totalBilledForGrns - 0.05m;
+            }
+
+            string effectiveStatus = x.Status ?? "Completed";
+            if (effectiveStatus == "Confirmed" && isSettled)
+            {
+                effectiveStatus = "Adjusted";
+            }
+            else if (effectiveStatus == "Refund")
+            {
+                effectiveStatus = "Refunded";
+            }
+
+            var mappedGrnRef = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].GrnRefs : "N/A";
+            var matchingPos = refs
+                .Where(r => grnToPoMap.ContainsKey(r))
+                .Select(r => grnToPoMap[r])
+                .Distinct()
+                .ToList();
+            var joinedPoNumbers = string.Join(", ", matchingPos);
+
+            return new PurchaseReturnListDto
+            {
+                Id = x.Id,
+                SupplierId = x.SupplierId,
+                ReturnNumber = x.ReturnNumber,
+                ReturnDate = x.ReturnDate,
+                SupplierName = supplierNames.GetValueOrDefault(x.SupplierId, "Unknown"),
+                ProductName = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].ProductName : "N/A",
+                TotalQty = itemLookup.ContainsKey(x.Id) ? itemLookup[x.Id].TotalQty : 0,
+                GrnRef = mappedGrnRef,
+                PoNumber = string.IsNullOrEmpty(joinedPoNumbers) ? null : joinedPoNumbers,
+                TotalAmount = x.GrandTotal,
+                Status = effectiveStatus,
+                GatePassNo = x.GatePassNo,
+                IsQuick = x.IsQuick
+            };
         }).ToList();
 
         return new PurchaseReturnPagedResponse { Items = items, TotalCount = totalCount };
@@ -588,6 +689,85 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         string sName = supplierDict.ContainsKey(purchaseReturn.SupplierId)
                        ? supplierDict[purchaseReturn.SupplierId] : "Unknown";
 
+        var grnRefs = itemDtos.Select(ri => ri.GrnRef).Where(g => !string.IsNullOrEmpty(g)).Distinct().ToList();
+        var paymentStatuses = new Dictionary<string, decimal>();
+        var grnDetailsMap = new Dictionary<string, decimal>();
+        var grnPoInfo = new List<dynamic>();
+        if (grnRefs.Any())
+        {
+            try
+            {
+                paymentStatuses = await _supplierClient.GetGRNPaymentStatusesAsync(grnRefs);
+                grnDetailsMap = await _context.GRNHeaders
+                    .Where(g => grnRefs.Contains(g.GRNNumber) && g.CompanyId == companyId)
+                    .ToDictionaryAsync(g => g.GRNNumber, g => g.TotalAmount);
+                    
+                var rawGrnPoInfo = await _context.GRNHeaders
+                    .Where(g => grnRefs.Contains(g.GRNNumber) && g.CompanyId == companyId)
+                    .Select(g => new { 
+                        g.GRNNumber, 
+                        g.TotalAmount, 
+                        PoNumber = g.PurchaseOrder != null ? g.PurchaseOrder.PoNumber : null, 
+                        PoTotal = g.PurchaseOrder != null ? (decimal?)g.PurchaseOrder.GrandTotal : null 
+                    })
+                    .ToListAsync();
+                grnPoInfo = rawGrnPoInfo.Select(g => (dynamic)g).ToList();
+                
+                var poNumbers = rawGrnPoInfo.Select(g => g.PoNumber).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+                if (poNumbers.Any())
+                {
+                    var poPaymentStatuses = await _supplierClient.GetGRNPaymentStatusesAsync(poNumbers);
+                    foreach (var kvp in poPaymentStatuses)
+                    {
+                        paymentStatuses[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Supplier Payment Status Sync Error in PR detail: {ex.Message}");
+            }
+        }
+
+        var supplierBalances = new Dictionary<Guid, decimal>();
+        try
+        {
+            supplierBalances = await _supplierClient.GetSupplierBalancesAsync(new List<Guid> { purchaseReturn.SupplierId });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Supplier Balance Sync Error in PR detail: {ex.Message}");
+        }
+
+        bool isSettled = false;
+        if (supplierBalances.ContainsKey(purchaseReturn.SupplierId))
+        {
+            isSettled = supplierBalances[purchaseReturn.SupplierId] >= -0.05m;
+        }
+        else
+        {
+            decimal totalPaidForGrns = grnRefs.Sum(gRef => paymentStatuses.ContainsKey(gRef) ? paymentStatuses[gRef] : 0);
+            decimal totalBilledForGrns = grnRefs.Sum(gRef => grnDetailsMap.ContainsKey(gRef) ? grnDetailsMap[gRef] : 0);
+            
+            var matchingGrns = grnPoInfo.Where(g => grnRefs.Contains(g.GRNNumber)).ToList();
+            var parentPoNumbers = matchingGrns.Select(g => (string)g.PoNumber).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+            decimal totalPaidForPos = parentPoNumbers.Sum(poNum => paymentStatuses.ContainsKey(poNum) ? paymentStatuses[poNum] : 0);
+            
+            decimal totalPaidCombined = totalPaidForGrns + totalPaidForPos;
+
+            isSettled = totalPaidCombined < totalBilledForGrns - 0.05m;
+        }
+
+        string effectiveStatus = purchaseReturn.Status ?? "Completed";
+        if (effectiveStatus == "Confirmed" && isSettled)
+        {
+            effectiveStatus = "Adjusted";
+        }
+        else if (effectiveStatus == "Refund")
+        {
+            effectiveStatus = "Refunded";
+        }
+
         return new PurchaseReturnDetailDto
         {
             Id = purchaseReturn.Id,
@@ -595,7 +775,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
             ReturnDate = purchaseReturn.ReturnDate,
             SupplierId = purchaseReturn.SupplierId,
             SupplierName = sName,
-            Status = purchaseReturn.Status ?? "Completed",
+            Status = effectiveStatus,
             Remarks = purchaseReturn.Remarks,
             Items = itemDtos,
             IsQuick = purchaseReturn.IsQuick,
@@ -1047,7 +1227,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
                         po.TotalReturned = returnItemsOfPo.Sum(ri => ri.ReturnQty);
                         decimal totalRefunded = returnItemsOfPo
-                            .Where(ri => ri.PurchaseReturn.Status == "Refund")
+                            .Where(ri => ri.PurchaseReturn.Status == "Refund" || ri.PurchaseReturn.Status == "Confirmed")
                             .Sum(ri => ri.ReturnQty);
 
                         decimal totalOrdered = po.Items.Sum(x => x.Qty);

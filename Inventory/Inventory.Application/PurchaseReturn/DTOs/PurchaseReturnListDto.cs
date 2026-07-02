@@ -9,6 +9,7 @@ public class PurchaseReturnListDto
     public string ProductName { get; set; } = string.Empty; // Added for UI scannability
     public decimal TotalQty { get; set; } // Added to prevent multiple UI detail calls
     public string GrnRef { get; set; } = string.Empty; // Multiple references ho toh comma-separated
+    public string? PoNumber { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Completed";
     public string? GatePassNo { get; set; }

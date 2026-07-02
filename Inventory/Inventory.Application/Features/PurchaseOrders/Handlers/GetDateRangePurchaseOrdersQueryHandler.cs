@@ -100,7 +100,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     // Fetch total refunded quantity for this specific PO item
                     var totalRefunded = _context.PurchaseReturnItems
                         .Where(ri => ri.ProductId == item.ProductId && 
-                                     ri.PurchaseReturn.Status == "Refund" &&
+                                     (ri.PurchaseReturn.Status == "Refund" || ri.PurchaseReturn.Status == "Confirmed") &&
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
 
@@ -173,10 +173,14 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 decimal totalBilled = x.GrnHeaders != null ? x.GrnHeaders.Where(g => g.Status != "Cancelled").Sum(g => g.TotalAmount) : 0;
                 decimal actualPaidAmount = paidFromPO + paidFromGRN;
 
+                decimal baseAmount = (x.Status == "Received" && totalBilled > 0) ? totalBilled : x.GrandTotal;
+                decimal due = Math.Max(0, baseAmount - items.Sum(i => i.ReturnAmount) - actualPaidAmount);
+                bool isFullyPaid = (supplierBalances.ContainsKey(x.SupplierId) && supplierBalances[x.SupplierId] <= 0.05m) || due <= 0.05m;
+
                 var hasRefund = items.Any(i => {
                     var refunded = _context.PurchaseReturnItems
                         .Where(ri => ri.ProductId == i.ProductId && 
-                                     ri.PurchaseReturn.Status == "Refund" &&
+                                     (ri.PurchaseReturn.Status == "Refund" || ri.PurchaseReturn.Status == "Confirmed") &&
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
                     return refunded > 0;
@@ -194,7 +198,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 var isFulfillmentComplete = items.All(i => {
                     var refunded = _context.PurchaseReturnItems
                         .Where(ri => ri.ProductId == i.ProductId && 
-                                     ri.PurchaseReturn.Status == "Refund" &&
+                                     (ri.PurchaseReturn.Status == "Refund" || ri.PurchaseReturn.Status == "Confirmed") &&
                                      _context.GRNHeaders.Any(gh => gh.GRNNumber == ri.GrnRef && gh.PurchaseOrderId == x.Id))
                         .Sum(ri => (decimal?)ri.ReturnQty) ?? 0;
                     return (i.ReceivedQty + refunded) >= i.Qty;
@@ -223,13 +227,15 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     BranchId = x.BranchId,
                     Status = (x.Status == "Cancelled") 
                              ? x.Status 
-                             : (x.Status == "Closed" || x.Status == "ShortClosed")
-                                 ? (items.Sum(i => i.ReturnQty) > 0 ? "ShortClosed" : "Closed")
-                                 : (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled"))
-                                     ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
-                                         ? "Returned"
-                                         : (isFulfillmentComplete ? (hasRefund ? "ShortClosed" : "Received") : "Partially Received"))
-                                     : x.Status,
+                             : (x.Status == "Closed" || x.Status == "ShortClosed" || (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled")))
+                                 ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
+                                     ? "Returned"
+                                     : (isFulfillmentComplete 
+                                         ? (items.Sum(i => i.ReturnQty) > 0 
+                                             ? (isFullyPaid ? "ShortClosed" : "Partially Received") 
+                                             : "Received") 
+                                         : "Partially Received"))
+                                 : x.Status,
                     GrnNumber = grnNumber,
                     GrnId = x.GrnHeaders?.FirstOrDefault()?.Id,
 
