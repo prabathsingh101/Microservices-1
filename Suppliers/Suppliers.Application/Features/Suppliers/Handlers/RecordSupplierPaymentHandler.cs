@@ -60,10 +60,31 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                     TransactionType = paymentDto.TransactionType ?? "Payment",
                     CreatedBy = paymentDto.CreatedBy,
                     CompanyId = paymentDto.CompanyId,
-                    BranchId = paymentDto.BranchId
+                    BranchId = paymentDto.BranchId,
+                    BankName = paymentDto.BankName,
+                    TransactionId = paymentDto.TransactionId,
+                    ChequeNumber = paymentDto.ChequeNumber,
+                    ChequeDate = paymentDto.ChequeDate
                 };
 
                 await _repository.AddPaymentAsync(supplierPayment);
+
+                string descriptionSuffix = "";
+                if (paymentDto.PaymentMode == "Bank" || paymentDto.PaymentMode == "Bank Transfer")
+                {
+                    descriptionSuffix = $" (Bank: {paymentDto.BankName}, Txn: {paymentDto.TransactionId})";
+                }
+                else if (paymentDto.PaymentMode == "Cheque")
+                {
+                    descriptionSuffix = $" (Bank: {paymentDto.BankName}, Chq No: {paymentDto.ChequeNumber}, Date: {paymentDto.ChequeDate?.ToString("dd-MM-yyyy")})";
+                }
+
+                var baseDescription = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : (isRefund ? $"Refund Received {paymentDto.ReferenceNumber ?? ""}" : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}");
+                var fullDescription = baseDescription;
+                if (!string.IsNullOrEmpty(descriptionSuffix))
+                {
+                    fullDescription += descriptionSuffix;
+                }
 
                 var supplierLedger = new SupplierLedger
                 {
@@ -74,7 +95,7 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                     Credit = isRefund ? roundedAmount : 0,
                     Balance = currentBalance,
                     TransactionDate = paymentDto.PaymentDate,
-                    Description = !string.IsNullOrEmpty(paymentDto.Remarks) ? paymentDto.Remarks : (isRefund ? $"Refund Received {paymentDto.ReferenceNumber ?? ""}" : $"Payment for {paymentDto.ReferenceNumber ?? "Invoice"}"),
+                    Description = fullDescription,
                     CompanyId = paymentDto.CompanyId,
                     BranchId = paymentDto.BranchId
                 };

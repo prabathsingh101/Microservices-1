@@ -36,6 +36,9 @@ namespace Company.Application.DTOs
         string? PurchaseOrderStatusUpdateMessage,
         string? SaleOrderCreationMessage,
         string? SaleOrderConfirmationMessage,
+        string? RazorpayKeyId,
+        string? RazorpaySecretKey,
+        string? RazorpayXAccountNumber,
         List<AddressDto> Addresses, 
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories
@@ -116,6 +119,9 @@ namespace Company.Application.DTOs
         string? PurchaseOrderStatusUpdateMessage,
         string? SaleOrderCreationMessage,
         string? SaleOrderConfirmationMessage,
+        string? RazorpayKeyId,
+        string? RazorpaySecretKey,
+        string? RazorpayXAccountNumber,
         List<AddressDto> Addresses,
         BankDetailDto BankInfo,
         List<AuthorizedSignatoryDto> AuthorizedSignatories

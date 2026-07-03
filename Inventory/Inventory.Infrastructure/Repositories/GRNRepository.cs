@@ -684,7 +684,12 @@ namespace Inventory.Infrastructure.Repositories
         {
             var companyId = _currentUserService.CompanyId ?? Guid.Empty;
             var branchId = _currentUserService.BranchId;
-            var query = _context.GRNHeaders.Where(x => x.IsQuick == isQuick && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsQueryable();
+            var query = _context.GRNHeaders.Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId)).AsQueryable();
+
+            if (string.IsNullOrWhiteSpace(search) || !search.Trim().StartsWith("GRN-", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(x => x.IsQuick == isQuick);
+            }
 
             // 1. Searching Logic (Existing preserved)
             if (!string.IsNullOrWhiteSpace(search))
@@ -821,15 +826,25 @@ namespace Inventory.Infrastructure.Repositories
                         decimal totalPaidAmount = 0;
                         
                         // 🔥 HIGH PRIORITY: Exact GRN Number Match
-                        if (paidAmounts != null && paidAmounts.ContainsKey(item.GRNNo) && paidAmounts[item.GRNNo] > 0)
+                        if (paidAmounts != null && !string.IsNullOrEmpty(item.GRNNo))
                         {
-                            totalPaidAmount = paidAmounts[item.GRNNo];
+                            var trimmedGrn = item.GRNNo.Trim().ToLower();
+                            var matchKey = paidAmounts.Keys.FirstOrDefault(k => k.Trim().ToLower() == trimmedGrn);
+                            if (matchKey != null && paidAmounts[matchKey] > 0)
+                            {
+                                totalPaidAmount = paidAmounts[matchKey];
+                            }
                         }
+                        
                         // 🟢 LOW PRIORITY: Fallback to PO if no GRN-specific payment found
-                        else if (paidAmounts != null && !string.IsNullOrEmpty(item.RefPO) && 
-                                 paidAmounts.ContainsKey(item.RefPO))
+                        if (totalPaidAmount == 0 && paidAmounts != null && !string.IsNullOrEmpty(item.RefPO))
                         {
-                            totalPaidAmount = paidAmounts[item.RefPO];
+                            var trimmedPo = item.RefPO.Trim().ToLower();
+                            var matchKey = paidAmounts.Keys.FirstOrDefault(k => k.Trim().ToLower() == trimmedPo);
+                            if (matchKey != null)
+                            {
+                                totalPaidAmount = paidAmounts[matchKey];
+                            }
                         }
 
                         // Fix for Ledger-Based Payment Status

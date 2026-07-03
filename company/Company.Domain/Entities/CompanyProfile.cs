@@ -47,6 +47,11 @@ namespace Company.Domain.Entities
         public string? SaleOrderCreationMessage { get; set; }
         public string? SaleOrderConfirmationMessage { get; set; }
 
+        // Payment Gateway Settings
+        public string? RazorpayKeyId { get; set; }
+        public string? RazorpaySecretKey { get; set; }
+        public string? RazorpayXAccountNumber { get; set; }
+
         // Navigation Properties
         public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
         public virtual ICollection<BankDetail> BankDetails { get; set; } = new List<BankDetail>();

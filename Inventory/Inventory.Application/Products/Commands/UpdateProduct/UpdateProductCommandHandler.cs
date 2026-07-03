@@ -1,6 +1,8 @@
 using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using MediatR;
+using System;
+using System.IO;
 
 namespace Inventory.Application.Products.Commands.UpdateProduct;
 
@@ -59,8 +61,64 @@ internal sealed class UpdateProductCommandHandler
             branchId: request.BranchId
         );
 
+        if (!string.IsNullOrWhiteSpace(product.ImageUrl) && product.ImageUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            var savedPath = SaveBase64Image(product.ImageUrl, product.Id);
+            if (!string.IsNullOrWhiteSpace(savedPath))
+            {
+                product.ImageUrl = savedPath;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return product.Id;
+    }
+
+    private string? SaveBase64Image(string? base64String, Guid productId)
+    {
+        if (string.IsNullOrWhiteSpace(base64String))
+            return base64String;
+
+        if (base64String.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var parts = base64String.Split(',');
+                if (parts.Length != 2) return base64String;
+
+                var metadata = parts[0];
+                var base64Data = parts[1];
+
+                var extension = ".png";
+                if (metadata.Contains("jpeg") || metadata.Contains("jpg"))
+                    extension = ".jpg";
+                else if (metadata.Contains("webp"))
+                    extension = ".webp";
+                else if (metadata.Contains("gif"))
+                    extension = ".gif";
+
+                var bytes = Convert.FromBase64String(base64Data);
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "products");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var fileName = $"{productId}{extension}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                File.WriteAllBytes(filePath, bytes);
+
+                return $"/uploads/products/{fileName}";
+            }
+            catch
+            {
+                return base64String;
+            }
+        }
+
+        return base64String;
     }
 }

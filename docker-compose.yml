@@ -86,7 +86,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 400M
+          memory: 1000M
+    volumes:
+      - company-uploads:/app/wwwroot/uploads
     depends_on:
       - sqlserver
 

@@ -19,10 +19,13 @@ namespace Suppliers.Application.Common.Interfaces
         Task<AdjustmentsSummaryDto> GetTotalAdjustmentsAsync(DateRangeDto dateRange);
         Task<Dictionary<string, decimal>> GetGRNPaymentStatusesAsync(List<string> grnNumbers);
         Task<PaginatedListDto<PaymentReportDto>> GetPaymentsReportAsync(PaymentReportRequestDto request);
+        Task<List<SupplierPaymentDto>> GetPaymentsByReferencesAsync(List<string> referenceNumbers);
         Task<decimal> GetTotalPendingDuesAsync(string? branchId = null, string? companyId = null);
         Task<Dictionary<Guid, decimal>> GetSupplierBalancesAsync(List<Guid> supplierIds);
         Task<List<MonthlyTrendDto>> GetMonthlyTrendAsync(int months, string? branchId = null, string? companyId = null);
         Task<bool> ReferenceExistsAsync(string referenceNumber);
+        Task<bool> ChequeNumberExistsAsync(string chequeNumber, string bankName);
+        Task<bool> TransactionIdExistsAsync(string transactionId, string bankName);
         Task<bool> DeletePaymentAsync(Guid id);
     }
 }

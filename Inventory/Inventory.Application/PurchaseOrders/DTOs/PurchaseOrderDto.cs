@@ -40,7 +40,7 @@ public class PurchaseOrderDto
             {
                 return 0;
             }
-            if (SupplierBalance.HasValue && SupplierBalance.Value <= 0.01m)
+            if (Status != "Approved" && Status != "Pending" && Status != "Draft" && SupplierBalance.HasValue && SupplierBalance.Value <= 0.01m)
             {
                 return 0;
             }
@@ -56,7 +56,7 @@ public class PurchaseOrderDto
             {
                 return "-";
             }
-            if (SupplierBalance.HasValue && SupplierBalance.Value <= 0.01m)
+            if (Status != "Approved" && Status != "Pending" && Status != "Draft" && SupplierBalance.HasValue && SupplierBalance.Value <= 0.01m)
             {
                 return "Paid";
             }

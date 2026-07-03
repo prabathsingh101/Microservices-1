@@ -158,6 +158,13 @@ namespace Suppliers.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("payments-by-references")]
+        public async Task<IActionResult> GetPaymentsByReferences([FromBody] List<string> referenceNumbers)
+        {
+            var result = await _mediator.Send(new GetSupplierPaymentsByReferencesQuery(referenceNumbers));
+            return Ok(result);
+        }
+
         [HttpGet("monthly-payments")]
         public async Task<IActionResult> GetMonthlyPayments([FromQuery] int months = 6, [FromQuery] string? branchId = null)
         {
@@ -172,6 +179,20 @@ namespace Suppliers.API.Controllers
             var result = await _mediator.Send(command);
             if (!result) return NotFound(new { message = "Payment not found or delete failed." });
             return Ok(new { message = "Payment deleted and running balances recalculated successfully." });
+        }
+
+        [HttpGet("check-cheque-unique/{chequeNo}")]
+        public async Task<IActionResult> CheckChequeUnique(string chequeNo, [FromQuery] string bankName, [FromServices] IFinanceRepository repository)
+        {
+            var exists = await repository.ChequeNumberExistsAsync(chequeNo, bankName ?? "");
+            return Ok(new { isUnique = !exists });
+        }
+
+        [HttpGet("check-transaction-unique/{transactionId}")]
+        public async Task<IActionResult> CheckTransactionUnique(string transactionId, [FromQuery] string bankName, [FromServices] IFinanceRepository repository)
+        {
+            var exists = await repository.TransactionIdExistsAsync(transactionId, bankName ?? "");
+            return Ok(new { isUnique = !exists });
         }
     }
 }

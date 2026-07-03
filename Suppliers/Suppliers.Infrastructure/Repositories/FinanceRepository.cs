@@ -132,9 +132,9 @@ namespace Suppliers.Infrastructure.Repositories
             if (!string.IsNullOrEmpty(companyId) && Guid.TryParse(companyId, out var cg)) finalCompanyId = cg;
 
             var allLedgerEntries = await _context.SupplierLedgers
+                .AsNoTracking()
                 .Where(l => l.CompanyId == finalCompanyId && (string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
-                .OrderByDescending(l => l.TransactionDate)
-                .ThenByDescending(l => l.CreatedOn)
+                .OrderByDescending(l => l.CreatedOn)
                 .ToListAsync();
 
             if (!allLedgerEntries.Any()) return new List<PendingDueDto>();
@@ -146,7 +146,10 @@ namespace Suppliers.Infrastructure.Repositories
                 .ToList();
 
             var supplierIds = latestEntries.Select(d => d.SupplierId).ToList();
-            var suppliers = await _context.Suppliers.Where(s => supplierIds.Contains(s.Id) && s.CompanyId == finalCompanyId).ToListAsync();
+            var suppliers = await _context.Suppliers
+                .AsNoTracking()
+                .Where(s => supplierIds.Contains(s.Id) && s.CompanyId == finalCompanyId)
+                .ToListAsync();
 
             return latestEntries.Select(d => new PendingDueDto
             {
@@ -210,9 +213,12 @@ namespace Suppliers.Infrastructure.Repositories
             // Fetch all payments for this supplier (relevant to the search terms)
             // 🛡️ MULTI-BRANCH CONTEXT ENHANCEMENT: Ignore branch-level query filters for unique GRN/PO checks
             // GRNs/POs are unique across the entire company, so matching payments must be resolved company-wide.
+            // Fallback: If _companyId is Guid.Empty (context propagation issue), allow company-wide match since GRNs/POs are globally unique.
             var relevantPayments = await _context.SupplierLedgers
                 .IgnoreQueryFilters()
-                .Where(l => (l.TransactionType == "Payment" || l.TransactionType == "Debit Note" || l.TransactionType == "Refund") && l.Description != null && l.CompanyId == _companyId)
+                .Where(l => (l.TransactionType == "Payment" || l.TransactionType == "Debit Note" || l.TransactionType == "Refund") && 
+                            l.Description != null && 
+                            (l.CompanyId == _companyId || _companyId == Guid.Empty))
                 .Select(l => new { l.Description, l.ReferenceId, l.Debit, l.Credit, l.TransactionType })
                 .ToListAsync();
 
@@ -224,11 +230,12 @@ namespace Suppliers.Infrastructure.Repositories
                         // Exact match in description with colon/space boundary or full match
                         (p.Description != null && (p.Description.Equals(cleanGrn, StringComparison.OrdinalIgnoreCase) || 
                                                  p.Description.Contains($": {cleanGrn} ", StringComparison.OrdinalIgnoreCase) || 
+                                                 p.Description.Contains($" {cleanGrn}", StringComparison.OrdinalIgnoreCase) || 
                                                  p.Description.EndsWith($": {cleanGrn}", StringComparison.OrdinalIgnoreCase))) ||
                         // Exact match or prefix match in ReferenceId (for auto-gen suffixes)
                         (p.ReferenceId != null && (p.ReferenceId.Trim().Equals(cleanGrn, StringComparison.OrdinalIgnoreCase) || 
-                                                 p.ReferenceId.Trim().StartsWith($"{cleanGrn}-") || 
-                                                 p.ReferenceId.Trim().StartsWith($"{cleanGrn}_")))
+                                                 p.ReferenceId.Trim().StartsWith($"{cleanGrn}-", StringComparison.OrdinalIgnoreCase) || 
+                                                 p.ReferenceId.Trim().StartsWith($"{cleanGrn}_", StringComparison.OrdinalIgnoreCase)))
                     )
                     .ToList();
 
@@ -382,6 +389,73 @@ namespace Suppliers.Infrastructure.Repositories
 
             // Check if this reference is already used as a PAYMENT specifically
             return await _context.SupplierPayments.AnyAsync(r => r.ReferenceNumber == referenceNumber && r.CompanyId == _companyId && (r.BranchId == null || string.IsNullOrEmpty(_branchId) || r.BranchId == _branchId));
+        }
+
+        public async Task<bool> ChequeNumberExistsAsync(string chequeNumber, string bankName)
+        {
+            if (string.IsNullOrWhiteSpace(chequeNumber)) return false;
+
+            // Check if this cheque number is already used in this bank in this company
+            return await _context.SupplierPayments
+                .IgnoreQueryFilters()
+                .AnyAsync(p => p.ChequeNumber == chequeNumber && 
+                               (p.BankName == bankName || string.IsNullOrEmpty(bankName)) && 
+                               p.CompanyId == _companyId);
+        }
+
+        public async Task<bool> TransactionIdExistsAsync(string transactionId, string bankName)
+        {
+            if (string.IsNullOrWhiteSpace(transactionId)) return false;
+
+            // Check if this transaction ID is already used in this bank in this company
+            return await _context.SupplierPayments
+                .IgnoreQueryFilters()
+                .AnyAsync(p => p.TransactionId == transactionId && 
+                               (p.BankName == bankName || string.IsNullOrEmpty(bankName)) && 
+                               p.CompanyId == _companyId);
+        }
+
+        public async Task<List<SupplierPaymentDto>> GetPaymentsByReferencesAsync(List<string> referenceNumbers)
+        {
+            if (referenceNumbers == null || !referenceNumbers.Any()) return new List<SupplierPaymentDto>();
+
+            // Collect clean references
+            var cleanRefs = referenceNumbers.Select(r => r.Trim().ToLower()).ToList();
+
+            var payments = await _context.SupplierPayments
+                .Where(p => p.ReferenceNumber != null &&
+                            p.CompanyId == _companyId &&
+                            (p.BranchId == null || string.IsNullOrEmpty(_branchId) || p.BranchId == _branchId))
+                .ToListAsync();
+
+            // Perform in-memory matching to accommodate prefix or suffix formatting cleanly
+            var matchingPayments = payments
+                .Where(p => cleanRefs.Any(cr => 
+                    p.ReferenceNumber!.ToLower().Equals(cr) ||
+                    p.ReferenceNumber!.ToLower().StartsWith(cr + "-") ||
+                    p.ReferenceNumber!.ToLower().StartsWith(cr + "_")
+                ))
+                .OrderBy(p => p.PaymentDate)
+                .ToList();
+
+            return matchingPayments.Select(p => new SupplierPaymentDto
+            {
+                SupplierId = p.SupplierId,
+                CompanyId = p.CompanyId ?? Guid.Empty,
+                BranchId = p.BranchId,
+                Amount = p.Amount,
+                PaymentDate = p.PaymentDate,
+                PaymentMode = p.PaymentMode,
+                ReferenceNumber = p.ReferenceNumber,
+                Remarks = p.Remarks,
+                TransactionType = p.TransactionType,
+                CreatedBy = p.CreatedBy ?? "System",
+                BankName = p.BankName,
+                TransactionId = p.TransactionId,
+                ChequeNumber = p.ChequeNumber,
+                ChequeDate = p.ChequeDate,
+                CreatedOn = p.CreatedOn
+            }).ToList();
         }
 
         public async Task<bool> DeletePaymentAsync(Guid id)

@@ -158,15 +158,30 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 }).ToList();
 
                 var grnNumber = x.GrnHeaders?.FirstOrDefault()?.GRNNumber;
-                decimal paidFromPO = (!string.IsNullOrEmpty(x.PoNumber) && paymentStatuses.ContainsKey(x.PoNumber)) ? paymentStatuses[x.PoNumber] : 0;
+                decimal paidFromPO = 0;
+                if (!string.IsNullOrEmpty(x.PoNumber))
+                {
+                    var trimmedPo = x.PoNumber.Trim().ToLower();
+                    var matchKey = paymentStatuses.Keys.FirstOrDefault(k => k.Trim().ToLower() == trimmedPo);
+                    if (matchKey != null)
+                    {
+                        paidFromPO = paymentStatuses[matchKey];
+                    }
+                }
+
                 decimal paidFromGRN = 0;
                 if (x.GrnHeaders != null)
                 {
                     foreach (var gh in x.GrnHeaders)
                     {
-                        if (!string.IsNullOrEmpty(gh.GRNNumber) && paymentStatuses.ContainsKey(gh.GRNNumber))
+                        if (!string.IsNullOrEmpty(gh.GRNNumber))
                         {
-                            paidFromGRN += paymentStatuses[gh.GRNNumber];
+                            var trimmedGrn = gh.GRNNumber.Trim().ToLower();
+                            var matchKey = paymentStatuses.Keys.FirstOrDefault(k => k.Trim().ToLower() == trimmedGrn);
+                            if (matchKey != null)
+                            {
+                                paidFromGRN += paymentStatuses[matchKey];
+                            }
                         }
                     }
                 }

@@ -63,15 +63,30 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 Console.WriteLine($"Supplier Balance Sync Error: {ex.Message}");
             }
             
-            decimal paidFromPO = (!string.IsNullOrEmpty(po.PoNumber) && paymentStatuses.ContainsKey(po.PoNumber)) ? paymentStatuses[po.PoNumber] : 0;
+            decimal paidFromPO = 0;
+            if (!string.IsNullOrEmpty(po.PoNumber))
+            {
+                var trimmedPo = po.PoNumber.Trim().ToLower();
+                var matchKey = paymentStatuses.Keys.FirstOrDefault(k => k.Trim().ToLower() == trimmedPo);
+                if (matchKey != null)
+                {
+                    paidFromPO = paymentStatuses[matchKey];
+                }
+            }
+
             decimal paidFromGRN = 0;
             if (po.GrnHeaders != null)
             {
                 foreach (var gh in po.GrnHeaders)
                 {
-                    if (!string.IsNullOrEmpty(gh.GRNNumber) && paymentStatuses.ContainsKey(gh.GRNNumber))
+                    if (!string.IsNullOrEmpty(gh.GRNNumber))
                     {
-                        paidFromGRN += paymentStatuses[gh.GRNNumber];
+                        var trimmedGrn = gh.GRNNumber.Trim().ToLower();
+                        var matchKey = paymentStatuses.Keys.FirstOrDefault(k => k.Trim().ToLower() == trimmedGrn);
+                        if (matchKey != null)
+                        {
+                            paidFromGRN += paymentStatuses[matchKey];
+                        }
                     }
                 }
             }

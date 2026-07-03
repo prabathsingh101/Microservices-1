@@ -98,12 +98,44 @@ internal sealed class GetProductsPagedQueryHandler
         var totalCount = await query.CountAsync(cancellationToken);
 
         var itemsData = await query
-            .Include(p => p.Category)
-            .Include(p => p.Subcategory)
-            .Include(p => p.DefaultWarehouse)
-            .Include(p => p.DefaultRack)
             .Skip((request.Request.PageNumber - 1) * request.Request.PageSize)
             .Take(request.Request.PageSize)
+            .Select(p => new {
+                p.Id,
+                p.CategoryId,
+                CategoryName = p.Category != null ? p.Category.CategoryName : string.Empty,
+                p.SubcategoryId,
+                SubcategoryName = p.Subcategory != null ? p.Subcategory.SubcategoryName : string.Empty,
+                p.Name,
+                p.Sku,
+                p.Brand,
+                p.Unit,
+                p.MRP,
+                p.SaleRate,
+                p.BasePurchasePrice,
+                p.HSNCode,
+                p.DefaultGst,
+                p.MinStock,
+                p.DamagedStock,
+                p.TrackInventory,
+                p.IsActive,
+                p.Description,
+                p.CreatedBy,
+                p.CreatedOn,
+                p.ModifiedOn,
+                p.ProductType,
+                p.ImageUrl,
+                p.Discount,
+                p.DiscountPercent,
+                p.IsExpiryRequired,
+                p.DefaultWarehouseId,
+                DefaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
+                p.DefaultRackId,
+                DefaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
+                p.GenericName,
+                p.Manufacturer,
+                p.ScheduleClass
+            })
             .ToListAsync(cancellationToken);
 
         // Fetch Discount and Batch info in a more optimized way if needed, but for now 
@@ -124,11 +156,16 @@ internal sealed class GetProductsPagedQueryHandler
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Qty, cancellationToken);
 
-        // 🚀 SMART BATCH DATE LOOKUP (For Earliest Batch - Optimized in-memory query)
+        // 🚀 SMART BATCH DATE LOOKUP (For Earliest Batch - Optimized Database Query)
         var grnDetails = await _context.GRNDetails
             .AsNoTracking()
-            .Include(g => g.GRNHeader)
             .Where(g => productIds.Contains(g.ProductId) && g.GRNHeader.Status != "Cancelled")
+            .Select(g => new {
+                g.ProductId,
+                g.MfgDate,
+                g.ExpDate,
+                ReceivedDate = g.GRNHeader != null ? (DateTime?)g.GRNHeader.ReceivedDate : null
+            })
             .ToListAsync(cancellationToken);
 
         var batchLookup = grnDetails
@@ -137,7 +174,7 @@ internal sealed class GetProductsPagedQueryHandler
                 g => g.Key,
                 g => {
                     var earliest = g.OrderBy(x => x.ExpDate ?? DateTime.MaxValue)
-                                    .ThenBy(x => x.GRNHeader != null ? x.GRNHeader.ReceivedDate : DateTime.MinValue)
+                                    .ThenBy(x => x.ReceivedDate ?? DateTime.MinValue)
                                     .FirstOrDefault();
                     return new { MfgDate = earliest?.MfgDate, ExpDate = earliest?.ExpDate };
                 }
@@ -151,9 +188,9 @@ internal sealed class GetProductsPagedQueryHandler
             {
                 id = p.Id,
                 categoryId = p.CategoryId,
-                categoryName = p.Category.CategoryName,
+                categoryName = p.CategoryName,
                 subcategoryId = p.SubcategoryId,
-                subcategoryName = p.Subcategory.SubcategoryName,
+                subcategoryName = p.SubcategoryName,
                 sku = p.Sku,
                 mrp = p.MRP,
                 saleRate = p.SaleRate,
@@ -171,9 +208,9 @@ internal sealed class GetProductsPagedQueryHandler
                 description = p.Description,
                 trackInventory = p.TrackInventory,
                 defaultWarehouseId = p.DefaultWarehouseId,
-                defaultWarehouseName = p.DefaultWarehouse != null ? p.DefaultWarehouse.Name : null,
+                defaultWarehouseName = p.DefaultWarehouseName,
                 defaultRackId = p.DefaultRackId,
-                defaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
+                defaultRackName = p.DefaultRackName,
                 imageUrl = p.ImageUrl,
                 createdOn = p.CreatedOn,
                 modifiedOn = p.ModifiedOn,

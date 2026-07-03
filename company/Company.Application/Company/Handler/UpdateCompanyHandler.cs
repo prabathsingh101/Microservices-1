@@ -122,6 +122,9 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.Website = cmd.Request.Website;
             profile.Message = cmd.Request.Message;
             profile.DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage;
+            profile.RazorpayKeyId = cmd.Request.RazorpayKeyId;
+            profile.RazorpaySecretKey = cmd.Request.RazorpaySecretKey;
+            profile.RazorpayXAccountNumber = cmd.Request.RazorpayXAccountNumber;
             profile.SaleReturnWindowValue = cmd.Request.SaleReturnWindowValue;
             profile.SaleReturnWindowUnit = cmd.Request.SaleReturnWindowUnit;
             profile.SaleReturnPolicyDisclaimer = cmd.Request.SaleReturnPolicyDisclaimer;

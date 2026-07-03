@@ -55,6 +55,9 @@ namespace Company.Application.Company.Queries
                 data.PurchaseOrderStatusUpdateMessage,
                 data.SaleOrderCreationMessage,
                 data.SaleOrderConfirmationMessage,
+                data.RazorpayKeyId,
+                data.RazorpaySecretKey,
+                data.RazorpayXAccountNumber,
                 data.Addresses.Select(addr => new AddressDto(
                     addr.Id,
                     addr.BranchName ?? "Head Office",

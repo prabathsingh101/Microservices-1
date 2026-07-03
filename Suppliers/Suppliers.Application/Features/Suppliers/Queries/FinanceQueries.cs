@@ -16,6 +16,7 @@ namespace Suppliers.Application.Features.Suppliers.Queries
     public record GetGRNPaymentStatusesQuery(List<string> GrnNumbers) : IRequest<Dictionary<string, decimal>>;
 
     public record GetPaymentsReportQuery(PaymentReportRequestDto Request) : IRequest<PaginatedListDto<PaymentReportDto>>;
+    public record GetSupplierPaymentsByReferencesQuery(List<string> ReferenceNumbers) : IRequest<List<SupplierPaymentDto>>;
     public record GetTotalPendingDuesQuery(string? BranchId = null, string? CompanyId = null) : IRequest<decimal>;
     public record GetMonthlyPaymentsTrendQuery(int Months, string? BranchId = null, string? CompanyId = null) : IRequest<List<MonthlyTrendDto>>;
 }

@@ -14,4 +14,9 @@ public class SupplierPaymentDto
     public string? Remarks { get; set; }
     public string TransactionType { get; set; } = "Payment"; // "Payment" or "Refund"
     public string CreatedBy { get; set; } = "System";
+    public string? BankName { get; set; }
+    public string? TransactionId { get; set; }
+    public string? ChequeNumber { get; set; }
+    public DateTime? ChequeDate { get; set; }
+    public DateTime? CreatedOn { get; set; }
 }

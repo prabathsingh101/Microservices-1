@@ -141,6 +141,9 @@ namespace Company.Application.Company.Commands.Create.Handler
                 existing.Website = cmd.Request.Website;
                 existing.Message = cmd.Request.Message;
                 existing.DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage;
+                existing.RazorpayKeyId = cmd.Request.RazorpayKeyId;
+                existing.RazorpaySecretKey = cmd.Request.RazorpaySecretKey;
+                existing.RazorpayXAccountNumber = cmd.Request.RazorpayXAccountNumber;
                 existing.SaleReturnWindowValue = cmd.Request.SaleReturnWindowValue;
                 existing.SaleReturnWindowUnit = cmd.Request.SaleReturnWindowUnit;
                 existing.SaleReturnPolicyDisclaimer = cmd.Request.SaleReturnPolicyDisclaimer;
@@ -250,6 +253,9 @@ namespace Company.Application.Company.Commands.Create.Handler
                 Website = cmd.Request.Website,
                 Message = cmd.Request.Message,
                 DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage,
+                RazorpayKeyId = cmd.Request.RazorpayKeyId,
+                RazorpaySecretKey = cmd.Request.RazorpaySecretKey,
+                RazorpayXAccountNumber = cmd.Request.RazorpayXAccountNumber,
                 SaleReturnWindowValue = cmd.Request.SaleReturnWindowValue,
                 SaleReturnWindowUnit = cmd.Request.SaleReturnWindowUnit,
                 SaleReturnPolicyDisclaimer = cmd.Request.SaleReturnPolicyDisclaimer,
