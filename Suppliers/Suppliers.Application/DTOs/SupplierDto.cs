@@ -22,7 +22,13 @@ public record SupplierDto(
     decimal? gstComplianceScore = null,
     string? gstFilingStatus = null,
     string? lastFiledMonth = null,
-    DateTime? lastFilingDate = null
+    DateTime? lastFilingDate = null,
+    string? bankAccountNumber = null,
+    string? bankIfscCode = null,
+    string? bankAccountName = null,
+    string? bankName = null,
+    string? bankBranchName = null,
+    string? bankAddress = null
 );
 
 public record CreateSupplierDto(
@@ -40,5 +46,11 @@ public record CreateSupplierDto(
     string? drugLicenseNo = null,
     string? supplierType = null,
     string? fssaiLicenseNo = null,
-    string? agriLicenseNo = null
+    string? agriLicenseNo = null,
+    string? bankAccountNumber = null,
+    string? bankIfscCode = null,
+    string? bankAccountName = null,
+    string? bankName = null,
+    string? bankBranchName = null,
+    string? bankAddress = null
 );

@@ -27,6 +27,14 @@ namespace Suppliers.Domain.Entities
 
         public bool IsActive { get; private set; } = true;
 
+        // --- Bank Details Columns ---
+        public string? BankAccountNumber { get; private set; }
+        public string? BankIfscCode { get; private set; }
+        public string? BankAccountName { get; private set; }
+        public string? BankName { get; private set; }
+        public string? BankBranchName { get; private set; }
+        public string? BankAddress { get; private set; }
+
         public void UpdateGstCompliance(string? frequency, decimal? score, string? status, string? month, DateTime? filingDate)
         {
             GstFilingFrequency = frequency;
@@ -53,7 +61,13 @@ namespace Suppliers.Domain.Entities
             string? drugLicenseNo = null,
             string? supplierType = null,
             string? fssaiLicenseNo = null,
-            string? agriLicenseNo = null
+            string? agriLicenseNo = null,
+            string? bankAccountNumber = null,
+            string? bankIfscCode = null,
+            string? bankAccountName = null,
+            string? bankName = null,
+            string? bankBranchName = null,
+            string? bankAddress = null
             )
         {
             Name = name;
@@ -70,6 +84,12 @@ namespace Suppliers.Domain.Entities
             SupplierType = supplierType;
             FssaiLicenseNo = fssaiLicenseNo;
             AgriLicenseNo = agriLicenseNo;
+            BankAccountNumber = bankAccountNumber;
+            BankIfscCode = bankIfscCode;
+            BankAccountName = bankAccountName;
+            BankName = bankName;
+            BankBranchName = bankBranchName;
+            BankAddress = bankAddress;
             CreatedOn = DateTime.Now;
         }
 
@@ -95,7 +115,13 @@ namespace Suppliers.Domain.Entities
             string? drugLicenseNo,
             string? supplierType,
             string? fssaiLicenseNo,
-            string? agriLicenseNo)
+            string? agriLicenseNo,
+            string? bankAccountNumber,
+            string? bankIfscCode,
+            string? bankAccountName,
+            string? bankName,
+            string? bankBranchName,
+            string? bankAddress)
         {
             Name = name;
             Phone = phone;
@@ -111,6 +137,12 @@ namespace Suppliers.Domain.Entities
             SupplierType = supplierType;
             FssaiLicenseNo = fssaiLicenseNo;
             AgriLicenseNo = agriLicenseNo;
+            BankAccountNumber = bankAccountNumber;
+            BankIfscCode = bankIfscCode;
+            BankAccountName = bankAccountName;
+            BankName = bankName;
+            BankBranchName = bankBranchName;
+            BankAddress = bankAddress;
             
             if (defaultPriceListId.HasValue && defaultPriceListId == Guid.Empty)
                  throw new ArgumentException("Invalid Price List ID");

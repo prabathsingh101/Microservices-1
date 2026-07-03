@@ -42,7 +42,13 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 s.GstComplianceScore,
                 s.GstFilingStatus,
                 s.LastFiledMonth,
-                s.LastFilingDate
+                s.LastFilingDate,
+                s.BankAccountNumber,
+                s.BankIfscCode,
+                s.BankAccountName,
+                s.BankName,
+                s.BankBranchName,
+                s.BankAddress
             );
         }
     }

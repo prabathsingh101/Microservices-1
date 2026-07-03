@@ -64,7 +64,13 @@ namespace Suppliers.Application.Features.Suppliers.Handlers
                 request.SupplierData.drugLicenseNo,
                 request.SupplierData.supplierType,
                 request.SupplierData.fssaiLicenseNo,
-                request.SupplierData.agriLicenseNo
+                request.SupplierData.agriLicenseNo,
+                request.SupplierData.bankAccountNumber,
+                request.SupplierData.bankIfscCode,
+                request.SupplierData.bankAccountName,
+                request.SupplierData.bankName,
+                request.SupplierData.bankBranchName,
+                request.SupplierData.bankAddress
             );
 
             await _repository.AddAsync(supplier);

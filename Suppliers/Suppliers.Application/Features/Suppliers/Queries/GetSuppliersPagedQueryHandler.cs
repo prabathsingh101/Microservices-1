@@ -93,7 +93,13 @@ internal sealed class GetSuppliersPagedQueryHandler
                 x.GstComplianceScore,
                 x.GstFilingStatus,
                 x.LastFiledMonth,
-                x.LastFilingDate
+                x.LastFilingDate,
+                x.BankAccountNumber,
+                x.BankIfscCode,
+                x.BankAccountName,
+                x.BankName,
+                x.BankBranchName,
+                x.BankAddress
             ))
             .ToListAsync(cancellationToken);
 
