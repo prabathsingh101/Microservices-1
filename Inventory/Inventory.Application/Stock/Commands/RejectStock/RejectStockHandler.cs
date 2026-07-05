@@ -26,15 +26,15 @@ namespace Inventory.Application.Stock.Commands.RejectStock
             var branchId = !string.IsNullOrEmpty(request.BranchId) ? request.BranchId : _currentUserService.BranchId;
 
             // 1. Find the product
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == request.ProductId && p.CompanyId == companyId, ct);
+            var product = await _context.Products.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == request.ProductId && p.CompanyId == companyId, ct);
             if (product == null) throw new Exception($"Product with ID {request.ProductId} not found.");
 
             // 2. Query GRN Details
-            var query = _context.GRNDetails
+            var query = _context.GRNDetails.IgnoreQueryFilters()
                 .Where(g => g.ProductId == request.ProductId &&
                             g.WarehouseId == request.WarehouseId &&
                             g.RackId == request.RackId &&
-                            g.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || g.BranchId == branchId));
+                            g.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || g.BranchId == branchId || string.IsNullOrEmpty(g.BranchId)));
 
             // Fetch rack info to check if it's an expired/unusable rack (ignoring query filters for robust resolution)
             var rack = await _context.Racks.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == request.RackId && r.CompanyId == companyId, ct);

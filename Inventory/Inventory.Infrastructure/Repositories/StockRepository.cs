@@ -797,7 +797,7 @@ namespace Inventory.Infrastructure.Repositories
             var stockData = await GetCurrentStockAsync(search, sortField, sortOrder, 0, 1000, startDate, endDate, warehouseId, rackId, true, branchId);
             
             var disposedItems = stockData.Items
-                .Where(x => x.TotalRejected > 0 || x.TotalExpired > 0)
+                .Where(x => (x.TotalRejected > 0 || x.TotalExpired > 0) && !x.IsAlreadyPurged)
                 .ToList();
 
             var totalCount = disposedItems.Count;

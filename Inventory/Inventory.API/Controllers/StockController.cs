@@ -1,6 +1,7 @@
 using Inventory.Application.Stock.Commands;
 using Inventory.Application.Stock.Commands.RejectStock;
 using Inventory.Application.Stock.Commands.MoveToExpiredRack;
+using Inventory.Application.Stock.Commands.MoveStock;
 using Inventory.Application.GRN.Command;
 using Inventory.Application.Common.Interfaces;
 using MediatR;
@@ -107,6 +108,32 @@ namespace Inventory.API.Controllers
                     await _hubContext.Clients.All.SendAsync("ReceiveInventoryUpdate");
                 }
                 return Ok(new { success = result, message = "Batch moved to Expired Rack successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("move-stock")]
+        [Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Super Admin, Salesman")]
+        public async Task<IActionResult> MoveStock([FromBody] MoveStockCommand command)
+        {
+            try
+            {
+                var result = await _mediator.Send(command);
+                if (result)
+                {
+                    var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                    var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+                    Guid companyId = Guid.Empty;
+                    if (Guid.TryParse(companyIdHeader, out var parsedCompanyId) || Guid.TryParse(companyIdClaim, out parsedCompanyId))
+                    {
+                        companyId = parsedCompanyId;
+                    }
+                    await BroadcastStockUpdatesAsync(new[] { command.ProductId }, command.BranchId, companyId);
+                }
+                return Ok(new { success = result, message = "Stock moved successfully." });
             }
             catch (Exception ex)
             {
