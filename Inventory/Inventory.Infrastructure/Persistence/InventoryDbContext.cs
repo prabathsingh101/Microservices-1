@@ -191,4 +191,9 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
             }
         }
     }
+
+    public async Task<int> ExecuteSqlAsync(string sql, params object[] parameters)
+    {
+        return await Database.ExecuteSqlRawAsync(sql, parameters);
+    }
 }

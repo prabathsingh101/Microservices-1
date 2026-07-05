@@ -1,4 +1,4 @@
-﻿CREATE TABLE [SupplierLedgers] (
+CREATE TABLE [SupplierLedgers] (
     [Id] uniqueidentifier NOT NULL,
     [SupplierId] uniqueidentifier NOT NULL,
     [TransactionType] nvarchar(50) NOT NULL,
@@ -53,6 +53,21 @@ CREATE TABLE [Suppliers] (
     [CreatedBy] nvarchar(max) NULL,
     [ModifiedOn] datetime2 NULL,
     [ModifiedBy] nvarchar(max) NULL,
+    [DrugLicenseNo] nvarchar(100) NULL,
+    [SupplierType] nvarchar(50) NULL,
+    [FssaiLicenseNo] nvarchar(100) NULL,
+    [AgriLicenseNo] nvarchar(100) NULL,
+    [BankAccountNumber] nvarchar(max) NULL,
+    [BankIfscCode] nvarchar(max) NULL,
+    [BankAccountName] nvarchar(max) NULL,
+    [BankName] nvarchar(max) NULL,
+    [BankBranchName] nvarchar(max) NULL,
+    [BankAddress] nvarchar(max) NULL,
+    [GstFilingFrequency] nvarchar(max) NULL,
+    [GstComplianceScore] decimal(18,2) NULL,
+    [GstFilingStatus] nvarchar(max) NULL,
+    [LastFiledMonth] nvarchar(max) NULL,
+    [LastFilingDate] datetime2 NULL,
     CONSTRAINT [PK_Suppliers] PRIMARY KEY ([Id])
 );
 GO

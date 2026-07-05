@@ -124,15 +124,11 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                 );
                 await _context.InventoryTransactions.AddAsync(adjTx, ct);
 
-                // 🚀 Update Warehouse Stock (REDUCE)
-                var whStock = await _context.WarehouseStocks
-                    .FirstOrDefaultAsync(ws => ws.ProductId == request.ProductId && ws.WarehouseId == request.WarehouseId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId), ct);
-                
-                if (whStock != null)
-                {
-                    whStock.Quantity -= actualRejected;
-                    if (whStock.Quantity < 0) whStock.Quantity = 0;
-                }
+                // 🚀 Update Warehouse Stock (REDUCE) atomically to prevent concurrent race conditions
+                await _context.ExecuteSqlAsync(
+                    "UPDATE WarehouseStocks SET Quantity = CASE WHEN Quantity >= {0} THEN Quantity - {0} ELSE 0 END, ModifiedOn = GETDATE() WHERE ProductId = {1} AND WarehouseId = {2} AND (BranchId = {3} OR ({3} IS NULL AND BranchId IS NULL))", 
+                    actualRejected, request.ProductId, request.WarehouseId, branchId
+                );
             }
             else 
             {
@@ -151,15 +147,11 @@ namespace Inventory.Application.Stock.Commands.RejectStock
                 );
                 await _context.InventoryTransactions.AddAsync(purgeTx, ct);
 
-                // 🚀 Update Warehouse Stock (REDUCE)
-                var whStock = await _context.WarehouseStocks
-                    .FirstOrDefaultAsync(ws => ws.ProductId == request.ProductId && ws.WarehouseId == request.WarehouseId && (string.IsNullOrEmpty(branchId) || ws.BranchId == branchId), ct);
-
-                if (whStock != null)
-                {
-                    whStock.Quantity -= actualRejected;
-                    if (whStock.Quantity < 0) whStock.Quantity = 0;
-                }
+                // 🚀 Update Warehouse Stock (REDUCE) atomically to prevent concurrent race conditions
+                await _context.ExecuteSqlAsync(
+                    "UPDATE WarehouseStocks SET Quantity = CASE WHEN Quantity >= {0} THEN Quantity - {0} ELSE 0 END, ModifiedOn = GETDATE() WHERE ProductId = {1} AND WarehouseId = {2} AND (BranchId = {3} OR ({3} IS NULL AND BranchId IS NULL))", 
+                    actualRejected, request.ProductId, request.WarehouseId, branchId
+                );
             }
 
             return await _context.SaveChangesAsync(ct) > 0;

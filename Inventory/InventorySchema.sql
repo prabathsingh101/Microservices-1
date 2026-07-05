@@ -298,6 +298,18 @@ CREATE TABLE [PurchaseOrders] (
     [CreatedBy] nvarchar(max) NULL,
     [ModifiedOn] datetime2 NULL,
     [ModifiedBy] nvarchar(max) NULL,
+    [PaidAmount] decimal(18,2) NOT NULL,
+    [SupplierInvoiceNo] nvarchar(max) NULL,
+    [SupplierInvoiceDate] datetime2 NULL,
+    [SupplierGstIn] nvarchar(max) NULL,
+    [IsRcm] bit NOT NULL DEFAULT 0,
+    [RcmGstRate] decimal(18,2) NULL,
+    [RcmTaxAmount] decimal(18,2) NULL,
+    [RcmCgstAmount] decimal(18,2) NULL,
+    [RcmSgstAmount] decimal(18,2) NULL,
+    [RcmIgstAmount] decimal(18,2) NULL,
+    [RcmPaid] bit NOT NULL DEFAULT 0,
+    [RcmPaidDate] datetime2 NULL,
     CONSTRAINT [PK_PurchaseOrders] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_PurchaseOrders_PriceLists_PriceListId] FOREIGN KEY ([PriceListId]) REFERENCES [PriceLists] ([Id]) ON DELETE CASCADE
 );

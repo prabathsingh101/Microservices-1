@@ -54,5 +54,6 @@ namespace Inventory.Application.Common.Interfaces
         DatabaseFacade Database { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+        Task<int> ExecuteSqlAsync(string sql, params object[] parameters);
     }
 }
