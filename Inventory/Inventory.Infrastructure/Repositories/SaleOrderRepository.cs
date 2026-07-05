@@ -141,6 +141,16 @@ public class SaleOrderRepository : ISaleOrderRepository
             existingOrder.GuestPhone = order.GuestPhone;
             existingOrder.DoctorName = order.DoctorName;
             existingOrder.DoctorRegNo = order.DoctorRegNo;
+            existingOrder.DeliveryType = order.DeliveryType;
+            existingOrder.DeliveryAddress = order.DeliveryAddress;
+            existingOrder.DeliverySlot = order.DeliverySlot;
+            existingOrder.DeliveryBoyId = order.DeliveryBoyId;
+            existingOrder.DeliveryBoyName = order.DeliveryBoyName;
+            existingOrder.DeliveryCharges = order.DeliveryCharges;
+            existingOrder.DeliveryStatus = order.DeliveryStatus;
+            existingOrder.CodCollectedAmount = order.CodCollectedAmount;
+            existingOrder.CodPaymentMode = order.CodPaymentMode;
+            existingOrder.CashSettled = order.CashSettled;
 
             // Remove old items and add new ones (Sync)
             _context.SaleOrderItems.RemoveRange(existingOrder.Items);
