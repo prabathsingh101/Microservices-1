@@ -753,7 +753,10 @@ namespace Inventory.Infrastructure.Repositories
                     ActualRejectedQty = (d.Rack.Name.ToLower().Contains("e1") || d.Rack.Name.ToLower().Contains("expired") || d.Rack.Name.ToLower().Contains("damaged") || d.Rack.Name.ToLower().Contains("rejected") || d.Rack.Name.ToLower().Contains("purged") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected") || d.Rack.Description.ToLower().Contains("purged")))) ? 0 : d.RejectedQty,
                     ExpiredQty = (d.Rack.Name.ToLower().Contains("e1") || d.Rack.Name.ToLower().Contains("expired") || d.Rack.Name.ToLower().Contains("damaged") || d.Rack.Name.ToLower().Contains("rejected") || d.Rack.Name.ToLower().Contains("purged") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected") || d.Rack.Description.ToLower().Contains("purged")))) ? d.RejectedQty : 0,
                     UnitRate = d.UnitRate,
-                    RackName = d.Rack.Name,
+                    RackName = d.RackId.HasValue ? _context.Racks.IgnoreQueryFilters().Where(r => r.Id == d.RackId).Select(r => r.Name).FirstOrDefault() : null,
+                    WarehouseName = d.WarehouseId.HasValue ? _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == d.WarehouseId).Select(w => w.Name).FirstOrDefault() : null,
+                    MfgDate = d.MfgDate,
+                    ExpDate = d.ExpDate,
                     IsExpired = (d.Rack.Name.ToLower().Contains("e1") || d.Rack.Name.ToLower().Contains("expired") || d.Rack.Name.ToLower().Contains("damaged") || d.Rack.Name.ToLower().Contains("rejected") || d.Rack.Name.ToLower().Contains("purged") || (d.Rack.Description != null && (d.Rack.Description.ToLower().Contains("expired") || d.Rack.Description.ToLower().Contains("damaged") || d.Rack.Description.ToLower().Contains("rejected") || d.Rack.Description.ToLower().Contains("purged"))))
                 }).ToList(),
 
@@ -987,7 +990,11 @@ namespace Inventory.Infrastructure.Repositories
                             DiscountPercent = d.DiscountPercent,
                             GstPercentage = d.GstPercent,
                             GstAmount = d.TaxAmount,
-                            Total = d.Total
+                            Total = d.Total,
+                            WarehouseName = d.WarehouseId.HasValue ? _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == d.WarehouseId).Select(w => w.Name).FirstOrDefault() : null,
+                            RackName = d.RackId.HasValue ? _context.Racks.IgnoreQueryFilters().Where(r => r.Id == d.RackId).Select(r => r.Name).FirstOrDefault() : null,
+                            MfgDate = d.MfgDate,
+                            ExpDate = d.ExpDate
                         }).ToList()
                 })
                 .FirstOrDefaultAsync();

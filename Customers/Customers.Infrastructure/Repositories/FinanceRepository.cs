@@ -767,6 +767,16 @@ namespace Customers.Infrastructure.Repositories
             return true;
         }
 
+        public async Task<bool> ChequeNumberExistsAsync(string chequeNumber, string bankName)
+        {
+            if (string.IsNullOrWhiteSpace(chequeNumber)) return false;
+            
+            return await _context.CustomerReceipts.AnyAsync(r => 
+                r.ChequeNumber == chequeNumber && 
+                r.BankName == bankName && 
+                r.CompanyId == _companyId);
+        }
+
         public async Task<bool> DeleteReceiptAsync(Guid id)
         {
             // 1. Try to find by CustomerReceipt.Id

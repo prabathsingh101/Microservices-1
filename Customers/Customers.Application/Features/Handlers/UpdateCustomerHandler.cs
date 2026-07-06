@@ -64,7 +64,11 @@ namespace Customers.Application.Features.Handlers
                 new Address(dto.BillingAddress ?? string.Empty),
                 string.IsNullOrWhiteSpace(dto.ShippingAddress) ? null : new Address(dto.ShippingAddress),
                 dto.CustomerStatus ?? "Active",
-                dto.DrugLicenseNo
+                dto.DrugLicenseNo,
+                dto.LicenseType,
+                dto.LicenseNo ?? dto.DrugLicenseNo,
+                dto.Latitude,
+                dto.Longitude
             );
 
             await _repo.UpdateAsync(customer);

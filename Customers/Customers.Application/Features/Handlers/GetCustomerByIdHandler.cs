@@ -35,7 +35,11 @@ namespace Customers.Application.Features.Handlers
                 BillingAddressLine = customer.BillingAddress?.AddressLine, // Updated naming
                 ShippingAddressLine = customer.ShippingAddress?.AddressLine, // Updated naming
                 Status = customer.Status,
-                DrugLicenseNo = customer.DrugLicenseNo
+                DrugLicenseNo = customer.DrugLicenseNo,
+                LicenseType = customer.LicenseType,
+                LicenseNo = customer.LicenseNo,
+                Latitude = customer.Latitude,
+                Longitude = customer.Longitude
             };
         }
     }

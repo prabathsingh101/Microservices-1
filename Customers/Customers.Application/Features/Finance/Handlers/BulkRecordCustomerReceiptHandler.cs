@@ -42,6 +42,15 @@ namespace Customers.Application.Features.Finance.Handlers
 
                 foreach (var receiptDto in customerGroup)
                 {
+                    if ((receiptDto.ReceiptMode == "Cheque" || receiptDto.ReceiptMode == "Check") && !string.IsNullOrWhiteSpace(receiptDto.ChequeNumber))
+                    {
+                        var isDuplicate = await _repository.ChequeNumberExistsAsync(receiptDto.ChequeNumber, receiptDto.BankName ?? "");
+                        if (isDuplicate)
+                        {
+                            throw new InvalidOperationException($"Cheque number '{receiptDto.ChequeNumber}' has already been recorded for bank '{receiptDto.BankName}'.");
+                        }
+                    }
+
                     var customerReceipt = new CustomerReceipt
                     {
                         CustomerId = customerId,
@@ -51,7 +60,12 @@ namespace Customers.Application.Features.Finance.Handlers
                         ReferenceNumber = receiptDto.ReferenceNumber,
                         Remarks = receiptDto.Remarks,
                         CreatedBy = receiptDto.CreatedBy ?? "System",
-                        CompanyId = _currentUserService.CompanyId
+                        CompanyId = _currentUserService.CompanyId,
+                        ChequeNumber = receiptDto.ChequeNumber,
+                        ChequeDate = receiptDto.ChequeDate,
+                        BankName = receiptDto.BankName,
+                        BankBranch = receiptDto.BankBranch,
+                        BankAddress = receiptDto.BankAddress
                     };
 
                     await _repository.AddReceiptAsync(customerReceipt);

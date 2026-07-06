@@ -116,6 +116,14 @@ namespace Inventory.API.Controllers
             if (result == null)
                 return NotFound(new { message = $"GRN {grnNumber} not found" });
 
+            if (result.Items != null)
+            {
+                foreach (var item in result.Items)
+                {
+                    System.Console.WriteLine($"[DEBUG GRN PRINT] Product: {item.ProductName}, WhName: '{item.WarehouseName}', RackName: '{item.RackName}', MfgDate: '{item.MfgDate}', ExpDate: '{item.ExpDate}'");
+                }
+            }
+
             return Ok(result);
         }
 

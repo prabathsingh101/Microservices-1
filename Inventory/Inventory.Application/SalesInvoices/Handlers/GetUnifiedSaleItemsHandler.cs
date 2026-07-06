@@ -25,9 +25,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
             if (request.Source == "QuickSale")
             {
                 return await (from item in _context.SaleOrderItems
-                              join wh in _context.Warehouses on item.WarehouseId equals wh.Id into whJoin
+                              join wh in _context.Warehouses.IgnoreQueryFilters() on item.WarehouseId equals wh.Id into whJoin
                               from wh in whJoin.DefaultIfEmpty()
-                              join r in _context.Racks on item.RackId equals r.Id into rJoin
+                              join r in _context.Racks.IgnoreQueryFilters() on item.RackId equals r.Id into rJoin
                               from r in rJoin.DefaultIfEmpty()
                               where item.SaleOrderId == request.Id
                               select new UnifiedSaleItemDto
@@ -55,9 +55,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
             else if (request.Source == "TaxInvoice")
             {
                 return await (from item in _context.SalesInvoiceItems
-                              join wh in _context.Warehouses on item.WarehouseId equals wh.Id into whJoin
+                              join wh in _context.Warehouses.IgnoreQueryFilters() on item.WarehouseId equals wh.Id into whJoin
                               from wh in whJoin.DefaultIfEmpty()
-                              join r in _context.Racks on item.RackId equals r.Id into rJoin
+                              join r in _context.Racks.IgnoreQueryFilters() on item.RackId equals r.Id into rJoin
                               from r in rJoin.DefaultIfEmpty()
                               where item.SalesInvoiceId == request.Id
                               select new UnifiedSaleItemDto

@@ -597,13 +597,31 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             OrderedQty = poi.Qty,
             UnitPrice = poi.Rate,
             AlreadyReceivedQty = receivedQuantities.FirstOrDefault(rq => rq.ProductId == poi.ProductId)?.Total ?? 0,
-            ManufacturingDate = poi.MfgDate,
-            ExpiryDate = poi.ExpDate,
+            ManufacturingDate = poi.MfgDate ?? _context.GRNDetails.IgnoreQueryFilters()
+                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
+                .OrderByDescending(gd => gd.Id)
+                .Select(gd => gd.MfgDate)
+                .FirstOrDefault(),
+            ExpiryDate = poi.ExpDate ?? _context.GRNDetails.IgnoreQueryFilters()
+                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
+                .OrderByDescending(gd => gd.Id)
+                .Select(gd => gd.ExpDate)
+                .FirstOrDefault(),
             IsExpiryRequired = poi.Product?.IsExpiryRequired ?? false,
             DiscountPercent = poi.DiscountPercent,
             GstPercent = poi.GstPercent,
             TaxAmount = poi.TaxAmount,
-            Total = poi.Total
+            Total = poi.Total,
+            WarehouseName = _context.GRNDetails.IgnoreQueryFilters()
+                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
+                .OrderByDescending(gd => gd.Id)
+                .Select(gd => _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == gd.WarehouseId).Select(w => w.Name).FirstOrDefault())
+                .FirstOrDefault(),
+            RackName = _context.GRNDetails.IgnoreQueryFilters()
+                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
+                .OrderByDescending(gd => gd.Id)
+                .Select(gd => _context.Racks.IgnoreQueryFilters().Where(r => r.Id == gd.RackId).Select(r => r.Name).FirstOrDefault())
+                .FirstOrDefault()
         }).ToList();
     }
 

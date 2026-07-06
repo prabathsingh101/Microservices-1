@@ -85,7 +85,11 @@ internal sealed class GetCustomersPagedQueryHandler
                 Status = x.Status,
                 BillingAddressLine = x.BillingAddress != null ? x.BillingAddress.AddressLine : null,
                 ShippingAddressLine = x.ShippingAddress != null ? x.ShippingAddress.AddressLine : null,
-                DrugLicenseNo = x.DrugLicenseNo
+                DrugLicenseNo = x.DrugLicenseNo,
+                LicenseType = x.LicenseType,
+                LicenseNo = x.LicenseNo,
+                Latitude = x.Latitude,
+                Longitude = x.Longitude
             })
             .ToListAsync(cancellationToken);
               

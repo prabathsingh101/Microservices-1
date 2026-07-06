@@ -42,8 +42,17 @@ namespace Customers.Infrastructure.Persistence
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
             {
-                property.SetPrecision(18);
-                property.SetScale(2);
+                if (property.Name.Equals("Latitude", StringComparison.OrdinalIgnoreCase) || 
+                    property.Name.Equals("Longitude", StringComparison.OrdinalIgnoreCase))
+                {
+                    property.SetPrecision(9);
+                    property.SetScale(6);
+                }
+                else
+                {
+                    property.SetPrecision(18);
+                    property.SetScale(2);
+                }
             }
 
             modelBuilder.Entity<CustomerReceipt>(entity =>

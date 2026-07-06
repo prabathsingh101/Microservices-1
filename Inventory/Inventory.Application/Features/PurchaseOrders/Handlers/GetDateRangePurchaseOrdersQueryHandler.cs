@@ -140,8 +140,16 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         PendingQty = (x.Status == "Closed" || x.Status == "ShortClosed" || x.Status == "Cancelled")
                                      ? 0
                                      : Math.Max(0, item.Qty - netAccepted - totalRefunded),
-                        ManufacturingDate = item.MfgDate,
-                        ExpiryDate = item.ExpDate,
+                        ManufacturingDate = item.MfgDate ?? _context.GRNDetails.IgnoreQueryFilters()
+                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id && gd.CompanyId == x.CompanyId)
+                            .OrderByDescending(gd => gd.Id)
+                            .Select(gd => gd.MfgDate)
+                            .FirstOrDefault(),
+                        ExpiryDate = item.ExpDate ?? _context.GRNDetails.IgnoreQueryFilters()
+                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id && gd.CompanyId == x.CompanyId)
+                            .OrderByDescending(gd => gd.Id)
+                            .Select(gd => gd.ExpDate)
+                            .FirstOrDefault(),
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,
                         WarehouseName = _context.GRNDetails
                             .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)

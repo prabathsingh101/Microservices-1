@@ -2,6 +2,7 @@ using Inventory.Application.Common.Interfaces;
 using MediatR;
 using Inventory.Application.Clients;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
 {
@@ -134,8 +135,16 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                     GstPercent = i.GstPercent,
                     TaxAmount = i.TaxAmount,
                     Total = i.Total,
-                    ManufacturingDate = i.MfgDate,
-                    ExpiryDate = i.ExpDate,
+                    ManufacturingDate = i.MfgDate ?? _context.GRNDetails.IgnoreQueryFilters()
+                        .Where(gd => gd.ProductId == i.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id && gd.CompanyId == po.CompanyId)
+                        .OrderByDescending(gd => gd.Id)
+                        .Select(gd => gd.MfgDate)
+                        .FirstOrDefault(),
+                    ExpiryDate = i.ExpDate ?? _context.GRNDetails.IgnoreQueryFilters()
+                        .Where(gd => gd.ProductId == i.ProductId && gd.GRNHeader.PurchaseOrderId == po.Id && gd.CompanyId == po.CompanyId)
+                        .OrderByDescending(gd => gd.Id)
+                        .Select(gd => gd.ExpDate)
+                        .FirstOrDefault(),
                     IsExpiryRequired = i.Product != null ? i.Product.IsExpiryRequired : false,
                     ReceivedQty = i.ReceivedQty - totalReturned,
                     AcceptedQty = netAccepted,

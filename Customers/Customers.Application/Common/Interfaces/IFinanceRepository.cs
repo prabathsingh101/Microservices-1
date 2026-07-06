@@ -25,6 +25,7 @@ namespace Customers.Application.Common.Interfaces
         Task<PaginatedListDto<ReceiptReportDto>> GetReceiptsReportAsync(ReceiptReportRequestDto request);
         Task<bool> HasRefundOrAdjustmentAgainstReferenceAsync(Guid customerId, string referenceNumber);
         Task<bool> DeleteReceiptAsync(Guid id);
+        Task<bool> ChequeNumberExistsAsync(string chequeNumber, string bankName);
 
         // --- NEW FEATURES ---
         Task<List<DebtorsAgeingDto>> GetDebtorsAgeingAsync(string? branchId = null);

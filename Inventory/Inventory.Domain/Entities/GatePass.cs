@@ -23,5 +23,7 @@ namespace Inventory.Domain.Entities
         public string SecurityGuard { get; set; }
         public int Status { get; set; } // 1=Entered...
         public string? Remarks { get; set; }
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
     }
 }

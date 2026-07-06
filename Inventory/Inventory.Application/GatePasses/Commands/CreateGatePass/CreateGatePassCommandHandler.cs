@@ -70,7 +70,9 @@ namespace Inventory.Application.GatePasses.Commands.CreateGatePass
                 Status = request.Status, // 1 = Entered/Created
                 Remarks = request.Remarks,
                 CompanyId = companyId,
-                BranchId = branchId
+                BranchId = branchId,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude
             };
 
             _context.GatePasses.Add(entity);

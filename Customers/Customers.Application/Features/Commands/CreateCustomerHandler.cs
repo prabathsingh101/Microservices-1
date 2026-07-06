@@ -66,7 +66,11 @@ public class CreateCustomerHandler
                 : new Address(dto.ShippingAddress),
             dto.CustomerStatus ?? "Active",
             dto.CreatedBy ?? "System",
-            dto.DrugLicenseNo
+            dto.DrugLicenseNo,
+            dto.LicenseType,
+            dto.LicenseNo ?? dto.DrugLicenseNo,
+            dto.Latitude,
+            dto.Longitude
         );
 
         await _repo.AddAsync(customer);

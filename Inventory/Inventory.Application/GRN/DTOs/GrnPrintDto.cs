@@ -40,4 +40,9 @@ public class GrnItemPrintDto
 
     // Line Total (Qty * Rate)
     public decimal Total { get; set; } // Yeh Tax include karke ya exclude karke aapki marzi, standard exclude hota hai
+
+    public string? WarehouseName { get; set; }
+    public string? RackName { get; set; }
+    public DateTime? MfgDate { get; set; }
+    public DateTime? ExpDate { get; set; }
 }

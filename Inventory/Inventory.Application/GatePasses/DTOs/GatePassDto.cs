@@ -26,6 +26,8 @@ namespace Inventory.Application.GatePasses.DTOs
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
 
         public static GatePassDto FromEntity(GatePass entity)
         {
@@ -51,7 +53,9 @@ namespace Inventory.Application.GatePasses.DTOs
                 Status = entity.Status,
                 Remarks = entity.Remarks,
                 CreatedBy = entity.CreatedBy,
-                CreatedOn = entity.CreatedOn
+                CreatedOn = entity.CreatedOn,
+                Latitude = entity.Latitude,
+                Longitude = entity.Longitude
             };
         }
     }

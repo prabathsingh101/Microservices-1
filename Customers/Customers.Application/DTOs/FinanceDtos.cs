@@ -56,6 +56,11 @@ namespace Customers.Application.DTOs
         public string? Remarks { get; set; }
         public string? CreatedBy { get; set; }
         public Guid? CompanyId { get; set; }
+        public string? ChequeNumber { get; set; }
+        public DateTime? ChequeDate { get; set; }
+        public string? BankName { get; set; }
+        public string? BankBranch { get; set; }
+        public string? BankAddress { get; set; }
     }
 
     public class OutstandingDto

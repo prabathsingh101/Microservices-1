@@ -20,11 +20,15 @@ namespace Customers.Domain.Entities
         public string? GstNumber { get; private set; }
         public decimal? CreditLimit { get; private set; }
         public string? DrugLicenseNo { get; private set; }
+        public string? LicenseType { get; private set; }
+        public string? LicenseNo { get; private set; }
 
         public Address? BillingAddress { get; private set; }
         public Address? ShippingAddress { get; private set; }
 
         public string? Status { get; private set; } = string.Empty;
+        public decimal? Latitude { get; private set; }
+        public decimal? Longitude { get; private set; }
 
         // EF Core
         private Customer() { Status = null!; }
@@ -40,7 +44,11 @@ namespace Customers.Domain.Entities
             Address? shippingAddress,
             string customerStatus,
             string createdBy,
-            string? drugLicenseNo = null)
+            string? drugLicenseNo = null,
+            string? licenseType = null,
+            string? licenseNo = null,
+            decimal? latitude = null,
+            decimal? longitude = null)
         {
             
             CustomerName = customerName;
@@ -54,7 +62,11 @@ namespace Customers.Domain.Entities
             Status = customerStatus;
             CreatedBy = createdBy;
             CreatedOn = DateTime.UtcNow;
-            DrugLicenseNo = drugLicenseNo;
+            DrugLicenseNo = drugLicenseNo ?? licenseNo;
+            LicenseType = licenseType;
+            LicenseNo = licenseNo ?? drugLicenseNo;
+            Latitude = latitude;
+            Longitude = longitude;
         }
 
         public void Update(
@@ -67,7 +79,11 @@ namespace Customers.Domain.Entities
             Address billingAddress,
             Address? shippingAddress,
             string? status,
-            string? drugLicenseNo)
+            string? drugLicenseNo,
+            string? licenseType = null,
+            string? licenseNo = null,
+            decimal? latitude = null,
+            decimal? longitude = null)
         {
             CustomerName = customerName;
             CustomerType = customerType;
@@ -77,7 +93,11 @@ namespace Customers.Domain.Entities
             CreditLimit = creditLimit;
             Status = status;
             ModifiedOn = DateTime.UtcNow;
-            DrugLicenseNo = drugLicenseNo;
+            DrugLicenseNo = drugLicenseNo ?? licenseNo;
+            LicenseType = licenseType;
+            LicenseNo = licenseNo ?? drugLicenseNo;
+            Latitude = latitude;
+            Longitude = longitude;
 
             if (BillingAddress == null)
                 BillingAddress = billingAddress;

@@ -42,6 +42,15 @@ namespace Customers.Application.Features.Finance.Handlers
                         }
                     }
 
+                    if ((receiptDto.ReceiptMode == "Cheque" || receiptDto.ReceiptMode == "Check") && !string.IsNullOrWhiteSpace(receiptDto.ChequeNumber))
+                    {
+                        var isDuplicate = await _repository.ChequeNumberExistsAsync(receiptDto.ChequeNumber, receiptDto.BankName ?? "");
+                        if (isDuplicate)
+                        {
+                            throw new InvalidOperationException($"Cheque number '{receiptDto.ChequeNumber}' has already been recorded for bank '{receiptDto.BankName}'.");
+                        }
+                    }
+
                     var customerReceipt = new CustomerReceipt
                     {
                         CustomerId = receiptDto.CustomerId,
@@ -52,7 +61,12 @@ namespace Customers.Application.Features.Finance.Handlers
                         Remarks = receiptDto.Remarks,
                         CreatedBy = receiptDto.CreatedBy,
                         CompanyId = _currentUserService.CompanyId,
-                        BranchId = receiptDto.BranchId
+                        BranchId = receiptDto.BranchId,
+                        ChequeNumber = receiptDto.ChequeNumber,
+                        ChequeDate = receiptDto.ChequeDate,
+                        BankName = receiptDto.BankName,
+                        BankBranch = receiptDto.BankBranch,
+                        BankAddress = receiptDto.BankAddress
                     };
 
                     await _repository.AddReceiptAsync(customerReceipt);
