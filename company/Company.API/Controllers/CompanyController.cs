@@ -45,7 +45,7 @@ namespace Company.API.Controllers
         }
 
         [HttpGet("profile")]
-        [Authorize(Roles = "Default Admin, Admin, User, Manager, Employee, Warehouse,Super Admin, Salesman")]
+        [Authorize]
         public async Task<IActionResult> GetProfile()
         {
             var result = await _mediator.Send(new GetCompanyProfileQuery());

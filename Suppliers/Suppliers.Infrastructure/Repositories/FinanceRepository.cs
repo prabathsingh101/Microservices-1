@@ -58,57 +58,71 @@ namespace Suppliers.Infrastructure.Repositories
         public async Task<SupplierLedgerPagedResultDto> GetLedgerAsync(SupplierLedgerRequestDto request)
         {
             var supplier = await _context.Suppliers.FirstOrDefaultAsync(x => x.Id == request.SupplierId && x.CompanyId == _companyId && (x.BranchId == null || string.IsNullOrEmpty(_branchId) || x.BranchId == _branchId));
-            var query = _context.SupplierLedgers.Where(l => l.SupplierId == request.SupplierId && l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(_branchId) || l.BranchId == _branchId));
+            
+            // 1. Fetch all entries for this supplier to compute correct chronological running balance
+            var allLedgerEntries = await _context.SupplierLedgers
+                .Where(l => l.SupplierId == request.SupplierId && l.CompanyId == _companyId && (l.BranchId == null || string.IsNullOrEmpty(_branchId) || l.BranchId == _branchId))
+                .OrderBy(l => l.TransactionDate)
+                .ThenBy(l => l.CreatedOn)
+                .ToListAsync();
+
+            decimal runningBalance = 0;
+            foreach (var entry in allLedgerEntries)
+            {
+                runningBalance = runningBalance + entry.Credit - entry.Debit;
+                entry.Balance = Math.Round(runningBalance, 2, MidpointRounding.AwayFromZero);
+            }
+
+            // 2. Current balance is the final computed balance
+            var currentBalance = allLedgerEntries.Any() ? allLedgerEntries.Last().Balance : 0;
+
+            // 3. Apply search and filtering on the corrected memory list
+            var itemsQuery = allLedgerEntries.AsQueryable();
 
             if (request.StartDate.HasValue)
-                query = query.Where(l => l.TransactionDate >= request.StartDate.Value);
+                itemsQuery = itemsQuery.Where(l => l.TransactionDate >= request.StartDate.Value);
             if (request.EndDate.HasValue)
-                query = query.Where(l => l.TransactionDate <= request.EndDate.Value);
+                itemsQuery = itemsQuery.Where(l => l.TransactionDate <= request.EndDate.Value);
 
             if (!string.IsNullOrWhiteSpace(request.TypeFilter))
             {
                 var type = request.TypeFilter.ToLower();
-                query = query.Where(l => l.TransactionType.ToLower().Contains(type));
+                itemsQuery = itemsQuery.Where(l => l.TransactionType.ToLower().Contains(type));
             }
 
             if (!string.IsNullOrWhiteSpace(request.ReferenceFilter))
             {
                 var refId = request.ReferenceFilter.ToLower();
-                query = query.Where(l => l.ReferenceId != null && l.ReferenceId.ToLower().Contains(refId));
+                itemsQuery = itemsQuery.Where(l => l.ReferenceId != null && l.ReferenceId.ToLower().Contains(refId));
             }
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower();
-                query = query.Where(l => 
+                itemsQuery = itemsQuery.Where(l => 
                     l.TransactionType.ToLower().Contains(term) || 
                     (l.ReferenceId != null && l.ReferenceId.ToLower().Contains(term)) || 
                     (l.Description != null && l.Description.ToLower().Contains(term))
                 );
             }
 
-            query = request.SortBy.ToLower() switch
+            // Apply sorting
+            itemsQuery = request.SortBy.ToLower() switch
             {
-                "transactiondate" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.TransactionDate) : query.OrderBy(l => l.TransactionDate),
-                "transactiontype" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.TransactionType) : query.OrderBy(l => l.TransactionType),
-                "referenceid" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.ReferenceId) : query.OrderBy(l => l.ReferenceId),
-                "debit" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.Debit) : query.OrderBy(l => l.Debit),
-                "credit" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.Credit) : query.OrderBy(l => l.Credit),
-                "balance" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.Balance) : query.OrderBy(l => l.Balance),
-                _ => query.OrderByDescending(l => l.TransactionDate)
+                "transactiondate" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.TransactionDate).ThenByDescending(l => l.CreatedOn) : itemsQuery.OrderBy(l => l.TransactionDate).ThenBy(l => l.CreatedOn),
+                "transactiontype" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.TransactionType) : itemsQuery.OrderBy(l => l.TransactionType),
+                "referenceid" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.ReferenceId) : itemsQuery.OrderBy(l => l.ReferenceId),
+                "debit" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.Debit) : itemsQuery.OrderBy(l => l.Debit),
+                "credit" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.Credit) : itemsQuery.OrderBy(l => l.Credit),
+                "balance" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.Balance) : itemsQuery.OrderBy(l => l.Balance),
+                _ => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.TransactionDate).ThenByDescending(l => l.CreatedOn) : itemsQuery.OrderBy(l => l.TransactionDate).ThenBy(l => l.CreatedOn)
             };
 
-            var totalCount = await query.CountAsync();
-            var currentBalance = await _context.SupplierLedgers
-                .Where(l => l.SupplierId == request.SupplierId && l.CompanyId == _companyId)
-                .OrderByDescending(l => l.CreatedOn)
-                .Select(l => l.Balance)
-                .FirstOrDefaultAsync();
-
-            var items = await query
+            var totalCount = itemsQuery.Count();
+            var items = itemsQuery
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
-                .ToListAsync();
+                .ToList();
 
             return new SupplierLedgerPagedResultDto
             {
@@ -134,32 +148,38 @@ namespace Suppliers.Infrastructure.Repositories
             var allLedgerEntries = await _context.SupplierLedgers
                 .AsNoTracking()
                 .Where(l => l.CompanyId == finalCompanyId && (string.IsNullOrEmpty(finalBranchId) || l.BranchId == finalBranchId))
-                .OrderByDescending(l => l.CreatedOn)
                 .ToListAsync();
 
             if (!allLedgerEntries.Any()) return new List<PendingDueDto>();
 
-            var latestEntries = allLedgerEntries
+            var supplierBalances = allLedgerEntries
                 .GroupBy(l => l.SupplierId)
-                .Select(g => g.First())
-                .Where(l => l.Balance > 0)
+                .Select(g => new
+                {
+                    SupplierId = g.Key,
+                    Balance = g.Sum(l => l.Credit - l.Debit),
+                    LatestTx = g.OrderByDescending(l => l.TransactionDate).ThenByDescending(l => l.CreatedOn).First()
+                })
+                .Where(x => x.Balance > 0)
                 .ToList();
 
-            var supplierIds = latestEntries.Select(d => d.SupplierId).ToList();
+            if (!supplierBalances.Any()) return new List<PendingDueDto>();
+
+            var supplierIds = supplierBalances.Select(d => d.SupplierId).ToList();
             var suppliers = await _context.Suppliers
                 .AsNoTracking()
                 .Where(s => supplierIds.Contains(s.Id) && s.CompanyId == finalCompanyId)
                 .ToListAsync();
 
-            return latestEntries.Select(d => new PendingDueDto
+            return supplierBalances.Select(d => new PendingDueDto
             {
                 SupplierId = d.SupplierId,
                 PendingAmount = d.Balance,
                 TotalAmount = d.Balance,
                 SupplierName = suppliers.FirstOrDefault(s => s.Id == d.SupplierId)?.Name ?? "Unknown",
-                Status = (d.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
-                DueDate = d.TransactionDate.AddDays(15),
-                LastReferenceId = d.ReferenceId
+                Status = (d.LatestTx.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
+                DueDate = d.LatestTx.TransactionDate.AddDays(15),
+                LastReferenceId = d.LatestTx.ReferenceId
             }).ToList();
         }
 

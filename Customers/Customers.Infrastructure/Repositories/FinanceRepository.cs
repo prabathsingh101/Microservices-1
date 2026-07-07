@@ -63,57 +63,71 @@ namespace Customers.Infrastructure.Repositories
         public async Task<CustomerLedgerPagedResultDto> GetLedgerAsync(CustomerLedgerRequestDto request)
         {
             var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId && c.CompanyId == _companyId);
-            var query = _context.CustomerLedgers.Where(l => l.CustomerId == request.CustomerId && l.CompanyId == _companyId);
+            
+            // 1. Fetch all entries for this customer to compute correct chronological running balance
+            var allLedgerEntries = await _context.CustomerLedgers
+                .Where(l => l.CustomerId == request.CustomerId && l.CompanyId == _companyId)
+                .OrderBy(l => l.TransactionDate)
+                .ThenBy(l => l.CreatedOn)
+                .ToListAsync();
+
+            decimal runningBalance = 0;
+            foreach (var entry in allLedgerEntries)
+            {
+                runningBalance = runningBalance + entry.Debit - entry.Credit;
+                entry.Balance = Math.Round(runningBalance, 2, MidpointRounding.AwayFromZero);
+            }
+
+            // 2. Current balance is the final computed balance
+            var currentBalance = allLedgerEntries.Any() ? allLedgerEntries.Last().Balance : 0;
+
+            // 3. Apply search and filtering on the corrected memory list
+            var itemsQuery = allLedgerEntries.AsQueryable();
 
             if (request.StartDate.HasValue)
-                query = query.Where(l => l.TransactionDate >= request.StartDate.Value);
+                itemsQuery = itemsQuery.Where(l => l.TransactionDate >= request.StartDate.Value);
             if (request.EndDate.HasValue)
-                query = query.Where(l => l.TransactionDate <= request.EndDate.Value);
+                itemsQuery = itemsQuery.Where(l => l.TransactionDate <= request.EndDate.Value);
 
             if (!string.IsNullOrWhiteSpace(request.TypeFilter))
             {
                 var type = request.TypeFilter.ToLower();
-                query = query.Where(l => l.TransactionType.ToLower().Contains(type));
+                itemsQuery = itemsQuery.Where(l => l.TransactionType.ToLower().Contains(type));
             }
 
             if (!string.IsNullOrWhiteSpace(request.ReferenceFilter))
             {
                 var refId = request.ReferenceFilter.ToLower();
-                query = query.Where(l => l.ReferenceId != null && l.ReferenceId.ToLower().Contains(refId));
+                itemsQuery = itemsQuery.Where(l => l.ReferenceId != null && l.ReferenceId.ToLower().Contains(refId));
             }
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.ToLower();
-                query = query.Where(l => 
+                itemsQuery = itemsQuery.Where(l => 
                     l.TransactionType.ToLower().Contains(term) || 
                     (l.ReferenceId != null && l.ReferenceId.ToLower().Contains(term)) || 
                     (l.Description != null && l.Description.ToLower().Contains(term))
                 );
             }
 
-            query = request.SortBy.ToLower() switch
+            // Apply sorting
+            itemsQuery = request.SortBy.ToLower() switch
             {
-                "transactiondate" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.TransactionDate) : query.OrderBy(l => l.TransactionDate),
-                "transactiontype" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.TransactionType) : query.OrderBy(l => l.TransactionType),
-                "referenceid" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.ReferenceId) : query.OrderBy(l => l.ReferenceId),
-                "debit" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.Debit) : query.OrderBy(l => l.Debit),
-                "credit" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.Credit) : query.OrderBy(l => l.Credit),
-                "balance" => request.SortOrder == "desc" ? query.OrderByDescending(l => l.Balance) : query.OrderBy(l => l.Balance),
-                _ => query.OrderByDescending(l => l.TransactionDate)
+                "transactiondate" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.TransactionDate).ThenByDescending(l => l.CreatedOn) : itemsQuery.OrderBy(l => l.TransactionDate).ThenBy(l => l.CreatedOn),
+                "transactiontype" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.TransactionType) : itemsQuery.OrderBy(l => l.TransactionType),
+                "referenceid" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.ReferenceId) : itemsQuery.OrderBy(l => l.ReferenceId),
+                "debit" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.Debit) : itemsQuery.OrderBy(l => l.Debit),
+                "credit" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.Credit) : itemsQuery.OrderBy(l => l.Credit),
+                "balance" => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.Balance) : itemsQuery.OrderBy(l => l.Balance),
+                _ => request.SortOrder == "desc" ? itemsQuery.OrderByDescending(l => l.TransactionDate).ThenByDescending(l => l.CreatedOn) : itemsQuery.OrderBy(l => l.TransactionDate).ThenBy(l => l.CreatedOn)
             };
 
-            var totalCount = await query.CountAsync();
-            var currentBalance = await _context.CustomerLedgers
-                .Where(l => l.CustomerId == request.CustomerId && l.CompanyId == _companyId)
-                .OrderByDescending(l => l.CreatedOn)
-                .Select(l => l.Balance)
-                .FirstOrDefaultAsync();
-
-            var items = await query
+            var totalCount = itemsQuery.Count();
+            var items = itemsQuery
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
-                .ToListAsync();
+                .ToList();
 
             return new CustomerLedgerPagedResultDto
             {
@@ -136,22 +150,28 @@ namespace Customers.Infrastructure.Repositories
                 "Company Bank Account (Internal)" 
             };
 
-            var latestEntries = _context.CustomerLedgers
+            // Calculate running balance using group by (efficient SQL generation)
+            var customerBalancesQuery = _context.CustomerLedgers
                 .Where(l => l.CompanyId == _companyId)
-                .Where(l => l.CreatedOn == _context.CustomerLedgers
-                    .Where(inner => inner.CustomerId == l.CustomerId && inner.CompanyId == _companyId)
-                    .Max(inner => inner.CreatedOn))
-                .Where(l => l.Balance > 0);
+                .GroupBy(l => l.CustomerId)
+                .Select(g => new
+                {
+                    CustomerId = g.Key,
+                    Balance = g.Sum(l => l.Debit - l.Credit),
+                    LatestCreatedOn = g.Max(l => l.CreatedOn)
+                })
+                .Where(x => x.Balance > 0);
 
-            var query = from l in latestEntries
-                        join c in _context.Customers on l.CustomerId equals c.Id
+            var query = from b in customerBalancesQuery
+                        join c in _context.Customers on b.CustomerId equals c.Id
+                        join l in _context.CustomerLedgers on b.LatestCreatedOn equals l.CreatedOn
                         where !internalAccountNames.Contains(c.CustomerName!)
                         select new OutstandingDto
                         {
-                            CustomerId = l.CustomerId,
+                            CustomerId = b.CustomerId,
                             CustomerName = c.CustomerName,
-                            PendingAmount = l.Balance,
-                            TotalAmount = l.Balance, 
+                            PendingAmount = b.Balance,
+                            TotalAmount = b.Balance, 
                             Status = (l.TransactionDate.AddDays(15) < DateTime.Now) ? "Overdue" : "Active",
                             DueDate = l.TransactionDate.AddDays(15), 
                             LastReferenceId = l.ReferenceId

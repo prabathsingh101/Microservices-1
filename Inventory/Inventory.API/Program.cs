@@ -11,6 +11,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Serilog;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,26 @@ builder.Services.AddApplication();
 
 // Infrastructure (DB)
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// MassTransit & RabbitMQ Setup
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<Inventory.API.Consumers.TestEventConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        {
+            h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
+            h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
+        });
+
+        cfg.ReceiveEndpoint("test-event-queue", e =>
+        {
+            e.ConfigureConsumer<Inventory.API.Consumers.TestEventConsumer>(context);
+        });
+    });
+});
 
 builder.Services.AddHttpClient("CustomerService", client =>
 {

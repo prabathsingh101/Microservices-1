@@ -942,8 +942,13 @@ namespace Inventory.Infrastructure.Repositories
                 }
                 catch (Exception ex)
                 {
-                    // Log error but show default unpaid
+                    // Log error but show offline status
                     Console.WriteLine($"Payment Status Sync Error: {ex.Message}");
+                    foreach (var item in items)
+                    {
+                        item.PaymentStatus = "Offline";
+                        item.PaidAmount = 0;
+                    }
                 }
             }
 

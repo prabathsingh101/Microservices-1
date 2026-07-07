@@ -78,12 +78,27 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
                 var supplierClient = scope.ServiceProvider.GetRequiredService<ISupplierClient>();
                 var poRepo = scope.ServiceProvider.GetRequiredService<IPurchaseOrderRepository>();
 
-                // 🎯 BIND PO Number and Supplier Name for meaningful ledger tracking
-                var po = (dto.POHeaderId != Guid.Empty) ? await poRepo.GetByIdAsync(dto.POHeaderId) : null;
-                var supplier = await supplierClient.GetSupplierByIdAsync(dto.SupplierId);
+                string poDisplay = "Quick";
+                try
+                {
+                    var po = (dto.POHeaderId != Guid.Empty) ? await poRepo.GetByIdAsync(dto.POHeaderId) : null;
+                    if (po != null) poDisplay = po.PoNumber;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CreateGRNHandler] Warning: PO query failed: {ex.Message}");
+                }
 
-                string poDisplay = po?.PoNumber ?? "Quick";
-                string supplierDisplay = supplier?.Name ?? "N/A";
+                string supplierDisplay = "N/A";
+                try
+                {
+                    var supplier = await supplierClient.GetSupplierByIdAsync(dto.SupplierId);
+                    if (supplier != null) supplierDisplay = supplier.Name;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[CreateGRNHandler] Warning: Supplier query failed: {ex.Message}");
+                }
 
                 // 🛡️ REPLACEMENT AUTO-OFFSET: Calculate original value of replacement items
                 decimal replacementValue = 0;

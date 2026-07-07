@@ -15,11 +15,13 @@ namespace Inventory.Infrastructure.Clients
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly MassTransit.IPublishEndpoint _publishEndpoint;
 
-        public SupplierClient(IHttpClientFactory factory, IHttpContextAccessor httpContextAccessor)
+        public SupplierClient(IHttpClientFactory factory, IHttpContextAccessor httpContextAccessor, MassTransit.IPublishEndpoint publishEndpoint)
         {
             _httpClientFactory = factory;
             _httpContextAccessor = httpContextAccessor;
+            _publishEndpoint = publishEndpoint;
         }
 
         private void AddAuthorizationHeader(HttpClient client)
@@ -83,29 +85,37 @@ namespace Inventory.Infrastructure.Clients
         {
             try
             {
-                var client = _httpClientFactory.CreateClient("SupplierServiceClient");
-                AddAuthorizationHeader(client);
-                var payload = new 
+                Guid? companyId = null;
+                string? branchId = null;
+                var context = _httpContextAccessor.HttpContext;
+                if (context != null)
+                {
+                    if (context.Request.Headers.TryGetValue("X-Company-Id", out var compHeader) && Guid.TryParse(compHeader, out var compId))
+                    {
+                        companyId = compId;
+                    }
+                    if (context.Request.Headers.TryGetValue("X-Branch-Id", out var brHeader))
+                    {
+                        branchId = brHeader.ToString();
+                    }
+                }
+
+                await _publishEndpoint.Publish<Shared.Contracts.SupplierPurchaseCreatedEvent>(new
                 {
                     SupplierId = supplierId,
                     Amount = amount,
-                    ReferenceId = referenceId, 
+                    ReferenceId = referenceId,
                     Description = description,
                     TransactionDate = DateTime.Now,
-                    CreatedBy = createdBy
-                };
-
-                var response = await client.PostAsJsonAsync("api/finance/purchase-entry", payload);
-                if (!response.IsSuccessStatusCode)
-                {
-                     var content = await response.Content.ReadAsStringAsync();
-                     throw new Exception($"Supplier Service Purchase Failed: {response.StatusCode} - {content}");
-                }
+                    CreatedBy = createdBy,
+                    CompanyId = companyId,
+                    BranchId = branchId
+                });
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SupplierClient] Error recording purchase: {ex.Message}");
+                Console.WriteLine($"[SupplierClient] Error publishing purchase created event: {ex.Message}");
                 return false;
             }
         }
@@ -153,56 +163,81 @@ namespace Inventory.Infrastructure.Clients
 
         public async Task<bool> RecordPurchaseReturnAsync(Guid supplierId, decimal amount, string referenceId, string description, string createdBy)
         {
-            var payload = new
+            try
             {
-                SupplierId = supplierId,
-                Amount = amount,
-                ReferenceId = referenceId,
-                Description = description,
-                TransactionDate = DateTime.Now,
-                CreatedBy = createdBy,
-                TransactionType = "DebitNote"
-            };
+                Guid? companyId = null;
+                string? branchId = null;
+                var context = _httpContextAccessor.HttpContext;
+                if (context != null)
+                {
+                    if (context.Request.Headers.TryGetValue("X-Company-Id", out var compHeader) && Guid.TryParse(compHeader, out var compId))
+                    {
+                        companyId = compId;
+                    }
+                    if (context.Request.Headers.TryGetValue("X-Branch-Id", out var brHeader))
+                    {
+                        branchId = brHeader.ToString();
+                    }
+                }
 
-            var client = _httpClientFactory.CreateClient("SupplierServiceClient");
-            AddAuthorizationHeader(client);
-            
-            var response = await client.PostAsJsonAsync("api/finance/purchase-return-entry", payload);
-            
-            if (!response.IsSuccessStatusCode)
-            {
-                    var content = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[SupplierClient] Purchase Return Failed: {response.StatusCode} - {content}");
-                    return false;
+                await _publishEndpoint.Publish<Shared.Contracts.SupplierPurchaseReturnCreatedEvent>(new
+                {
+                    SupplierId = supplierId,
+                    Amount = amount,
+                    ReferenceId = referenceId,
+                    Description = description,
+                    TransactionDate = DateTime.Now,
+                    CreatedBy = createdBy,
+                    CompanyId = companyId,
+                    BranchId = branchId
+                });
+                return true;
             }
-            return true;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SupplierClient] Error publishing purchase return created event: {ex.Message}");
+                return false;
+            }
         }
 
         public async Task<bool> RecordPaymentAsync(Guid supplierId, decimal amount, string referenceNumber, string remarks, string paymentMode, string createdBy)
         {
-            var payload = new
+            try
             {
-                SupplierId = supplierId,
-                Amount = amount,
-                ReferenceNumber = referenceNumber,
-                Remarks = remarks,
-                PaymentMode = paymentMode,
-                PaymentDate = DateTime.Now,
-                CreatedBy = createdBy
-            };
+                Guid? companyId = null;
+                string? branchId = null;
+                var context = _httpContextAccessor.HttpContext;
+                if (context != null)
+                {
+                    if (context.Request.Headers.TryGetValue("X-Company-Id", out var compHeader) && Guid.TryParse(compHeader, out var compId))
+                    {
+                        companyId = compId;
+                    }
+                    if (context.Request.Headers.TryGetValue("X-Branch-Id", out var brHeader))
+                    {
+                        branchId = brHeader.ToString();
+                    }
+                }
 
-            var client = _httpClientFactory.CreateClient("SupplierServiceClient");
-            AddAuthorizationHeader(client);
-            
-            var response = await client.PostAsJsonAsync("api/finance/payment-entry", payload);
-            
-            if (!response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"[SupplierClient] Payment Record Failed: {response.StatusCode} - {content}");
-                throw new Exception($"Failed to update Supplier Ledger: {content}");
+                await _publishEndpoint.Publish<Shared.Contracts.SupplierPaymentCreatedEvent>(new
+                {
+                    SupplierId = supplierId,
+                    Amount = amount,
+                    ReferenceNumber = referenceNumber,
+                    Remarks = remarks,
+                    PaymentMode = paymentMode,
+                    PaymentDate = DateTime.Now,
+                    CreatedBy = createdBy,
+                    CompanyId = companyId,
+                    BranchId = branchId
+                });
+                return true;
             }
-            return true;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SupplierClient] Error publishing supplier payment created event: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task<List<Guid>> SearchSupplierIdsByNameAsync(string name)

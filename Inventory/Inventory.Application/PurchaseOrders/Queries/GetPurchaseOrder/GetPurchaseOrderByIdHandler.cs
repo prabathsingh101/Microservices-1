@@ -38,6 +38,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
             }
 
             var paymentStatuses = new Dictionary<string, decimal>();
+            bool isOffline = false;
             if (searchTerms.Any())
             {
                 try
@@ -47,6 +48,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Payment Status Sync Error: {ex.Message}");
+                    isOffline = true;
                 }
             }
 
@@ -166,7 +168,7 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 return pendingRefund > 0;
             });
 
-            return new PurchaseOrderDto
+            var poDto = new PurchaseOrderDto
             {
                 Id = po.Id,
                 PoNumber = po.PoNumber,
@@ -192,6 +194,11 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 Items = items,
                 TotalReturnedAmount = items.Sum(i => i.ReturnAmount)
             };
+            if (isOffline)
+            {
+                poDto.PaymentStatus = "Offline";
+            }
+            return poDto;
         }
     }
 }

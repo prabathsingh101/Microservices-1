@@ -53,6 +53,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
             }
 
             var paymentStatuses = new Dictionary<string, decimal>();
+            bool isOffline = false;
             if (searchTerms.Any())
             {
                 try
@@ -62,6 +63,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Payment Status Sync Error: {ex.Message}");
+                    isOffline = true;
                 }
             }
 
@@ -227,7 +229,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     return (i.ReceivedQty + refunded) >= i.Qty;
                 });
 
-                return new PurchaseOrderDto
+                var poDto = new PurchaseOrderDto
                 {
                     Id = x.Id,
                     PoNumber = x.PoNumber,
@@ -270,6 +272,11 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     TotalReturned = items.Sum(i => i.ReturnQty),
                     TotalReturnedAmount = items.Sum(i => i.ReturnAmount)
                 };
+                if (isOffline)
+                {
+                    poDto.PaymentStatus = "Offline";
+                }
+                return poDto;
             }).ToList();
 
             return new PurchaseOrderPagedResponse(

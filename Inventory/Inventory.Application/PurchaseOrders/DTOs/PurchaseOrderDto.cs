@@ -48,10 +48,12 @@ public class PurchaseOrderDto
             return Math.Max(0, baseAmount - TotalReturnedAmount - PaidAmount);
         }
     }
+    private string? _paymentStatus;
     public string PaymentStatus
     {
         get
         {
+            if (_paymentStatus != null) return _paymentStatus;
             if (Status == "Cancelled" || Status == "Canceled" || Status == "Void")
             {
                 return "-";
@@ -61,6 +63,10 @@ public class PurchaseOrderDto
                 return "Paid";
             }
             return DueAmount <= 0 ? "Paid" : (PaidAmount > 0 ? "Partial" : "Unpaid");
+        }
+        set
+        {
+            _paymentStatus = value;
         }
     }
 

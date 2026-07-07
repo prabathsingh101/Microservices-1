@@ -63,12 +63,14 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__CustomersDb=Server=sqlserver;Database=CustomersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - RabbitMQ__Host=rabbitmq
     deploy:
       resources:
         limits:
           memory: 400M
     depends_on:
       - sqlserver
+      - rabbitmq
 
   inventory.api:
     image: inventoryapi
@@ -83,6 +85,7 @@ services:
       - ServiceUrls__CustomerApi=http://customers.api:8080/
       - ServiceUrls__SupplierApi=http://suppliers.api:8080/
       - ServiceUrls__CompanyApi=http://company.api:8080/
+      - RabbitMQ__Host=rabbitmq
     deploy:
       resources:
         limits:
@@ -91,6 +94,7 @@ services:
       - company-uploads:/app/wwwroot/uploads
     depends_on:
       - sqlserver
+      - rabbitmq
 
   suppliers.api:
     image: suppliersapi
@@ -102,12 +106,14 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__SuppliersDb=Server=sqlserver;Database=SuppliersDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - RabbitMQ__Host=rabbitmq
     deploy:
       resources:
         limits:
           memory: 400M
     depends_on:
       - sqlserver
+      - rabbitmq
 
   company.api:
     image: companyapi
@@ -145,6 +151,22 @@ services:
     depends_on:
       - sqlserver
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
   electric-ui:
     image: electricui
     build:
@@ -163,3 +185,4 @@ services:
 volumes:
   company-uploads:
   sql-data:
+  rabbitmq-data:

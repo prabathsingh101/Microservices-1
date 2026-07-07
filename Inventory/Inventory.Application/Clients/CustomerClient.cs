@@ -12,11 +12,13 @@ public class CustomerClient : ICustomerClient
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly MassTransit.IPublishEndpoint _publishEndpoint;
 
-    public CustomerClient(IHttpClientFactory httpClientFactory, IHttpContextAccessor httpContextAccessor)
+    public CustomerClient(IHttpClientFactory httpClientFactory, IHttpContextAccessor httpContextAccessor, MassTransit.IPublishEndpoint publishEndpoint)
     {
         _httpClientFactory = httpClientFactory;
         _httpContextAccessor = httpContextAccessor;
+        _publishEndpoint = publishEndpoint;
     }
 
     private void AddAuthorizationHeader(HttpClient client)
@@ -42,15 +44,22 @@ public class CustomerClient : ICustomerClient
 
     public async Task<Dictionary<Guid, string>> GetCustomerNamesAsync(List<Guid> customerIds)
     {
-        var client = _httpClientFactory.CreateClient("CustomerService");
-        AddAuthorizationHeader(client);
-
-        // Batch API call: Customer Microservice ko IDs bhejein
-        var response = await client.PostAsJsonAsync("api/customers/get-names", customerIds);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            return await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>() ?? new();
+            var client = _httpClientFactory.CreateClient("CustomerService");
+            AddAuthorizationHeader(client);
+
+            // Batch API call: Customer Microservice ko IDs bhejein
+            var response = await client.PostAsJsonAsync("api/customers/get-names", customerIds);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CustomerClient] Error fetching customer names: {ex.Message}");
         }
 
         return new Dictionary<Guid, string>();
@@ -58,15 +67,22 @@ public class CustomerClient : ICustomerClient
 
     public async Task<Dictionary<Guid, CustomerLookupDto>> GetCustomerDetailsByIdsAsync(List<Guid> customerIds)
     {
-        var client = _httpClientFactory.CreateClient("CustomerService");
-        AddAuthorizationHeader(client);
-
-        // Batch API call: Customer Microservice ko IDs bhejein aur details payenge
-        var response = await client.PostAsJsonAsync("api/customers/get-details", customerIds);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            return await response.Content.ReadFromJsonAsync<Dictionary<Guid, CustomerLookupDto>>() ?? new();
+            var client = _httpClientFactory.CreateClient("CustomerService");
+            AddAuthorizationHeader(client);
+
+            // Batch API call: Customer Microservice ko IDs bhejein aur details payenge
+            var response = await client.PostAsJsonAsync("api/customers/get-details", customerIds);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<Dictionary<Guid, CustomerLookupDto>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CustomerClient] Error fetching customer details: {ex.Message}");
         }
 
         return new Dictionary<Guid, CustomerLookupDto>();
@@ -74,9 +90,17 @@ public class CustomerClient : ICustomerClient
 
     public async Task<List<CustomerLookupDto>> GetCustomersForLookupAsync()
     {
-        var client = _httpClientFactory.CreateClient("CustomerService");
-        AddAuthorizationHeader(client);
-        return await client.GetFromJsonAsync<List<CustomerLookupDto>>("api/customers/lookup") ?? new();
+        try
+        {
+            var client = _httpClientFactory.CreateClient("CustomerService");
+            AddAuthorizationHeader(client);
+            return await client.GetFromJsonAsync<List<CustomerLookupDto>>("api/customers/lookup") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CustomerClient] Error fetching customers lookup: {ex.Message}");
+            return new List<CustomerLookupDto>();
+        }
     }
 
     public async Task<List<Guid>> SearchCustomerIdsByNameAsync(string searchName)
@@ -106,10 +130,7 @@ public class CustomerClient : ICustomerClient
 
     public async Task RecordSaleAsync(Guid customerId, decimal amount, string referenceId, string description, string createdBy, string? branchId, Guid? companyId)
     {
-        var client = _httpClientFactory.CreateClient("CustomerService");
-        AddAuthorizationHeader(client);
-
-        var payload = new
+        await _publishEndpoint.Publish<Shared.Contracts.CustomerSaleCreatedEvent>(new
         {
             CustomerId = customerId,
             Amount = amount,
@@ -119,54 +140,42 @@ public class CustomerClient : ICustomerClient
             CreatedBy = createdBy,
             BranchId = branchId,
             CompanyId = companyId
-        };
-
-        var response = await client.PostAsJsonAsync("api/finance/sale", payload);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Failed to record sale in customer ledger: {error}");
-        }
+        });
     }
 
     public async Task RecordReceiptAsync(Guid? customerId, decimal amount, string paymentMode, string referenceNumber, string remarks, string createdBy, string? branchId, Guid? companyId)
     {
-        var client = _httpClientFactory.CreateClient("CustomerService");
-        AddAuthorizationHeader(client);
-
-        var payload = new
+        await _publishEndpoint.Publish<Shared.Contracts.CustomerReceiptCreatedEvent>(new
         {
             CustomerId = customerId,
             Amount = amount,
-            paymentDate = DateTime.Now,
-            paymentMode = paymentMode,
+            PaymentDate = DateTime.Now,
+            PaymentMode = paymentMode,
             ReferenceNumber = referenceNumber,
             Remarks = remarks,
             CreatedBy = createdBy,
             BranchId = branchId,
             CompanyId = companyId
-        };
-
-        var response = await client.PostAsJsonAsync("api/finance/receipt", payload);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Failed to record receipt in customer service: {error}");
-        }
+        });
     }
 
     public async Task<CustomerLookupDto?> GetCustomerByIdAsync(Guid id)
     {
-        var client = _httpClientFactory.CreateClient("CustomerService");
-        AddAuthorizationHeader(client);
-
-        var response = await client.GetAsync($"api/customers/{id}");
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            return await response.Content.ReadFromJsonAsync<CustomerLookupDto>();
+            var client = _httpClientFactory.CreateClient("CustomerService");
+            AddAuthorizationHeader(client);
+
+            var response = await client.GetAsync($"api/customers/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<CustomerLookupDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CustomerClient] Error fetching customer by ID: {ex.Message}");
         }
 
         return null;

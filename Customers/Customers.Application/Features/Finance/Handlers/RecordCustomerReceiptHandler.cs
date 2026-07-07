@@ -60,7 +60,7 @@ namespace Customers.Application.Features.Finance.Handlers
                         ReferenceNumber = receiptDto.ReferenceNumber,
                         Remarks = receiptDto.Remarks,
                         CreatedBy = receiptDto.CreatedBy,
-                        CompanyId = _currentUserService.CompanyId,
+                        CompanyId = (receiptDto.CompanyId != null && receiptDto.CompanyId != Guid.Empty) ? receiptDto.CompanyId : _currentUserService.CompanyId,
                         BranchId = receiptDto.BranchId,
                         ChequeNumber = receiptDto.ChequeNumber,
                         ChequeDate = receiptDto.ChequeDate,
@@ -90,7 +90,7 @@ namespace Customers.Application.Features.Finance.Handlers
                             TransactionDate = receiptDto.ReceiptDate,
                             Description = "Receipt Received: " + receiptDto.ReceiptMode,
                             CreatedBy = receiptDto.CreatedBy,
-                            CompanyId = _currentUserService.CompanyId,
+                            CompanyId = (receiptDto.CompanyId != null && receiptDto.CompanyId != Guid.Empty) ? receiptDto.CompanyId : _currentUserService.CompanyId,
                             BranchId = string.IsNullOrEmpty(receiptDto.BranchId) ? _currentUserService.BranchId : receiptDto.BranchId
                         };
 

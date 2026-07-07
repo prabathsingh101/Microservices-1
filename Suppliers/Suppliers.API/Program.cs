@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Scalar.AspNetCore;
 using System.Security.Claims;
 using Serilog;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +61,30 @@ builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
 builder.Services.AddScoped<ICurrentUserService, Suppliers.API.Services.CurrentUserService>();
 builder.Services.AddHttpContextAccessor();
+
+// MassTransit & RabbitMQ Setup
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<Suppliers.API.Consumers.SupplierPurchaseCreatedConsumer>();
+    x.AddConsumer<Suppliers.API.Consumers.SupplierPurchaseReturnCreatedConsumer>();
+    x.AddConsumer<Suppliers.API.Consumers.SupplierPaymentCreatedConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        {
+            h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
+            h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
+        });
+
+        cfg.ReceiveEndpoint("supplier-ledger-queue", e =>
+        {
+            e.ConfigureConsumer<Suppliers.API.Consumers.SupplierPurchaseCreatedConsumer>(context);
+            e.ConfigureConsumer<Suppliers.API.Consumers.SupplierPurchaseReturnCreatedConsumer>(context);
+            e.ConfigureConsumer<Suppliers.API.Consumers.SupplierPaymentCreatedConsumer>(context);
+        });
+    });
+});
 
 builder.Services.AddCors(o => o.AddPolicy("AllowAngularDev", p =>
 {

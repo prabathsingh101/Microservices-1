@@ -10,6 +10,7 @@ using Scalar.AspNetCore;
 using System.Security.Claims;
 using System.Text.Json;
 using Serilog;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,28 @@ builder.Services.AddApplication();
 // Infrastructure (DB)
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<Customers.Application.Common.Interfaces.ICurrentUserService, Customers.API.Services.CurrentUserService>();
+
+// MassTransit & RabbitMQ Setup
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<Customers.API.Consumers.CustomerSaleCreatedConsumer>();
+    x.AddConsumer<Customers.API.Consumers.CustomerReceiptCreatedConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h =>
+        {
+            h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
+            h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
+        });
+
+        cfg.ReceiveEndpoint("customer-ledger-queue", e =>
+        {
+            e.ConfigureConsumer<Customers.API.Consumers.CustomerSaleCreatedConsumer>(context);
+            e.ConfigureConsumer<Customers.API.Consumers.CustomerReceiptCreatedConsumer>(context);
+        });
+    });
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => {

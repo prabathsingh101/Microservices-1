@@ -367,7 +367,7 @@ public class SaleOrderController : ControllerBase
     // --- HOME DELIVERY SYSTEM ENDPOINTS ---
 
     [HttpGet("delivery-list")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman, Delivery Boy")]
     public async Task<IActionResult> GetDeliveryList(
         [FromQuery] string? deliveryBoyId = null,
         [FromQuery] string? status = null,
@@ -519,7 +519,7 @@ public class SaleOrderController : ControllerBase
     }
 
     [HttpPost("update-delivery-status")]
-    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
+    [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman, Delivery Boy")]
     public async Task<IActionResult> UpdateDeliveryStatus([FromBody] UpdateDeliveryStatusDto request)
     {
         if (request == null)
