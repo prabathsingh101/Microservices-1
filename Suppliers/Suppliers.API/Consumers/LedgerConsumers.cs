@@ -104,7 +104,7 @@ namespace Suppliers.API.Consumers
                 ReferenceNumber = msg.ReferenceNumber,
                 Remarks = msg.Remarks,
                 CreatedBy = msg.CreatedBy,
-                TransactionType = "Payment"
+                TransactionType = msg.TransactionType ?? "Payment"
             };
 
             var command = new RecordSupplierPaymentCommand(dto);

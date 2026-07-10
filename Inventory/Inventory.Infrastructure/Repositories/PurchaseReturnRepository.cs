@@ -33,47 +33,65 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         _currentUserService = currentUserService;
     }
 
-    // 1. UI Form ke liye Rejected Items fetch karein
     public async Task<List<RejectedItemDto>> GetRejectedItemsBySupplierAsync(Guid supplierId)
     {
         var companyId = _currentUserService.CompanyId ?? Guid.Empty;
         var branchId = _currentUserService.BranchId;
         var query = from gd in _context.GRNDetails
-                         .Include(x => x.Product)
-                         .Include(x => x.Warehouse)
-                         .Include(x => x.Rack)
+                          .Include(x => x.Product)
+                          .Include(x => x.Warehouse)
+                          .Include(x => x.Rack)
+                          .Include(x => x.ProductVariant)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
                     join po in _context.PurchaseOrders on gh.PurchaseOrderId equals po.Id into poGroup
                     from po in poGroup.DefaultIfEmpty()
                     where gh.SupplierId == supplierId && gd.RejectedQty > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
-                    select new RejectedItemDto
-                    {
-                        ProductId = gd.ProductId,
-                        ProductName = gd.Product != null ? gd.Product.Name : "Ukn-" + gd.ProductId.ToString().Substring(0,8),
-                        Brand = gd.Product != null ? gd.Product.Brand : null,
-                        Sku = gd.Product != null ? gd.Product.Sku : null,
-                        GrnRef = gh.GRNNumber,
-                        RejectedQty = gd.RejectedQty,
-                        Rate = gd.UnitRate,
-                        GstPercent = gd.GstPercent,
-                        DiscountPercent = gd.DiscountPercent,
-                        CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == gd.ProductId && g.CompanyId == companyId && g.GRNHeader.Status != "Cancelled" && g.GRNHeader.Status != "Canceled").Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
-                                       (_context.SaleOrderItems.Where(si => si.ProductId == gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                                       (_context.SaleReturnItems.Where(sri => sri.ProductId == gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
-                                       (_context.SaleExchangeItems.Where(sei => sei.ProductId == gd.ProductId && sei.CompanyId == companyId && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged")).Sum(sei => (decimal?)sei.Qty) ?? 0) -
-                                       (_context.PurchaseReturnItems.Where(pri => pri.ProductId == gd.ProductId && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled").Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
-                        WarehouseName = gd.Warehouse != null ? gd.Warehouse.Name : "N/A",
-                        RackName = gd.Rack != null ? gd.Rack.Name : "N/A",
-                        WarehouseId = gd.WarehouseId,
-                        RackId = gd.RackId,
-                        MfgDate = gd.MfgDate,
-                        ExpDate = gd.ExpDate,
-                        BranchId = gh.BranchId,
-                        IsSettled = gd.IsSettled,
-                        PoNumber = po != null ? po.PoNumber : "Quick"
-                    };
+                    select new { gd, gh, PoNumber = po != null ? po.PoNumber : "Quick" };
 
-        return await query.ToListAsync();
+        var rawList = await query.ToListAsync();
+        var productIds = rawList.Select(x => x.gd.ProductId).Distinct().ToList();
+        var productsLookup = await _context.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.DefaultWarehouse)
+            .Include(p => p.DefaultRack)
+            .AsNoTracking()
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p);
+
+        var result = rawList.Select(x => {
+            var prod = productsLookup.GetValueOrDefault(x.gd.ProductId);
+            return new RejectedItemDto
+            {
+                ProductId = x.gd.ProductId,
+                ProductName = x.gd.Product != null ? x.gd.Product.Name : "Ukn-" + x.gd.ProductId.ToString().Substring(0,8),
+                Brand = x.gd.Product != null ? x.gd.Product.Brand : null,
+                Sku = x.gd.Product != null ? x.gd.Product.Sku : null,
+                GrnRef = x.gh.GRNNumber,
+                RejectedQty = x.gd.RejectedQty,
+                Rate = x.gd.UnitRate,
+                GstPercent = x.gd.GstPercent,
+                DiscountPercent = x.gd.DiscountPercent,
+                CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.gd.ProductId && g.CompanyId == companyId && g.GRNHeader.Status != "Cancelled" && g.GRNHeader.Status != "Canceled").Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
+                               (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
+                               (_context.SaleExchangeItems.Where(sei => sei.ProductId == x.gd.ProductId && sei.CompanyId == companyId && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged")).Sum(sei => (decimal?)sei.Qty) ?? 0) -
+                               (_context.PurchaseReturnItems.Where(pri => pri.ProductId == x.gd.ProductId && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled").Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
+                WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : (prod?.DefaultWarehouse?.Name ?? "N/A"),
+                RackName = x.gd.Rack != null ? x.gd.Rack.Name : (prod?.DefaultRack?.Name ?? "N/A"),
+                WarehouseId = x.gd.WarehouseId ?? prod?.DefaultWarehouseId,
+                RackId = x.gd.RackId ?? prod?.DefaultRackId,
+                MfgDate = x.gd.MfgDate,
+                ExpDate = x.gd.ExpDate,
+                BranchId = x.gh.BranchId,
+                IsSettled = x.gd.IsSettled,
+                PoNumber = x.PoNumber,
+                ProductVariantId = x.gd.ProductVariantId,
+                Color = x.gd.ProductVariant != null ? x.gd.ProductVariant.Color : null,
+                Size = x.gd.ProductVariant != null ? x.gd.ProductVariant.Size : null
+            };
+        }).ToList();
+
+        return result;
     }
 
     public async Task<List<SupplierSelectDto>> GetSuppliersForPurchaseReturnAsync()
@@ -128,16 +146,27 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         .Include(x => x.Product)
                         .Include(x => x.Warehouse)
                         .Include(x => x.Rack)
+                        .Include(x => x.ProductVariant)
                     join gh in _context.GRNHeaders on gd.GRNHeaderId equals gh.Id
                     join po in _context.PurchaseOrders on gh.PurchaseOrderId equals po.Id into poGroup
                     from po in poGroup.DefaultIfEmpty()
                     where gh.SupplierId == supplierId && (gd.ReceivedQty - gd.RejectedQty) > 0 && gh.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || gh.BranchId == branchId)
                     select new { gd, gh, PoNumber = po != null ? po.PoNumber : "Quick" }).ToListAsync();
 
+        var productIds = rawList.Select(x => x.gd.ProductId).Distinct().ToList();
+        var productsLookup = await _context.Products
+            .IgnoreQueryFilters()
+            .Include(p => p.DefaultWarehouse)
+            .Include(p => p.DefaultRack)
+            .AsNoTracking()
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p);
+
         var result = rawList.Select(x => {
+            var prod = productsLookup.GetValueOrDefault(x.gd.ProductId);
             // Calculate already returned quantity for this specific Product and GRN [cite: 2026-05-04]
             var returnedQty = _context.PurchaseReturnItems
-                .Where(pri => pri.ProductId == x.gd.ProductId && pri.GrnRef == x.gh.GRNNumber && pri.CompanyId == companyId)
+                .Where(pri => pri.ProductId == x.gd.ProductId && pri.ProductVariantId == x.gd.ProductVariantId && pri.GrnRef == x.gh.GRNNumber && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
                 .Sum(pri => (decimal?)pri.ReturnQty) ?? 0;
 
             return new ReceivedStockDto
@@ -153,17 +182,20 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                 DiscountPercent = x.gd.DiscountPercent,
                 ReceivedDate = x.gh.ReceivedDate,
                 CurrentStock = (_context.GRNDetails.Where(g => g.ProductId == x.gd.ProductId && g.CompanyId == companyId && g.GRNHeader.Status != "Cancelled" && g.GRNHeader.Status != "Canceled").Sum(g => (decimal?)g.ReceivedQty - g.RejectedQty) ?? 0) - 
-                               (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
-                               (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
-                               (_context.SaleExchangeItems.Where(sei => sei.ProductId == x.gd.ProductId && sei.CompanyId == companyId && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged")).Sum(sei => (decimal?)sei.Qty) ?? 0) -
-                               (_context.PurchaseReturnItems.Where(pri => pri.ProductId == x.gd.ProductId && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled").Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
-                WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : "N/A",
-                RackName = x.gd.Rack != null ? x.gd.Rack.Name : "N/A",
+                                (_context.SaleOrderItems.Where(si => si.ProductId == x.gd.ProductId && si.CompanyId == companyId && (si.SaleOrder.Status == "Confirmed" || si.SaleOrder.Status == "Completed")).Sum(si => (decimal?)si.Qty) ?? 0) +
+                                (_context.SaleReturnItems.Where(sri => sri.ProductId == x.gd.ProductId && sri.CompanyId == companyId && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged")).Sum(sri => (decimal?)sri.ReturnQty) ?? 0) -
+                                (_context.SaleExchangeItems.Where(sei => sei.ProductId == x.gd.ProductId && sei.CompanyId == companyId && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged")).Sum(sei => (decimal?)sei.Qty) ?? 0) -
+                                (_context.PurchaseReturnItems.Where(pri => pri.ProductId == x.gd.ProductId && pri.CompanyId == companyId && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled").Sum(pri => (decimal?)pri.ReturnQty) ?? 0),
+                WarehouseName = x.gd.Warehouse != null ? x.gd.Warehouse.Name : (prod?.DefaultWarehouse?.Name ?? "N/A"),
+                RackName = x.gd.Rack != null ? x.gd.Rack.Name : (prod?.DefaultRack?.Name ?? "N/A"),
                 MfgDate = x.gd.MfgDate,
                 ExpDate = x.gd.ExpDate,
-                WarehouseId = x.gd.WarehouseId,
-                RackId = x.gd.RackId,
+                WarehouseId = x.gd.WarehouseId ?? prod?.DefaultWarehouseId,
+                RackId = x.gd.RackId ?? prod?.DefaultRackId,
                 BranchId = x.gh.BranchId,
+                ProductVariantId = x.gd.ProductVariantId,
+                Color = x.gd.ProductVariant != null ? x.gd.ProductVariant.Color : null,
+                Size = x.gd.ProductVariant != null ? x.gd.ProductVariant.Size : null,
                 IsReturnable = x.gh.ReceivedDate >= limitDate,
                 RemainingHours = Math.Max(0, totalHours - (now - x.gh.ReceivedDate).TotalHours),
                 PoNumber = x.PoNumber
@@ -198,6 +230,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         .IgnoreQueryFilters() // 🚀 Super Admin bypass
                         .Include(gd => gd.GRNHeader)
                         .FirstOrDefaultAsync(gd => gd.ProductId == item.ProductId
+                                             && gd.ProductVariantId == item.ProductVariantId
                                              && gd.GRNHeader.GRNNumber == item.GrnRef
                                              && gd.CompanyId == companyId);
 
@@ -220,6 +253,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                     var poItem = await _context.PurchaseOrderItems
                         .IgnoreQueryFilters()
                         .FirstOrDefaultAsync(poi => poi.ProductId == item.ProductId 
+                                             && poi.ProductVariantId == item.ProductVariantId
                                              && poi.PurchaseOrderId == grnDetail.GRNHeader.PurchaseOrderId
                                              && poi.CompanyId == companyId);
 
@@ -236,6 +270,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                         item.DiscountPercent = poItem.DiscountPercent;
                         item.Rate = poItem.Rate;
                     }
+
+                    // Denormalize Color/Size from GRNDetail (prefer DTO value, fallback to GRN stored value)
+                    if (string.IsNullOrEmpty(item.Color)) item.Color = grnDetail.Color;
+                    if (string.IsNullOrEmpty(item.Size)) item.Size = grnDetail.Size;
 
                     decimal baseAmount = item.ReturnQty * item.Rate;
                     decimal discountAmt = baseAmount * (item.DiscountPercent / 100);
@@ -682,7 +720,10 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
                                   TotalAmount = pri.TotalAmount,
                                   MfgDate = pri.MfgDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef && g.CompanyId == companyId).Select(x => x.MfgDate).FirstOrDefault(),
                                   ExpDate = pri.ExpDate ?? _context.GRNDetails.Where(g => g.ProductId == pri.ProductId && g.GRNHeader.GRNNumber == pri.GrnRef && g.CompanyId == companyId).Select(x => x.ExpDate).FirstOrDefault(),
-                                  IsExpiryRequired = p.IsExpiryRequired
+                                  IsExpiryRequired = p.IsExpiryRequired,
+                                  ProductVariantId = pri.ProductVariantId,
+                                  Color = pri.ProductVariant != null ? pri.ProductVariant.Color : null,
+                                  Size = pri.ProductVariant != null ? pri.ProductVariant.Size : null
                               }).ToListAsync();
 
         var supplierDict = await GetSupplierNamesFromMicroservice(new List<Guid> { purchaseReturn.SupplierId });
@@ -918,9 +959,9 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
         // 3. Pending Outward Count (Confirmed but no GatePassNo) - Module specific
         var pendingOutwardCount = await queryBase.CountAsync(x => x.Status == "Confirmed" && (string.IsNullOrEmpty(x.GatePassNo)));
         
-        // 4. Stock reduced pcs (Items table se sum)
+        // 4. Stock reduced pcs (Items table se sum - excluding cancelled returns)
         var totalPcs = await _context.PurchaseReturnItems
-            .Where(x => x.CompanyId == companyId && x.PurchaseReturn.IsQuick == isQuick)
+            .Where(x => x.CompanyId == companyId && x.PurchaseReturn.IsQuick == isQuick && x.PurchaseReturn.Status != "Cancelled" && x.PurchaseReturn.Status != "Canceled")
             .SumAsync(x => (decimal?)x.ReturnQty) ?? 0;
 
         return new PurchaseReturnSummaryDto
@@ -1237,7 +1278,7 @@ public class PurchaseReturnRepository : Inventory.Application.Common.Interfaces.
 
                         if (totalPending == 0)
                         {
-                            po.Status = totalRefunded > 0 ? "ShortClosed" : "Closed";
+                            po.Status = totalRefunded == totalOrdered ? "Fully Returned" : (totalRefunded > 0 ? "ShortClosed" : "Closed");
                         }
                         else
                         {

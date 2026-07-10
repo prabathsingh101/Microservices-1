@@ -43,6 +43,9 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? BranchName { get; set; }
         public string? BatchNumber { get; set; }
         public string? HsnCode { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
         public decimal MRP { get; set; }
         public decimal Discount { get; set; }
         public decimal SaleRate { get; set; }
@@ -81,6 +84,9 @@ namespace Inventory.Application.GRN.DTOs.Stock
         public string? BranchName { get; set; }
         public string? BatchNumber { get; set; }
         public string? ReferenceNumber { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
         public string? TransferredToBranchId { get; set; }
         public string? TransferredToBranchName { get; set; }
         public string? TransferredFromBranchId { get; set; }

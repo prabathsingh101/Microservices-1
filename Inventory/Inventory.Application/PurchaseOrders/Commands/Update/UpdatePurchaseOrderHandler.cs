@@ -1,5 +1,8 @@
 using Inventory.Application.Common.Interfaces;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 
 namespace Inventory.Application.PurchaseOrders.Commands.Update
 {
@@ -7,11 +10,13 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
     {
         private readonly IPurchaseOrderRepository _repo;
         private readonly IUnitOfWork _uow;
+        private readonly IInventoryDbContext _context;
 
-        public UpdatePurchaseOrderHandler(IPurchaseOrderRepository repo, IUnitOfWork uow)
+        public UpdatePurchaseOrderHandler(IPurchaseOrderRepository repo, IUnitOfWork uow, IInventoryDbContext context)
         {
             _repo = repo;
             _uow = uow;
+            _context = context;
         }
 
         public async Task<bool> Handle(UpdatePurchaseOrderCommand request, CancellationToken ct)
@@ -79,10 +84,24 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
                     // Existing item check (assuming Id != Guid.Empty for existing items)
                     var existingItem = po.Items.FirstOrDefault(i => i.Id == itemDto.Id && i.Id != Guid.Empty);
 
+                    var variantId = itemDto.ProductVariantId;
+                    if (variantId == null || variantId == Guid.Empty)
+                    {
+                        var firstVariantId = await _context.ProductVariants
+                            .Where(v => v.ProductId == itemDto.ProductId && v.IsActive)
+                            .Select(v => (Guid?)v.Id)
+                            .FirstOrDefaultAsync(ct);
+                        if (firstVariantId != null)
+                        {
+                            variantId = firstVariantId;
+                        }
+                    }
+
                     if (existingItem != null)
                     {
                         // Update existing record fields
                         existingItem.ProductId = itemDto.ProductId;
+                        existingItem.ProductVariantId = variantId;
                         existingItem.Qty = itemDto.Qty;
                         existingItem.Unit = itemDto.Unit ?? existingItem.Unit;
                         existingItem.Rate = itemDto.Rate;
@@ -100,6 +119,7 @@ namespace Inventory.Application.PurchaseOrders.Commands.Update
                         {
                             PurchaseOrderId = po.Id, // Foreign Key link
                             ProductId = itemDto.ProductId,
+                            ProductVariantId = variantId,
                             Qty = itemDto.Qty,
                             Unit = itemDto.Unit ?? "Nos",
                             Rate = itemDto.Rate,

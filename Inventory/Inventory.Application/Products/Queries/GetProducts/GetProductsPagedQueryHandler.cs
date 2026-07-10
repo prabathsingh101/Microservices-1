@@ -26,7 +26,7 @@ internal sealed class GetProductsPagedQueryHandler
             GetProductsPagedQuery request,
             CancellationToken cancellationToken)
     {
-        var query = _repository.Query().AsNoTracking();
+        var query = _repository.Query().Include(x => x.Variants).AsNoTracking();
 
         // 🔍 SEARCH (Global) - Existing logic preserved
         if (!string.IsNullOrWhiteSpace(request.Request.Search))
@@ -134,7 +134,16 @@ internal sealed class GetProductsPagedQueryHandler
                 DefaultRackName = p.DefaultRack != null ? p.DefaultRack.Name : null,
                 p.GenericName,
                 p.Manufacturer,
-                p.ScheduleClass
+                p.ScheduleClass,
+                Variants = p.Variants.Select(v => new ProductVariantDto(
+                    v.Size,
+                    v.Color,
+                    v.Barcode,
+                    v.SKU,
+                    v.AdditionalPrice,
+                    v.CurrentStock,
+                    v.IsActive
+                )).ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -215,7 +224,8 @@ internal sealed class GetProductsPagedQueryHandler
                 createdOn = p.CreatedOn,
                 modifiedOn = p.ModifiedOn,
                 manufacturingDate = batchLookup.TryGetValue(p.Id, out var batch) ? batch.MfgDate : null,
-                expiryDate = batchLookup.TryGetValue(p.Id, out var b) ? b.ExpDate : null
+                expiryDate = batchLookup.TryGetValue(p.Id, out var b) ? b.ExpDate : null,
+                variants = p.Variants
             };
         }).ToList();
 

@@ -9,7 +9,7 @@ namespace Customers.Application.Common.Interfaces
     public interface IFinanceRepository
     {
         Task AddReceiptAsync(CustomerReceipt receipt);
-        Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid? customerId);
+        Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid? customerId, Guid? companyId = null);
         Task AddLedgerEntryAsync(CustomerLedger ledgerEntry);
         Task SaveChangesAsync();
 

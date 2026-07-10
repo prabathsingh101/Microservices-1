@@ -115,6 +115,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
             Items = dto.Items.Select(i => new SaleOrderItem
             {
                 ProductId = i.ProductId,
+                ProductVariantId = i.ProductVariantId,
                 ProductName = i.ProductName,
                 Qty = i.Qty,
                 Unit = i.Unit,
@@ -155,7 +156,6 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         {
                             // ⚡ REDUNDANT: Products.CurrentStock update removed.
 
-                            // 🆕 Record Reversal in Audit Trail
                             var reversalTx = new InventoryTransaction(
                                 item.ProductId,
                                 item.Qty, // Positive because it is READDING stock
@@ -168,7 +168,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                                 existingWithItems.CompanyId,
                                 existingWithItems.BranchId,
                                 item.ReferenceNumber,
-                                item.BatchNumber
+                                item.BatchNumber,
+                                productVariantId: item.ProductVariantId
                             );
                             await _context.InventoryTransactions.AddAsync(reversalTx);
 
@@ -176,7 +177,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                             if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                             {
                                 var whStock = await _context.WarehouseStocks
-                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                            && ws.WarehouseId == item.WarehouseId 
+                                                            && ws.ProductVariantId == item.ProductVariantId);
 
                                 if (whStock != null)
                                 {
@@ -238,7 +241,8 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                         saleOrder.CompanyId,
                         saleOrder.BranchId,
                         item.ReferenceNumber,
-                        item.BatchNumber
+                        item.BatchNumber,
+                        productVariantId: item.ProductVariantId
                     );
                     await _context.InventoryTransactions.AddAsync(saleTx);
 
@@ -246,7 +250,9 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                     if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                     {
                         var whStock = await _context.WarehouseStocks
-                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+                            .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                    && ws.WarehouseId == item.WarehouseId 
+                                                    && ws.ProductVariantId == item.ProductVariantId);
 
                         if (whStock != null)
                         {
@@ -257,6 +263,7 @@ public class CreateSaleOrderHandler : IRequestHandler<CreateSaleOrderCommand, ob
                             await _context.WarehouseStocks.AddAsync(new WarehouseStock
                             {
                                 ProductId = item.ProductId,
+                                ProductVariantId = item.ProductVariantId,
                                 WarehouseId = item.WarehouseId.Value,
                                 Quantity = -item.Qty,
                                 MinStock = 0,

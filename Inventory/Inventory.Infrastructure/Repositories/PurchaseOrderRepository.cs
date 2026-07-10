@@ -72,7 +72,9 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         var query = _context.PurchaseOrders.AsNoTracking()
             .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Include(x => x.Items)
-                .ThenInclude(i => i.Product) // Product data load karega taaki null error na aaye
+                .ThenInclude(i => i.Product)
+            .Include(x => x.Items)
+                .ThenInclude(i => i.ProductVariant)
             .AsSplitQuery()
             .AsNoTracking()
             .AsQueryable();
@@ -236,6 +238,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .Take(request.PageSize)
             .Include(x => x.Items)
                 .ThenInclude(i => i.Product)
+            .Include(x => x.Items)
+                .ThenInclude(i => i.ProductVariant)
             .Include(x => x.GrnHeaders)
                 .ThenInclude(h => h.GRNItems)
             .AsSplitQuery() 
@@ -295,6 +299,8 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .Where(x => x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .Include(x => x.Items) // Yeh child table 'PurchaseOrderItems' se data layega
             .ThenInclude(i => i.Product)
+            .Include(x => x.Items)
+            .ThenInclude(i => i.ProductVariant)
             .FirstOrDefaultAsync(x => x.Id == id, ct);
         return data;
     }
@@ -581,6 +587,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
         var poItems = await _context.PurchaseOrderItems.AsNoTracking()
             .Where(poi => poi.PurchaseOrderId == poId && poi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || poi.BranchId == branchId))
             .Include(poi => poi.Product)
+            .Include(poi => poi.ProductVariant)
             .ToListAsync();
 
         var receivedQuantities = await _context.GRNDetails.AsNoTracking()
@@ -589,39 +596,40 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
             .Select(g => new { ProductId = g.Key, Total = g.Sum(x => (decimal?)x.ReceivedQty) ?? 0 })
             .ToListAsync();
 
-       
-        return poItems.Select(poi => new POItemForGRNDto
-        {
-            ProductId = poi.ProductId,
-            ProductName = poi.Product?.Name,
-            OrderedQty = poi.Qty,
-            UnitPrice = poi.Rate,
-            AlreadyReceivedQty = receivedQuantities.FirstOrDefault(rq => rq.ProductId == poi.ProductId)?.Total ?? 0,
-            ManufacturingDate = poi.MfgDate ?? _context.GRNDetails.IgnoreQueryFilters()
-                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
+        // 🛡️ Load GRNDetails with IgnoreQueryFilters() but strictly bound to current tenant (CompanyId)
+        // to bypass the branch filter on Racks/Warehouses tables.
+        var grnDetails = await _context.GRNDetails.AsNoTracking().IgnoreQueryFilters()
+            .Where(gd => gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
+            .Include(gd => gd.Warehouse)
+            .Include(gd => gd.Rack)
+            .ToListAsync();
+
+        return poItems.Select(poi => {
+            var latestGrn = grnDetails
+                .Where(gd => gd.ProductId == poi.ProductId)
                 .OrderByDescending(gd => gd.Id)
-                .Select(gd => gd.MfgDate)
-                .FirstOrDefault(),
-            ExpiryDate = poi.ExpDate ?? _context.GRNDetails.IgnoreQueryFilters()
-                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
-                .OrderByDescending(gd => gd.Id)
-                .Select(gd => gd.ExpDate)
-                .FirstOrDefault(),
-            IsExpiryRequired = poi.Product?.IsExpiryRequired ?? false,
-            DiscountPercent = poi.DiscountPercent,
-            GstPercent = poi.GstPercent,
-            TaxAmount = poi.TaxAmount,
-            Total = poi.Total,
-            WarehouseName = _context.GRNDetails.IgnoreQueryFilters()
-                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
-                .OrderByDescending(gd => gd.Id)
-                .Select(gd => _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == gd.WarehouseId).Select(w => w.Name).FirstOrDefault())
-                .FirstOrDefault(),
-            RackName = _context.GRNDetails.IgnoreQueryFilters()
-                .Where(gd => gd.ProductId == poi.ProductId && gd.GRNHeader.PurchaseOrderId == poId && gd.CompanyId == companyId)
-                .OrderByDescending(gd => gd.Id)
-                .Select(gd => _context.Racks.IgnoreQueryFilters().Where(r => r.Id == gd.RackId).Select(r => r.Name).FirstOrDefault())
-                .FirstOrDefault()
+                .FirstOrDefault();
+
+            return new POItemForGRNDto
+            {
+                ProductId = poi.ProductId,
+                ProductName = poi.Product?.Name,
+                OrderedQty = poi.Qty,
+                UnitPrice = poi.Rate,
+                AlreadyReceivedQty = receivedQuantities.FirstOrDefault(rq => rq.ProductId == poi.ProductId)?.Total ?? 0,
+                ManufacturingDate = poi.MfgDate ?? latestGrn?.MfgDate,
+                ExpiryDate = poi.ExpDate ?? latestGrn?.ExpDate,
+                IsExpiryRequired = poi.Product?.IsExpiryRequired ?? false,
+                DiscountPercent = poi.DiscountPercent,
+                GstPercent = poi.GstPercent,
+                TaxAmount = poi.TaxAmount,
+                Total = poi.Total,
+                WarehouseName = latestGrn?.Warehouse?.Name,
+                RackName = latestGrn?.Rack?.Name,
+                Color = poi.ProductVariant?.Color,
+                Size = poi.ProductVariant?.Size,
+                ProductVariantId = poi.ProductVariantId
+            };
         }).ToList();
     }
 

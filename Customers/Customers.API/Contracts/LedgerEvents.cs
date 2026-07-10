@@ -37,6 +37,7 @@ namespace Shared.Contracts
         string CreatedBy { get; }
         Guid? CompanyId { get; }
         string? BranchId { get; }
+        string? TransactionType { get; }
     }
 
     public interface CustomerSaleCreatedEvent

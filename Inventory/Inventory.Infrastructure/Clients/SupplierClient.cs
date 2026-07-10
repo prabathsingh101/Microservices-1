@@ -200,7 +200,7 @@ namespace Inventory.Infrastructure.Clients
             }
         }
 
-        public async Task<bool> RecordPaymentAsync(Guid supplierId, decimal amount, string referenceNumber, string remarks, string paymentMode, string createdBy)
+        public async Task<bool> RecordPaymentAsync(Guid supplierId, decimal amount, string referenceNumber, string remarks, string paymentMode, string createdBy, string? transactionType = "Payment")
         {
             try
             {
@@ -229,7 +229,8 @@ namespace Inventory.Infrastructure.Clients
                     PaymentDate = DateTime.Now,
                     CreatedBy = createdBy,
                     CompanyId = companyId,
-                    BranchId = branchId
+                    BranchId = branchId,
+                    TransactionType = transactionType ?? "Payment"
                 });
                 return true;
             }

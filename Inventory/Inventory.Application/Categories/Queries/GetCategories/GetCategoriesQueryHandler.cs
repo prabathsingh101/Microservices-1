@@ -27,7 +27,8 @@ namespace Inventory.Application.Categories.Queries.GetCategories
                 categoryCode = s.CategoryCode,  
                 defaultGst = s.DefaultGst,
                 description = s.Description,
-                isActive = s.IsActive
+                isActive = s.IsActive,
+                industryType = s.IndustryType
             }).ToList();
         }
     }

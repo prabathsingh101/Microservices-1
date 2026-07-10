@@ -31,5 +31,8 @@ namespace Inventory.Application.GRN.DTOs
         public DateTime? ExpDate { get; set; }
         public string? BatchNumber { get; set; }
         public bool IsExpiryRequired { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
     }
 }

@@ -30,6 +30,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Subcategory> Subcategories => Set<Subcategory>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
     public DbSet<PriceList> PriceLists => Set<PriceList>();
     public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>(); 
@@ -96,6 +97,7 @@ public sealed class InventoryDbContext : DbContext, IInventoryDbContext
                     entityType.ClrType == typeof(Category) ||
                     entityType.ClrType == typeof(Subcategory) ||
                     entityType.ClrType == typeof(Product) ||
+                    entityType.ClrType == typeof(ProductVariant) ||
                     entityType.ClrType == typeof(UnitMaster))
                 {
                     var method = typeof(InventoryDbContext)

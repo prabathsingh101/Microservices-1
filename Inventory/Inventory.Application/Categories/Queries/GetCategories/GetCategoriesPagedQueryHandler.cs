@@ -115,6 +115,7 @@ internal sealed class GetCategoriesPagedQueryHandler
                 defaultGst = x.DefaultGst,
                 isActive = x.IsActive,
                 description = x.Description ?? string.Empty,
+                industryType = x.IndustryType ?? "General"
             })
             .ToListAsync(cancellationToken);
 

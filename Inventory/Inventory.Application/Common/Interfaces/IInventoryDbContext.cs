@@ -37,6 +37,7 @@ namespace Inventory.Application.Common.Interfaces
         DbSet<AppNotification> AppNotifications { get; }
 
         DbSet<Product> Products { get; }
+        DbSet<ProductVariant> ProductVariants { get; }
         DbSet<ExpenseCategory> ExpenseCategories { get; }
         DbSet<ExpenseEntry> ExpenseEntries { get; }
         DbSet<ExpenseBudget> ExpenseBudgets { get; }

@@ -9,4 +9,5 @@ public sealed class CategoryDto
     public decimal defaultGst { get; set; }
     public string? description { get; set; }
     public bool isActive { get; set; }
+    public string industryType { get; set; } = "General";
 }

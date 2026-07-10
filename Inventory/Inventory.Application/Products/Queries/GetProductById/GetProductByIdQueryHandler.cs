@@ -2,6 +2,8 @@ using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using Inventory.Application.Products.DTOs;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace Inventory.Application.Products.Queries.GetProductById;
 
@@ -9,10 +11,12 @@ public sealed class GetProductByIdQueryHandler
     : IRequestHandler<GetProductByIdQuery, ProductDto?>
 {
     private readonly IProductRepository _repository;
+    private readonly IInventoryDbContext _context;
 
-    public GetProductByIdQueryHandler(IProductRepository repository)
+    public GetProductByIdQueryHandler(IProductRepository repository, IInventoryDbContext context)
     {
         _repository = repository;
+        _context = context;
     }
 
     public async Task<ProductDto?> Handle(
@@ -21,6 +25,19 @@ public sealed class GetProductByIdQueryHandler
     {
         var p = await _repository.GetByIdAsync(request.Id);
         if (p is null) return null;
+
+        var variantsList = await _context.ProductVariants
+            .Where(v => v.ProductId == p.Id)
+            .Select(v => new ProductVariantDto(
+                v.Size,
+                v.Color,
+                v.Barcode,
+                v.SKU,
+                v.AdditionalPrice,
+                v.CurrentStock,
+                v.IsActive
+            ))
+            .ToListAsync(cancellationToken);
 
         return new ProductDto
         {
@@ -52,7 +69,12 @@ public sealed class GetProductByIdQueryHandler
             defaultWarehouseId = p.DefaultWarehouseId,
             defaultRackId = p.DefaultRackId,
             isExpiryRequired = p.IsExpiryRequired,
-            imageUrl = p.ImageUrl
+            imageUrl = p.ImageUrl,
+            gender = p.Gender,
+            fabricType = p.FabricType,
+            fitStyle = p.FitStyle,
+            sizeGroup = p.SizeGroup,
+            variants = variantsList
         };
     }
 }

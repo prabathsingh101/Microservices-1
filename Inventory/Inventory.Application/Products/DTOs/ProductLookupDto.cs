@@ -16,6 +16,7 @@ namespace Inventory.Application.Products.DTOs
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string categoryCode { get; set; } = string.Empty;
+        public string IndustryType { get; set; } = string.Empty;
     }
 
     public sealed class SubcategoryLookupDto

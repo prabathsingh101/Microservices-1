@@ -1,4 +1,6 @@
 using MediatR;
+using System;
+using System.Collections.Generic;
 
 namespace Inventory.Application.Products.Commands.UpdateProduct;
 
@@ -32,5 +34,10 @@ public sealed record UpdateProductCommand(
     bool IsExpiryRequired,
     string? ImageUrl,
     Guid CompanyId,
-    string? BranchId = null
+    string? BranchId = null,
+    string? Gender = null,
+    string? FabricType = null,
+    string? FitStyle = null,
+    string? SizeGroup = null,
+    List<ProductVariantDto>? Variants = null
 ) : IRequest<Guid>;

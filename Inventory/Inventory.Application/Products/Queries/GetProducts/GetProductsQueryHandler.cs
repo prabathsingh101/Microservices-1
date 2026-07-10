@@ -50,7 +50,16 @@ public sealed class GetProductsQueryHandler
             manufacturer = p.Manufacturer,
             scheduleClass = p.ScheduleClass,
             isExpiryRequired = p.IsExpiryRequired,
-            imageUrl = p.ImageUrl
+            imageUrl = p.ImageUrl,
+            variants = p.Variants != null ? p.Variants.Select(v => new ProductVariantDto(
+                v.Size,
+                v.Color,
+                v.Barcode,
+                v.SKU,
+                v.AdditionalPrice,
+                v.CurrentStock,
+                v.IsActive
+            )).ToList() : null
         }).ToList();
     }
 }

@@ -57,6 +57,7 @@ namespace Inventory.Infrastructure.Repositories
                 .Select(g => new
                 {
                     ProductId = g.ProductId,
+                    ProductVariantId = (Guid?)g.ProductVariantId,
                     WarehouseId = (Guid?)g.WarehouseId,
                     RackId = (Guid?)g.RackId,
                     BranchId = g.BranchId,
@@ -77,6 +78,7 @@ namespace Inventory.Infrastructure.Repositories
                 .Select(td => new
                 {
                     ProductId = td.ProductId,
+                    ProductVariantId = (Guid?)null,
                     WarehouseId = (Guid?)td.StockTransferHeader.ToWarehouseId,
                     RackId = (Guid?)null,
                     BranchId = td.StockTransferHeader.ToBranchId,
@@ -97,15 +99,21 @@ namespace Inventory.Infrastructure.Repositories
             var finalQuery = rawInputs
                 .Join(_context.Products.IgnoreQueryFilters().Include(p => p.Category).AsNoTracking(), 
                     ri => ri.ProductId, p => p.Id, (ri, p) => new { ri, p })
+                .GroupJoin(_context.ProductVariants.IgnoreQueryFilters().AsNoTracking(),
+                    x => x.ri.ProductVariantId, pv => pv.Id, (x, variants) => new { x.ri, x.p, variants })
+                .SelectMany(x => x.variants.DefaultIfEmpty(), (x, pv) => new { x.ri, x.p, pv })
                 .GroupJoin(_context.Warehouses.IgnoreQueryFilters().AsNoTracking(),
-                    x => x.ri.WarehouseId, w => w.Id, (x, warehouses) => new { x.ri, x.p, warehouses })
-                .SelectMany(x => x.warehouses.DefaultIfEmpty(), (x, w) => new { x.ri, x.p, w })
+                    x => x.ri.WarehouseId, w => w.Id, (x, warehouses) => new { x.ri, x.p, x.pv, warehouses })
+                .SelectMany(x => x.warehouses.DefaultIfEmpty(), (x, w) => new { x.ri, x.p, x.pv, w })
                 .GroupJoin(_context.Racks.IgnoreQueryFilters().AsNoTracking(),
-                    x => x.ri.RackId, r => r.Id, (x, racks) => new { x.ri, x.p, x.w, racks })
-                .SelectMany(x => x.racks.DefaultIfEmpty(), (x, r) => new { x.ri, x.p, x.w, r })
+                    x => x.ri.RackId, r => r.Id, (x, racks) => new { x.ri, x.p, x.pv, x.w, racks })
+                .SelectMany(x => x.racks.DefaultIfEmpty(), (x, r) => new { x.ri, x.p, x.pv, x.w, r })
                 .Select(x => new
                 {
                     ProductId = x.p.Id,
+                    ProductVariantId = x.ri.ProductVariantId,
+                    Color = x.pv != null ? x.pv.Color : null,
+                    Size = x.pv != null ? x.pv.Size : null,
                     ProductName = x.p.Name,
                     CategoryName = x.p.Category != null ? x.p.Category.CategoryName : "N/A",
                     UnitName = x.p.Unit,
@@ -114,7 +122,7 @@ namespace Inventory.Infrastructure.Repositories
                     WarehouseName = x.w != null ? x.w.Name : "N/A",
                     RackId = x.ri.RackId,
                     RackName = x.r != null ? x.r.Name : "N/A",
-                    Sku = x.p.Sku,
+                    Sku = x.pv != null ? (x.pv.SKU ?? x.p.Sku) : x.p.Sku,
                     GstPercent = x.p.DefaultGst ?? 0M,
                     HSNCode = x.p.HSNCode,
                     IsExpiryRequired = x.p.IsExpiryRequired,
@@ -155,6 +163,9 @@ namespace Inventory.Infrastructure.Repositories
                 .GroupBy(g => new
                 {
                     g.ProductId,
+                    g.ProductVariantId,
+                    g.Color,
+                    g.Size,
                     ProductName = g.ProductName,
                     CategoryName = g.CategoryName,
                     UnitName = g.UnitName,
@@ -176,6 +187,9 @@ namespace Inventory.Infrastructure.Repositories
                 .Select(group => new StockSummaryDto
                 {
                     ProductId = group.Key.ProductId,
+                    ProductVariantId = group.Key.ProductVariantId,
+                    Color = group.Key.Color,
+                    Size = group.Key.Size,
                     ProductName = group.Key.ProductName,
                     CategoryName = group.Key.CategoryName,
                     Unit = group.Key.UnitName,
@@ -276,48 +290,48 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(si => si.CompanyId == companyId 
                     && (string.IsNullOrEmpty(finalBranchId) || si.BranchId == finalBranchId)
                     && si.SaleOrder.Status != "Draft" && si.SaleOrder.Status != "Cancelled" && si.SaleOrder.Status != "Canceled")
-                .GroupBy(si => new { si.ProductId, si.WarehouseId, si.RackId })
-                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .GroupBy(si => new { si.ProductId, si.ProductVariantId, si.WarehouseId, si.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.ProductVariantId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
                 .ToListAsync();
 
             var salesLookup = salesGroup.ToDictionary(
-                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
                 x => x.Qty
             );
 
             var unlinkedSalesLookup = salesGroup
                 .Where(x => x.WarehouseId == null || x.RackId == null)
-                .GroupBy(x => x.ProductId)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
+                .GroupBy(x => new { x.ProductId, x.ProductVariantId })
+                .ToDictionary(g => (g.Key.ProductId, g.Key.ProductVariantId), g => g.Sum(x => x.Qty));
 
             var invoicesGroup = await _context.SalesInvoiceItems.IgnoreQueryFilters().AsNoTracking()
                 .Where(ii => ii.CompanyId == companyId 
                     && (string.IsNullOrEmpty(finalBranchId) || ii.BranchId == finalBranchId)
                     && ii.SalesInvoice.Status != "Draft" && ii.SalesInvoice.Status != "Cancelled" && ii.SalesInvoice.Status != "Canceled")
-                .GroupBy(ii => new { ii.ProductId, ii.WarehouseId, ii.RackId })
-                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .GroupBy(ii => new { ii.ProductId, ii.ProductVariantId, ii.WarehouseId, ii.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.ProductVariantId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
                 .ToListAsync();
 
             var invoicesLookup = invoicesGroup.ToDictionary(
-                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
                 x => x.Qty
             );
 
             var unlinkedInvoicesLookup = invoicesGroup
                 .Where(x => x.WarehouseId == null || x.RackId == null)
-                .GroupBy(x => x.ProductId)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
+                .GroupBy(x => new { x.ProductId, x.ProductVariantId })
+                .ToDictionary(g => (g.Key.ProductId, g.Key.ProductVariantId), g => g.Sum(x => x.Qty));
 
             var returnsGroup = await _context.SaleReturnItems.IgnoreQueryFilters().AsNoTracking()
                 .Where(sri => sri.CompanyId == companyId 
                     && (string.IsNullOrEmpty(finalBranchId) || sri.BranchId == finalBranchId)
                     && (sri.SaleReturnHeader.Status == "Confirmed" || sri.SaleReturnHeader.Status == "INWARDED" || sri.SaleReturnHeader.Status == "Refunded" || sri.SaleReturnHeader.Status == "Exchanged"))
-                .GroupBy(sri => new { sri.ProductId, sri.WarehouseId, sri.RackId })
-                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0M })
+                .GroupBy(sri => new { sri.ProductId, sri.ProductVariantId, sri.WarehouseId, sri.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.ProductVariantId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.ReturnQty) ?? 0M })
                 .ToListAsync();
 
             var returnsLookup = returnsGroup.ToDictionary(
-                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
                 x => x.Qty
             );
 
@@ -325,23 +339,23 @@ namespace Inventory.Infrastructure.Repositories
                 .Where(sei => sei.CompanyId == companyId 
                     && (string.IsNullOrEmpty(finalBranchId) || sei.BranchId == finalBranchId)
                     && (sei.SaleReturnHeader.Status == "Confirmed" || sei.SaleReturnHeader.Status == "INWARDED" || sei.SaleReturnHeader.Status == "Refunded" || sei.SaleReturnHeader.Status == "Exchanged"))
-                .GroupBy(sei => new { sei.ProductId, sei.WarehouseId, sei.RackId })
-                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .GroupBy(sei => new { sei.ProductId, sei.ProductVariantId, sei.WarehouseId, sei.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.ProductVariantId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
                 .ToListAsync();
 
             var exchangeLookup = exchangeGroup.ToDictionary(
-                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
                 x => x.Qty
             );
 
             var prItemsGroup = await _context.PurchaseReturnItems.IgnoreQueryFilters().AsNoTracking()
                 .Where(pri => pri.CompanyId == companyId 
                     && pri.PurchaseReturn.Status != "Cancelled" && pri.PurchaseReturn.Status != "Canceled")
-                .Select(pri => new { pri.ProductId, pri.WarehouseId, pri.RackId, ReturnQty = pri.ReturnQty, pri.GrnRef })
+                .Select(pri => new { pri.ProductId, pri.ProductVariantId, pri.WarehouseId, pri.RackId, ReturnQty = pri.ReturnQty, pri.GrnRef })
                 .ToListAsync();
 
             var prItemsLookup = prItemsGroup
-                .GroupBy(x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
+                .GroupBy(x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var grnDetailsQuery = _context.GRNDetails.IgnoreQueryFilters().AsNoTracking()
@@ -357,6 +371,7 @@ namespace Inventory.Infrastructure.Repositories
                 {
                     g.Id,
                     g.ProductId,
+                    g.ProductVariantId,
                     g.WarehouseId,
                     g.RackId,
                     g.ReceivedQty,
@@ -380,7 +395,7 @@ namespace Inventory.Infrastructure.Repositories
                 .ToListAsync();
 
             var grnLookup = grnDetailsList
-                .GroupBy(x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
+                .GroupBy(x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var grnByNumberLookup = grnDetailsList
@@ -396,11 +411,11 @@ namespace Inventory.Infrastructure.Repositories
 
             var transactionsList = await _context.InventoryTransactions.IgnoreQueryFilters().AsNoTracking()
                 .Where(tx => tx.CompanyId == companyId)
-                .Select(tx => new { tx.ProductId, tx.WarehouseId, tx.RackId, tx.Quantity, tx.TransactionType, tx.ExpDate, tx.BatchNumber })
+                .Select(tx => new { tx.ProductId, tx.ProductVariantId, tx.WarehouseId, tx.RackId, tx.Quantity, tx.TransactionType, tx.ExpDate, tx.BatchNumber })
                 .ToListAsync();
 
             var transactionsLookup = transactionsList
-                .GroupBy(x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
+                .GroupBy(x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var transfersOutList = await _context.StockTransferDetails.IgnoreQueryFilters().AsNoTracking()
@@ -447,19 +462,19 @@ namespace Inventory.Infrastructure.Repositories
             var challansGroup = await _context.DeliveryChallanItems.IgnoreQueryFilters().AsNoTracking()
                 .Where(dci => dci.CompanyId == companyId && (string.IsNullOrEmpty(finalBranchId) || dci.BranchId == finalBranchId)
                     && (dci.DeliveryChallan.Status == "Pending" || dci.DeliveryChallan.Status == "Draft"))
-                .GroupBy(dci => new { dci.ProductId, dci.WarehouseId, dci.RackId })
-                .Select(g => new { g.Key.ProductId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
+                .GroupBy(dci => new { dci.ProductId, dci.ProductVariantId, dci.WarehouseId, dci.RackId })
+                .Select(g => new { g.Key.ProductId, g.Key.ProductVariantId, g.Key.WarehouseId, g.Key.RackId, Qty = g.Sum(x => (decimal?)x.Qty) ?? 0M })
                 .ToListAsync();
 
             var challansLookup = challansGroup.ToDictionary(
-                x => (x.ProductId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
+                x => (x.ProductId, x.ProductVariantId, (Guid?)x.WarehouseId, (Guid?)x.RackId),
                 x => x.Qty
             );
 
             // STEP 3: In-Memory Calculations
             foreach (var item in items)
             {
-                var lookupKey = (item.ProductId, item.WarehouseId, item.RackId);
+                var lookupKey = (item.ProductId, item.ProductVariantId, item.WarehouseId, item.RackId);
 
                 var grossSold = salesLookup.GetValueOrDefault(lookupKey, 0M);
                 var quickSold = invoicesLookup.GetValueOrDefault(lookupKey, 0M);
@@ -526,7 +541,7 @@ namespace Inventory.Infrastructure.Repositories
                     transferredIn = currentTransfersIn.Sum(td => (decimal)td.Quantity);
                 }
 
-                var unlinkedSales = unlinkedSalesLookup.GetValueOrDefault(item.ProductId, 0M) + unlinkedInvoicesLookup.GetValueOrDefault(item.ProductId, 0M);
+                var unlinkedSales = unlinkedSalesLookup.GetValueOrDefault((item.ProductId, item.ProductVariantId), 0M) + unlinkedInvoicesLookup.GetValueOrDefault((item.ProductId, item.ProductVariantId), 0M);
                 var isOldest = oldestGrnLookup.GetValueOrDefault(item.ProductId);
                 var adjustment = (isOldest != null && isOldest.WarehouseId == item.WarehouseId && isOldest.RackId == item.RackId) ? unlinkedSales : 0M;
 
@@ -602,6 +617,9 @@ namespace Inventory.Infrastructure.Repositories
                     SupplierName = allG.SupplierName,
                     TransactionType = allG.IsQuick ? "QuickGRN" : "GRN",
                     ProductName = item.ProductName,
+                    ProductVariantId = item.ProductVariantId,
+                    Color = item.Color,
+                    Size = item.Size,
                     ReceivedQty = allG.ReceivedQty,
                     ExpiredQty = (allG.RackName.ToLower().Contains("e1") || 
                                   allG.RackName.ToLower().Contains("expired") || 
@@ -656,6 +674,9 @@ namespace Inventory.Infrastructure.Repositories
                     SupplierName = "From: " + td.SourceWarehouseName,
                     TransactionType = "Transfer",
                     ProductName = item.ProductName,
+                    ProductVariantId = item.ProductVariantId,
+                    Color = item.Color,
+                    Size = item.Size,
                     ReceivedQty = td.Quantity,
                     TransferredQty = td.Quantity,
                     AvailableQty = td.Quantity,
@@ -685,6 +706,9 @@ namespace Inventory.Infrastructure.Repositories
                         SupplierName = "To: " + td.DestinationWarehouseName,
                         TransactionType = "Transfer",
                         ProductName = item.ProductName,
+                        ProductVariantId = item.ProductVariantId,
+                        Color = item.Color,
+                        Size = item.Size,
                         ReceivedQty = 0,
                         SoldQty = 0, 
                         TransferredQty = td.Quantity,
@@ -887,6 +911,7 @@ namespace Inventory.Infrastructure.Repositories
                 .IgnoreQueryFilters()
                 .Include(ws => ws.Product)
                 .Include(ws => ws.Warehouse)
+                .Include(ws => ws.ProductVariant)
                 .AsQueryable();
 
             var isGlobalAdmin = _currentUserService.IsPlatformAdmin && companyId == Guid.Empty;
@@ -952,7 +977,10 @@ namespace Inventory.Infrastructure.Repositories
                     ws.MinStock,
                     IsLowStock = ws.Quantity <= ws.MinStock,
                     BranchId = ws.BranchId,
-                    CompanyId = ws.CompanyId
+                    CompanyId = ws.CompanyId,
+                    ProductVariantId = ws.ProductVariantId,
+                    Color = ws.ProductVariant != null ? ws.ProductVariant.Color : null,
+                    Size = ws.ProductVariant != null ? ws.ProductVariant.Size : null
                 })
                 .ToListAsync();
 

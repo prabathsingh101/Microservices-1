@@ -340,7 +340,10 @@ public class SaleOrderRepository : ISaleOrderRepository
                     RackId = i.RackId,
                     RackName = i.RackId != null ? _context.Racks.Where(r => r.Id == i.RackId).Select(r => r.Name).FirstOrDefault() : null,
                     ManufacturingDate = i.MfgDate,
-                    ExpiryDate = i.ExpDate
+                    ExpiryDate = i.ExpDate,
+                    ProductVariantId = i.ProductVariantId,
+                    Color = i.ProductVariant != null ? i.ProductVariant.Color : null,
+                    Size = i.ProductVariant != null ? i.ProductVariant.Size : null
                 }).ToList()
             })
             .ToListAsync();
@@ -595,7 +598,10 @@ public class SaleOrderRepository : ISaleOrderRepository
                     RackId = oi.RackId,
                     RackName = oi.RackId != null ? _context.Racks.Where(r => r.Id == oi.RackId).Select(r => r.Name).FirstOrDefault() : null,
                     ManufacturingDate = oi.MfgDate,
-                    ExpiryDate = oi.ExpDate
+                    ExpiryDate = oi.ExpDate,
+                    ProductVariantId = oi.ProductVariantId,
+                    Color = oi.ProductVariant != null ? oi.ProductVariant.Color : null,
+                    Size = oi.ProductVariant != null ? oi.ProductVariant.Size : null
                 }).ToList()
             })
             .FirstOrDefaultAsync();
@@ -725,6 +731,7 @@ public class SaleOrderRepository : ISaleOrderRepository
             .Include(x => x.SaleOrder)
             .Include(x => x.Warehouse)
             .Include(x => x.Rack)
+            .Include(x => x.ProductVariant)
             .AsNoTracking()
             .Where(x => x.SaleOrderId == saleOrderId && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId))
             .ToListAsync();
@@ -733,11 +740,25 @@ public class SaleOrderRepository : ISaleOrderRepository
 
         if (items != null && items.Any())
         {
+            var pIds = items.Select(x => x.ProductId).Distinct().ToList();
+            var productsLookup = await _context.Products
+                .IgnoreQueryFilters()
+                .Include(p => p.DefaultWarehouse)
+                .Include(p => p.DefaultRack)
+                .AsNoTracking()
+                .Where(p => pIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id, p => p);
+
             foreach (var x in items)
             {
+                var prod = productsLookup.GetValueOrDefault(x.ProductId);
+
                 var dto = new SaleOrderItemGridDto
                 {
                     ProductId = x.ProductId,
+                    ProductVariantId = x.ProductVariantId,
+                    Color = x.ProductVariant?.Color,
+                    Size = x.ProductVariant?.Size,
                     ProductName = x.ProductName,
                     Rate = x.Rate,
                     DiscountPercent = x.DiscountPercent,
@@ -747,10 +768,10 @@ public class SaleOrderRepository : ISaleOrderRepository
                     TaxAmount = x.TaxAmount,
                     MfgDate = x.MfgDate,
                     ExpDate = x.ExpDate,
-                    WarehouseId = x.WarehouseId,
-                    WarehouseName = x.Warehouse?.Name,
-                    RackId = x.RackId,
-                    RackName = x.Rack?.Name,
+                    WarehouseId = x.WarehouseId ?? prod?.DefaultWarehouseId,
+                    WarehouseName = x.Warehouse?.Name ?? prod?.DefaultWarehouse?.Name,
+                    RackId = x.RackId ?? prod?.DefaultRackId,
+                    RackName = x.Rack?.Name ?? prod?.DefaultRack?.Name,
                     Qty = x.Qty,
                     Unit = x.Unit ?? string.Empty,
                     Total = x.Total,

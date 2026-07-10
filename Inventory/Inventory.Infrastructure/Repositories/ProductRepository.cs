@@ -51,6 +51,7 @@ public sealed class ProductRepository : IProductRepository
         var branchId = _currentUserService.BranchId;
 
         var products = await _db.Products
+            .Include(p => p.Variants)
             .AsNoTracking()
             .Where(x => x.CompanyId == companyId)
             .ToListAsync();
@@ -129,11 +130,15 @@ public sealed class ProductRepository : IProductRepository
         var branchId = _currentUserService.BranchId;
 
         var products = await _db.Products
-         .AsNoTracking()
-         .Where(p => p.CompanyId == companyId && p.IsActive && 
-             (p.Name.Contains(term) || (p.Sku != null && p.Sku.Contains(term)) || (p.GenericName != null && p.GenericName.Contains(term))))
-         .Take(20)
-         .ToListAsync();
+          .Include(p => p.Variants)
+          .AsNoTracking()
+          .Where(p => p.CompanyId == companyId && p.IsActive && 
+              (p.Name.Contains(term) || 
+               (p.Sku != null && p.Sku.Contains(term)) || 
+               (p.GenericName != null && p.GenericName.Contains(term)) ||
+               p.Variants.Any(v => v.Barcode == term || (v.SKU != null && v.SKU.Contains(term)))))
+          .Take(20)
+          .ToListAsync();
 
         // 🚀 SMART TRANSACTION-BASED STOCK CALCULATION
         var productIds = products.Select(p => p.Id).ToList();
@@ -146,9 +151,24 @@ public sealed class ProductRepository : IProductRepository
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
             .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
 
+        var variantStockLookup = await _db.WarehouseStocks
+            .IgnoreQueryFilters()
+            .Where(ws => ws.CompanyId == companyId && productIds.Contains(ws.ProductId) && ws.ProductVariantId != null)
+            .Where(ws => string.IsNullOrEmpty(branchId) || ws.BranchId == branchId)
+            .GroupBy(ws => new { ws.ProductId, ws.ProductVariantId })
+            .Select(g => new { ProductId = g.Key.ProductId, VariantId = g.Key.ProductVariantId!.Value, Qty = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => $"{x.ProductId}_{x.VariantId}", x => x.Qty);
+
         foreach (var p in products)
         {
             p.CurrentStock = stockLookup.GetValueOrDefault(p.Id, 0);
+            if (p.Variants != null)
+            {
+                foreach (var v in p.Variants)
+                {
+                    v.CurrentStock = variantStockLookup.GetValueOrDefault($"{p.Id}_{v.Id}", 0);
+                }
+            }
         }
 
         return products;

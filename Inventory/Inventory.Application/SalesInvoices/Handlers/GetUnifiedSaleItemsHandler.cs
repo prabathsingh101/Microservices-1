@@ -29,6 +29,8 @@ namespace Inventory.Application.SalesInvoices.Handlers
                               from wh in whJoin.DefaultIfEmpty()
                               join r in _context.Racks.IgnoreQueryFilters() on item.RackId equals r.Id into rJoin
                               from r in rJoin.DefaultIfEmpty()
+                              join pv in _context.ProductVariants.IgnoreQueryFilters() on item.ProductVariantId equals pv.Id into pvJoin
+                              from pv in pvJoin.DefaultIfEmpty()
                               where item.SaleOrderId == request.Id
                               select new UnifiedSaleItemDto
                               {
@@ -48,7 +50,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
                                   DiscountPercent = item.DiscountPercent,
                                   DiscountAmount = item.DiscountAmount,
                                   GSTPercent = item.GSTPercent,
-                                  BatchNumber = item.BatchNumber
+                                  BatchNumber = item.BatchNumber,
+                                  Color = pv != null ? pv.Color : null,
+                                  Size = pv != null ? pv.Size : null
                               })
                     .ToListAsync(cancellationToken);
             }
@@ -59,6 +63,8 @@ namespace Inventory.Application.SalesInvoices.Handlers
                               from wh in whJoin.DefaultIfEmpty()
                               join r in _context.Racks.IgnoreQueryFilters() on item.RackId equals r.Id into rJoin
                               from r in rJoin.DefaultIfEmpty()
+                              join pv in _context.ProductVariants.IgnoreQueryFilters() on item.ProductVariantId equals pv.Id into pvJoin
+                              from pv in pvJoin.DefaultIfEmpty()
                               where item.SalesInvoiceId == request.Id
                               select new UnifiedSaleItemDto
                               {
@@ -78,7 +84,9 @@ namespace Inventory.Application.SalesInvoices.Handlers
                                   DiscountPercent = item.DiscountPercent,
                                   DiscountAmount = item.DiscountAmount,
                                   GSTPercent = item.GSTPercent,
-                                  BatchNumber = item.BatchNumber
+                                  BatchNumber = item.BatchNumber,
+                                  Color = pv != null ? pv.Color : null,
+                                  Size = pv != null ? pv.Size : null
                               })
                     .ToListAsync(cancellationToken);
             }

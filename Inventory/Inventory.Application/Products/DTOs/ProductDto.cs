@@ -42,4 +42,10 @@ public sealed class ProductDto
     public string? genericName { get; set; }
     public string? manufacturer { get; set; }
     public string? scheduleClass { get; set; }
+
+    public string? gender { get; set; }
+    public string? fabricType { get; set; }
+    public string? fitStyle { get; set; }
+    public string? sizeGroup { get; set; }
+    public List<ProductVariantDto>? variants { get; set; }
 }

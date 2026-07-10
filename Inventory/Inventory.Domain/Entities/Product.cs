@@ -44,6 +44,12 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
     public string? GenericName { get; private set; }
     public string? Manufacturer { get; private set; }
     public string? ScheduleClass { get; private set; }
+    
+    public string? Gender { get; set; }
+    public string? FabricType { get; set; }
+    public string? FitStyle { get; set; }
+    public string? SizeGroup { get; set; }
+    public virtual ICollection<ProductVariant> Variants { get; set; } = new List<ProductVariant>();
 
     private Product() { }
 
@@ -76,7 +82,11 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         bool isExpiryRequired = false,
         string? imageUrl = null,
         Guid companyId = default,
-        string? branchId = null
+        string? branchId = null,
+        string? gender = null,
+        string? fabricType = null,
+        string? fitStyle = null,
+        string? sizeGroup = null
         )
     {
         Id = Guid.NewGuid();
@@ -109,6 +119,10 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         CompanyId = companyId;
         BranchId = branchId;
         ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? "/assets/images/placeholder-product.png" : imageUrl;
+        Gender = gender;
+        FabricType = fabricType;
+        FitStyle = fitStyle;
+        SizeGroup = sizeGroup;
     }
 
     public void Update(        
@@ -141,7 +155,11 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         string? imageUrl = null,
         DateTime? modifiedon = null,
         Guid companyId = default,
-        string? branchId = null
+        string? branchId = null,
+        string? gender = null,
+        string? fabricType = null,
+        string? fitStyle = null,
+        string? sizeGroup = null
         )
     {
         CategoryId = categoryid;
@@ -181,5 +199,9 @@ public class Product : Inventory.Domain.Common.BaseAuditableEntity
         CompanyId = companyId;
         BranchId = branchId;
         ModifiedOn = modifiedon ?? DateTime.UtcNow;       
+        Gender = gender;
+        FabricType = fabricType;
+        FitStyle = fitStyle;
+        SizeGroup = sizeGroup;
     }
 }

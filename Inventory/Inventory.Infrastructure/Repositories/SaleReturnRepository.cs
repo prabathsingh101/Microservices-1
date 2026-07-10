@@ -586,8 +586,12 @@ namespace Inventory.Infrastructure.Repositories
             return await _context.SaleReturnHeaders
                 .Include(x => x.ReturnItems)
                 .ThenInclude(i => i.Product)
+                .Include(x => x.ReturnItems)
+                .ThenInclude(i => i.ProductVariant)
                 .Include(x => x.ExchangeItems)
                 .ThenInclude(i => i.Product)
+                .Include(x => x.ExchangeItems)
+                .ThenInclude(i => i.ProductVariant)
                 .FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || x.BranchId == branchId));
         }
 

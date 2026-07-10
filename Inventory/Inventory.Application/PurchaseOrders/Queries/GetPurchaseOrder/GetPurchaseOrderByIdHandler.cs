@@ -153,9 +153,12 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                     RejectedQty = totalRejected,
                     ReturnQty = totalReturned,
                     ReturnAmount = itemReturnedValue,
-                    PendingQty = (po.Status == "Closed" || po.Status == "ShortClosed" || po.Status == "Cancelled")
+                    PendingQty = (po.Status == "Closed" || po.Status == "ShortClosed" || po.Status == "Cancelled" || po.Status == "Fully Returned")
                                  ? 0
-                                 : Math.Max(0, i.Qty - netAccepted - totalRefunded)
+                                 : Math.Max(0, i.Qty - netAccepted - totalRefunded),
+                    ProductVariantId = i.ProductVariantId,
+                    Color = i.ProductVariant != null ? i.ProductVariant.Color : null,
+                    Size = i.ProductVariant != null ? i.ProductVariant.Size : null
                 };
             }).ToList();
 
@@ -187,8 +190,10 @@ namespace Inventory.Application.PurchaseOrders.Queries.GetPurchaseOrder
                 SupplierBalance = supplierBalance,
                 Status = (po.Status == "Cancelled")
                          ? po.Status
-                         : (po.Status == "Closed" || po.Status == "ShortClosed")
-                             ? (items.Sum(i => i.ReturnQty) > 0 ? "ShortClosed" : "Closed")
+                         : (po.Status == "Closed" || po.Status == "ShortClosed" || po.Status == "Fully Returned")
+                             ? (items.Sum(i => i.ReturnQty) == items.Sum(i => i.Qty) 
+                                 ? "Fully Returned" 
+                                 : (items.Sum(i => i.ReturnQty) > 0 ? "ShortClosed" : "Closed"))
                              : po.Status,
                 BranchId = po.BranchId,
                 Items = items,

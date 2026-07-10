@@ -27,7 +27,7 @@ namespace Customers.Infrastructure.Repositories
 
         public async Task AddReceiptAsync(CustomerReceipt receipt)
         {
-            receipt.CompanyId = _companyId;
+            receipt.CompanyId = (receipt.CompanyId != null && receipt.CompanyId != Guid.Empty) ? receipt.CompanyId : _companyId;
             if (string.IsNullOrEmpty(receipt.BranchId))
             {
                 receipt.BranchId = _branchId;
@@ -35,19 +35,21 @@ namespace Customers.Infrastructure.Repositories
             await _context.CustomerReceipts.AddAsync(receipt);
         }
 
-        public async Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid? customerId)
+        public async Task<CustomerLedger?> GetLastLedgerEntryAsync(Guid? customerId, Guid? companyId = null)
         {
             if (customerId == null || customerId == Guid.Empty) return null;
 
+            var targetCompanyId = (companyId != null && companyId != Guid.Empty) ? companyId : _companyId;
+
             return await _context.CustomerLedgers
-                .Where(l => l.CustomerId == customerId && l.CompanyId == _companyId)
+                .Where(l => l.CustomerId == customerId && l.CompanyId == targetCompanyId)
                 .OrderByDescending(l => l.CreatedOn)
                 .FirstOrDefaultAsync();
         }
 
         public async Task AddLedgerEntryAsync(CustomerLedger ledgerEntry)
         {
-            ledgerEntry.CompanyId = _companyId;
+            ledgerEntry.CompanyId = (ledgerEntry.CompanyId != null && ledgerEntry.CompanyId != Guid.Empty) ? ledgerEntry.CompanyId : _companyId;
             if (string.IsNullOrEmpty(ledgerEntry.BranchId))
             {
                 ledgerEntry.BranchId = _branchId;

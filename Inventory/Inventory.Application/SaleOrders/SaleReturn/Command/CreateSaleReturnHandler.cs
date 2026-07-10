@@ -1,6 +1,7 @@
 using Inventory.Domain.Entities;
 using Inventory.Application.Common.Interfaces;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,13 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
     public class CreateSaleReturnHandler : IRequestHandler<CreateSaleReturnCommand, bool>
     {
         private readonly ISaleReturnRepository _repo;
-        public CreateSaleReturnHandler(ISaleReturnRepository repo) => _repo = repo;
+        private readonly IInventoryDbContext _context;
+
+        public CreateSaleReturnHandler(ISaleReturnRepository repo, IInventoryDbContext context)
+        {
+            _repo = repo;
+            _context = context;
+        }
 
         public async Task<bool> Handle(CreateSaleReturnCommand request, CancellationToken ct)
         {
@@ -33,11 +40,40 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
             }
             // --- VALIDATION LOGIC END ---
 
+            // Resolve Color/Size from ProductVariants for return items (same pattern as CreateGRNHandler)
+            var allVariantIds = dto.Items
+                .Where(i => i.ProductVariantId.HasValue && i.ProductVariantId.Value != Guid.Empty)
+                .Select(i => i.ProductVariantId!.Value)
+                .Concat(dto.ExchangeItems?
+                    .Where(e => e.ProductVariantId.HasValue && e.ProductVariantId.Value != Guid.Empty)
+                    .Select(e => e.ProductVariantId!.Value) ?? Enumerable.Empty<Guid>())
+                .Distinct()
+                .ToList();
+
+            var variantsMap = new Dictionary<Guid, (string? Color, string? Size)>();
+            if (allVariantIds.Any())
+            {
+                var variantsList = await _context.ProductVariants
+                    .Where(pv => allVariantIds.Contains(pv.Id))
+                    .Select(pv => new { pv.Id, pv.Color, pv.Size })
+                    .ToListAsync(ct);
+                variantsMap = variantsList.ToDictionary(v => v.Id, v => (v.Color, v.Size));
+            }
+
             var items = dto.Items.Select(i =>
             {
                 // Fix: TotalAmount comes correctly from the frontend. We reverse-calculate tax using inclusive formula.
                 var totalAmount = i.TotalAmount;
                 var taxAmount = totalAmount - (totalAmount * 100m / (100m + i.TaxPercentage));
+
+                // Resolve Color/Size from variant map (prefer DTO value, fallback to variant lookup)
+                string? itemColor = i.Color;
+                string? itemSize = i.Size;
+                if (i.ProductVariantId.HasValue && variantsMap.TryGetValue(i.ProductVariantId.Value, out var vInfo))
+                {
+                    itemColor ??= vInfo.Color;
+                    itemSize ??= vInfo.Size;
+                }
 
                 Console.WriteLine($"[CreateReturn] Item: {i.ProductId} | Qty: {i.ReturnQty} | Rate: {i.UnitPrice} | Disc: {i.DiscountAmount}");
                 Console.WriteLine($"[CreateReturn] Tax: {taxAmount} | Total: {totalAmount}");
@@ -47,6 +83,9 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                     CompanyId = dto.CompanyId ?? Guid.Empty,
                     BranchId = dto.BranchId,
                     ProductId = i.ProductId,
+                    ProductVariantId = i.ProductVariantId,
+                    Color = itemColor,
+                    Size = itemSize,
                     ReturnQty = i.ReturnQty,
                     UnitPrice = i.UnitPrice,
                     DiscountPercent = i.DiscountPercent,
@@ -74,11 +113,23 @@ namespace Inventory.Application.SaleOrders.SaleReturn.Command
                 var totalAmount = e.TotalAmount;
                 var taxAmount = totalAmount - (totalAmount * 100m / (100m + e.TaxPercentage));
 
+                // Resolve Color/Size for exchange items
+                string? exchColor = e.Color;
+                string? exchSize = e.Size;
+                if (e.ProductVariantId.HasValue && variantsMap.TryGetValue(e.ProductVariantId.Value, out var vInfo))
+                {
+                    exchColor ??= vInfo.Color;
+                    exchSize ??= vInfo.Size;
+                }
+
                 return new SaleExchangeItem
                 {
                     CompanyId = dto.CompanyId ?? Guid.Empty,
                     BranchId = dto.BranchId,
                     ProductId = e.ProductId,
+                    ProductVariantId = e.ProductVariantId,
+                    Color = exchColor,
+                    Size = exchSize,
                     Qty = e.Qty,
                     UnitPrice = e.UnitPrice,
                     DiscountPercent = e.DiscountPercent,

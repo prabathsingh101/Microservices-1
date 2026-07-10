@@ -1,8 +1,11 @@
 using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Inventory.Application.Products.Commands.UpdateProduct;
 
@@ -58,7 +61,11 @@ internal sealed class UpdateProductCommandHandler
             isExpiryRequired: request.IsExpiryRequired,
             imageUrl: request.ImageUrl,
             companyId: request.CompanyId,
-            branchId: request.BranchId
+            branchId: request.BranchId,
+            gender: request.Gender,
+            fabricType: request.FabricType,
+            fitStyle: request.FitStyle,
+            sizeGroup: request.SizeGroup
         );
 
         if (!string.IsNullOrWhiteSpace(product.ImageUrl) && product.ImageUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
@@ -68,6 +75,60 @@ internal sealed class UpdateProductCommandHandler
             {
                 product.ImageUrl = savedPath;
             }
+        }
+
+        // Sync Variants: UPSERT logic to preserve variant IDs and avoid FK constraint errors
+        var existingVariants = await _context.ProductVariants
+            .Where(v => v.ProductId == product.Id)
+            .ToListAsync(cancellationToken);
+
+        var requestedVariants = request.Variants ?? new List<ProductVariantDto>();
+        var matchedExistingVariants = new List<ProductVariant>();
+
+        foreach (var variantDto in requestedVariants)
+        {
+            var existing = existingVariants.FirstOrDefault(v =>
+                v.Size.Equals(variantDto.Size, StringComparison.OrdinalIgnoreCase) &&
+                v.Color.Equals(variantDto.Color, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null)
+            {
+                // Update existing variant
+                existing.Barcode = variantDto.Barcode;
+                existing.SKU = variantDto.SKU;
+                existing.AdditionalPrice = variantDto.AdditionalPrice;
+                existing.CurrentStock = variantDto.CurrentStock;
+                existing.IsActive = variantDto.IsActive;
+
+                matchedExistingVariants.Add(existing);
+            }
+            else
+            {
+                // Add new variant
+                var newVariant = new ProductVariant
+                {
+                    ProductId = product.Id,
+                    Size = variantDto.Size,
+                    Color = variantDto.Color,
+                    Barcode = variantDto.Barcode,
+                    SKU = variantDto.SKU,
+                    AdditionalPrice = variantDto.AdditionalPrice,
+                    CurrentStock = variantDto.CurrentStock,
+                    IsActive = variantDto.IsActive,
+                    CompanyId = request.CompanyId,
+                    BranchId = request.BranchId,
+                    CreatedBy = request.ModifiedBy,
+                    CreatedOn = DateTime.UtcNow
+                };
+                await _context.ProductVariants.AddAsync(newVariant, cancellationToken);
+            }
+        }
+
+        // Remove variants that are no longer in the request
+        var variantsToRemove = existingVariants.Except(matchedExistingVariants).ToList();
+        if (variantsToRemove.Any())
+        {
+            _context.ProductVariants.RemoveRange(variantsToRemove);
         }
 
         await _context.SaveChangesAsync(cancellationToken);

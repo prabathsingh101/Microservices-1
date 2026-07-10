@@ -12,7 +12,7 @@ namespace Inventory.Application.Clients
         Task<Dictionary<string, decimal>> GetGRNPaymentStatusesAsync(List<string> grnNumbers);
         Task<Dictionary<Guid, decimal>> GetSupplierBalancesAsync(List<Guid> supplierIds);
         Task<bool> RecordPurchaseReturnAsync(Guid supplierId, decimal amount, string referenceId, string description, string createdBy);
-        Task<bool> RecordPaymentAsync(Guid supplierId, decimal amount, string referenceNumber, string remarks, string paymentMode, string createdBy);
+        Task<bool> RecordPaymentAsync(Guid supplierId, decimal amount, string referenceNumber, string remarks, string paymentMode, string createdBy, string? transactionType = "Payment");
         Task<List<Guid>> SearchSupplierIdsByNameAsync(string name);
         Task<SupplierSelectDto?> GetSupplierByIdAsync(Guid id);
     }

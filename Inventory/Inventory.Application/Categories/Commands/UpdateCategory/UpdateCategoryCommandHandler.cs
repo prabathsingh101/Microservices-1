@@ -34,7 +34,8 @@ internal sealed class UpdateCategoryCommandHandler
             request.IsActive,
             request.CompanyId,
             null, // parentCategoryId
-            request.BranchId
+            request.BranchId,
+            request.IndustryType
         );
 
         await _context.SaveChangesAsync(cancellationToken);

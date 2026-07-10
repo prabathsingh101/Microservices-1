@@ -39,6 +39,7 @@ namespace Inventory.Application.SalesInvoices.DTOs
     public class SalesInvoiceItemDto
     {
         public Guid ProductId { get; set; }
+        public Guid? ProductVariantId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal Qty { get; set; }
         public string Unit { get; set; } = string.Empty;

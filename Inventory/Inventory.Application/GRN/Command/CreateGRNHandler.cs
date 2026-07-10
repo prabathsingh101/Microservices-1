@@ -4,8 +4,11 @@ using Inventory.Application.GRN.Command;
 using Inventory.Application.Services;
 using Inventory.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
@@ -13,20 +16,41 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
     private readonly IGRNRepository _repo;
     private readonly IPurchaseOrderRepository _poRepo;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IInventoryDbContext _context;
 
     public CreateGRNHandler(
         IGRNRepository repo,
         IPurchaseOrderRepository poRepo,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IInventoryDbContext context)
     {
         _repo = repo;
         _poRepo = poRepo;
         _scopeFactory = scopeFactory;
+        _context = context;
     }
 
     public async Task<string> Handle(CreateGRNCommand request, CancellationToken ct)
     {
         var dto = request.Data;
+
+        // Fetch variants to populate Color and Size dynamically
+        var variantIds = dto.Items
+            .Where(i => i.ProductVariantId.HasValue && i.ProductVariantId.Value != Guid.Empty)
+            .Select(i => i.ProductVariantId!.Value)
+            .Distinct()
+            .ToList();
+
+        var variantsMap = new Dictionary<Guid, (string? Color, string? Size)>();
+        if (variantIds.Any())
+        {
+            var variantsList = await _context.ProductVariants
+                .Where(pv => variantIds.Contains(pv.Id))
+                .Select(pv => new { pv.Id, pv.Color, pv.Size })
+                .ToListAsync(ct);
+
+            variantsMap = variantsList.ToDictionary(v => v.Id, v => (v.Color, v.Size));
+        }
 
         var header = new GRNHeader
         {
@@ -44,27 +68,40 @@ public class CreateGRNHandler : IRequestHandler<CreateGRNCommand, string>
             ModifiedOn = DateTime.Now
         };
 
-        var details = dto.Items.Select(i => new GRNDetail
-        {
-            CompanyId = dto.CompanyId ?? Guid.Empty,
-            ProductId = i.ProductId,
-            OrderedQty = i.OrderedQty,
-            PendingQty = i.PendingQty,
-            ReceivedQty = i.ReceivedQty,
-            RejectedQty = i.RejectedQty,
-            AcceptedQty = i.AcceptedQty,
-            UnitRate = i.UnitRate,
-            DiscountPercent = i.DiscountPercent,
-            GstPercent = i.GstPercent,
-            TaxAmount = i.TaxAmount,
-            Total = i.TotalAmount,
-            WarehouseId = i.WarehouseId,
-            RackId = i.RackId,
-            MfgDate = i.ManufacturingDate,
-            ExpDate = i.ExpiryDate,
-            BranchId = dto.BranchId,
-            IsReplacement = i.IsReplacement,
-            ModifiedOn = DateTime.Now
+        var details = dto.Items.Select(i => {
+            string? itemColor = null;
+            string? itemSize = null;
+            if (i.ProductVariantId.HasValue && variantsMap.TryGetValue(i.ProductVariantId.Value, out var vInfo))
+            {
+                itemColor = vInfo.Color;
+                itemSize = vInfo.Size;
+            }
+
+            return new GRNDetail
+            {
+                CompanyId = dto.CompanyId ?? Guid.Empty,
+                ProductId = i.ProductId,
+                ProductVariantId = i.ProductVariantId,
+                Color = itemColor,
+                Size = itemSize,
+                OrderedQty = i.OrderedQty,
+                PendingQty = i.PendingQty,
+                ReceivedQty = i.ReceivedQty,
+                RejectedQty = i.RejectedQty,
+                AcceptedQty = i.AcceptedQty,
+                UnitRate = i.UnitRate,
+                DiscountPercent = i.DiscountPercent,
+                GstPercent = i.GstPercent,
+                TaxAmount = i.TaxAmount,
+                Total = i.TotalAmount,
+                WarehouseId = i.WarehouseId,
+                RackId = i.RackId,
+                MfgDate = i.ManufacturingDate,
+                ExpDate = i.ExpiryDate,
+                BranchId = dto.BranchId,
+                IsReplacement = i.IsReplacement,
+                ModifiedOn = DateTime.Now
+            };
         }).ToList();
 
         var grnNumber = await _repo.SaveGRNWithStockUpdate(header, details);

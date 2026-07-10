@@ -34,7 +34,7 @@ namespace Customers.API.Consumers
                 TransactionDate = msg.TransactionDate,
                 CreatedBy = msg.CreatedBy,
                 BranchId = msg.BranchId,
-                CompanyId = msg.CompanyId ?? Guid.Empty
+                CompanyId = msg.CompanyId
             };
 
             var command = new RecordCustomerSaleCommand(dto);
@@ -68,7 +68,7 @@ namespace Customers.API.Consumers
                 Remarks = msg.Remarks,
                 CreatedBy = msg.CreatedBy,
                 BranchId = msg.BranchId,
-                CompanyId = msg.CompanyId ?? Guid.Empty
+                CompanyId = msg.CompanyId
             };
 
             var command = new RecordCustomerReceiptCommand(dto);

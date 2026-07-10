@@ -8,6 +8,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
     public decimal DefaultGst { get;  set; }
     public string? Description { get;  set; }
     public bool IsActive { get;  set; }
+    public string IndustryType { get; set; } = "General";
 
     // --- Subcategory Logic Start ---
     public Guid? ParentCategoryId { get;  set; } // Nullable Guid
@@ -25,7 +26,8 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         bool isActive,
         Guid companyId,
         Guid? parentCategoryId = null,
-        string? branchId = null)
+        string? branchId = null,
+        string industryType = "General")
     {
         Id = Guid.NewGuid();
         CategoryName = name;
@@ -36,6 +38,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         CompanyId = companyId;
         BranchId = branchId;
         ParentCategoryId = parentCategoryId;
+        IndustryType = industryType;
     }
 
     public void Update(
@@ -46,7 +49,8 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         bool isActive,
         Guid companyId,
         Guid? parentCategoryId = null,
-        string? branchId = null) 
+        string? branchId = null,
+        string industryType = "General") 
     {
         CategoryName = name;
         CategoryCode = code;
@@ -56,6 +60,7 @@ public class Category : Inventory.Domain.Common.BaseAuditableEntity
         CompanyId = companyId;
         BranchId = branchId;
         ParentCategoryId = parentCategoryId;
+        IndustryType = industryType;
     }
 
     public void Deactivate()

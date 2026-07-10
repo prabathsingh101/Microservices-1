@@ -138,6 +138,8 @@ namespace Company.Application.Company.Commands.Create.Handler
                 existing.SmtpPort = cmd.Request.SmtpPort;
                 existing.SmtpUseSsl = cmd.Request.SmtpUseSsl ?? true;
                 existing.PrimaryPhone = cmd.Request.PrimaryPhone;
+                existing.ShowBatchAndExpiry = cmd.Request.ShowBatchAndExpiry ?? true;
+                existing.ShowExpiredColumn = cmd.Request.ShowExpiredColumn ?? true;
                 existing.Website = cmd.Request.Website;
                 existing.Message = cmd.Request.Message;
                 existing.DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage;
@@ -263,6 +265,8 @@ namespace Company.Application.Company.Commands.Create.Handler
                 PurchaseReturnWindowUnit = cmd.Request.PurchaseReturnWindowUnit,
                 PurchaseReturnPolicyDisclaimer = cmd.Request.PurchaseReturnPolicyDisclaimer,
                 IsActive = true,
+                ShowBatchAndExpiry = cmd.Request.ShowBatchAndExpiry ?? true,
+                ShowExpiredColumn = cmd.Request.ShowExpiredColumn ?? true,
                 InvoiceFooterMessage = cmd.Request.InvoiceFooterMessage,
                 EstimateFooterMessage = cmd.Request.EstimateFooterMessage,
                 PurchaseOrderFooterMessage = cmd.Request.PurchaseOrderFooterMessage,

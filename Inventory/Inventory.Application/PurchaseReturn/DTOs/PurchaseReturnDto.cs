@@ -38,5 +38,8 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public bool IsExpiryRequired { get; set; }
         public string? CreatedBy { get; set; }
         public string? ModifiedBy { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
     }
 }

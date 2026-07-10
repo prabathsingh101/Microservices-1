@@ -19,6 +19,9 @@ public class SaleReturnItemDto
     public Guid? CompanyId { get; set; }
     public string? BranchId { get; set; }
     public Guid ProductId { get; set; } //
+    public Guid? ProductVariantId { get; set; }
+    public string? Color { get; set; }
+    public string? Size { get; set; }
     public decimal ReturnQty { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal DiscountPercent { get; set; }
@@ -42,6 +45,9 @@ public class SaleExchangeItemDto
     public Guid? CompanyId { get; set; }
     public string? BranchId { get; set; }
     public Guid ProductId { get; set; }
+    public Guid? ProductVariantId { get; set; }
+    public string? Color { get; set; }
+    public string? Size { get; set; }
     public decimal Qty { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal DiscountPercent { get; set; }

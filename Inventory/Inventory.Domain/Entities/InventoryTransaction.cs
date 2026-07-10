@@ -7,6 +7,7 @@ namespace Inventory.Domain.Entities
         public Guid Id { get; private set; }
 
         public Guid ProductId { get; private set; }
+        public Guid? ProductVariantId { get; private set; }
         public decimal Quantity { get; private set; }
 
         public string TransactionType { get; private set; } = null!;
@@ -43,10 +44,12 @@ namespace Inventory.Domain.Entities
             Guid? companyId = null,
             string? branchId = null,
             string? referenceNumber = null,
-            string? batchNumber = null)
+            string? batchNumber = null,
+            Guid? productVariantId = null)
         {
             Id = Guid.NewGuid();
             ProductId = productId;
+            ProductVariantId = productVariantId;
             Quantity = quantity;
             TransactionType = transactionType;
             ReferenceId = referenceId;

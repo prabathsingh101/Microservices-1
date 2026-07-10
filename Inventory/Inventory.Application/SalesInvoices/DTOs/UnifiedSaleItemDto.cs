@@ -21,5 +21,7 @@ namespace Inventory.Application.SalesInvoices.DTOs
         public decimal DiscountAmount { get; set; }
         public decimal GSTPercent { get; set; }
         public string? BatchNumber { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
     }
 }

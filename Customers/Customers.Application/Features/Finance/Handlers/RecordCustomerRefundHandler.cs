@@ -55,7 +55,7 @@ namespace Customers.Application.Features.Finance.Handlers
                         ReferenceNumber = refundDto.ReferenceNumber,
                         Remarks = "REFUND: " + refundDto.Remarks,
                         CreatedBy = refundDto.CreatedBy,
-                        CompanyId = _currentUserService.CompanyId,
+                        CompanyId = (refundDto.CompanyId != null && refundDto.CompanyId != Guid.Empty) ? refundDto.CompanyId : _currentUserService.CompanyId,
                         BranchId = refundDto.BranchId
                     };
 
@@ -63,7 +63,7 @@ namespace Customers.Application.Features.Finance.Handlers
 
                     if (refundDto.CustomerId.HasValue && refundDto.CustomerId.Value != Guid.Empty)
                     {
-                        var lastLedger = await _repository.GetLastLedgerEntryAsync(refundDto.CustomerId.Value);
+                        var lastLedger = await _repository.GetLastLedgerEntryAsync(refundDto.CustomerId.Value, refundDto.CompanyId);
                         
                         // Customer owes us -> Balance > 0.
                         // Customer pays us (Receipt) -> Balance decreases (Credit).
@@ -83,7 +83,7 @@ namespace Customers.Application.Features.Finance.Handlers
                             TransactionDate = refundDto.RefundDate,
                             Description = "Refund Paid: " + refundDto.RefundMode,
                             CreatedBy = refundDto.CreatedBy,
-                            CompanyId = _currentUserService.CompanyId,
+                            CompanyId = (refundDto.CompanyId != null && refundDto.CompanyId != Guid.Empty) ? refundDto.CompanyId : _currentUserService.CompanyId,
                             BranchId = string.IsNullOrEmpty(refundDto.BranchId) ? _currentUserService.BranchId : refundDto.BranchId
                         };
 

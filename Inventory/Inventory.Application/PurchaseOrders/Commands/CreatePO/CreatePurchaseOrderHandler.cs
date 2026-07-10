@@ -41,6 +41,40 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                 // Calling your existing PO generation logic
                 string generatedPoNumber = await _mediator.Send(new GetNextPoNumberQuery(dto.IsQuick), ct);
 
+                var items = new List<PurchaseOrderItem>();
+                foreach (var i in dto.Items)
+                {
+                    var variantId = i.ProductVariantId;
+                    if (variantId == null || variantId == Guid.Empty)
+                    {
+                        var firstVariantId = await _context.ProductVariants
+                            .Where(v => v.ProductId == i.ProductId && v.IsActive)
+                            .Select(v => (Guid?)v.Id)
+                            .FirstOrDefaultAsync(ct);
+                        if (firstVariantId != null)
+                        {
+                            variantId = firstVariantId;
+                        }
+                    }
+
+                    items.Add(new PurchaseOrderItem
+                    {
+                        ProductId = i.ProductId,
+                        ProductVariantId = variantId,
+                        Qty = i.Qty,
+                        Unit = i.Unit,
+                        Rate = i.Rate,
+                        DiscountPercent = i.DiscountPercent,
+                        GstPercent = i.GstPercent,
+                        TaxAmount = i.TaxAmount,
+                        Total = i.Total,
+                        MfgDate = i.ManufacturingDate,
+                        ExpDate = i.ExpiryDate,
+                        CompanyId = dto.CompanyId,
+                        BranchId = dto.BranchId
+                    });
+                }
+
                 var po = new PurchaseOrder
                 {
                     CompanyId = dto.CompanyId,
@@ -78,21 +112,7 @@ public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseO
                     RcmIgstAmount = dto.RcmIgstAmount,
                     RcmPaid = dto.RcmPaid,
                     RcmPaidDate = dto.RcmPaidDate,
-                    Items = dto.Items.Select(i => new PurchaseOrderItem
-                    {
-                        ProductId = i.ProductId,
-                        Qty = i.Qty,
-                        Unit = i.Unit,
-                        Rate = i.Rate,
-                        DiscountPercent = i.DiscountPercent,
-                        GstPercent = i.GstPercent,
-                        TaxAmount = i.TaxAmount,
-                        Total = i.Total,
-                        MfgDate = i.ManufacturingDate,
-                        ExpDate = i.ExpiryDate,
-                        CompanyId = dto.CompanyId,
-                        BranchId = dto.BranchId
-                    }).ToList()
+                    Items = items
                 };
 
                 await _repo.AddAsync(po, ct);

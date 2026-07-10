@@ -36,7 +36,9 @@ namespace Customers.Application.Features.Finance.Handlers
                 decimal currentBalance = 0;
                 if (shouldRecordLedger)
                 {
-                    var lastLedger = await _repository.GetLastLedgerEntryAsync(customerId.Value);
+                    var firstReceipt = customerGroup.FirstOrDefault();
+                    var companyId = firstReceipt?.CompanyId;
+                    var lastLedger = await _repository.GetLastLedgerEntryAsync(customerId.Value, companyId);
                     currentBalance = lastLedger?.Balance ?? 0;
                 }
 
@@ -60,7 +62,7 @@ namespace Customers.Application.Features.Finance.Handlers
                         ReferenceNumber = receiptDto.ReferenceNumber,
                         Remarks = receiptDto.Remarks,
                         CreatedBy = receiptDto.CreatedBy ?? "System",
-                        CompanyId = _currentUserService.CompanyId,
+                        CompanyId = (receiptDto.CompanyId != null && receiptDto.CompanyId != Guid.Empty) ? receiptDto.CompanyId : _currentUserService.CompanyId,
                         ChequeNumber = receiptDto.ChequeNumber,
                         ChequeDate = receiptDto.ChequeDate,
                         BankName = receiptDto.BankName,
@@ -87,7 +89,7 @@ namespace Customers.Application.Features.Finance.Handlers
                             TransactionDate = receiptDto.ReceiptDate,
                             Description = "Receipt Received: " + receiptDto.ReceiptMode,
                             CreatedBy = receiptDto.CreatedBy ?? "System",
-                            CompanyId = _currentUserService.CompanyId
+                            CompanyId = (receiptDto.CompanyId != null && receiptDto.CompanyId != Guid.Empty) ? receiptDto.CompanyId : _currentUserService.CompanyId
                         };
 
                         await _repository.AddLedgerEntryAsync(ledgerEntry);

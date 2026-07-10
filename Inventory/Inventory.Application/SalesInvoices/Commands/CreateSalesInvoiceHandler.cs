@@ -91,6 +91,7 @@ namespace Inventory.Application.SalesInvoices.Commands
                 {
                     Id = Guid.NewGuid(),
                     ProductId = i.ProductId,
+                    ProductVariantId = i.ProductVariantId,
                     ProductName = i.ProductName,
                     Qty = i.Qty,
                     Unit = i.Unit,

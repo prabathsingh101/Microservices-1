@@ -17,5 +17,6 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public decimal Total { get; set; }
         public DateTime? ManufacturingDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public Guid? ProductVariantId { get; set; }
     }
 }

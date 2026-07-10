@@ -29,7 +29,8 @@ namespace Inventory.API.Controllers
                 request.ReferenceNumber ?? string.Empty,
                 request.Remarks ?? string.Empty,
                 request.PaymentMode ?? "Cash",
-                request.CreatedBy ?? "Admin"
+                request.CreatedBy ?? "Admin",
+                request.TransactionType ?? "Payment"
             );
 
             return Ok(new { success = result, status = "queued" });
@@ -39,6 +40,26 @@ namespace Inventory.API.Controllers
         public async Task<IActionResult> RecordCustomerReceipt([FromBody] CustomerReceiptRequestDto request)
         {
             if (request == null) return BadRequest("Invalid request body");
+
+            var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+            var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+            
+            if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
+            {
+                request.CompanyId = companyId;
+            }
+
+            var branchIdClaim = User.FindFirst("BranchId")?.Value;
+            var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+            
+            var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                ? branchIdHeader 
+                : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+
+            if (!string.IsNullOrEmpty(finalBranchId))
+            {
+                request.BranchId = finalBranchId;
+            }
 
             await _customerClient.RecordReceiptAsync(
                 request.CustomerId,
@@ -65,6 +86,7 @@ namespace Inventory.API.Controllers
         public string? CreatedBy { get; set; }
         public Guid? CompanyId { get; set; }
         public string? BranchId { get; set; }
+        public string? TransactionType { get; set; }
     }
 
     public class CustomerReceiptRequestDto

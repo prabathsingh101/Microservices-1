@@ -9,5 +9,6 @@ public sealed record CreateCategoryCommand(
     string? Description,
     bool IsActive,
     Guid CompanyId,
-    string? BranchId = null
+    string? BranchId = null,
+    string IndustryType = "General"
 ) : IRequest<Guid>;

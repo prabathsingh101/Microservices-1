@@ -3,6 +3,7 @@ using Inventory.Application.Common.Interfaces;
 using Inventory.Domain.Entities;
 using System;
 using System.IO;
+using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Application.Products.Commands.CreateProduct;
 
@@ -51,7 +52,11 @@ public sealed class CreateProductCommandHandler
             isExpiryRequired: request.IsExpiryRequired,
             imageUrl: request.ImageUrl,
             companyId: request.CompanyId,
-            branchId: request.BranchId
+            branchId: request.BranchId,
+            gender: request.Gender,
+            fabricType: request.FabricType,
+            fitStyle: request.FitStyle,
+            sizeGroup: request.SizeGroup
         );
 
         if (!string.IsNullOrWhiteSpace(product.ImageUrl) && product.ImageUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
@@ -64,6 +69,55 @@ public sealed class CreateProductCommandHandler
         }
 
         await _repository.AddAsync(product);
+
+        if (request.Variants != null && request.Variants.Count > 0)
+        {
+            foreach (var variantDto in request.Variants)
+            {
+                var variant = new ProductVariant
+                {
+                    ProductId = product.Id,
+                    Size = variantDto.Size,
+                    Color = variantDto.Color,
+                    Barcode = variantDto.Barcode,
+                    SKU = variantDto.SKU,
+                    AdditionalPrice = variantDto.AdditionalPrice,
+                    CurrentStock = variantDto.CurrentStock,
+                    IsActive = variantDto.IsActive,
+                    CompanyId = request.CompanyId,
+                    BranchId = request.BranchId,
+                    CreatedBy = request.CreatedBy,
+                    CreatedOn = DateTime.UtcNow
+                };
+                await _context.ProductVariants.AddAsync(variant, cancellationToken);
+
+                if (variantDto.CurrentStock > 0)
+                {
+                    var warehouseId = product.DefaultWarehouseId;
+                    if (warehouseId == null || warehouseId == Guid.Empty)
+                    {
+                        var defaultWh = await _context.Warehouses
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(w => w.CompanyId == request.CompanyId, cancellationToken);
+                        warehouseId = defaultWh?.Id;
+                    }
+
+                    if (warehouseId != null && warehouseId != Guid.Empty)
+                    {
+                        await _context.WarehouseStocks.AddAsync(new WarehouseStock
+                        {
+                            ProductId = product.Id,
+                            ProductVariantId = variant.Id,
+                            WarehouseId = warehouseId.Value,
+                            Quantity = variantDto.CurrentStock,
+                            MinStock = 0,
+                            CompanyId = request.CompanyId,
+                            BranchId = request.BranchId
+                        }, cancellationToken);
+                    }
+                }
+            }
+        }
 
         await _context.SaveChangesAsync(cancellationToken);  
 

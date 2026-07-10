@@ -12,6 +12,10 @@ namespace Inventory.Domain.Entities
         public GRNHeader GRNHeader { get; set; }
         public Guid ProductId { get; set; }    
         public Product Product { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public virtual ProductVariant? ProductVariant { get; set; }
+        public string? Size { get; set; }
+        public string? Color { get; set; }
         public decimal OrderedQty { get; set; }
         public decimal PendingQty { get; set; }
         public decimal RejectedQty { get; set; }

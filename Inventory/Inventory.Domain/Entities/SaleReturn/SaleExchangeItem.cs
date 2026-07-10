@@ -34,6 +34,11 @@ namespace Inventory.Domain.Entities
         public DateTime? ExpDate { get; set; }
         
         public Guid? WarehouseId { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        [System.ComponentModel.DataAnnotations.Schema.ForeignKey("ProductVariantId")]
+        public virtual ProductVariant? ProductVariant { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
         public Guid? RackId { get; set; }
         
         [System.ComponentModel.DataAnnotations.Schema.NotMapped]

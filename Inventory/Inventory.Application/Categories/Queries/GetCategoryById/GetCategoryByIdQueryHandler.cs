@@ -27,7 +27,8 @@ public sealed class GetCategoryByIdQueryHandler
             categoryCode = c.CategoryCode,
             defaultGst = c.DefaultGst,
             description = c.Description,
-            isActive = c.IsActive
+            isActive = c.IsActive,
+            industryType = c.IndustryType
         };
     }
 }

@@ -9,9 +9,11 @@ namespace Inventory.Domain.Entities
         public Guid WarehouseId { get; set; }
         public decimal Quantity { get; set; }
         public decimal MinStock { get; set; }
+        public Guid? ProductVariantId { get; set; }
 
         // Navigation properties
         public virtual Product? Product { get; set; }
         public virtual Warehouse? Warehouse { get; set; }
+        public virtual ProductVariant? ProductVariant { get; set; }
     }
 }

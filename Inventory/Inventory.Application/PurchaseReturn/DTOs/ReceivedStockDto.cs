@@ -25,5 +25,8 @@ namespace Inventory.Application.PurchaseReturn.DTOs
         public string? PoNumber { get; set; }
         public string? Brand { get; set; }
         public string? Sku { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
     }
 }

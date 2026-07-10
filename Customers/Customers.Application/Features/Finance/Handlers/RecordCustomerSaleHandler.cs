@@ -42,7 +42,7 @@ namespace Customers.Application.Features.Finance.Handlers
             await CustomerLedgerLock.Semaphore.WaitAsync(cancellationToken);
             try
             {
-                var lastEntry = await _financeRepository.GetLastLedgerEntryAsync(sale.CustomerId.Value);
+                var lastEntry = await _financeRepository.GetLastLedgerEntryAsync(sale.CustomerId.Value, sale.CompanyId);
                 decimal currentBalance = lastEntry?.Balance ?? 0;
                 decimal newBalance = currentBalance + sale.Amount;
 

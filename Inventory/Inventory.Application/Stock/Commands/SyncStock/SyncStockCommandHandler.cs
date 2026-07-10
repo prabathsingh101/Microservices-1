@@ -22,103 +22,103 @@ namespace Inventory.Application.Stock.Commands
             // 1. CLEAR AND REBUILD WAREHOUSE STOCKS (OR UPDATE)
             // Strategy: Calculate current state from transactions and update WarehouseStocks
             
-            // Step 1: Get all transactions grouped by Product and Warehouse
+            // Step 1: Get all transactions grouped by Product, Variant, and Warehouse
             var grnStock = await _context.GRNDetails
                 .IgnoreQueryFilters()
                 .Where(g => g.CompanyId == companyId && g.WarehouseId != null)
-                .GroupBy(g => new { g.ProductId, g.WarehouseId })
-                .Select(g => new { ProductId = (Guid)g.Key.ProductId, WarehouseId = (Guid)g.Key.WarehouseId.Value, Qty = g.Sum(x => x.ReceivedQty - x.RejectedQty) })
+                .GroupBy(g => new { g.ProductId, g.ProductVariantId, g.WarehouseId })
+                .Select(g => new { ProductId = (Guid)g.Key.ProductId, ProductVariantId = (Guid?)g.Key.ProductVariantId, WarehouseId = (Guid)g.Key.WarehouseId.Value, Qty = g.Sum(x => x.ReceivedQty - x.RejectedQty) })
                 .ToListAsync(ct);
 
             var saleStock = await _context.SaleOrderItems
                 .IgnoreQueryFilters()
                 .Where(s => s.CompanyId == companyId && s.WarehouseId != null && 
                             s.SaleOrder.Status != "Draft" && s.SaleOrder.Status != "Cancelled" && s.SaleOrder.Status != "Canceled")
-                .GroupBy(s => new { s.ProductId, s.WarehouseId })
-                .Select(s => new { ProductId = (Guid)s.Key.ProductId, WarehouseId = (Guid)s.Key.WarehouseId.Value, Qty = s.Sum(x => x.Qty) })
+                .GroupBy(s => new { s.ProductId, s.ProductVariantId, s.WarehouseId })
+                .Select(s => new { ProductId = (Guid)s.Key.ProductId, ProductVariantId = (Guid?)s.Key.ProductVariantId, WarehouseId = (Guid)s.Key.WarehouseId.Value, Qty = s.Sum(x => x.Qty) })
                 .ToListAsync(ct);
 
             var saleReturnStock = await _context.SaleReturnItems
                 .IgnoreQueryFilters()
                 .Where(sr => sr.CompanyId == companyId && sr.WarehouseId != null
                     && (sr.SaleReturnHeader.Status == "Confirmed" || sr.SaleReturnHeader.Status == "INWARDED" || sr.SaleReturnHeader.Status == "Refunded" || sr.SaleReturnHeader.Status == "Exchanged"))
-                .GroupBy(sr => new { sr.ProductId, sr.WarehouseId })
-                .Select(sr => new { ProductId = (Guid)sr.Key.ProductId, WarehouseId = (Guid)sr.Key.WarehouseId.Value, Qty = sr.Sum(x => x.ReturnQty) })
+                .GroupBy(sr => new { sr.ProductId, sr.ProductVariantId, sr.WarehouseId })
+                .Select(sr => new { ProductId = (Guid)sr.Key.ProductId, ProductVariantId = (Guid?)sr.Key.ProductVariantId, WarehouseId = (Guid)sr.Key.WarehouseId.Value, Qty = sr.Sum(x => x.ReturnQty) })
                 .ToListAsync(ct);
 
             var saleExchangeStock = await _context.SaleExchangeItems
                 .IgnoreQueryFilters()
                 .Where(se => se.CompanyId == companyId && se.WarehouseId != null
                     && (se.SaleReturnHeader.Status == "Confirmed" || se.SaleReturnHeader.Status == "INWARDED" || se.SaleReturnHeader.Status == "Refunded" || se.SaleReturnHeader.Status == "Exchanged"))
-                .GroupBy(se => new { se.ProductId, se.WarehouseId })
-                .Select(se => new { ProductId = (Guid)se.Key.ProductId, WarehouseId = (Guid)se.Key.WarehouseId.Value, Qty = se.Sum(x => x.Qty) })
+                .GroupBy(se => new { se.ProductId, se.ProductVariantId, se.WarehouseId })
+                .Select(se => new { ProductId = (Guid)se.Key.ProductId, ProductVariantId = (Guid?)se.Key.ProductVariantId, WarehouseId = (Guid)se.Key.WarehouseId.Value, Qty = se.Sum(x => x.Qty) })
                 .ToListAsync(ct);
 
             var purchaseReturnStock = await _context.PurchaseReturnItems
                 .IgnoreQueryFilters()
                 .Where(pr => pr.CompanyId == companyId && pr.WarehouseId != null)
-                .GroupBy(pr => new { pr.ProductId, pr.WarehouseId })
-                .Select(pr => new { ProductId = (Guid)pr.Key.ProductId, WarehouseId = (Guid)pr.Key.WarehouseId.Value, Qty = pr.Sum(x => x.ReturnQty) })
+                .GroupBy(pr => new { pr.ProductId, pr.ProductVariantId, pr.WarehouseId })
+                .Select(pr => new { ProductId = (Guid)pr.Key.ProductId, ProductVariantId = (Guid?)pr.Key.ProductVariantId, WarehouseId = (Guid)pr.Key.WarehouseId.Value, Qty = pr.Sum(x => x.ReturnQty) })
                 .ToListAsync(ct);
 
             var transferOutStock = await _context.StockTransferDetails
                 .IgnoreQueryFilters()
                 .Where(t => t.CompanyId == companyId && t.StockTransferHeader.Status == "Completed" && t.StockTransferHeader.FromWarehouseId != null)
                 .GroupBy(t => new { t.ProductId, WarehouseId = t.StockTransferHeader.FromWarehouseId })
-                .Select(t => new { ProductId = t.Key.ProductId, WarehouseId = t.Key.WarehouseId, Qty = t.Sum(x => x.Quantity) })
+                .Select(t => new { ProductId = t.Key.ProductId, ProductVariantId = (Guid?)null, WarehouseId = t.Key.WarehouseId, Qty = t.Sum(x => x.Quantity) })
                 .ToListAsync(ct);
 
             var transferInStock = await _context.StockTransferDetails
                 .IgnoreQueryFilters()
                 .Where(t => t.CompanyId == companyId && t.StockTransferHeader.Status == "Completed" && t.StockTransferHeader.ToWarehouseId != null)
                 .GroupBy(t => new { t.ProductId, WarehouseId = t.StockTransferHeader.ToWarehouseId })
-                .Select(t => new { ProductId = t.Key.ProductId, WarehouseId = t.Key.WarehouseId, Qty = t.Sum(x => x.Quantity) })
+                .Select(t => new { ProductId = t.Key.ProductId, ProductVariantId = (Guid?)null, WarehouseId = t.Key.WarehouseId, Qty = t.Sum(x => x.Quantity) })
                 .ToListAsync(ct);
 
             // Step 2: Combine all into a dictionary for processing
-            // Key: ProductId_WarehouseId
+            // Key: ProductId_ProductVariantId_WarehouseId
             var stockMap = new Dictionary<string, decimal>();
 
-            foreach (var item in grnStock) stockMap[$"{item.ProductId}_{item.WarehouseId}"] = item.Qty;
+            foreach (var item in grnStock) stockMap[$"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}"] = item.Qty;
             
             foreach (var item in saleStock) 
             {
-                var key = $"{item.ProductId}_{item.WarehouseId}";
+                var key = $"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] -= item.Qty;
                 else stockMap[key] = -item.Qty;
             }
 
             foreach (var item in saleReturnStock)
             {
-                var key = $"{item.ProductId}_{item.WarehouseId}";
+                var key = $"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] += item.Qty;
                 else stockMap[key] = item.Qty;
             }
 
             foreach (var item in saleExchangeStock)
             {
-                var key = $"{item.ProductId}_{item.WarehouseId}";
+                var key = $"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] -= item.Qty;
                 else stockMap[key] = -item.Qty;
             }
 
             foreach (var item in purchaseReturnStock)
             {
-                var key = $"{item.ProductId}_{item.WarehouseId}";
+                var key = $"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] -= item.Qty;
                 else stockMap[key] = -item.Qty;
             }
 
             foreach (var item in transferOutStock)
             {
-                var key = $"{item.ProductId}_{item.WarehouseId}";
+                var key = $"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] -= item.Qty;
                 else stockMap[key] = -item.Qty;
             }
 
             foreach (var item in transferInStock)
             {
-                var key = $"{item.ProductId}_{item.WarehouseId}";
+                var key = $"{item.ProductId}_{(item.ProductVariantId ?? Guid.Empty)}_{item.WarehouseId}";
                 if (stockMap.ContainsKey(key)) stockMap[key] += item.Qty;
                 else stockMap[key] = item.Qty;
             }
@@ -130,10 +130,12 @@ namespace Inventory.Application.Stock.Commands
             {
                 var parts = entry.Key.Split('_');
                 var productId = Guid.Parse(parts[0]);
-                var warehouseId = Guid.Parse(parts[1]);
+                var variantGuid = Guid.Parse(parts[1]);
+                var productVariantId = variantGuid == Guid.Empty ? (Guid?)null : variantGuid;
+                var warehouseId = Guid.Parse(parts[2]);
                 var finalQty = entry.Value;
 
-                var existing = existingWhStocks.FirstOrDefault(ws => ws.ProductId == productId && ws.WarehouseId == warehouseId);
+                var existing = existingWhStocks.FirstOrDefault(ws => ws.ProductId == productId && ws.WarehouseId == warehouseId && ws.ProductVariantId == productVariantId);
                 if (existing != null)
                 {
                     existing.Quantity = finalQty;
@@ -146,6 +148,7 @@ namespace Inventory.Application.Stock.Commands
                     await _context.WarehouseStocks.AddAsync(new Inventory.Domain.Entities.WarehouseStock
                     {
                         ProductId = productId,
+                        ProductVariantId = productVariantId,
                         WarehouseId = warehouseId,
                         Quantity = finalQty,
                         CompanyId = companyId,

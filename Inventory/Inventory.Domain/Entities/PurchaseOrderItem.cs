@@ -8,6 +8,8 @@ public class PurchaseOrderItem : BaseAuditableEntity
     public Guid PurchaseOrderId { get; set; }
     public Guid ProductId { get; set; }
     public Product? Product { get; set; } 
+    public Guid? ProductVariantId { get; set; }
+    public ProductVariant? ProductVariant { get; set; }
     public decimal Qty { get; set; }
     public string Unit { get; set; }
     public decimal Rate { get; set; }

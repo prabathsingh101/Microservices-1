@@ -74,7 +74,7 @@ namespace Customers.Application.Features.Finance.Handlers
                     // Skip Ledger Entry for Walking Customers (Guest Payments)
                     if (receiptDto.CustomerId.HasValue && receiptDto.CustomerId.Value != Guid.Empty)
                     {
-                        var lastLedger = await _repository.GetLastLedgerEntryAsync(receiptDto.CustomerId.Value);
+                        var lastLedger = await _repository.GetLastLedgerEntryAsync(receiptDto.CustomerId.Value, receiptDto.CompanyId);
                         decimal currentBalance = (lastLedger?.Balance ?? 0) - receiptDto.Amount;
 
                         var ledgerEntry = new CustomerLedger

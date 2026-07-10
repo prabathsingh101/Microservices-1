@@ -28,7 +28,8 @@ public sealed class CreateCategoryCommandHandler
             request.IsActive,
             request.CompanyId,
             null, // parentCategoryId
-            request.BranchId
+            request.BranchId,
+            request.IndustryType
         );
 
         await _repository.AddAsync(category);

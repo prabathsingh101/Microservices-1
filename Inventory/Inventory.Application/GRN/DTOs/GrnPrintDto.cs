@@ -45,4 +45,6 @@ public class GrnItemPrintDto
     public string? RackName { get; set; }
     public DateTime? MfgDate { get; set; }
     public DateTime? ExpDate { get; set; }
+    public string? Color { get; set; }
+    public string? Size { get; set; }
 }

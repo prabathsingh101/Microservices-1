@@ -18,6 +18,10 @@ namespace Inventory.Domain.Entities.SO
 
         [Required]
         public Guid ProductId { get; set; } // Product link [cite: 6]
+        
+        public Guid? ProductVariantId { get; set; }
+        [ForeignKey("ProductVariantId")]
+        public virtual ProductVariant? ProductVariant { get; set; }
 
         public string ProductName { get; set; } // Snapshot ke liye [cite: 6]
 

@@ -44,4 +44,5 @@ public record PoItemDto(
     decimal TaxAmount,
     decimal Total,
     DateTime? ManufacturingDate,
-    DateTime? ExpiryDate);
+    DateTime? ExpiryDate,
+    Guid? ProductVariantId = null);

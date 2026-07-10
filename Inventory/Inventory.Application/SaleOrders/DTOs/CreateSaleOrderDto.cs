@@ -58,6 +58,9 @@ namespace Inventory.Application.SaleOrders.DTOs
         public decimal TaxAmount { get; set; }
         public decimal Total { get; set; }
         public Guid? WarehouseId { get; set; }
+        public Guid? ProductVariantId { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
         public string? WarehouseName { get; set; }
         public Guid? RackId { get; set; }
         public string? RackName { get; set; }

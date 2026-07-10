@@ -34,6 +34,8 @@ namespace Company.Domain.Entities
         public string PurchaseReturnWindowUnit { get; set; } = "Hours";
         public string? PurchaseReturnPolicyDisclaimer { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool ShowBatchAndExpiry { get; set; } = true;
+        public bool ShowExpiredColumn { get; set; } = true;
 
         // Print Footer Messages [cite: 2026-04-08]
         public string? InvoiceFooterMessage { get; set; }

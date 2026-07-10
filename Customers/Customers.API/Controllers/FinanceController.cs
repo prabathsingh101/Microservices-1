@@ -33,6 +33,29 @@ namespace Customers.API.Controllers
         //[Authorize(Roles = "Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> RecordReceipt([FromBody] CustomerReceiptDto receiptDto)
         {
+            if (receiptDto.CompanyId == null || receiptDto.CompanyId == Guid.Empty)
+            {
+                var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+                if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
+                {
+                    receiptDto.CompanyId = companyId;
+                }
+            }
+
+            if (string.IsNullOrEmpty(receiptDto.BranchId))
+            {
+                var branchIdClaim = User.FindFirst("BranchId")?.Value;
+                var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+                var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                    ? branchIdHeader 
+                    : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+                if (!string.IsNullOrEmpty(finalBranchId))
+                {
+                    receiptDto.BranchId = finalBranchId;
+                }
+            }
+
             var command = new RecordCustomerReceiptCommand(receiptDto);
             var id = await _mediator.Send(command);
             
@@ -43,6 +66,29 @@ namespace Customers.API.Controllers
         [HttpPost("refund")]
         public async Task<IActionResult> RecordRefund([FromBody] CustomerRefundDto refundDto)
         {
+            if (refundDto.CompanyId == null || refundDto.CompanyId == Guid.Empty)
+            {
+                var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+                var companyIdHeader = Request.Headers["X-Company-Id"].ToString();
+                if (Guid.TryParse(companyIdHeader, out var companyId) || Guid.TryParse(companyIdClaim, out companyId))
+                {
+                    refundDto.CompanyId = companyId;
+                }
+            }
+
+            if (string.IsNullOrEmpty(refundDto.BranchId))
+            {
+                var branchIdClaim = User.FindFirst("BranchId")?.Value;
+                var branchIdHeader = Request.Headers["X-Branch-Id"].ToString();
+                var finalBranchId = !string.IsNullOrEmpty(branchIdHeader) && branchIdHeader != "null" 
+                    ? branchIdHeader 
+                    : (!string.IsNullOrEmpty(branchIdClaim) ? branchIdClaim : null);
+                if (!string.IsNullOrEmpty(finalBranchId))
+                {
+                    refundDto.BranchId = finalBranchId;
+                }
+            }
+
             var command = new RecordCustomerRefundCommand(refundDto);
             var id = await _mediator.Send(command);
             

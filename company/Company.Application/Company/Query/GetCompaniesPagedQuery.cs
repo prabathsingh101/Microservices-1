@@ -44,6 +44,8 @@ namespace Company.Application.Company.Queries
                 data.PurchaseReturnWindowUnit,
                 data.PurchaseReturnPolicyDisclaimer,
                 data.IsActive,
+                data.ShowBatchAndExpiry,
+                data.ShowExpiredColumn,
                 data.InvoiceFooterMessage,
                 data.EstimateFooterMessage,
                 data.PurchaseOrderFooterMessage,

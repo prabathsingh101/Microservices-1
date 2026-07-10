@@ -1,4 +1,4 @@
-﻿CREATE TABLE [CompanyProfiles] (
+CREATE TABLE [CompanyProfiles] (
     [Id] uniqueidentifier NOT NULL,
     [CompanyCode] nvarchar(50) NULL,
     [Name] nvarchar(max) NULL,
@@ -24,6 +24,7 @@
     [PurchaseReturnWindowUnit] nvarchar(max) NOT NULL,
     [PurchaseReturnPolicyDisclaimer] nvarchar(max) NULL,
     [IsActive] bit NOT NULL,
+    [ShowBatchAndExpiry] bit NOT NULL DEFAULT 1,
     [InvoiceFooterMessage] nvarchar(max) NULL,
     [EstimateFooterMessage] nvarchar(max) NULL,
     [PurchaseOrderFooterMessage] nvarchar(max) NULL,

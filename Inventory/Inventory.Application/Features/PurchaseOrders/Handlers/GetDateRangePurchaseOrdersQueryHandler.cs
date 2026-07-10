@@ -130,6 +130,9 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         DiscountPercent = item.DiscountPercent,
                         GstPercent = item.GstPercent,
                         ProductName = item.Product != null ? item.Product.Name : "N/A",
+                        ProductVariantId = item.ProductVariantId,
+                        Color = item.ProductVariant != null ? item.ProductVariant.Color : null,
+                        Size = item.ProductVariant != null ? item.ProductVariant.Size : null,
 
                         // Use the field from PurchaseOrderItems table (which is net-updated by repo) minus returns
                         ReceivedQty = item.ReceivedQty - totalReturned,
@@ -139,7 +142,7 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                         ReturnAmount = itemReturnedValue,
 
                         // Pending = (Ordered - NetAccepted - Refunded) (0 if Closed or Cancelled)
-                        PendingQty = (x.Status == "Closed" || x.Status == "ShortClosed" || x.Status == "Cancelled")
+                        PendingQty = (x.Status == "Closed" || x.Status == "ShortClosed" || x.Status == "Cancelled" || x.Status == "Fully Returned")
                                      ? 0
                                      : Math.Max(0, item.Qty - netAccepted - totalRefunded),
                         ManufacturingDate = item.MfgDate ?? _context.GRNDetails.IgnoreQueryFilters()
@@ -153,15 +156,15 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                             .Select(gd => gd.ExpDate)
                             .FirstOrDefault(),
                         IsExpiryRequired = item.Product != null ? item.Product.IsExpiryRequired : false,
-                        WarehouseName = _context.GRNDetails
-                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
+                        WarehouseName = _context.GRNDetails.IgnoreQueryFilters()
+                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id && gd.CompanyId == x.CompanyId)
                             .OrderByDescending(gd => gd.Id)
-                            .Select(gd => gd.Warehouse != null ? gd.Warehouse.Name : null)
+                            .Select(gd => _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == gd.WarehouseId && w.CompanyId == x.CompanyId).Select(w => w.Name).FirstOrDefault())
                             .FirstOrDefault(),
-                        RackName = _context.GRNDetails
-                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id)
+                        RackName = _context.GRNDetails.IgnoreQueryFilters()
+                            .Where(gd => gd.ProductId == item.ProductId && gd.GRNHeader.PurchaseOrderId == x.Id && gd.CompanyId == x.CompanyId)
                             .OrderByDescending(gd => gd.Id)
-                            .Select(gd => gd.Rack != null ? gd.Rack.Name : null)
+                            .Select(gd => _context.Racks.IgnoreQueryFilters().Where(r => r.Id == gd.RackId && r.CompanyId == x.CompanyId).Select(r => r.Name).FirstOrDefault())
                             .FirstOrDefault(),
                         IsAlreadyPurged = isAlreadyPurged
                     };
@@ -252,9 +255,9 @@ namespace Inventory.Application.Features.PurchaseOrders.Handlers
                     BranchId = x.BranchId,
                     Status = (x.Status == "Cancelled") 
                              ? x.Status 
-                             : (x.Status == "Closed" || x.Status == "ShortClosed" || (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled")))
-                                 ? (items.Sum(i => i.ReturnQty) > 0 && items.All(i => i.ReceivedQty == 0)
-                                     ? "Returned"
+                             : (x.Status == "Closed" || x.Status == "ShortClosed" || x.Status == "Fully Returned" || (x.GrnHeaders != null && x.GrnHeaders.Any(g => g.Status != "Cancelled")))
+                                 ? (items.Sum(i => i.ReturnQty) == items.Sum(i => i.Qty)
+                                     ? "Fully Returned"
                                      : (isFulfillmentComplete 
                                          ? (items.Sum(i => i.ReturnQty) > 0 
                                              ? (isFullyPaid ? "ShortClosed" : "Partially Received") 

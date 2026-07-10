@@ -40,6 +40,13 @@ namespace Inventory.API.Controllers
         [Authorize(Roles = "Super Admin, Admin, User, Manager, Employee, Warehouse, Salesman")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderDto dto)
         {
+            try
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(dto, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                System.IO.File.WriteAllText("save_po_dto.json", json);
+            }
+            catch {}
+
             // 🚀 SMART INJECTION: Get CompanyId & BranchId from Headers or Claims (Header prioritised)
             var companyIdClaim = User.FindFirst("CompanyId")?.Value;
             var companyIdHeader = Request.Headers["X-Company-Id"].ToString();

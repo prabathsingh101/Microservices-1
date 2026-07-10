@@ -206,6 +206,140 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
+        var sqlConfigs = @"
+        IF OBJECT_ID(N'[dbo].[Configurations]', 'U') IS NULL
+        BEGIN
+            CREATE TABLE [dbo].[Configurations] (
+                [Id] INT IDENTITY(1,1) NOT NULL,
+                [ConfigKey] NVARCHAR(250) NOT NULL,
+                [ConfigValue] NVARCHAR(MAX) NOT NULL,
+                [IsActive] BIT NOT NULL DEFAULT 1,
+                CONSTRAINT [PK_Configurations] PRIMARY KEY CLUSTERED ([Id] ASC)
+            );
+        END";
+        context.Database.ExecuteSqlRaw(sqlConfigs);
+        Log.Information("Configurations DB table verified/created successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run Configurations DB table migration.");
+    }
+
+    try
+    {
+        var sqlVariants = @"
+        IF OBJECT_ID(N'[dbo].[ProductVariants]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ProductVariants]') AND name = N'CreatedBy')
+                ALTER TABLE [dbo].[ProductVariants] ADD [CreatedBy] NVARCHAR(MAX) NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ProductVariants]') AND name = N'CreatedOn')
+                ALTER TABLE [dbo].[ProductVariants] ADD [CreatedOn] DATETIME2 NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ProductVariants]') AND name = N'ModifiedBy')
+                ALTER TABLE [dbo].[ProductVariants] ADD [ModifiedBy] NVARCHAR(MAX) NULL;
+
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ProductVariants]') AND name = N'ModifiedOn')
+                ALTER TABLE [dbo].[ProductVariants] ADD [ModifiedOn] DATETIME2 NULL;
+        END";
+        
+        context.Database.ExecuteSqlRaw(sqlVariants);
+        Log.Information("ProductVariants DB Schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run ProductVariants DB Schema migration.");
+    }
+
+    try
+    {
+        var sqlPurchaseOrderItems = @"
+        IF OBJECT_ID(N'[dbo].[PurchaseOrderItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PurchaseOrderItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[PurchaseOrderItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END";
+        
+        context.Database.ExecuteSqlRaw(sqlPurchaseOrderItems);
+        Log.Information("PurchaseOrderItems DB Schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run PurchaseOrderItems DB Schema migration.");
+    }
+
+    try
+    {
+        var sqlSaleOrderItems = @"
+        IF OBJECT_ID(N'[dbo].[SaleOrderItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleOrderItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[SaleOrderItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END";
+        
+        context.Database.ExecuteSqlRaw(sqlSaleOrderItems);
+        Log.Information("SaleOrderItems DB Schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run SaleOrderItems DB Schema migration.");
+    }
+
+    try
+    {
+        var sqlInventoryTx = @"
+        IF OBJECT_ID(N'[dbo].[InventoryTransactions]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[InventoryTransactions]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[InventoryTransactions] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END";
+        context.Database.ExecuteSqlRaw(sqlInventoryTx);
+        Log.Information("InventoryTransactions DB Schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run InventoryTransactions DB Schema migration.");
+    }
+
+    try
+    {
+        var sqlInvoiceAndReturnItems = @"
+        IF OBJECT_ID(N'[dbo].[SalesInvoiceItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SalesInvoiceItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[SalesInvoiceItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END
+        IF OBJECT_ID(N'[dbo].[SaleReturnItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleReturnItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[SaleReturnItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END
+        IF OBJECT_ID(N'[dbo].[SaleExchangeItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleExchangeItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[SaleExchangeItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END
+        IF OBJECT_ID(N'[dbo].[DeliveryChallanItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[DeliveryChallanItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[DeliveryChallanItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END
+        IF OBJECT_ID(N'[dbo].[PurchaseReturnItems]', 'U') IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PurchaseReturnItems]') AND name = N'ProductVariantId')
+                ALTER TABLE [dbo].[PurchaseReturnItems] ADD [ProductVariantId] UNIQUEIDENTIFIER NULL;
+        END";
+        
+        context.Database.ExecuteSqlRaw(sqlInvoiceAndReturnItems);
+        Log.Information("SalesInvoiceItems/SaleReturnItems/SaleExchangeItems/DeliveryChallanItems/PurchaseReturnItems variant schema verified/migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to run SalesInvoiceItems/SaleReturnItems/SaleExchangeItems/DeliveryChallanItems/PurchaseReturnItems schema migration.");
+    }
+
+    try
+    {
         var sqlRcm = @"
         IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[ExpenseEntries]') AND name = N'IsRcm')
             ALTER TABLE [dbo].[ExpenseEntries] ADD [IsRcm] BIT NOT NULL DEFAULT 0;
@@ -251,6 +385,7 @@ using (var scope = app.Services.CreateScope())
 
 app.MapControllers();
 app.MapHub<Inventory.API.Hubs.DeliveryHub>("/api/hubs/delivery");
+
 
 try
 {

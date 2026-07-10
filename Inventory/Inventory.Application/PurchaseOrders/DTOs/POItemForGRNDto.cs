@@ -20,5 +20,8 @@ namespace Inventory.Application.PurchaseOrders.DTOs
         public decimal Total { get; set; }
         public string? WarehouseName { get; set; }
         public string? RackName { get; set; }
+        public string? Color { get; set; }
+        public string? Size { get; set; }
+        public Guid? ProductVariantId { get; set; }
     }
 }

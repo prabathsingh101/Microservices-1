@@ -46,6 +46,7 @@ namespace Inventory.Domain.Entities.SalesInvoice
         public decimal Total { get; set; }
 
         public Guid? WarehouseId { get; set; }
+        public Guid? ProductVariantId { get; set; }
         public Guid? RackId { get; set; }
         public string? BatchNumber { get; set; }
         public string? ReferenceNumber { get; set; }

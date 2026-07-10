@@ -226,7 +226,9 @@ namespace Inventory.Infrastructure.Repositories
                         if (item.WarehouseId.HasValue && item.WarehouseId != Guid.Empty)
                         {
                             var whStock = await _context.WarehouseStocks
-                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == item.WarehouseId);
+                                .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                        && ws.WarehouseId == item.WarehouseId 
+                                                        && ws.ProductVariantId == item.ProductVariantId);
                             
                             if (whStock != null)
                             {
@@ -237,6 +239,7 @@ namespace Inventory.Infrastructure.Repositories
                                 await _context.WarehouseStocks.AddAsync(new WarehouseStock
                                 {
                                     ProductId = item.ProductId,
+                                    ProductVariantId = item.ProductVariantId,
                                     WarehouseId = item.WarehouseId.Value,
                                     Quantity = qtyToIncrease,
                                     MinStock = 0, // Default
@@ -259,7 +262,8 @@ namespace Inventory.Infrastructure.Repositories
                             header.CompanyId,
                             header.BranchId,
                             po?.PoNumber, // ReferenceNumber (Original PO)
-                            string.IsNullOrWhiteSpace(item.BatchNumber) ? header.GRNNumber : item.BatchNumber // BatchNumber
+                            string.IsNullOrWhiteSpace(item.BatchNumber) ? header.GRNNumber : item.BatchNumber, // BatchNumber
+                            productVariantId: item.ProductVariantId
                         );
                         await _context.InventoryTransactions.AddAsync(transactionRecord);
 
@@ -331,7 +335,7 @@ namespace Inventory.Infrastructure.Repositories
 
                         if (totalPending == 0)
                         {
-                            po.Status = totalRefunded > 0 ? "ShortClosed" : "Received";
+                            po.Status = totalRefunded == totalOrdered ? "Fully Returned" : (totalRefunded > 0 ? "ShortClosed" : "Received");
                         }
                         else
                         {
@@ -360,10 +364,13 @@ namespace Inventory.Infrastructure.Repositories
 
                                 foreach (var pr in prsToReplace)
                                 {
-                                    pr.Status = "Replaced";
-                                    pr.ModifiedOn = DateTime.Now;
-                                    pr.ModifiedBy = header.CreatedBy ?? "System";
-                                    _context.PurchaseReturns.Update(pr);
+                                    if (totalPending == 0)
+                                    {
+                                        pr.Status = "Replaced";
+                                        pr.ModifiedOn = DateTime.Now;
+                                        pr.ModifiedBy = header.CreatedBy ?? "System";
+                                        _context.PurchaseReturns.Update(pr);
+                                    }
                                 }
                             }
                         }
@@ -445,7 +452,9 @@ namespace Inventory.Infrastructure.Repositories
             // 3. Fetch PO Data with Items
             var pos = await _context.PurchaseOrders
                 .Include(h => h.Items)
-                .ThenInclude(i => i.Product)
+                    .ThenInclude(i => i.Product)
+                .Include(h => h.Items)
+                    .ThenInclude(i => i.ProductVariant)
                 .Where(h => idList.Contains(h.Id) && h.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || h.BranchId == branchId))
                 .ToListAsync();
 
@@ -498,7 +507,7 @@ namespace Inventory.Infrastructure.Repositories
                 // VIEW MODE: Saved GRN details load karein (Assuming View Mode is always for 1 GRN linked to 1 PO)
                 Guid singlePoId = idList.First();
                 items = await (from d in _context.GRNDetails
-                             join poi in _context.PurchaseOrderItems on new { d.GRNHeader.PurchaseOrderId, d.ProductId } equals new { poi.PurchaseOrderId, poi.ProductId }
+                             join poi in _context.PurchaseOrderItems on new { d.GRNHeader.PurchaseOrderId, d.ProductId, d.ProductVariantId } equals new { poi.PurchaseOrderId, poi.ProductId, poi.ProductVariantId }
                              where d.GRNHeaderId == grnHeaderId && d.CompanyId == companyId && poi.CompanyId == companyId && (string.IsNullOrEmpty(branchId) || d.BranchId == branchId)
                              select new POItemForGRNDTO
                              {
@@ -517,7 +526,10 @@ namespace Inventory.Infrastructure.Repositories
                                  RackId = d.RackId,
                                  MfgDate = d.MfgDate,
                                  ExpDate = d.ExpDate,
-                                 IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false
+                                 IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false,
+                                 ProductVariantId = d.ProductVariantId,
+                                 Color = d.ProductVariant != null ? d.ProductVariant.Color : null,
+                                 Size = d.ProductVariant != null ? d.ProductVariant.Size : null
                              }).ToListAsync();
             }
             else
@@ -536,17 +548,37 @@ namespace Inventory.Infrastructure.Repositories
                     .Distinct()
                     .ToListAsync();
 
-                var returnLookup = await _context.PurchaseReturnItems
+                var totalReturnedForReplacement = await _context.PurchaseReturnItems
                     .Where(ri => ri.CompanyId == companyId 
                               && (string.IsNullOrEmpty(branchId) || ri.BranchId == branchId)
                               && ri.PurchaseReturn.Status != "Cancelled" 
                               && ri.PurchaseReturn.Status != "Canceled"
                               && ri.PurchaseReturn.Status != "Refund"
-                              && ri.PurchaseReturn.Status != "Replaced"
                               && grnNumbersForPos.Contains(ri.GrnRef))
                     .GroupBy(ri => ri.ProductId)
                     .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReturnQty) })
                     .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
+
+                var totalReplacementReceived = await _context.GRNDetails
+                    .Where(gd => gd.CompanyId == companyId 
+                              && idList.Contains(gd.GRNHeader.PurchaseOrderId) 
+                              && gd.IsReplacement)
+                    .GroupBy(gd => gd.ProductId)
+                    .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.ReceivedQty) })
+                    .ToDictionaryAsync(x => x.ProductId, x => x.Qty);
+
+                var returnLookup = new Dictionary<Guid, decimal>();
+                foreach (var kvp in totalReturnedForReplacement)
+                {
+                    var prodId = kvp.Key;
+                    var retQty = kvp.Value;
+                    var recQty = totalReplacementReceived.ContainsKey(prodId) ? totalReplacementReceived[prodId] : 0;
+                    var remaining = Math.Max(0, retQty - recQty);
+                    if (remaining > 0)
+                    {
+                        returnLookup[prodId] = remaining;
+                    }
+                }
 
                 // 1.5. Fetch unsettled rejections to check replacements (even if no return was recorded)
                 var rejectionLookup = await _context.GRNDetails
@@ -596,6 +628,10 @@ namespace Inventory.Infrastructure.Repositories
 
                         // Pending = (Ordered - NetAccepted)
                         var pending = Math.Max(0, d.Qty - netAccepted);
+                        if (returnedQty > 0 || rejectedQty > 0)
+                        {
+                            pending = Math.Max(pending, returnedQty > 0 ? returnedQty : rejectedQty);
+                        }
                         decimal proposedRecv;
 
                         // 🎯 FIX: Prioritize replacement quantity (return items or rejections) even without a gate pass
@@ -667,7 +703,10 @@ namespace Inventory.Infrastructure.Repositories
                             RackId = lastRackId ?? d.Product?.DefaultRackId,
                             MfgDate = origMfg ?? d.MfgDate,
                             ExpDate = origExp ?? d.ExpDate,
-                            IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false
+                            IsExpiryRequired = d.Product != null ? d.Product.IsExpiryRequired : false,
+                            ProductVariantId = d.ProductVariantId,
+                            Color = d.ProductVariant != null ? d.ProductVariant.Color : null,
+                            Size = d.ProductVariant != null ? d.ProductVariant.Size : null
                         });
                     }
                 }
@@ -720,6 +759,19 @@ namespace Inventory.Infrastructure.Repositories
                 Items = g.GRNItems.Select(d => new GRNItemSummaryDto
                 {
                     ProductName = d.Product.Name,
+                    ProductVariantId = d.ProductVariantId,
+                    Color = !string.IsNullOrEmpty(d.Color) 
+                        ? d.Color 
+                        : (d.ProductVariant != null ? d.ProductVariant.Color : null) ?? (_context.PurchaseOrderItems.IgnoreQueryFilters()
+                            .Where(poi => poi.PurchaseOrderId == g.PurchaseOrderId && poi.ProductId == d.ProductId)
+                            .Select(poi => poi.ProductVariant != null ? poi.ProductVariant.Color : null)
+                            .FirstOrDefault()),
+                    Size = !string.IsNullOrEmpty(d.Size) 
+                        ? d.Size 
+                        : (d.ProductVariant != null ? d.ProductVariant.Size : null) ?? (_context.PurchaseOrderItems.IgnoreQueryFilters()
+                            .Where(poi => poi.PurchaseOrderId == g.PurchaseOrderId && poi.ProductId == d.ProductId)
+                            .Select(poi => poi.ProductVariant != null ? poi.ProductVariant.Size : null)
+                            .FirstOrDefault()),
                     OrderedQty = d.OrderedQty,
                     ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                     AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef.Trim().ToLower() == g.GRNNumber.Trim().ToLower() && ri.ProductId == d.ProductId && ri.CompanyId == companyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
@@ -987,7 +1039,7 @@ namespace Inventory.Infrastructure.Repositories
                             Sku = d.Product.Sku,
                             Unit = d.Product.Unit,
                             OrderedQty = d.OrderedQty,
-                            PendingQty = d.PendingQty,
+                            PendingQty = d.PendingQty - d.AcceptedQty > 0 ? d.PendingQty - d.AcceptedQty : 0,
                             ReceivedQty = d.ReceivedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                             AcceptedQty = d.AcceptedQty - (_context.PurchaseReturnItems.IgnoreQueryFilters().Where(ri => ri.PurchaseReturn.Status != "Cancelled" && ri.PurchaseReturn.Status != "Canceled" && ri.GrnRef == h.GRNNumber && ri.ProductId == d.ProductId && ri.CompanyId == activeCompanyId).Sum(ri => (decimal?)ri.ReturnQty) ?? 0),
                             RejectedQty = d.RejectedQty,
@@ -999,7 +1051,19 @@ namespace Inventory.Infrastructure.Repositories
                             WarehouseName = d.WarehouseId.HasValue ? _context.Warehouses.IgnoreQueryFilters().Where(w => w.Id == d.WarehouseId).Select(w => w.Name).FirstOrDefault() : null,
                             RackName = d.RackId.HasValue ? _context.Racks.IgnoreQueryFilters().Where(r => r.Id == d.RackId).Select(r => r.Name).FirstOrDefault() : null,
                             MfgDate = d.MfgDate,
-                            ExpDate = d.ExpDate
+                            ExpDate = d.ExpDate,
+                            Color = !string.IsNullOrEmpty(d.Color) 
+                                ? d.Color 
+                                : (d.ProductVariant != null ? d.ProductVariant.Color : null) ?? (_context.PurchaseOrderItems.IgnoreQueryFilters()
+                                    .Where(poi => poi.PurchaseOrderId == h.PurchaseOrderId && poi.ProductId == d.ProductId)
+                                    .Select(poi => poi.ProductVariant != null ? poi.ProductVariant.Color : null)
+                                    .FirstOrDefault()),
+                            Size = !string.IsNullOrEmpty(d.Size) 
+                                ? d.Size 
+                                : (d.ProductVariant != null ? d.ProductVariant.Size : null) ?? (_context.PurchaseOrderItems.IgnoreQueryFilters()
+                                    .Where(poi => poi.PurchaseOrderId == h.PurchaseOrderId && poi.ProductId == d.ProductId)
+                                    .Select(poi => poi.ProductVariant != null ? poi.ProductVariant.Size : null)
+                                    .FirstOrDefault())
                         }).ToList()
                 })
                 .FirstOrDefaultAsync();
@@ -1099,6 +1163,7 @@ namespace Inventory.Infrastructure.Repositories
                                 GRNHeaderId = grnHeader.Id,
                                 CompanyId = request.CompanyId ?? Guid.Empty,
                                 ProductId = item.ProductId,
+                                ProductVariantId = item.ProductVariantId,
                                 OrderedQty = item.Qty,
                                 ReceivedQty = qtyToReceiveNow,
                                 AcceptedQty = qtyToReceiveNow - rejectedQty,
@@ -1128,7 +1193,8 @@ namespace Inventory.Infrastructure.Repositories
                                     grnHeader.CompanyId,
                                     grnHeader.BranchId,
                                     poHeader.PoNumber,
-                                    string.IsNullOrWhiteSpace(reqItem?.BatchNumber) ? newGrnNumber : reqItem.BatchNumber
+                                    string.IsNullOrWhiteSpace(reqItem?.BatchNumber) ? newGrnNumber : reqItem.BatchNumber,
+                                    productVariantId: item.ProductVariantId
                                 );
                                 await _context.InventoryTransactions.AddAsync(transactionRecord);
                             }
@@ -1147,7 +1213,9 @@ namespace Inventory.Infrastructure.Repositories
                             {
                                 var qtyToIncrease = qtyToReceiveNow - rejectedQty;
                                 var whStock = await _context.WarehouseStocks
-                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId && ws.WarehouseId == whId);
+                                    .FirstOrDefaultAsync(ws => ws.ProductId == item.ProductId 
+                                                            && ws.WarehouseId == whId 
+                                                            && ws.ProductVariantId == item.ProductVariantId);
                                 
                                 if (whStock != null)
                                 {
@@ -1158,6 +1226,7 @@ namespace Inventory.Infrastructure.Repositories
                                     await _context.WarehouseStocks.AddAsync(new WarehouseStock
                                     {
                                         ProductId = item.ProductId,
+                                        ProductVariantId = item.ProductVariantId,
                                         WarehouseId = whId.Value,
                                         Quantity = qtyToIncrease,
                                         MinStock = 0,

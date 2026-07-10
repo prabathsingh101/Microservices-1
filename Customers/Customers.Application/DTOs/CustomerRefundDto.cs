@@ -12,5 +12,6 @@ namespace Customers.Application.DTOs
         public string? Remarks { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public string? BranchId { get; set; }
+        public Guid? CompanyId { get; set; }
     }
 }

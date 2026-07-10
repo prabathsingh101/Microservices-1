@@ -119,6 +119,8 @@ namespace Company.Application.Company.Commands.Update.Handler
             profile.SmtpPort = cmd.Request.SmtpPort;
             profile.SmtpUseSsl = cmd.Request.SmtpUseSsl ?? true;
             profile.PrimaryPhone = cmd.Request.PrimaryPhone;
+            profile.ShowBatchAndExpiry = cmd.Request.ShowBatchAndExpiry ?? true;
+            profile.ShowExpiredColumn = cmd.Request.ShowExpiredColumn ?? true;
             profile.Website = cmd.Request.Website;
             profile.Message = cmd.Request.Message;
             profile.DriverWhatsAppMessage = cmd.Request.DriverWhatsAppMessage;

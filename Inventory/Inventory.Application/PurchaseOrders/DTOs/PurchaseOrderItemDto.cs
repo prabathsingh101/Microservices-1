@@ -24,6 +24,9 @@ public class PurchaseOrderItemDto
     public string? WarehouseName { get; set; }
     public string? RackName { get; set; }
     public bool IsAlreadyPurged { get; set; }
+    public Guid? ProductVariantId { get; set; }
+    public string? Color { get; set; }
+    public string? Size { get; set; }
 
     // Manual Mapping from Entity to DTO
     public static PurchaseOrderItemDto FromEntity(dynamic entity)
@@ -44,7 +47,10 @@ public class PurchaseOrderItemDto
             ReceivedQty = entity.ReceivedQty,
             ManufacturingDate = entity.MfgDate,
             ExpiryDate = entity.ExpDate,
-            IsExpiryRequired = entity.Product != null ? entity.Product.IsExpiryRequired : false
+            IsExpiryRequired = entity.Product != null ? entity.Product.IsExpiryRequired : false,
+            ProductVariantId = entity.ProductVariantId,
+            Color = entity.ProductVariant?.Color,
+            Size = entity.ProductVariant?.Size
         };
 
         return dto;
