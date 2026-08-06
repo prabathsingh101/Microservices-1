@@ -78,18 +78,31 @@ namespace Company.Application.Company.Commands.Update.Handler
             {
                 if (cmd.Request.LogoUrl.Contains("base64"))
                 {
+                    string webRoot = !string.IsNullOrEmpty(_environment.WebRootPath)
+                        ? _environment.WebRootPath
+                        : Path.Combine(_environment.ContentRootPath, "wwwroot");
+
                     // 1. Purani file delete karein
                     if (!string.IsNullOrEmpty(profile.LogoUrl))
                     {
-                        var oldPath = Path.Combine(_environment.WebRootPath, profile.LogoUrl.TrimStart('/'));
-                        if (File.Exists(oldPath)) File.Delete(oldPath);
+                        try
+                        {
+                            var oldPath = Path.Combine(webRoot, profile.LogoUrl.TrimStart('/'));
+                            if (File.Exists(oldPath)) File.Delete(oldPath);
+                        }
+                        catch { }
                     }
 
                     // 2. Nayi file save karein
-                    string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "logos");
+                    string folderPath = Path.Combine(webRoot, "uploads", "logos");
                     if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
 
-                    string fileName = $"logo_{Guid.NewGuid()}.png";
+                    string ext = ".png";
+                    if (cmd.Request.LogoUrl.Contains("image/svg+xml")) ext = ".svg";
+                    else if (cmd.Request.LogoUrl.Contains("image/jpeg") || cmd.Request.LogoUrl.Contains("image/jpg")) ext = ".jpg";
+                    else if (cmd.Request.LogoUrl.Contains("image/webp")) ext = ".webp";
+
+                    string fileName = $"logo_{Guid.NewGuid()}{ext}";
                     string fullPath = Path.Combine(folderPath, fileName);
 
                     var base64Data = cmd.Request.LogoUrl.Split(',')[1];
@@ -239,7 +252,11 @@ namespace Company.Application.Company.Commands.Update.Handler
                     string signaturePath = sDto.SignatureImageUrl ?? string.Empty;
                     if (!string.IsNullOrEmpty(sDto.SignatureImageUrl) && sDto.SignatureImageUrl.Contains("base64"))
                     {
-                        string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "signatures");
+                        string webRoot = !string.IsNullOrEmpty(_environment.WebRootPath)
+                            ? _environment.WebRootPath
+                            : Path.Combine(_environment.ContentRootPath, "wwwroot");
+
+                        string folderPath = Path.Combine(webRoot, "uploads", "signatures");
                         if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
 
                         string fileName = $"sig_{Guid.NewGuid()}.png";

@@ -42,14 +42,23 @@ namespace Company.Application.Company.Commands.Create.Handler
             // --- Photo Upload Logic ---
             if (!string.IsNullOrEmpty(cmd.Request.LogoUrl) && cmd.Request.LogoUrl.Contains("base64"))
             {
+                string webRoot = !string.IsNullOrEmpty(_environment.WebRootPath)
+                    ? _environment.WebRootPath
+                    : Path.Combine(_environment.ContentRootPath, "wwwroot");
+
                 // 1. wwwroot ke andar folder path set karein
-                string folderPath = Path.Combine(_environment.WebRootPath, "uploads", "logos");
+                string folderPath = Path.Combine(webRoot, "uploads", "logos");
 
                 if (!Directory.Exists(folderPath))
                     Directory.CreateDirectory(folderPath);
 
+                string ext = ".png";
+                if (cmd.Request.LogoUrl.Contains("image/svg+xml")) ext = ".svg";
+                else if (cmd.Request.LogoUrl.Contains("image/jpeg") || cmd.Request.LogoUrl.Contains("image/jpg")) ext = ".jpg";
+                else if (cmd.Request.LogoUrl.Contains("image/webp")) ext = ".webp";
+
                 // 2. Unique file name generate karein
-                string fileName = $"logo_{Guid.NewGuid()}.png";
+                string fileName = $"logo_{Guid.NewGuid()}{ext}";
                 string fullPath = Path.Combine(folderPath, fileName);
 
                 // 3. Base64 string se data nikal kar file save karein

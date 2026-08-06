@@ -9,6 +9,7 @@
     <PackageReference Include="MassTransit" Version="8.3.6" />
     <PackageReference Include="MediatR" Version="14.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.6" />
     <PackageReference Include="WkHtmlToPdf" Version="1.0.2" />
   </ItemGroup>
 

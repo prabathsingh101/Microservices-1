@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace Identity.Application.Queries.LoginUser;
 
@@ -7,11 +7,17 @@ public class LoginUserQueryValidator
 {
     public LoginUserQueryValidator()
     {
+        RuleFor(x => x.Dto)
+            .NotNull()
+            .WithMessage("Login details are required.");
+
         RuleFor(x => x.Dto.Email)
             .NotEmpty()
-            .EmailAddress();
+            .EmailAddress()
+            .When(x => x.Dto != null);
 
         RuleFor(x => x.Dto.Password)
-            .NotEmpty();
+            .NotEmpty()
+            .When(x => x.Dto != null);
     }
 }

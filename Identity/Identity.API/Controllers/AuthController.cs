@@ -44,10 +44,11 @@ namespace Identity.API.Controllers
         public async Task<IActionResult> Login(
             [FromBody] LoginUserQuery query)
         {
+            if (query == null || query.Dto == null) return BadRequest(new { message = "Login details are required." });
             var result = await _mediator.Send(query);
 
             if (!result.IsSuccess)
-                return Unauthorized(result.Error);
+                return BadRequest(new { message = result.Error });
 
             return Ok(result.Value);
         }

@@ -65,17 +65,29 @@ namespace Company.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetPublicByCode(string code)
         {
-            var company = await _dbContext.CompanyProfiles
-                .IgnoreQueryFilters()
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.CompanyCode.ToLower() == code.ToLower());
-            if (company == null) return NotFound("Company not found.");
-            return Ok(new { 
-                id = company.Id,
-                name = company.Name, 
-                logoUrl = company.LogoUrl,
-                companyCode = company.CompanyCode
-            });
+            try
+            {
+                if (string.IsNullOrWhiteSpace(code)) return BadRequest("Invalid company code.");
+
+                var company = await _dbContext.CompanyProfiles
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.CompanyCode != null && c.CompanyCode.ToLower() == code.Trim().ToLower());
+
+                if (company == null) return NotFound("Company not found.");
+
+                return Ok(new { 
+                    id = company.Id,
+                    name = company.Name, 
+                    logoUrl = company.LogoUrl,
+                    companyCode = company.CompanyCode
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching public company profile for code {code}: {ex}");
+                return NotFound("Company profile currently unavailable.");
+            }
         }
 
         [HttpPost("paged")]

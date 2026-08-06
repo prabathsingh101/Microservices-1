@@ -21,11 +21,20 @@ using Identity.API.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .CreateLogger();
-
-builder.Host.UseSerilog();
+try
+{
+    Log.Logger = new LoggerConfiguration()
+        .ReadFrom.Configuration(builder.Configuration)
+        .CreateLogger();
+    builder.Host.UseSerilog();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Serilog initialization warning: {ex.Message}");
+    Log.Logger = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+}
 
 // Add services to the container.
 builder.Services.AddOpenApi();

@@ -1,18 +1,17 @@
 
 services:
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    user: root
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+      - MSSQL_PID=Developer
+      - MSSQL_MEMORY_LIMIT_MB=1500
     ports:
       - "1433:1433"
     volumes:
       - sql-data:/var/opt/mssql
-    deploy:
-      resources:
-        limits:
-          memory: 2000M
 
   gateway.api:
     image: gatewayapi
@@ -34,7 +33,6 @@ services:
       - inventory.api
       - suppliers.api
       - company.api
-      - employeepayroll.api
 
   identity.api:
     image: identityapi
@@ -46,6 +44,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__IdentityDb=Server=sqlserver;Database=IdentityDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
       - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
+      - Serilog__Using__0=Serilog.Sinks.Console
+      - Serilog__WriteTo__0__Name=Console
+      - Serilog__WriteTo__1__Name=Console
     deploy:
       resources:
         limits:
@@ -134,22 +135,6 @@ services:
     depends_on:
       - sqlserver
 
-  employeepayroll.api:
-    image: employeepayrollapi
-    build:
-      context: .
-      dockerfile: employeepayroll/employeepayroll.api/Dockerfile
-    restart: always
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__EmployeePayrollDb=Server=sqlserver;Database=EmployeePayrollDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
-      - ConnectionStrings__LogsDb=Server=sqlserver;Database=ErrorLogsDb;user id=sa;password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=False
-    deploy:
-      resources:
-        limits:
-          memory: 400M
-    depends_on:
-      - sqlserver
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -173,12 +158,18 @@ services:
       context: ../../ElectricApps
       dockerfile: Dockerfile.prod
     ports:
+      - "80:80"
+      - "443:443"
       - "4201:80"
+    volumes:
+      - company-uploads:/usr/share/nginx/html/uploads
+      - /home/azureuser/certs:/home/azureuser/certs:ro
+      - /home/azureuser/app/ElectricApps/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     restart: always
     deploy:
       resources:
         limits:
-          memory: 100M
+          memory: 250M
     depends_on:
       - gateway.api
 
